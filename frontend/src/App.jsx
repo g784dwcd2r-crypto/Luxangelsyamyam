@@ -1,6 +1,7 @@
 
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import ExcelJS from "exceljs";
 
 /* ===========================================================
 LUX ANGELS CLEANING - Management System v3 (Bug-free) 
@@ -86,7 +87,7 @@ const ModalBox = ({ title, onClose, children, wide }) => (
   <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 0 }} onClick={onClose}>
     <div className={wide ? "modal-wide" : "modal-normal"} style={{ ...cardSt, overflow: "auto" }} onClick={ev => ev.stopPropagation()}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, position: "sticky", top: 0, background: CL.sf, paddingBottom: 10, zIndex: 1 }}>
-        <h2 style={{ margin: 0, fontSize: 20, color: CL.gold, fontFamily: "var(--hd)" }}>{title}</h2>
+        <h2 style={{ margin: 0, fontSize: 20, color: CL.gold, fontFamily: "'Cormorant Garamond', serif" }}>{title}</h2>
         <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: CL.muted, padding: 8 }}>{ICN.close}</button>
       </div>
       {children}
@@ -110,7 +111,7 @@ const StatCard = ({ label, value, icon, color = CL.gold }) => (
 
   <div style={{ ...cardSt, display: "flex", alignItems: "center", gap: 14, flex: 1, minWidth: 160 }}>
     <div style={{ width: 42, height: 42, borderRadius: 12, background: color + "15", display: "flex", alignItems: "center", justifyContent: "center", color, flexShrink: 0 }}>{icon}</div>
-    <div><div style={{ fontSize: 12, color: CL.muted, marginBottom: 2 }}>{label}</div><div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--hd)" }}>{value}</div></div>
+    <div><div style={{ fontSize: 12, color: CL.muted, marginBottom: 2 }}>{label}</div><div style={{ fontSize: 20, fontWeight: 700, fontFamily: "'Cormorant Garamond', serif" }}>{value}</div></div>
   </div>
 );
 const ToastMsg = ({ message, type }) => (
@@ -129,12 +130,11 @@ const FormTabs = ({ tabs, active, onChange }) => (
 
 // -- Excel Export --
 const exportExcel = async (data) => {
-const XLSX = await import("https://cdn.sheetjs.com/xlsx-0.20.0/package/xlsx.mjs");
-const wb = XLSX.utils.book_new();
+const wb = new ExcelJS.Workbook();
 const addSheet = (name, rows, cols) => {
-const ws = XLSX.utils.json_to_sheet(rows.length ? rows : [Object.fromEntries(cols.map(c => [c, ""]))]);
-ws["!cols"] = cols.map(c => ({ wch: Math.max(c.length + 4, 14) }));
-XLSX.utils.book_append_sheet(wb, ws, name);
+const ws = wb.addWorksheet(name);
+ws.columns = cols.map(c => ({ header: c, key: c, width: Math.max(c.length + 4, 14) }));
+ws.addRows(rows.length ? rows : [Object.fromEntries(cols.map(c => [c, ""]))]);
 };
 
 addSheet("Employees", data.employees.map(emp => ({ ID: emp.id, Name: emp.name, Email: emp.email, Phone: emp.phone, Mobile: emp.phoneMobile || "", Role: emp.role, "Rate": emp.hourlyRate, Address: emp.address, City: emp.city || "", Zip: emp.postalCode || "", Country: emp.country || "", "Start": emp.startDate, Status: emp.status, Contract: emp.contractType || "", IBAN: emp.bankIban || "", SSN: emp.socialSecNumber || "", DOB: emp.dateOfBirth || "", Nationality: emp.nationality || "", Languages: emp.languages || "", Transport: emp.transport || "", "WorkPermit": emp.workPermit || "", "EmergName": emp.emergencyName || "", "EmergPhone": emp.emergencyPhone || "", PIN: data.employeePins?.[emp.id] || "0000", Notes: emp.notes || "" })),
@@ -172,17 +172,38 @@ const revenue = data.invoices.filter(inv => inv.date?.startsWith(mo)).reduce((su
 return { Month: mo, Hours: Math.round(totalH * 100) / 100, Labor: Math.round(laborCost * 100) / 100, Revenue: Math.round(revenue * 100) / 100, Profit: Math.round((revenue - laborCost) * 100) / 100 };
 }), ["Month", "Hours", "Labor", "Revenue", "Profit"]);
 
-XLSX.writeFile(wb, `LuxAngels_DB_${getToday()}.xlsx`);
+const buffer = await wb.xlsx.writeBuffer();
+const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+const url = URL.createObjectURL(blob);
+const a = document.createElement("a");
+a.href = url; a.download = `LuxAngels_DB_${getToday()}.xlsx`; a.click();
+URL.revokeObjectURL(url);
 };
 
 // -- Excel Import --
 const importExcel = async (file, setData, showToast) => {
-const XLSX = await import("https://cdn.sheetjs.com/xlsx-0.20.0/package/xlsx.mjs");
-const reader = new FileReader();
-reader.onload = (evt) => {
 try {
-const wb = XLSX.read(evt.target.result, { type: "array" });
-const sheet = (name) => { const ws = wb.Sheets[name]; return ws ? XLSX.utils.sheet_to_json(ws) : []; };
+const buffer = await file.arrayBuffer();
+const wb = new ExcelJS.Workbook();
+await wb.xlsx.load(buffer);
+const sheet = (name) => {
+  const ws = wb.getWorksheet(name);
+  if (!ws) return [];
+  const hdrs = [];
+  ws.getRow(1).eachCell({ includeEmpty: true }, (cell, colIdx) => {
+    hdrs[colIdx] = cell.value;
+  });
+  const rows = [];
+  ws.eachRow((row, rowNum) => {
+    if (rowNum === 1) return;
+    const obj = {};
+    row.eachCell({ includeEmpty: true }, (cell, colIdx) => {
+      if (hdrs[colIdx]) obj[hdrs[colIdx]] = cell.value != null ? cell.value : "";
+    });
+    if (Object.keys(obj).length) rows.push(obj);
+  });
+  return rows;
+};
 
   const emps = sheet("Employees").filter(r => r.ID && r.Name).map(r => ({ id: r.ID, name: r.Name, email: r.Email || "", phone: r.Phone || "", phoneMobile: r.Mobile || "", role: r.Role || "Cleaner", hourlyRate: parseFloat(r.Rate) || 15, address: r.Address || "", city: r.City || "", postalCode: r.Zip || "", country: r.Country || "Luxembourg", startDate: r.Start || getToday(), status: r.Status || "active", contractType: r.Contract || "CDI", bankIban: r.IBAN || "", socialSecNumber: r.SSN || "", dateOfBirth: r.DOB || "", nationality: r.Nationality || "", languages: r.Languages || "", transport: r.Transport || "", workPermit: r.WorkPermit || "", emergencyName: r.EmergName || "", emergencyPhone: r.EmergPhone || "", notes: r.Notes || "" }));
   const pins = {}; sheet("Employees").filter(r => r.ID && r.PIN).forEach(r => { pins[r.ID] = String(r.PIN); });
@@ -216,9 +237,6 @@ const sheet = (name) => { const ws = wb.Sheets[name]; return ws ? XLSX.utils.she
   }));
   showToast("Excel imported!", "success");
 } catch (err) { console.error(err); showToast("Import failed", "error"); }
-
-};
-reader.readAsArrayBuffer(file);
 };
 
 // ==============================================
@@ -226,7 +244,7 @@ reader.readAsArrayBuffer(file);
 // ==============================================
 const globalCSS = `
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Cormorant+Garamond:wght@600;700&display=swap');
-:root { --bd: 'Outfit', sans-serif; --hd: 'Cormorant Garamond', serif; }
+:root { --bd: Outfit, sans-serif; --hd: Cormorant Garamond, serif; }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
   ::-webkit-scrollbar { width: 5px; }
@@ -260,7 +278,7 @@ const globalCSS = `
 @media (max-width: 768px) {
 .desk-sidebar { display: none !important; }
 .mob-nav { display: flex; position: fixed; bottom: 0; left: 0; right: 0; z-index: 900; background: ${CL.sf}; border-top: 1px solid ${CL.bd}; padding: 4px 0; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-.mob-nav button { flex: none; padding: 6px 8px; display: flex; flex-direction: column; align-items: center; gap: 2px; border: none; background: transparent; cursor: pointer; font-size: 9px; min-width: 52px; white-space: nowrap; font-family: var(--bd); }
+.mob-nav button { flex: none; padding: 6px 8px; display: flex; flex-direction: column; align-items: center; gap: 2px; border: none; background: transparent; cursor: pointer; font-size: 9px; min-width: 52px; white-space: nowrap; font-family: 'Outfit', sans-serif; }
 .main-content { padding: 14px 12px 80px 12px; }
 .grid-2, .form-grid { grid-template-columns: 1fr; }
 .stat-row > div { min-width: calc(50% - 8px) !important; flex: 1 1 calc(50% - 8px) !important; }
@@ -332,7 +350,7 @@ default: return <DashboardPage data={data} />;
 };
 
 return (
-<div style={{ display: "flex", height: "100vh", background: CL.bg, fontFamily: "var(--bd)", color: CL.text, overflow: "hidden" }}>
+<div style={{ display: "flex", height: "100vh", background: CL.bg, fontFamily: "'Outfit', sans-serif", color: CL.text, overflow: "hidden" }}>
 <style>{globalCSS}</style>
 {toast && <ToastMsg message={toast.msg} type={toast.type} />}
 
@@ -340,7 +358,7 @@ return (
   <div className="no-print desk-sidebar" style={{ width: sideOpen ? 215 : 54, background: CL.sf, borderRight: `1px solid ${CL.bd}`, flexDirection: "column", transition: "width .2s", overflow: "hidden", flexShrink: 0 }}>
     <div style={{ padding: sideOpen ? "16px 12px" : "16px 8px", borderBottom: `1px solid ${CL.bd}`, display: "flex", alignItems: "center", gap: 9, cursor: "pointer" }} onClick={() => setSideOpen(!sideOpen)}>
       <div style={{ width: 30, height: 30, borderRadius: 8, background: `linear-gradient(135deg, ${CL.gold}, ${CL.goldDark})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: CL.bg, flexShrink: 0 }}>LA</div>
-      {sideOpen && <div><div style={{ fontSize: 13, fontWeight: 700, color: CL.gold, fontFamily: "var(--hd)", whiteSpace: "nowrap" }}>Lux Angels</div><div style={{ fontSize: 10, color: CL.muted }}>Owner Portal</div></div>}
+      {sideOpen && <div><div style={{ fontSize: 13, fontWeight: 700, color: CL.gold, fontFamily: "'Cormorant Garamond', serif", whiteSpace: "nowrap" }}>Lux Angels</div><div style={{ fontSize: 10, color: CL.muted }}>Owner Portal</div></div>}
     </div>
     <nav style={{ flex: 1, padding: "6px 4px", overflowY: "auto" }}>
       {navItems.map(nav => (
@@ -499,7 +517,7 @@ return (
 <div style={{ padding: 18, maxWidth: 800, margin: "0 auto" }}>
 {tab === "schedule" && (
 <div>
-<h2 style={{ fontFamily: "var(--hd)", color: CL.blue, fontSize: 22, marginBottom: 14 }}>Upcoming Jobs</h2>
+<h2 style={{ fontFamily: "'Cormorant Garamond', serif", color: CL.blue, fontSize: 22, marginBottom: 14 }}>Upcoming Jobs</h2>
 {upcoming.length === 0 ? <div style={{ ...cardSt, textAlign: "center", padding: 36, color: CL.muted }}>No upcoming jobs</div> :
 upcoming.slice(0, 20).map(sched => {
 const client = data.clients.find(c => c.id === sched.clientId);
@@ -524,7 +542,7 @@ return (
 
     {tab === "clock" && (
       <div>
-        <h2 style={{ fontFamily: "var(--hd)", color: CL.blue, fontSize: 22, marginBottom: 14 }}>Clock In / Out</h2>
+        <h2 style={{ fontFamily: "'Cormorant Garamond', serif", color: CL.blue, fontSize: 22, marginBottom: 14 }}>Clock In / Out</h2>
         {activeClock ? (
           <div style={{ ...cardSt, borderColor: CL.green, textAlign: "center", marginBottom: 18 }}>
             <div style={{ color: CL.green, marginBottom: 4 }}>{ICN.clock}</div>
@@ -546,14 +564,14 @@ return (
                   {todayClients.map(client => (
                     <button key={client.id} onClick={() => doClockIn(client.id)} style={{ ...cardSt, width: "100%", padding: "12px 16px", marginBottom: 5, cursor: "pointer", textAlign: "left", display: "flex", justifyContent: "space-between", borderColor: CL.green + "60" }}>
                       <div><div style={{ fontWeight: 600 }}>{client.name}</div><div style={{ fontSize: 11, color: CL.muted }}>{client.address}</div></div>
-                      <span style={{ color: CL.green, fontWeight: 600, fontSize: 13 }}>Clock In -></span>
+                      <span style={{ color: CL.green, fontWeight: 600, fontSize: 13 }}>Clock In →</span>
                     </button>
                   ))}
                   {otherClients.length > 0 && <div style={{ fontSize: 11, color: CL.muted, fontWeight: 600, margin: "10px 0 5px" }}>OTHER:</div>}
                   {otherClients.map(client => (
                     <button key={client.id} onClick={() => doClockIn(client.id)} style={{ ...cardSt, width: "100%", padding: "10px 16px", marginBottom: 5, cursor: "pointer", textAlign: "left", display: "flex", justifyContent: "space-between" }}>
                       <div><div style={{ fontWeight: 600 }}>{client.name}</div><div style={{ fontSize: 11, color: CL.muted }}>{client.address}</div></div>
-                      <span style={{ color: CL.blue, fontSize: 13 }}>Clock In -></span>
+                      <span style={{ color: CL.blue, fontSize: 13 }}>Clock In →</span>
                     </button>
                   ))}
                 </>
@@ -567,7 +585,7 @@ return (
     {tab === "hours" && (
       <div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 8 }}>
-          <h2 style={{ fontFamily: "var(--hd)", color: CL.blue, fontSize: 22 }}>My Hours</h2>
+          <h2 style={{ fontFamily: "'Cormorant Garamond', serif", color: CL.blue, fontSize: 22 }}>My Hours</h2>
           <TextInput type="month" value={monthFilter} onChange={ev => setMonthFilter(ev.target.value)} style={{ width: 160 }} />
         </div>
         <div className="stat-row" style={{ marginBottom: 18 }}>
@@ -591,7 +609,7 @@ return (
     {tab === "earnings" && (
       <div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 8 }}>
-          <h2 style={{ fontFamily: "var(--hd)", color: CL.blue, fontSize: 22 }}>Earnings</h2>
+          <h2 style={{ fontFamily: "'Cormorant Garamond', serif", color: CL.blue, fontSize: 22 }}>Earnings</h2>
           <TextInput type="month" value={monthFilter} onChange={ev => setMonthFilter(ev.target.value)} style={{ width: 160 }} />
         </div>
         <div className="stat-row" style={{ marginBottom: 18 }}>
@@ -630,7 +648,7 @@ const tomorrowScheds = data.schedules.filter(s => s.date === tomorrow);
 
 return (
 <div>
-<h1 style={{ fontSize: 26, fontFamily: "var(--hd)", color: CL.gold, marginBottom: 5 }}>Dashboard</h1>
+<h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold, marginBottom: 5 }}>Dashboard</h1>
 <p style={{ color: CL.muted, marginBottom: 18 }}>{new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p>
 <div className="stat-row" style={{ marginBottom: 22 }}>
 <StatCard label="Today's Jobs" value={todayScheds.length} icon={ICN.cal} color={CL.blue} />
@@ -664,7 +682,7 @@ return (
 <div key={sched.id} style={{ padding: "7px 0", borderBottom: `1px solid ${CL.bd}` }}>
 <div style={{ fontWeight: 600, fontSize: 13 }}>{client?.name || "?"}</div>
 <div style={{ fontSize: 11, color: CL.muted }}>{employee?.name || "-"} · {sched.startTime}-{sched.endTime}</div>
-{client?.email && <div style={{ fontSize: 10, color: CL.blue }}>Reminder -> {client.email}</div>}
+{client?.email && <div style={{ fontSize: 10, color: CL.blue }}>Reminder → {client.email}</div>}
 </div>
 );
 })
@@ -745,7 +763,7 @@ const filtered = data.employees.filter(e => e.name.toLowerCase().includes(search
 return (
 <div>
 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
-<h1 style={{ fontSize: 26, fontFamily: "var(--hd)", color: CL.gold }}>Employees</h1>
+<h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold }}>Employees</h1>
 <button style={btnPri} onClick={() => setModal({ ...emptyEmployee })}>{ICN.plus} Add</button>
 </div>
 <div style={{ marginBottom: 12, position: "relative" }}>
@@ -925,7 +943,7 @@ const filtered = data.clients.filter(c => c.name.toLowerCase().includes(search.t
 return (
 <div>
 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
-<h1 style={{ fontSize: 26, fontFamily: "var(--hd)", color: CL.gold }}>Clients</h1>
+<h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold }}>Clients</h1>
 <button style={btnPri} onClick={() => setModal({ ...emptyClient })}>{ICN.plus} Add</button>
 </div>
 <div style={{ marginBottom: 12, position: "relative" }}>
@@ -1177,7 +1195,7 @@ return (
 <div>
 {/* Header */}
 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
-<h1 style={{ fontSize: 26, fontFamily: "var(--hd)", color: CL.gold }}>Schedule</h1>
+<h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold }}>Schedule</h1>
 <button style={btnPri} onClick={() => setModal({ ...emptySchedule })}>{ICN.plus} New Job</button>
 </div>
 
@@ -1187,7 +1205,7 @@ return (
       <button onClick={prevMonth} style={{ ...btnSec, ...btnSm, padding: "8px 14px", fontSize: 16 }}>‹</button>
       <button onClick={goToday} style={{ ...btnSec, ...btnSm }}>Today</button>
       <button onClick={nextMonth} style={{ ...btnSec, ...btnSm, padding: "8px 14px", fontSize: 16 }}>›</button>
-      <h2 style={{ margin: 0, fontSize: 20, fontFamily: "var(--hd)", color: CL.text, marginLeft: 8 }}>{monthLabel}</h2>
+      <h2 style={{ margin: 0, fontSize: 20, fontFamily: "'Cormorant Garamond', serif", color: CL.text, marginLeft: 8 }}>{monthLabel}</h2>
     </div>
     <SelectInput value={filterEmp} onChange={ev => setFilterEmp(ev.target.value)} style={{ width: 180 }}>
       <option value="">All Employees</option>
@@ -1286,7 +1304,7 @@ return (
         {selectedDate ? (
           <>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-              <h3 style={{ fontSize: 15, fontWeight: 600, color: CL.gold, fontFamily: "var(--hd)", margin: 0 }}>
+              <h3 style={{ fontSize: 15, fontWeight: 600, color: CL.gold, fontFamily: "'Cormorant Garamond', serif", margin: 0 }}>
                 {fmtDate(selectedDateStr)}
               </h3>
               <button
@@ -1463,7 +1481,7 @@ return true;
 
 return (
 <div>
-<h1 style={{ fontSize: 26, fontFamily: "var(--hd)", color: CL.gold, marginBottom: 16 }}>Time Clock</h1>
+<h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold, marginBottom: 16 }}>Time Clock</h1>
 
   <div style={{ ...cardSt, marginBottom: 16 }}>
     <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>Quick Clock In</h3>
@@ -1650,7 +1668,7 @@ showToast("Deleted", "error");
 return (
 <div>
 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
-<h1 style={{ fontSize: 26, fontFamily: "var(--hd)", color: CL.gold }}>Invoices</h1>
+<h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold }}>Invoices</h1>
 <button style={btnPri} onClick={() => setModal({ clientId: "", date: getToday(), dueDate: "", invoiceNumber: nextInvoiceNum(), items: [{ description: "Cleaning services", quantity: 1, unitPrice: 0, total: 0 }], subtotal: 0, vatRate: data.settings.defaultVatRate, vatAmount: 0, total: 0, status: "draft", notes: "", paymentTerms: "Payment due within 30 days." })}>{ICN.plus} New</button>
 </div>
 <div style={cardSt} className="tbl-wrap">
@@ -1863,7 +1881,7 @@ showToast("Marked paid");
 return (
 <div>
 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
-<h1 style={{ fontSize: 26, fontFamily: "var(--hd)", color: CL.gold }}>Payslips</h1>
+<h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold }}>Payslips</h1>
 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
 <TextInput type="month" value={month} onChange={ev => setMonth(ev.target.value)} style={{ width: 160 }} />
 <button style={btnPri} onClick={generatePayslips}>{ICN.plus} Generate</button>
@@ -1955,7 +1973,7 @@ return { client, employee, sched };
 
 return (
 <div>
-<h1 style={{ fontSize: 26, fontFamily: "var(--hd)", color: CL.gold, marginBottom: 5 }}>Reminders</h1>
+<h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold, marginBottom: 5 }}>Reminders</h1>
 <p style={{ color: CL.muted, marginBottom: 16 }}>Tomorrow ({fmtDate(tomorrow)})</p>
 {emails.length === 0 ? (
 <div style={{ ...cardSt, textAlign: "center", padding: 36, color: CL.muted }}>No reminders needed</div>
@@ -2015,7 +2033,7 @@ const profit = totalRevenue - totalCost;
 return (
 <div>
 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
-<h1 style={{ fontSize: 26, fontFamily: "var(--hd)", color: CL.gold }}>Reports</h1>
+<h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold }}>Reports</h1>
 <TextInput type="month" value={month} onChange={ev => setMonth(ev.target.value)} style={{ width: 160 }} />
 </div>
 <div className="stat-row" style={{ marginBottom: 22 }}>
@@ -2077,18 +2095,18 @@ ev.target.value = "";
 
 return (
 <div>
-<h1 style={{ fontSize: 26, fontFamily: "var(--hd)", color: CL.gold, marginBottom: 5 }}>Excel Database</h1>
+<h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold, marginBottom: 5 }}>Excel Database</h1>
 <p style={{ color: CL.muted, marginBottom: 20 }}>Full backup/restore with structured 8-sheet Excel file.</p>
 <div className="grid-2" style={{ marginBottom: 20 }}>
 <div style={{ ...cardSt, textAlign: "center", padding: 28 }}>
 <div style={{ width: 56, height: 56, borderRadius: 16, background: CL.green + "15", display: "flex", alignItems: "center", justifyContent: "center", color: CL.green, margin: "0 auto 12px" }}>{ICN.download}</div>
-<h3 style={{ fontFamily: "var(--hd)", fontSize: 18, color: CL.green, marginBottom: 6 }}>Export Database</h3>
+<h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 18, color: CL.green, marginBottom: 6 }}>Export Database</h3>
 <p style={{ color: CL.muted, fontSize: 12, marginBottom: 14 }}>8 sheets: Employees, Clients, Schedule, Time Clock, Invoices, Payslips, Settings, Summary</p>
 <button style={{ ...btnPri, background: CL.green, justifyContent: "center", width: "100%" }} onClick={doExport}>{exporting ? "Exporting..." : "Export .xlsx"}</button>
 </div>
 <div style={{ ...cardSt, textAlign: "center", padding: 28 }}>
 <div style={{ width: 56, height: 56, borderRadius: 16, background: CL.blue + "15", display: "flex", alignItems: "center", justifyContent: "center", color: CL.blue, margin: "0 auto 12px" }}>{ICN.excel}</div>
-<h3 style={{ fontFamily: "var(--hd)", fontSize: 18, color: CL.blue, marginBottom: 6 }}>Import Database</h3>
+<h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 18, color: CL.blue, marginBottom: 6 }}>Import Database</h3>
 <p style={{ color: CL.muted, fontSize: 12, marginBottom: 14 }}>Upload a previously exported Excel file to restore all data.</p>
 <input type="file" accept=".xlsx,.xls" ref={fileRef} onChange={doImport} style={{ display: "none" }} />
 <button style={{ ...btnPri, background: CL.blue, justifyContent: "center", width: "100%" }} onClick={() => fileRef.current?.click()}>Import .xlsx</button>
@@ -2132,7 +2150,7 @@ showToast("Saved");
 
 return (
 <div>
-<h1 style={{ fontSize: 26, fontFamily: "var(--hd)", color: CL.gold, marginBottom: 16 }}>Settings</h1>
+<h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold, marginBottom: 16 }}>Settings</h1>
 <div style={cardSt}>
 <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: CL.gold }}>Company Info</h3>
 <div className="form-grid">

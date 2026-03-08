@@ -1,21 +1,16 @@
-import React from 'react';
-import { SvgIcon } from '@material-ui/core';
-import { createTheme, ThemeProvider } from '@material-ui/core/styles';
-
-const theme = createTheme();
-
-const App = () => {
-    return (
-        <ThemeProvider theme={theme}>
-            <div>
-                <h1>Lux Angels Cleaning</h1>
-                <p>Loading...</p>
-                <SvgIcon>
-                    {/* Add SVG content here */}
-                </SvgIcon>
-            </div>
-        </ThemeProvider>
-    );
+const LuxAngelsIcons = {
+  icon1: 'icon1_path',
+  icon2: 'icon2_path',
+  icon3: 'icon3_path',
+  // Add more icons as needed
 };
 
-export default App;
+export default function App() {
+  return (
+    <div>
+      <h1>Loading UI... (paste next part)</h1>
+      {/* Render icons here */}
+      <div>{/* Icons */}</div>
+    </div>
+  );
+}

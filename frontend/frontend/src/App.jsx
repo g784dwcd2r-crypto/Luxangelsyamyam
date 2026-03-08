@@ -1,0 +1,2186 @@
+
+import { useState, useEffect, useCallback, useRef } from “react”;
+
+/* ═══════════════════════════════════════════════════════════
+LUX ANGELS CLEANING — Management System v3 (Bug-free)
+═══════════════════════════════════════════════════════════ */
+
+// ── Persistence ──
+const STORE_KEY = “lux-angels-v3”;
+const loadStore = () => { try { return JSON.parse(localStorage.getItem(STORE_KEY)); } catch { return null; } };
+const saveStore = (d) => { try { localStorage.setItem(STORE_KEY, JSON.stringify(d)); } catch {} };
+
+const DEFAULTS = {
+employees: [], clients: [], schedules: [], clockEntries: [], invoices: [], payslips: [],
+ownerPin: “1234”, employeePins: {},
+settings: {
+companyName: “Lux Angels Cleaning”,
+companyAddress: “12 Rue de la Liberté, L-1930 Luxembourg”,
+companyEmail: “info@luxangels.lu”,
+companyPhone: “+352 123 456”,
+vatNumber: “LU12345678”,
+bankIban: “LU12 3456 7890 1234 5678”,
+defaultVatRate: 17,
+},
+};
+
+// ── Utils ──
+let _idCtr = Date.now();
+const makeId = () => `id_${_idCtr++}`;
+const getToday = () => new Date().toISOString().slice(0, 10);
+const fmtDate = (d) => d ? new Date(d).toLocaleDateString(“en-GB”, { day: “2-digit”, month: “short”, year: “numeric” }) : “”;
+const fmtTime = (d) => d ? new Date(d).toLocaleTimeString(“en-GB”, { hour: “2-digit”, minute: “2-digit” }) : “”;
+const fmtBoth = (d) => `${fmtDate(d)} ${fmtTime(d)}`;
+const calcHrs = (a, b) => (a && b) ? Math.max(0, Math.round((new Date(b) - new Date(a)) / 36e5 * 100) / 100) : 0;
+const makeISO = (d, t) => `${d}T${t}:00`;
+
+// ── Theme ──
+const CL = {
+bg: “#0C0F16”, sf: “#151922”, s2: “#1C2130”, bd: “#2C3348”,
+gold: “#D4A843”, goldDark: “#B08C2F”, goldLight: “#F0D78C”,
+blue: “#4A9FD9”, green: “#3EC47E”, red: “#D95454”, orange: “#E89840”,
+text: “#E4E6ED”, muted: “#838AA3”, dim: “#525976”, white: “#FFF”,
+};
+
+// ── Base Styles ──
+const inputSt = { width: “100%”, padding: “10px 14px”, background: CL.sf, border: `1px solid ${CL.bd}`, borderRadius: 8, color: CL.text, fontSize: 14, outline: “none”, boxSizing: “border-box” };
+const btnPri = { padding: “10px 20px”, background: CL.gold, color: CL.bg, border: “none”, borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: “pointer”, display: “inline-flex”, alignItems: “center”, gap: 8 };
+const btnSec = { …btnPri, background: CL.s2, color: CL.text, border: `1px solid ${CL.bd}` };
+const btnDng = { …btnPri, background: CL.red, color: CL.white };
+const btnSm = { padding: “6px 12px”, fontSize: 13 };
+const cardSt = { background: CL.sf, border: `1px solid ${CL.bd}`, borderRadius: 12, padding: 24 };
+const thSt = { textAlign: “left”, padding: “10px 14px”, color: CL.muted, fontWeight: 500, fontSize: 11, textTransform: “uppercase”, letterSpacing: “.06em”, borderBottom: `1px solid ${CL.bd}` };
+const tdSt = { padding: “10px 14px”, borderBottom: `1px solid ${CL.bd}`, color: CL.text, fontSize: 14 };
+
+// ── Icons ──
+const SvgIcon = ({ paths, size = 18 }) => (
+<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{paths}</svg>
+);
+const ICN = {
+dash: <SvgIcon paths={<><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></>} />,
+team: <SvgIcon paths={<><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></>} />,
+user: <SvgIcon paths={<><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></>} />,
+cal: <SvgIcon paths={<><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></>} />,
+clock: <SvgIcon paths={<><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>} />,
+doc: <SvgIcon paths={<><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></>} />,
+pay: <SvgIcon paths={<><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></>} />,
+mail: <SvgIcon paths={<><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></>} />,
+chart: <SvgIcon paths={<><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></>} />,
+gear: <SvgIcon paths={<><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></>} />,
+plus: <SvgIcon paths={<><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></>} />,
+edit: <SvgIcon paths={<><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></>} />,
+trash: <SvgIcon paths={<><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></>} />,
+download: <SvgIcon paths={<><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></>} />,
+check: <SvgIcon paths={<><polyline points="20 6 9 17 4 12"/></>} />,
+close: <SvgIcon paths={<><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></>} />,
+search: <SvgIcon paths={<><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></>} />,
+logout: <SvgIcon paths={<><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></>} />,
+excel: <SvgIcon paths={<><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></>} />,
+shield: <SvgIcon paths={<><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></>} />,
+};
+
+// ── UI Components ──
+const ModalBox = ({ title, onClose, children, wide }) => (
+
+  <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 0 }} onClick={onClose}>
+    <div className={wide ? "modal-wide" : "modal-normal"} style={{ ...cardSt, overflow: "auto" }} onClick={ev => ev.stopPropagation()}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, position: "sticky", top: 0, background: CL.sf, paddingBottom: 10, zIndex: 1 }}>
+        <h2 style={{ margin: 0, fontSize: 20, color: CL.gold, fontFamily: "var(--hd)" }}>{title}</h2>
+        <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: CL.muted, padding: 8 }}>{ICN.close}</button>
+      </div>
+      {children}
+    </div>
+  </div>
+);
+
+const Field = ({ label, children }) => (
+
+  <div style={{ marginBottom: 14 }}>
+    <label style={{ display: "block", marginBottom: 5, fontSize: 13, color: CL.muted, fontWeight: 500 }}>{label}</label>
+    {children}
+  </div>
+);
+
+const TextInput = (props) => <input {…props} style={{ …inputSt, …(props.style || {}) }} />;
+const SelectInput = ({ children, …props }) => <select {…props} style={{ …inputSt, appearance: “auto”, …(props.style || {}) }}>{children}</select>;
+const TextArea = (props) => <textarea {…props} style={{ …inputSt, minHeight: 80, resize: “vertical”, …(props.style || {}) }} />;
+const Badge = ({ children, color = CL.gold }) => <span style={{ display: “inline-block”, padding: “3px 10px”, borderRadius: 20, fontSize: 12, fontWeight: 600, background: color + “20”, color }}>{children}</span>;
+const StatCard = ({ label, value, icon, color = CL.gold }) => (
+
+  <div style={{ ...cardSt, display: "flex", alignItems: "center", gap: 14, flex: 1, minWidth: 160 }}>
+    <div style={{ width: 42, height: 42, borderRadius: 12, background: color + "15", display: "flex", alignItems: "center", justifyContent: "center", color, flexShrink: 0 }}>{icon}</div>
+    <div><div style={{ fontSize: 12, color: CL.muted, marginBottom: 2 }}>{label}</div><div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--hd)" }}>{value}</div></div>
+  </div>
+);
+const ToastMsg = ({ message, type }) => (
+  <div style={{ position: "fixed", top: 20, right: 20, zIndex: 2000, padding: "12px 22px", borderRadius: 10, background: type === "success" ? CL.green : type === "error" ? CL.red : CL.blue, color: CL.white, fontWeight: 600, fontSize: 14, boxShadow: "0 8px 32px rgba(0,0,0,.4)", animation: "slideIn .3s ease" }}>{message}</div>
+);
+
+// Tab bar for forms
+const FormTabs = ({ tabs, active, onChange }) => (
+
+  <div style={{ display: "flex", gap: 0, marginBottom: 16, borderBottom: `1px solid ${CL.bd}`, overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+    {tabs.map(t => (
+      <button key={t.id} onClick={() => onChange(t.id)} style={{ padding: "8px 14px", border: "none", background: "transparent", cursor: "pointer", color: active === t.id ? CL.gold : CL.muted, fontWeight: active === t.id ? 600 : 400, fontSize: 13, borderBottom: active === t.id ? `2px solid ${CL.gold}` : "2px solid transparent", whiteSpace: "nowrap", flexShrink: 0 }}>{t.label}</button>
+    ))}
+  </div>
+);
+
+// ── Excel Export ──
+const exportExcel = async (data) => {
+const XLSX = await import(“https://cdn.sheetjs.com/xlsx-0.20.0/package/xlsx.mjs”);
+const wb = XLSX.utils.book_new();
+const addSheet = (name, rows, cols) => {
+const ws = XLSX.utils.json_to_sheet(rows.length ? rows : [Object.fromEntries(cols.map(c => [c, “”]))]);
+ws[”!cols”] = cols.map(c => ({ wch: Math.max(c.length + 4, 14) }));
+XLSX.utils.book_append_sheet(wb, ws, name);
+};
+
+addSheet(“Employees”, data.employees.map(emp => ({ ID: emp.id, Name: emp.name, Email: emp.email, Phone: emp.phone, Mobile: emp.phoneMobile || “”, Role: emp.role, “Rate”: emp.hourlyRate, Address: emp.address, City: emp.city || “”, Zip: emp.postalCode || “”, Country: emp.country || “”, “Start”: emp.startDate, Status: emp.status, Contract: emp.contractType || “”, IBAN: emp.bankIban || “”, SSN: emp.socialSecNumber || “”, DOB: emp.dateOfBirth || “”, Nationality: emp.nationality || “”, Languages: emp.languages || “”, Transport: emp.transport || “”, “WorkPermit”: emp.workPermit || “”, “EmergName”: emp.emergencyName || “”, “EmergPhone”: emp.emergencyPhone || “”, PIN: data.employeePins?.[emp.id] || “0000”, Notes: emp.notes || “” })),
+[“ID”,“Name”,“Email”,“Phone”,“Mobile”,“Role”,“Rate”,“Address”,“City”,“Zip”,“Country”,“Start”,“Status”,“Contract”,“IBAN”,“SSN”,“DOB”,“Nationality”,“Languages”,“Transport”,“WorkPermit”,“EmergName”,“EmergPhone”,“PIN”,“Notes”]);
+
+addSheet(“Clients”, data.clients.map(cl => ({ ID: cl.id, Name: cl.name, Contact: cl.contactPerson || “”, Email: cl.email, Phone: cl.phone, Mobile: cl.phoneMobile || “”, Address: cl.address, “Apt”: cl.apartmentFloor || “”, City: cl.city || “”, Zip: cl.postalCode || “”, Country: cl.country || “”, Type: cl.type, Freq: cl.cleaningFrequency, Billing: cl.billingType, “Hourly”: cl.pricePerHour || 0, “Fixed”: cl.priceFixed || 0, Status: cl.status, Lang: cl.language || “”, “Code”: cl.accessCode || “”, “KeyLoc”: cl.keyLocation || “”, Parking: cl.parkingInfo || “”, Pets: cl.petInfo || “”, “PrefDay”: cl.preferredDay || “”, “PrefTime”: cl.preferredTime || “”, “ContStart”: cl.contractStart || “”, “ContEnd”: cl.contractEnd || “”, “SqM”: cl.squareMeters || “”, “TaxID”: cl.taxId || “”, “Instructions”: cl.specialInstructions || “”, Notes: cl.notes || “” })),
+[“ID”,“Name”,“Contact”,“Email”,“Phone”,“Mobile”,“Address”,“Apt”,“City”,“Zip”,“Country”,“Type”,“Freq”,“Billing”,“Hourly”,“Fixed”,“Status”,“Lang”,“Code”,“KeyLoc”,“Parking”,“Pets”,“PrefDay”,“PrefTime”,“ContStart”,“ContEnd”,“SqM”,“TaxID”,“Instructions”,“Notes”]);
+
+addSheet(“Schedule”, data.schedules.map(sc => { const cl = data.clients.find(c => c.id === sc.clientId); const em = data.employees.find(e => e.id === sc.employeeId); return { ID: sc.id, Date: sc.date, Client: cl?.name || “”, CliID: sc.clientId, Employee: em?.name || “”, EmpID: sc.employeeId, Start: sc.startTime, End: sc.endTime, Status: sc.status, Notes: sc.notes || “” }; }),
+[“ID”,“Date”,“Client”,“CliID”,“Employee”,“EmpID”,“Start”,“End”,“Status”,“Notes”]);
+
+addSheet(“TimeClock”, data.clockEntries.map(ce => { const em = data.employees.find(e => e.id === ce.employeeId); const cl = data.clients.find(c => c.id === ce.clientId); const h = calcHrs(ce.clockIn, ce.clockOut); return { ID: ce.id, Employee: em?.name || “”, EmpID: ce.employeeId, Client: cl?.name || “”, CliID: ce.clientId, In: ce.clockIn || “”, Out: ce.clockOut || “”, Hours: ce.clockOut ? h : “Active”, Rate: em?.hourlyRate || 0, Cost: ce.clockOut ? Math.round(h * (em?.hourlyRate || 0) * 100) / 100 : “” }; }),
+[“ID”,“Employee”,“EmpID”,“Client”,“CliID”,“In”,“Out”,“Hours”,“Rate”,“Cost”]);
+
+const invRows = [];
+data.invoices.forEach(inv => { const cl = data.clients.find(c => c.id === inv.clientId); (inv.items || [{}]).forEach((item, idx) => { invRows.push({ “Inv”: inv.invoiceNumber, Date: inv.date, Due: inv.dueDate || “”, Client: cl?.name || “”, CliID: inv.clientId, Status: inv.status, Item: item.description || “”, Qty: item.quantity || “”, Price: item.unitPrice || “”, LineTotal: item.total || “”, Sub: idx === 0 ? inv.subtotal : “”, “VAT%”: idx === 0 ? inv.vatRate : “”, VAT: idx === 0 ? inv.vatAmount : “”, Total: idx === 0 ? inv.total : “”, Notes: idx === 0 ? (inv.notes || “”) : “” }); }); });
+addSheet(“Invoices”, invRows, [“Inv”,“Date”,“Due”,“Client”,“CliID”,“Status”,“Item”,“Qty”,“Price”,“LineTotal”,“Sub”,“VAT%”,“VAT”,“Total”,“Notes”]);
+
+addSheet(“Payslips”, data.payslips.map(ps => { const em = data.employees.find(e => e.id === ps.employeeId); return { Num: ps.payslipNumber, Employee: em?.name || “”, EmpID: ps.employeeId, Month: ps.month, Hours: ps.totalHours, Rate: ps.hourlyRate, Gross: ps.grossPay, Social: ps.socialCharges, Tax: ps.taxEstimate, Net: ps.netPay, Status: ps.status }; }),
+[“Num”,“Employee”,“EmpID”,“Month”,“Hours”,“Rate”,“Gross”,“Social”,“Tax”,“Net”,“Status”]);
+
+addSheet(“Settings”, [
+{ Key: “Company Name”, Val: data.settings.companyName }, { Key: “Address”, Val: data.settings.companyAddress },
+{ Key: “Email”, Val: data.settings.companyEmail }, { Key: “Phone”, Val: data.settings.companyPhone },
+{ Key: “VAT Number”, Val: data.settings.vatNumber }, { Key: “Bank IBAN”, Val: data.settings.bankIban },
+{ Key: “VAT Rate”, Val: data.settings.defaultVatRate }, { Key: “Owner PIN”, Val: data.ownerPin },
+], [“Key”, “Val”]);
+
+const months = […new Set(data.clockEntries.filter(c => c.clockOut && c.clockIn).map(c => c.clockIn.slice(0, 7)))].sort();
+addSheet(“Summary”, months.map(mo => {
+const ents = data.clockEntries.filter(c => c.clockOut && c.clockIn?.startsWith(mo));
+const totalH = ents.reduce((sum, ce) => sum + calcHrs(ce.clockIn, ce.clockOut), 0);
+const laborCost = ents.reduce((sum, ce) => { const em = data.employees.find(x => x.id === ce.employeeId); return sum + calcHrs(ce.clockIn, ce.clockOut) * (em?.hourlyRate || 0); }, 0);
+const revenue = data.invoices.filter(inv => inv.date?.startsWith(mo)).reduce((sum, inv) => sum + (inv.total || 0), 0);
+return { Month: mo, Hours: Math.round(totalH * 100) / 100, Labor: Math.round(laborCost * 100) / 100, Revenue: Math.round(revenue * 100) / 100, Profit: Math.round((revenue - laborCost) * 100) / 100 };
+}), [“Month”, “Hours”, “Labor”, “Revenue”, “Profit”]);
+
+XLSX.writeFile(wb, `LuxAngels_DB_${getToday()}.xlsx`);
+};
+
+// ── Excel Import ──
+const importExcel = async (file, setData, showToast) => {
+const XLSX = await import(“https://cdn.sheetjs.com/xlsx-0.20.0/package/xlsx.mjs”);
+const reader = new FileReader();
+reader.onload = (evt) => {
+try {
+const wb = XLSX.read(evt.target.result, { type: “array” });
+const sheet = (name) => { const ws = wb.Sheets[name]; return ws ? XLSX.utils.sheet_to_json(ws) : []; };
+
+```
+  const emps = sheet("Employees").filter(r => r.ID && r.Name).map(r => ({ id: r.ID, name: r.Name, email: r.Email || "", phone: r.Phone || "", phoneMobile: r.Mobile || "", role: r.Role || "Cleaner", hourlyRate: parseFloat(r.Rate) || 15, address: r.Address || "", city: r.City || "", postalCode: r.Zip || "", country: r.Country || "Luxembourg", startDate: r.Start || getToday(), status: r.Status || "active", contractType: r.Contract || "CDI", bankIban: r.IBAN || "", socialSecNumber: r.SSN || "", dateOfBirth: r.DOB || "", nationality: r.Nationality || "", languages: r.Languages || "", transport: r.Transport || "", workPermit: r.WorkPermit || "", emergencyName: r.EmergName || "", emergencyPhone: r.EmergPhone || "", notes: r.Notes || "" }));
+  const pins = {}; sheet("Employees").filter(r => r.ID && r.PIN).forEach(r => { pins[r.ID] = String(r.PIN); });
+
+  const clients = sheet("Clients").filter(r => r.ID && r.Name).map(r => ({ id: r.ID, name: r.Name, contactPerson: r.Contact || "", email: r.Email || "", phone: r.Phone || "", phoneMobile: r.Mobile || "", address: r.Address || "", apartmentFloor: r.Apt || "", city: r.City || "", postalCode: r.Zip || "", country: r.Country || "Luxembourg", type: r.Type || "Residential", cleaningFrequency: r.Freq || "Weekly", billingType: r.Billing || "hourly", pricePerHour: parseFloat(r.Hourly) || 35, priceFixed: parseFloat(r.Fixed) || 0, status: r.Status || "active", language: r.Lang || "FR", accessCode: r.Code || "", keyLocation: r.KeyLoc || "", parkingInfo: r.Parking || "", petInfo: r.Pets || "", preferredDay: r.PrefDay || "", preferredTime: r.PrefTime || "", contractStart: r.ContStart || "", contractEnd: r.ContEnd || "", squareMeters: r.SqM || "", taxId: r.TaxID || "", specialInstructions: r.Instructions || "", notes: r.Notes || "" }));
+
+  const scheds = sheet("Schedule").filter(r => r.ID).map(r => ({ id: r.ID, date: r.Date || "", clientId: r.CliID || "", employeeId: r.EmpID || "", startTime: r.Start || "08:00", endTime: r.End || "12:00", status: r.Status || "scheduled", notes: r.Notes || "", recurrence: "none" }));
+  const clocks = sheet("TimeClock").filter(r => r.ID).map(r => ({ id: r.ID, employeeId: r.EmpID || "", clientId: r.CliID || "", clockIn: r.In || "", clockOut: r.Out || null, notes: "" }));
+
+  const invMap = {};
+  sheet("Invoices").filter(r => r.Inv).forEach(r => {
+    if (!invMap[r.Inv]) invMap[r.Inv] = { id: makeId(), invoiceNumber: r.Inv, date: r.Date || "", dueDate: r.Due || "", clientId: r.CliID || "", status: r.Status || "draft", items: [], subtotal: parseFloat(r.Sub) || 0, vatRate: parseFloat(r["VAT%"]) || 17, vatAmount: parseFloat(r.VAT) || 0, total: parseFloat(r.Total) || 0, notes: r.Notes || "", paymentTerms: "Due within 30 days." };
+    if (r.Item) invMap[r.Inv].items.push({ description: r.Item, quantity: parseFloat(r.Qty) || 1, unitPrice: parseFloat(r.Price) || 0, total: parseFloat(r.LineTotal) || 0 });
+  });
+
+  const payslips = sheet("Payslips").filter(r => r.Num).map(r => ({ id: makeId(), payslipNumber: r.Num, employeeId: r.EmpID || "", month: r.Month || "", totalHours: parseFloat(r.Hours) || 0, hourlyRate: parseFloat(r.Rate) || 0, grossPay: parseFloat(r.Gross) || 0, socialCharges: parseFloat(r.Social) || 0, taxEstimate: parseFloat(r.Tax) || 0, netPay: parseFloat(r.Net) || 0, status: r.Status || "draft", createdAt: new Date().toISOString() }));
+
+  const sett = {}; sheet("Settings").forEach(r => { if (r.Key) sett[r.Key] = r.Val; });
+
+  setData(prev => ({
+    ...prev,
+    employees: emps.length ? emps : prev.employees,
+    employeePins: Object.keys(pins).length ? pins : prev.employeePins,
+    clients: clients.length ? clients : prev.clients,
+    schedules: scheds.length ? scheds : prev.schedules,
+    clockEntries: clocks.length ? clocks : prev.clockEntries,
+    invoices: Object.values(invMap).length ? Object.values(invMap) : prev.invoices,
+    payslips: payslips.length ? payslips : prev.payslips,
+    ownerPin: sett["Owner PIN"] || prev.ownerPin,
+    settings: { ...prev.settings, companyName: sett["Company Name"] || prev.settings.companyName, companyAddress: sett["Address"] || prev.settings.companyAddress, companyEmail: sett["Email"] || prev.settings.companyEmail, companyPhone: sett["Phone"] || prev.settings.companyPhone, vatNumber: sett["VAT Number"] || prev.settings.vatNumber, bankIban: sett["Bank IBAN"] || prev.settings.bankIban, defaultVatRate: parseFloat(sett["VAT Rate"]) || prev.settings.defaultVatRate },
+  }));
+  showToast("Excel imported!", "success");
+} catch (err) { console.error(err); showToast("Import failed", "error"); }
+```
+
+};
+reader.readAsArrayBuffer(file);
+};
+
+// ══════════════════════════════════════════════
+// GLOBAL CSS
+// ══════════════════════════════════════════════
+const globalCSS = `
+@import url(‘https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Cormorant+Garamond:wght@600;700&display=swap’);
+:root { –bd: ‘Outfit’, sans-serif; –hd: ‘Cormorant Garamond’, serif; }
+
+- { box-sizing: border-box; margin: 0; padding: 0; }
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-thumb { background: ${CL.bd}; border-radius: 3px; }
+  @keyframes slideIn { from { transform: translateX(60px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+  input:focus, select:focus, textarea:focus { border-color: ${CL.gold} !important; }
+  @media print { .no-print { display: none !important; } }
+
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.stat-row { display: flex; gap: 12px; flex-wrap: wrap; }
+.sched-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+.cal-layout { display: flex; gap: 16px; flex-wrap: wrap; }
+.cal-main { flex: 1 1 600px; min-width: 0; }
+.cal-side { flex: 0 0 280px; min-width: 240px; }
+.tbl-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.tbl-wrap table { min-width: 600px; }
+.modal-normal { width: 560px; max-width: 95vw; max-height: 90vh; }
+.modal-wide { width: 680px; max-width: 95vw; max-height: 90vh; }
+.desk-sidebar { display: flex; }
+.mob-nav { display: none; }
+.main-content { padding: 22px; }
+
+@media (max-width: 1024px) {
+.sched-grid { grid-template-columns: repeat(7, 1fr); }
+.cal-side { flex: 0 0 100%; }
+.grid-3 { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 768px) {
+.desk-sidebar { display: none !important; }
+.mob-nav { display: flex; position: fixed; bottom: 0; left: 0; right: 0; z-index: 900; background: ${CL.sf}; border-top: 1px solid ${CL.bd}; padding: 4px 0; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.mob-nav button { flex: none; padding: 6px 8px; display: flex; flex-direction: column; align-items: center; gap: 2px; border: none; background: transparent; cursor: pointer; font-size: 9px; min-width: 52px; white-space: nowrap; font-family: var(–bd); }
+.main-content { padding: 14px 12px 80px 12px; }
+.grid-2, .form-grid { grid-template-columns: 1fr; }
+.stat-row > div { min-width: calc(50% - 8px) !important; flex: 1 1 calc(50% - 8px) !important; }
+.modal-normal, .modal-wide { width: 100% !important; max-width: 100vw !important; max-height: 100vh !important; border-radius: 0 !important; }
+}
+@media (max-width: 480px) {
+.sched-grid { grid-template-columns: repeat(7, 1fr); }
+.grid-3 { grid-template-columns: 1fr; }
+.stat-row > div { min-width: 100% !important; flex: 1 1 100% !important; }
+.main-content { padding: 10px 8px 80px 8px; }
+}
+`;
+
+// ══════════════════════════════════════════════
+// MAIN APP
+// ══════════════════════════════════════════════
+export default function App() {
+const [data, setData] = useState(() => loadStore() || DEFAULTS);
+const [auth, setAuth] = useState(null);
+const [toast, setToast] = useState(null);
+const [section, setSection] = useState(“dashboard”);
+const [sideOpen, setSideOpen] = useState(true);
+
+useEffect(() => { saveStore(data); }, [data]);
+
+const showToast = useCallback((msg, type = “success”) => {
+setToast({ msg, type });
+setTimeout(() => setToast(null), 3000);
+}, []);
+
+const updateData = useCallback((key, val) => {
+setData(prev => ({ …prev, [key]: typeof val === “function” ? val(prev[key]) : val }));
+}, []);
+
+if (!auth) return <LoginScreen data={data} onAuth={setAuth} />;
+if (auth.role === “cleaner”) return <CleanerPortal data={data} updateData={updateData} auth={auth} onLogout={() => setAuth(null)} showToast={showToast} toast={toast} />;
+
+// Owner nav items
+const navItems = [
+{ id: “dashboard”, label: “Dashboard”, icon: ICN.dash },
+{ id: “employees”, label: “Employees”, icon: ICN.team },
+{ id: “clients”, label: “Clients”, icon: ICN.user },
+{ id: “schedule”, label: “Schedule”, icon: ICN.cal },
+{ id: “timeclock”, label: “Time Clock”, icon: ICN.clock },
+{ id: “invoices”, label: “Invoices”, icon: ICN.doc },
+{ id: “payslips”, label: “Payslips”, icon: ICN.pay },
+{ id: “reminders”, label: “Reminders”, icon: ICN.mail },
+{ id: “reports”, label: “Reports”, icon: ICN.chart },
+{ id: “database”, label: “Excel DB”, icon: ICN.excel },
+{ id: “settings”, label: “Settings”, icon: ICN.gear },
+];
+
+const renderSection = () => {
+const props = { data, updateData, showToast, setData };
+switch (section) {
+case “dashboard”: return <DashboardPage data={data} />;
+case “employees”: return <EmployeesPage {…props} />;
+case “clients”: return <ClientsPage {…props} />;
+case “schedule”: return <SchedulePage {…props} />;
+case “timeclock”: return <TimeClockPage {…props} />;
+case “invoices”: return <InvoicesPage {…props} />;
+case “payslips”: return <PayslipsPage {…props} />;
+case “reminders”: return <RemindersPage data={data} showToast={showToast} />;
+case “reports”: return <ReportsPage data={data} />;
+case “database”: return <ExcelDBPage data={data} setData={setData} showToast={showToast} />;
+case “settings”: return <SettingsPage {…props} />;
+default: return <DashboardPage data={data} />;
+}
+};
+
+return (
+<div style={{ display: “flex”, height: “100vh”, background: CL.bg, fontFamily: “var(–bd)”, color: CL.text, overflow: “hidden” }}>
+<style>{globalCSS}</style>
+{toast && <ToastMsg message={toast.msg} type={toast.type} />}
+
+```
+  {/* Desktop Sidebar */}
+  <div className="no-print desk-sidebar" style={{ width: sideOpen ? 215 : 54, background: CL.sf, borderRight: `1px solid ${CL.bd}`, flexDirection: "column", transition: "width .2s", overflow: "hidden", flexShrink: 0 }}>
+    <div style={{ padding: sideOpen ? "16px 12px" : "16px 8px", borderBottom: `1px solid ${CL.bd}`, display: "flex", alignItems: "center", gap: 9, cursor: "pointer" }} onClick={() => setSideOpen(!sideOpen)}>
+      <div style={{ width: 30, height: 30, borderRadius: 8, background: `linear-gradient(135deg, ${CL.gold}, ${CL.goldDark})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: CL.bg, flexShrink: 0 }}>LA</div>
+      {sideOpen && <div><div style={{ fontSize: 13, fontWeight: 700, color: CL.gold, fontFamily: "var(--hd)", whiteSpace: "nowrap" }}>Lux Angels</div><div style={{ fontSize: 10, color: CL.muted }}>Owner Portal</div></div>}
+    </div>
+    <nav style={{ flex: 1, padding: "6px 4px", overflowY: "auto" }}>
+      {navItems.map(nav => (
+        <button key={nav.id} onClick={() => setSection(nav.id)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: sideOpen ? "7px 10px" : "7px 11px", background: section === nav.id ? CL.gold + "15" : "transparent", border: "none", borderRadius: 7, cursor: "pointer", color: section === nav.id ? CL.gold : CL.muted, fontSize: 13, fontWeight: section === nav.id ? 600 : 400, marginBottom: 1, textAlign: "left", whiteSpace: "nowrap" }}>
+          <span style={{ flexShrink: 0 }}>{nav.icon}</span>{sideOpen && nav.label}
+        </button>
+      ))}
+    </nav>
+    <div style={{ padding: "8px 4px", borderTop: `1px solid ${CL.bd}` }}>
+      <button onClick={() => setAuth(null)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", background: "transparent", border: "none", borderRadius: 7, cursor: "pointer", color: CL.red, fontSize: 13 }}>
+        <span>{ICN.logout}</span>{sideOpen && "Logout"}
+      </button>
+    </div>
+  </div>
+
+  {/* Mobile Bottom Nav */}
+  <div className="mob-nav">
+    {navItems.map(nav => (
+      <button key={nav.id} onClick={() => setSection(nav.id)} style={{ color: section === nav.id ? CL.gold : CL.muted, fontWeight: section === nav.id ? 600 : 400 }}>
+        <span>{nav.icon}</span><span>{nav.label}</span>
+      </button>
+    ))}
+    <button onClick={() => setAuth(null)} style={{ color: CL.red }}>
+      <span>{ICN.logout}</span><span>Logout</span>
+    </button>
+  </div>
+
+  {/* Main Content */}
+  <div className="main-content" style={{ flex: 1, overflow: "auto" }}>
+    <div style={{ maxWidth: 1200, margin: "0 auto", animation: "fadeIn .3s ease" }}>
+      {renderSection()}
+    </div>
+  </div>
+</div>
+```
+
+);
+}
+
+// ══════════════════════════════════════════════
+// LOGIN SCREEN
+// ══════════════════════════════════════════════
+function LoginScreen({ data, onAuth }) {
+const [mode, setMode] = useState(null);
+const [pin, setPin] = useState(””);
+const [selEmp, setSelEmp] = useState(””);
+const [error, setError] = useState(””);
+
+const doLogin = () => {
+if (mode === “owner”) {
+if (pin === data.ownerPin) onAuth({ role: “owner” });
+else setError(“Wrong PIN”);
+} else {
+if (!selEmp) { setError(“Select your name”); return; }
+const correctPin = data.employeePins?.[selEmp] || “0000”;
+if (pin === correctPin) onAuth({ role: “cleaner”, employeeId: selEmp });
+else setError(“Wrong PIN”);
+}
+};
+
+return (
+<div style={{ minHeight: “100vh”, background: CL.bg, display: “flex”, alignItems: “center”, justifyContent: “center”, fontFamily: “‘Outfit’, sans-serif” }}>
+<style>{globalCSS}</style>
+<div style={{ animation: “fadeIn .5s ease”, textAlign: “center”, width: 380, padding: “0 16px” }}>
+<div style={{ width: 80, height: 80, borderRadius: 24, background: `linear-gradient(135deg, ${CL.gold}, ${CL.goldDark})`, display: “flex”, alignItems: “center”, justifyContent: “center”, margin: “0 auto 16px”, fontSize: 32, fontWeight: 700, color: CL.bg, fontFamily: “‘Cormorant Garamond’, serif” }}>LA</div>
+<h1 style={{ fontSize: 30, fontWeight: 700, color: CL.gold, fontFamily: “‘Cormorant Garamond’, serif”, marginBottom: 4 }}>Lux Angels Cleaning</h1>
+<p style={{ color: CL.muted, marginBottom: 30 }}>Management System</p>
+
+```
+    {!mode ? (
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <button onClick={() => setMode("owner")} style={{ ...cardSt, padding: "16px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 13, border: `1px solid ${CL.bd}`, textAlign: "left" }}>
+          <div style={{ width: 44, height: 44, borderRadius: 12, background: CL.gold + "15", display: "flex", alignItems: "center", justifyContent: "center", color: CL.gold, flexShrink: 0 }}>{ICN.shield}</div>
+          <div><div style={{ fontWeight: 600, color: CL.text, fontSize: 15 }}>Owner Access</div><div style={{ fontSize: 12, color: CL.muted }}>Full management dashboard</div></div>
+        </button>
+        <button onClick={() => setMode("cleaner")} style={{ ...cardSt, padding: "16px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 13, border: `1px solid ${CL.bd}`, textAlign: "left" }}>
+          <div style={{ width: 44, height: 44, borderRadius: 12, background: CL.blue + "15", display: "flex", alignItems: "center", justifyContent: "center", color: CL.blue, flexShrink: 0 }}>{ICN.user}</div>
+          <div><div style={{ fontWeight: 600, color: CL.text, fontSize: 15 }}>Cleaner Access</div><div style={{ fontSize: 12, color: CL.muted }}>Schedule, hours & earnings</div></div>
+        </button>
+      </div>
+    ) : (
+      <div style={{ ...cardSt, textAlign: "left" }}>
+        <button onClick={() => { setMode(null); setPin(""); setError(""); setSelEmp(""); }} style={{ background: "none", border: "none", color: CL.muted, cursor: "pointer", fontSize: 13, marginBottom: 12 }}>← Back</button>
+        <h3 style={{ fontFamily: "'Cormorant Garamond', serif", color: mode === "owner" ? CL.gold : CL.blue, fontSize: 20, marginBottom: 16 }}>{mode === "owner" ? "Owner Login" : "Cleaner Login"}</h3>
+        {mode === "cleaner" && (
+          <Field label="Your Name">
+            <SelectInput value={selEmp} onChange={ev => setSelEmp(ev.target.value)}>
+              <option value="">Choose...</option>
+              {data.employees.filter(emp => emp.status === "active").map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
+            </SelectInput>
+          </Field>
+        )}
+        <Field label="PIN">
+          <TextInput type="password" maxLength={6} placeholder="••••" value={pin} onChange={ev => { setPin(ev.target.value); setError(""); }} onKeyDown={ev => ev.key === "Enter" && doLogin()} style={{ fontSize: 22, textAlign: "center", letterSpacing: 10 }} />
+        </Field>
+        {error && <div style={{ color: CL.red, fontSize: 13, marginBottom: 10, textAlign: "center" }}>{error}</div>}
+        <button onClick={doLogin} style={{ ...btnPri, width: "100%", justifyContent: "center", background: mode === "owner" ? CL.gold : CL.blue }}>Login</button>
+        <p style={{ color: CL.dim, fontSize: 11, textAlign: "center", marginTop: 12 }}>{mode === "owner" ? "Default PIN: 1234" : "Default PIN: 0000"}</p>
+      </div>
+    )}
+  </div>
+</div>
+```
+
+);
+}
+
+// ══════════════════════════════════════════════
+// CLEANER PORTAL
+// ══════════════════════════════════════════════
+function CleanerPortal({ data, updateData, auth, onLogout, showToast, toast }) {
+const [tab, setTab] = useState(“schedule”);
+const emp = data.employees.find(e => e.id === auth.employeeId);
+const [monthFilter, setMonthFilter] = useState(getToday().slice(0, 7));
+
+const upcoming = data.schedules.filter(s => s.employeeId === auth.employeeId && s.date >= getToday() && s.status !== “cancelled”).sort((a, b) => a.date.localeCompare(b.date));
+const myClocks = data.clockEntries.filter(c => c.employeeId === auth.employeeId).sort((a, b) => new Date(b.clockIn) - new Date(a.clockIn));
+const activeClock = myClocks.find(c => !c.clockOut);
+const monthClocks = myClocks.filter(c => c.clockOut && c.clockIn?.startsWith(monthFilter));
+const monthHours = monthClocks.reduce((sum, c) => sum + calcHrs(c.clockIn, c.clockOut), 0);
+
+const doClockIn = (clientId) => {
+if (activeClock) { showToast(“Already clocked in!”, “error”); return; }
+updateData(“clockEntries”, prev => […prev, { id: makeId(), employeeId: auth.employeeId, clientId, clockIn: new Date().toISOString(), clockOut: null, notes: “” }]);
+showToast(“Clocked in!”);
+};
+const doClockOut = () => {
+if (!activeClock) return;
+updateData(“clockEntries”, prev => prev.map(c => c.id === activeClock.id ? { …c, clockOut: new Date().toISOString() } : c));
+showToast(“Clocked out!”);
+};
+
+const tabItems = [
+{ id: “schedule”, label: “My Schedule”, icon: ICN.cal },
+{ id: “clock”, label: “Clock In/Out”, icon: ICN.clock },
+{ id: “hours”, label: “My Hours”, icon: ICN.chart },
+{ id: “earnings”, label: “Earnings”, icon: ICN.pay },
+];
+
+return (
+<div style={{ minHeight: “100vh”, background: CL.bg, fontFamily: “‘Outfit’, sans-serif”, color: CL.text }}>
+<style>{globalCSS}</style>
+{toast && <ToastMsg message={toast.msg} type={toast.type} />}
+{/* Header */}
+<div style={{ background: CL.sf, borderBottom: `1px solid ${CL.bd}`, padding: “11px 18px”, display: “flex”, justifyContent: “space-between”, alignItems: “center” }}>
+<div style={{ display: “flex”, alignItems: “center”, gap: 10 }}>
+<div style={{ width: 32, height: 32, borderRadius: 9, background: CL.blue + “20”, display: “flex”, alignItems: “center”, justifyContent: “center”, color: CL.blue }}>{ICN.user}</div>
+<div><div style={{ fontWeight: 600, fontSize: 14 }}>{emp?.name || “Cleaner”}</div><div style={{ fontSize: 10, color: CL.muted }}>{emp?.role}</div></div>
+</div>
+<button onClick={onLogout} style={{ …btnSec, …btnSm, color: CL.red }}>{ICN.logout} Logout</button>
+</div>
+{/* Tabs */}
+<div style={{ display: “flex”, background: CL.sf, borderBottom: `1px solid ${CL.bd}`, overflowX: “auto”, WebkitOverflowScrolling: “touch” }}>
+{tabItems.map(t => (
+<button key={t.id} onClick={() => setTab(t.id)} style={{ padding: “11px 16px”, border: “none”, background: “transparent”, cursor: “pointer”, color: tab === t.id ? CL.blue : CL.muted, fontWeight: tab === t.id ? 600 : 400, fontSize: 13, borderBottom: tab === t.id ? `2px solid ${CL.blue}` : “2px solid transparent”, display: “flex”, alignItems: “center”, gap: 5, whiteSpace: “nowrap”, flexShrink: 0 }}>{t.icon} {t.label}</button>
+))}
+</div>
+{/* Content */}
+<div style={{ padding: 18, maxWidth: 800, margin: “0 auto” }}>
+{tab === “schedule” && (
+<div>
+<h2 style={{ fontFamily: “var(–hd)”, color: CL.blue, fontSize: 22, marginBottom: 14 }}>Upcoming Jobs</h2>
+{upcoming.length === 0 ? <div style={{ …cardSt, textAlign: “center”, padding: 36, color: CL.muted }}>No upcoming jobs</div> :
+upcoming.slice(0, 20).map(sched => {
+const client = data.clients.find(c => c.id === sched.clientId);
+return (
+<div key={sched.id} style={{ …cardSt, marginBottom: 10, display: “flex”, justifyContent: “space-between”, alignItems: “flex-start” }}>
+<div style={{ flex: 1 }}>
+<div style={{ fontWeight: 600 }}>{client?.name || “?”}</div>
+<div style={{ fontSize: 12, color: CL.muted }}>{client?.address}{client?.apartmentFloor ? `, ${client.apartmentFloor}` : “”}{client?.city ? ` · ${client.postalCode || ""} ${client.city}` : “”}</div>
+{client?.accessCode && <div style={{ fontSize: 11, color: CL.orange, marginTop: 2 }}>Code: {client.accessCode}</div>}
+{client?.keyLocation && <div style={{ fontSize: 11, color: CL.orange }}>Key: {client.keyLocation}</div>}
+{client?.petInfo && <div style={{ fontSize: 11, color: CL.orange }}>Pets: {client.petInfo}</div>}
+{client?.specialInstructions && <div style={{ fontSize: 11, color: CL.dim, marginTop: 2 }}>{client.specialInstructions}</div>}
+<div style={{ fontSize: 13, color: CL.blue, marginTop: 3 }}>{fmtDate(sched.date)} · {sched.startTime}–{sched.endTime}</div>
+</div>
+<Badge color={sched.date === getToday() ? CL.green : CL.blue}>{sched.date === getToday() ? “Today” : fmtDate(sched.date)}</Badge>
+</div>
+);
+})
+}
+</div>
+)}
+
+```
+    {tab === "clock" && (
+      <div>
+        <h2 style={{ fontFamily: "var(--hd)", color: CL.blue, fontSize: 22, marginBottom: 14 }}>Clock In / Out</h2>
+        {activeClock ? (
+          <div style={{ ...cardSt, borderColor: CL.green, textAlign: "center", marginBottom: 18 }}>
+            <div style={{ color: CL.green, marginBottom: 4 }}>{ICN.clock}</div>
+            <div style={{ fontSize: 17, fontWeight: 600, color: CL.green }}>Clocked In</div>
+            <div style={{ color: CL.muted }}>Since {fmtBoth(activeClock.clockIn)} at {data.clients.find(c => c.id === activeClock.clientId)?.name || "?"}</div>
+            <button onClick={doClockOut} style={{ ...btnPri, background: CL.red, marginTop: 12 }}>Clock Out Now</button>
+          </div>
+        ) : (
+          <div style={cardSt}>
+            <p style={{ color: CL.muted, marginBottom: 12 }}>Select client to clock in:</p>
+            {(() => {
+              const todayJobs = data.schedules.filter(sc => sc.date === getToday() && sc.employeeId === auth.employeeId && sc.status !== "cancelled");
+              const todayClientIds = todayJobs.map(sc => sc.clientId);
+              const todayClients = data.clients.filter(c => todayClientIds.includes(c.id));
+              const otherClients = data.clients.filter(c => c.status === "active" && !todayClientIds.includes(c.id));
+              return (
+                <>
+                  {todayClients.length > 0 && <div style={{ fontSize: 11, color: CL.green, fontWeight: 600, marginBottom: 5 }}>TODAY'S CLIENTS:</div>}
+                  {todayClients.map(client => (
+                    <button key={client.id} onClick={() => doClockIn(client.id)} style={{ ...cardSt, width: "100%", padding: "12px 16px", marginBottom: 5, cursor: "pointer", textAlign: "left", display: "flex", justifyContent: "space-between", borderColor: CL.green + "60" }}>
+                      <div><div style={{ fontWeight: 600 }}>{client.name}</div><div style={{ fontSize: 11, color: CL.muted }}>{client.address}</div></div>
+                      <span style={{ color: CL.green, fontWeight: 600, fontSize: 13 }}>Clock In →</span>
+                    </button>
+                  ))}
+                  {otherClients.length > 0 && <div style={{ fontSize: 11, color: CL.muted, fontWeight: 600, margin: "10px 0 5px" }}>OTHER:</div>}
+                  {otherClients.map(client => (
+                    <button key={client.id} onClick={() => doClockIn(client.id)} style={{ ...cardSt, width: "100%", padding: "10px 16px", marginBottom: 5, cursor: "pointer", textAlign: "left", display: "flex", justifyContent: "space-between" }}>
+                      <div><div style={{ fontWeight: 600 }}>{client.name}</div><div style={{ fontSize: 11, color: CL.muted }}>{client.address}</div></div>
+                      <span style={{ color: CL.blue, fontSize: 13 }}>Clock In →</span>
+                    </button>
+                  ))}
+                </>
+              );
+            })()}
+          </div>
+        )}
+      </div>
+    )}
+
+    {tab === "hours" && (
+      <div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 8 }}>
+          <h2 style={{ fontFamily: "var(--hd)", color: CL.blue, fontSize: 22 }}>My Hours</h2>
+          <TextInput type="month" value={monthFilter} onChange={ev => setMonthFilter(ev.target.value)} style={{ width: 160 }} />
+        </div>
+        <div className="stat-row" style={{ marginBottom: 18 }}>
+          <StatCard label="Hours" value={`${monthHours.toFixed(1)}h`} icon={ICN.clock} color={CL.blue} />
+          <StatCard label="Days" value={monthClocks.length} icon={ICN.cal} color={CL.green} />
+        </div>
+        <div style={cardSt} className="tbl-wrap">
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+            <thead><tr><th style={thSt}>Date</th><th style={thSt}>Client</th><th style={thSt}>In</th><th style={thSt}>Out</th><th style={thSt}>Hours</th></tr></thead>
+            <tbody>
+              {monthClocks.map(clk => { const client = data.clients.find(c => c.id === clk.clientId); return (
+                <tr key={clk.id}><td style={tdSt}>{fmtDate(clk.clockIn)}</td><td style={tdSt}>{client?.name || "—"}</td><td style={tdSt}>{fmtTime(clk.clockIn)}</td><td style={tdSt}>{fmtTime(clk.clockOut)}</td><td style={{ ...tdSt, fontWeight: 600 }}>{calcHrs(clk.clockIn, clk.clockOut).toFixed(2)}h</td></tr>
+              ); })}
+              {monthClocks.length === 0 && <tr><td colSpan={5} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>No entries</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    )}
+
+    {tab === "earnings" && (
+      <div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 8 }}>
+          <h2 style={{ fontFamily: "var(--hd)", color: CL.blue, fontSize: 22 }}>Earnings</h2>
+          <TextInput type="month" value={monthFilter} onChange={ev => setMonthFilter(ev.target.value)} style={{ width: 160 }} />
+        </div>
+        <div className="stat-row" style={{ marginBottom: 18 }}>
+          <StatCard label="Hours" value={`${monthHours.toFixed(1)}h`} icon={ICN.clock} color={CL.blue} />
+          <StatCard label="Rate" value={`€${(emp?.hourlyRate || 0).toFixed(2)}/hr`} icon={ICN.pay} color={CL.gold} />
+          <StatCard label="Gross" value={`€${(monthHours * (emp?.hourlyRate || 0)).toFixed(2)}`} icon={ICN.chart} color={CL.green} />
+        </div>
+        <div style={cardSt}>
+          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: CL.blue }}>My Payslips</h3>
+          {data.payslips.filter(ps => ps.employeeId === auth.employeeId).sort((a, b) => b.month.localeCompare(a.month)).map(ps => (
+            <div key={ps.id} style={{ padding: "8px 0", borderBottom: `1px solid ${CL.bd}`, display: "flex", justifyContent: "space-between" }}>
+              <div><div style={{ fontWeight: 600 }}>{ps.payslipNumber}</div><div style={{ fontSize: 12, color: CL.muted }}>{ps.month} · {ps.totalHours}h</div></div>
+              <div style={{ textAlign: "right" }}><div style={{ fontWeight: 600, color: CL.green }}>€{ps.netPay?.toFixed(2)}</div><Badge color={ps.status === "paid" ? CL.green : CL.muted}>{ps.status}</Badge></div>
+            </div>
+          ))}
+          {data.payslips.filter(ps => ps.employeeId === auth.employeeId).length === 0 && <p style={{ color: CL.muted, textAlign: "center" }}>No payslips yet</p>}
+        </div>
+      </div>
+    )}
+  </div>
+</div>
+```
+
+);
+}
+
+// ══════════════════════════════════════════════
+// DASHBOARD
+// ══════════════════════════════════════════════
+function DashboardPage({ data }) {
+const todayStr = getToday();
+const todayScheds = data.schedules.filter(s => s.date === todayStr);
+const activeClocks = data.clockEntries.filter(c => !c.clockOut);
+const monthRev = data.invoices.filter(inv => inv.date?.startsWith(todayStr.slice(0, 7))).reduce((sum, inv) => sum + (inv.total || 0), 0);
+const tomorrow = new Date(Date.now() + 864e5).toISOString().slice(0, 10);
+const tomorrowScheds = data.schedules.filter(s => s.date === tomorrow);
+
+return (
+<div>
+<h1 style={{ fontSize: 26, fontFamily: “var(–hd)”, color: CL.gold, marginBottom: 5 }}>Dashboard</h1>
+<p style={{ color: CL.muted, marginBottom: 18 }}>{new Date().toLocaleDateString(“en-GB”, { weekday: “long”, day: “numeric”, month: “long”, year: “numeric” })}</p>
+<div className=“stat-row” style={{ marginBottom: 22 }}>
+<StatCard label="Today's Jobs" value={todayScheds.length} icon={ICN.cal} color={CL.blue} />
+<StatCard label="Clocked In" value={activeClocks.length} icon={ICN.clock} color={CL.green} />
+<StatCard label="Clients" value={data.clients.length} icon={ICN.user} color={CL.gold} />
+<StatCard label=“Month Rev” value={`€${monthRev.toFixed(0)}`} icon={ICN.chart} color={CL.goldLight} />
+</div>
+<div className="grid-2">
+<div style={cardSt}>
+<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>Today’s Schedule</h3>
+{todayScheds.length === 0 ? <p style={{ color: CL.muted, fontSize: 13 }}>No jobs</p> :
+todayScheds.map(sched => {
+const client = data.clients.find(c => c.id === sched.clientId);
+const employee = data.employees.find(e => e.id === sched.employeeId);
+return (
+<div key={sched.id} style={{ padding: “7px 0”, borderBottom: `1px solid ${CL.bd}`, display: “flex”, justifyContent: “space-between” }}>
+<div><div style={{ fontWeight: 600, fontSize: 13 }}>{client?.name || “?”}</div><div style={{ fontSize: 11, color: CL.muted }}>{employee?.name || “—”} · {sched.startTime}–{sched.endTime}</div></div>
+<Badge color={sched.status === “completed” ? CL.green : CL.blue}>{sched.status}</Badge>
+</div>
+);
+})
+}
+</div>
+<div style={cardSt}>
+<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>Tomorrow ({tomorrowScheds.length})</h3>
+{tomorrowScheds.length === 0 ? <p style={{ color: CL.muted, fontSize: 13 }}>Nothing</p> :
+tomorrowScheds.map(sched => {
+const client = data.clients.find(c => c.id === sched.clientId);
+const employee = data.employees.find(e => e.id === sched.employeeId);
+return (
+<div key={sched.id} style={{ padding: “7px 0”, borderBottom: `1px solid ${CL.bd}` }}>
+<div style={{ fontWeight: 600, fontSize: 13 }}>{client?.name || “?”}</div>
+<div style={{ fontSize: 11, color: CL.muted }}>{employee?.name || “—”} · {sched.startTime}–{sched.endTime}</div>
+{client?.email && <div style={{ fontSize: 10, color: CL.blue }}>Reminder → {client.email}</div>}
+</div>
+);
+})
+}
+</div>
+<div style={cardSt}>
+<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.green }}>Active Clocks</h3>
+{activeClocks.length === 0 ? <p style={{ color: CL.muted, fontSize: 13 }}>None</p> :
+activeClocks.map(clk => {
+const employee = data.employees.find(e => e.id === clk.employeeId);
+const client = data.clients.find(c => c.id === clk.clientId);
+return (
+<div key={clk.id} style={{ padding: “7px 0”, borderBottom: `1px solid ${CL.bd}` }}>
+<div style={{ fontWeight: 600, fontSize: 13 }}>{employee?.name || “?”}</div>
+<div style={{ fontSize: 11, color: CL.muted }}>At {client?.name || “?”} · {fmtTime(clk.clockIn)}</div>
+</div>
+);
+})
+}
+</div>
+<div style={cardSt}>
+<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>Recent Invoices</h3>
+{data.invoices.slice(-5).reverse().map(inv => {
+const client = data.clients.find(c => c.id === inv.clientId);
+return (
+<div key={inv.id} style={{ padding: “7px 0”, borderBottom: `1px solid ${CL.bd}`, display: “flex”, justifyContent: “space-between” }}>
+<div><div style={{ fontWeight: 600, fontSize: 13 }}>{inv.invoiceNumber}</div><div style={{ fontSize: 11, color: CL.muted }}>{client?.name}</div></div>
+<div style={{ textAlign: “right” }}><div style={{ fontWeight: 600 }}>€{(inv.total || 0).toFixed(2)}</div><Badge color={inv.status === “paid” ? CL.green : CL.muted}>{inv.status}</Badge></div>
+</div>
+);
+})}
+{data.invoices.length === 0 && <p style={{ color: CL.muted, fontSize: 13 }}>No invoices</p>}
+</div>
+</div>
+</div>
+);
+}
+
+// ══════════════════════════════════════════════
+// EMPLOYEES PAGE
+// ══════════════════════════════════════════════
+function EmployeesPage({ data, updateData, showToast }) {
+const [modal, setModal] = useState(null);
+const [deleteId, setDeleteId] = useState(null);
+const [search, setSearch] = useState(””);
+
+const emptyEmployee = {
+name: “”, email: “”, phone: “”, phoneMobile: “”, address: “”, city: “Luxembourg”, postalCode: “”, country: “Luxembourg”,
+role: “Cleaner”, hourlyRate: 15, startDate: getToday(), status: “active”, notes: “”, bankIban: “”, socialSecNumber: “”,
+pin: “0000”, dateOfBirth: “”, nationality: “”, contractType: “CDI”, workPermit: “”, emergencyName: “”, emergencyPhone: “”,
+languages: “”, transport: “”,
+};
+
+const handleSave = (empData) => {
+const { pin: empPin, …empFields } = empData;
+const pinValue = empPin || “0000”;
+if (empData.id) {
+updateData(“employees”, prev => prev.map(e => e.id === empData.id ? empFields : e));
+updateData(“employeePins”, prev => ({ …prev, [empData.id]: pinValue }));
+showToast(“Employee updated”);
+} else {
+const newId = makeId();
+updateData(“employees”, prev => […prev, { …empFields, id: newId }]);
+updateData(“employeePins”, prev => ({ …prev, [newId]: pinValue }));
+showToast(“Employee added”);
+}
+setModal(null);
+};
+
+const handleDelete = (id) => {
+updateData(“employees”, prev => prev.filter(e => e.id !== id));
+showToast(“Deleted”, “error”);
+setDeleteId(null);
+};
+
+const filtered = data.employees.filter(e => e.name.toLowerCase().includes(search.toLowerCase()));
+
+return (
+<div>
+<div style={{ display: “flex”, justifyContent: “space-between”, alignItems: “center”, marginBottom: 16, flexWrap: “wrap”, gap: 8 }}>
+<h1 style={{ fontSize: 26, fontFamily: “var(–hd)”, color: CL.gold }}>Employees</h1>
+<button style={btnPri} onClick={() => setModal({ …emptyEmployee })}>{ICN.plus} Add</button>
+</div>
+<div style={{ marginBottom: 12, position: “relative” }}>
+<TextInput placeholder=“Search…” value={search} onChange={ev => setSearch(ev.target.value)} style={{ paddingLeft: 34 }} />
+<span style={{ position: “absolute”, left: 10, top: 10, color: CL.muted }}>{ICN.search}</span>
+</div>
+<div style={cardSt} className="tbl-wrap">
+<table style={{ width: “100%”, borderCollapse: “collapse”, fontSize: 14 }}>
+<thead>
+<tr><th style={thSt}>Name</th><th style={thSt}>Role</th><th style={thSt}>Rate</th><th style={thSt}>Contact</th><th style={thSt}>Contract</th><th style={thSt}>PIN</th><th style={thSt}>Status</th><th style={thSt}>Actions</th></tr>
+</thead>
+<tbody>
+{filtered.map(emp => (
+<tr key={emp.id}>
+<td style={tdSt}><div style={{ fontWeight: 600 }}>{emp.name}</div><div style={{ fontSize: 11, color: CL.muted }}>{emp.nationality ? `${emp.nationality} · ` : “”}{emp.languages || “”}</div></td>
+<td style={tdSt}>{emp.role}</td>
+<td style={tdSt}>€{Number(emp.hourlyRate).toFixed(2)}/hr</td>
+<td style={tdSt}><div style={{ fontSize: 12 }}>{emp.phone}</div><div style={{ fontSize: 11, color: CL.muted }}>{emp.email}</div></td>
+<td style={tdSt}><div style={{ fontSize: 12 }}>{emp.contractType || “CDI”}</div><div style={{ fontSize: 11, color: CL.muted }}>{emp.transport || “”}</div></td>
+<td style={tdSt}><code style={{ background: CL.s2, padding: “2px 5px”, borderRadius: 4, fontSize: 12 }}>{data.employeePins?.[emp.id] || “0000”}</code></td>
+<td style={tdSt}><Badge color={emp.status === “active” ? CL.green : CL.red}>{emp.status}</Badge></td>
+<td style={tdSt}>
+<div style={{ display: “flex”, gap: 4 }}>
+<button style={{ …btnSec, …btnSm }} onClick={() => setModal({ …emp, pin: data.employeePins?.[emp.id] || “0000” })}>{ICN.edit}</button>
+<button style={{ …btnSec, …btnSm, color: CL.red }} onClick={() => setDeleteId(emp.id)}>{ICN.trash}</button>
+</div>
+</td>
+</tr>
+))}
+{filtered.length === 0 && <tr><td colSpan={8} style={{ …tdSt, textAlign: “center”, color: CL.muted }}>No employees</td></tr>}
+</tbody>
+</table>
+</div>
+
+```
+  {deleteId && (
+    <ModalBox title="Delete?" onClose={() => setDeleteId(null)}>
+      <p style={{ marginBottom: 16 }}>Remove this employee?</p>
+      <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+        <button style={btnSec} onClick={() => setDeleteId(null)}>Cancel</button>
+        <button style={btnDng} onClick={() => handleDelete(deleteId)}>Delete</button>
+      </div>
+    </ModalBox>
+  )}
+
+  {modal && (
+    <ModalBox title={modal.id ? "Edit Employee" : "Add Employee"} onClose={() => setModal(null)}>
+      <EmployeeForm initialData={modal} onSave={handleSave} onCancel={() => setModal(null)} />
+    </ModalBox>
+  )}
+</div>
+```
+
+);
+}
+
+function EmployeeForm({ initialData, onSave, onCancel }) {
+const [form, setForm] = useState(initialData);
+const [activeTab, setActiveTab] = useState(“basic”);
+
+const set = (key, value) => setForm(prev => ({ …prev, [key]: value }));
+
+const tabs = [
+{ id: “basic”, label: “Basic Info” },
+{ id: “personal”, label: “Personal” },
+{ id: “work”, label: “Work & Pay” },
+{ id: “emergency”, label: “Emergency” },
+];
+
+return (
+<div>
+<FormTabs tabs={tabs} active={activeTab} onChange={setActiveTab} />
+
+```
+  {activeTab === "basic" && (
+    <div className="form-grid">
+      <Field label="Full Name *"><TextInput value={form.name} onChange={ev => set("name", ev.target.value)} /></Field>
+      <Field label="Role">
+        <SelectInput value={form.role} onChange={ev => set("role", ev.target.value)}>
+          <option>Cleaner</option><option>Senior Cleaner</option><option>Team Lead</option><option>Supervisor</option>
+        </SelectInput>
+      </Field>
+      <Field label="Email"><TextInput type="email" value={form.email} onChange={ev => set("email", ev.target.value)} /></Field>
+      <Field label="Phone"><TextInput value={form.phone} onChange={ev => set("phone", ev.target.value)} placeholder="+352 ..." /></Field>
+      <Field label="Mobile"><TextInput value={form.phoneMobile || ""} onChange={ev => set("phoneMobile", ev.target.value)} placeholder="+352 ..." /></Field>
+      <Field label="Login PIN"><TextInput maxLength={6} value={form.pin || "0000"} onChange={ev => set("pin", ev.target.value.replace(/\D/g, ""))} /></Field>
+      <div style={{ gridColumn: "1/-1" }}><Field label="Address"><TextInput value={form.address} onChange={ev => set("address", ev.target.value)} placeholder="Street & house number" /></Field></div>
+      <Field label="Postal Code"><TextInput value={form.postalCode || ""} onChange={ev => set("postalCode", ev.target.value)} placeholder="L-1234" /></Field>
+      <Field label="City"><TextInput value={form.city || ""} onChange={ev => set("city", ev.target.value)} /></Field>
+      <Field label="Country"><TextInput value={form.country || ""} onChange={ev => set("country", ev.target.value)} /></Field>
+    </div>
+  )}
+
+  {activeTab === "personal" && (
+    <div className="form-grid">
+      <Field label="Date of Birth"><TextInput type="date" value={form.dateOfBirth || ""} onChange={ev => set("dateOfBirth", ev.target.value)} /></Field>
+      <Field label="Nationality"><TextInput value={form.nationality || ""} onChange={ev => set("nationality", ev.target.value)} placeholder="e.g. Portuguese" /></Field>
+      <Field label="Languages"><TextInput value={form.languages || ""} onChange={ev => set("languages", ev.target.value)} placeholder="FR, DE, PT, EN..." /></Field>
+      <Field label="Social Security No."><TextInput value={form.socialSecNumber || ""} onChange={ev => set("socialSecNumber", ev.target.value)} /></Field>
+      <Field label="Transport">
+        <SelectInput value={form.transport || ""} onChange={ev => set("transport", ev.target.value)}>
+          <option value="">Select...</option><option>Car</option><option>Public Transport</option><option>Bicycle</option><option>Walking</option>
+        </SelectInput>
+      </Field>
+    </div>
+  )}
+
+  {activeTab === "work" && (
+    <div className="form-grid">
+      <Field label="Hourly Rate (€)"><TextInput type="number" step=".5" value={form.hourlyRate} onChange={ev => set("hourlyRate", parseFloat(ev.target.value) || 0)} /></Field>
+      <Field label="Contract Type">
+        <SelectInput value={form.contractType || "CDI"} onChange={ev => set("contractType", ev.target.value)}>
+          <option>CDI</option><option>CDD</option><option>Mini-job</option><option>Freelance</option><option>Student</option>
+        </SelectInput>
+      </Field>
+      <Field label="Start Date"><TextInput type="date" value={form.startDate} onChange={ev => set("startDate", ev.target.value)} /></Field>
+      <Field label="Work Permit #"><TextInput value={form.workPermit || ""} onChange={ev => set("workPermit", ev.target.value)} placeholder="If applicable" /></Field>
+      <Field label="Bank IBAN"><TextInput value={form.bankIban || ""} onChange={ev => set("bankIban", ev.target.value)} placeholder="LU..." /></Field>
+      <Field label="Status">
+        <SelectInput value={form.status} onChange={ev => set("status", ev.target.value)}>
+          <option value="active">Active</option><option value="inactive">Inactive</option>
+        </SelectInput>
+      </Field>
+    </div>
+  )}
+
+  {activeTab === "emergency" && (
+    <div className="form-grid">
+      <Field label="Emergency Contact Name"><TextInput value={form.emergencyName || ""} onChange={ev => set("emergencyName", ev.target.value)} /></Field>
+      <Field label="Emergency Phone"><TextInput value={form.emergencyPhone || ""} onChange={ev => set("emergencyPhone", ev.target.value)} placeholder="+352 ..." /></Field>
+      <div style={{ gridColumn: "1/-1" }}>
+        <Field label="Notes"><TextArea value={form.notes || ""} onChange={ev => set("notes", ev.target.value)} placeholder="Any additional info..." /></Field>
+      </div>
+    </div>
+  )}
+
+  <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 10 }}>
+    <button style={btnSec} onClick={onCancel}>Cancel</button>
+    <button style={btnPri} onClick={() => form.name && onSave(form)}>Save Employee</button>
+  </div>
+</div>
+```
+
+);
+}
+
+// ══════════════════════════════════════════════
+// CLIENTS PAGE
+// ══════════════════════════════════════════════
+function ClientsPage({ data, updateData, showToast }) {
+const [modal, setModal] = useState(null);
+const [deleteId, setDeleteId] = useState(null);
+const [search, setSearch] = useState(””);
+
+const emptyClient = {
+name: “”, email: “”, phone: “”, phoneMobile: “”, address: “”, apartmentFloor: “”, city: “Luxembourg”, postalCode: “”, country: “Luxembourg”,
+type: “Residential”, cleaningFrequency: “Weekly”, pricePerHour: 35, priceFixed: 0, billingType: “hourly”, notes: “”, contactPerson: “”,
+status: “active”, accessCode: “”, keyLocation: “”, parkingInfo: “”, petInfo: “”, specialInstructions: “”, preferredDay: “”, preferredTime: “”,
+contractStart: “”, contractEnd: “”, squareMeters: “”, taxId: “”, language: “FR”,
+};
+
+const handleSave = (clientData) => {
+if (clientData.id) {
+updateData(“clients”, prev => prev.map(c => c.id === clientData.id ? clientData : c));
+showToast(“Client updated”);
+} else {
+updateData(“clients”, prev => […prev, { …clientData, id: makeId() }]);
+showToast(“Client added”);
+}
+setModal(null);
+};
+
+const handleDelete = (id) => {
+updateData(“clients”, prev => prev.filter(c => c.id !== id));
+showToast(“Deleted”, “error”);
+setDeleteId(null);
+};
+
+const filtered = data.clients.filter(c => c.name.toLowerCase().includes(search.toLowerCase()));
+
+return (
+<div>
+<div style={{ display: “flex”, justifyContent: “space-between”, alignItems: “center”, marginBottom: 16, flexWrap: “wrap”, gap: 8 }}>
+<h1 style={{ fontSize: 26, fontFamily: “var(–hd)”, color: CL.gold }}>Clients</h1>
+<button style={btnPri} onClick={() => setModal({ …emptyClient })}>{ICN.plus} Add</button>
+</div>
+<div style={{ marginBottom: 12, position: “relative” }}>
+<TextInput placeholder=“Search…” value={search} onChange={ev => setSearch(ev.target.value)} style={{ paddingLeft: 34 }} />
+<span style={{ position: “absolute”, left: 10, top: 10, color: CL.muted }}>{ICN.search}</span>
+</div>
+<div style={cardSt} className="tbl-wrap">
+<table style={{ width: “100%”, borderCollapse: “collapse”, fontSize: 14 }}>
+<thead>
+<tr><th style={thSt}>Client</th><th style={thSt}>Address</th><th style={thSt}>Type</th><th style={thSt}>Freq</th><th style={thSt}>Price</th><th style={thSt}>Status</th><th style={thSt}>Actions</th></tr>
+</thead>
+<tbody>
+{filtered.map(client => (
+<tr key={client.id}>
+<td style={tdSt}>
+<div style={{ fontWeight: 600 }}>{client.name}</div>
+<div style={{ fontSize: 11, color: CL.muted }}>{client.contactPerson ? `${client.contactPerson} · ` : “”}{client.email}</div>
+<div style={{ fontSize: 11, color: CL.dim }}>{client.phone}{client.phoneMobile ? ` / ${client.phoneMobile}` : “”}</div>
+</td>
+<td style={tdSt}>
+<div style={{ fontSize: 12 }}>{client.address}{client.apartmentFloor ? `, ${client.apartmentFloor}` : “”}</div>
+<div style={{ fontSize: 11, color: CL.muted }}>{client.postalCode ? `${client.postalCode} ` : “”}{client.city || “”}</div>
+{client.accessCode && <div style={{ fontSize: 10, color: CL.orange }}>Code: {client.accessCode}</div>}
+</td>
+<td style={tdSt}>{client.type}</td>
+<td style={tdSt}>{client.cleaningFrequency}</td>
+<td style={tdSt}>{client.billingType === “fixed” ? `€${Number(client.priceFixed).toFixed(2)}` : `€${Number(client.pricePerHour).toFixed(2)}/hr`}</td>
+<td style={tdSt}><Badge color={client.status === “active” ? CL.green : client.status === “prospect” ? CL.orange : CL.red}>{client.status}</Badge></td>
+<td style={tdSt}>
+<div style={{ display: “flex”, gap: 4 }}>
+<button style={{ …btnSec, …btnSm }} onClick={() => setModal({ …client })}>{ICN.edit}</button>
+<button style={{ …btnSec, …btnSm, color: CL.red }} onClick={() => setDeleteId(client.id)}>{ICN.trash}</button>
+</div>
+</td>
+</tr>
+))}
+{filtered.length === 0 && <tr><td colSpan={7} style={{ …tdSt, textAlign: “center”, color: CL.muted }}>No clients</td></tr>}
+</tbody>
+</table>
+</div>
+
+```
+  {deleteId && (
+    <ModalBox title="Delete?" onClose={() => setDeleteId(null)}>
+      <p style={{ marginBottom: 16 }}>Remove this client?</p>
+      <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+        <button style={btnSec} onClick={() => setDeleteId(null)}>Cancel</button>
+        <button style={btnDng} onClick={() => handleDelete(deleteId)}>Delete</button>
+      </div>
+    </ModalBox>
+  )}
+
+  {modal && (
+    <ModalBox title={modal.id ? "Edit Client" : "Add Client"} onClose={() => setModal(null)}>
+      <ClientForm initialData={modal} onSave={handleSave} onCancel={() => setModal(null)} />
+    </ModalBox>
+  )}
+</div>
+```
+
+);
+}
+
+function ClientForm({ initialData, onSave, onCancel }) {
+const [form, setForm] = useState(initialData);
+const [activeTab, setActiveTab] = useState(“basic”);
+const set = (key, value) => setForm(prev => ({ …prev, [key]: value }));
+
+const tabs = [
+{ id: “basic”, label: “Basic Info” },
+{ id: “address”, label: “Address & Access” },
+{ id: “service”, label: “Service & Billing” },
+{ id: “details”, label: “Property Details” },
+];
+
+return (
+<div>
+<FormTabs tabs={tabs} active={activeTab} onChange={setActiveTab} />
+
+```
+  {activeTab === "basic" && (
+    <div className="form-grid">
+      <Field label="Client Name *"><TextInput value={form.name} onChange={ev => set("name", ev.target.value)} placeholder="Name or company" /></Field>
+      <Field label="Contact Person"><TextInput value={form.contactPerson || ""} onChange={ev => set("contactPerson", ev.target.value)} /></Field>
+      <Field label="Email"><TextInput type="email" value={form.email} onChange={ev => set("email", ev.target.value)} /></Field>
+      <Field label="Phone"><TextInput value={form.phone} onChange={ev => set("phone", ev.target.value)} placeholder="+352 ..." /></Field>
+      <Field label="Mobile"><TextInput value={form.phoneMobile || ""} onChange={ev => set("phoneMobile", ev.target.value)} placeholder="+352 ..." /></Field>
+      <Field label="Preferred Language">
+        <SelectInput value={form.language || "FR"} onChange={ev => set("language", ev.target.value)}>
+          <option value="FR">Français</option><option value="DE">Deutsch</option><option value="EN">English</option><option value="PT">Português</option><option value="LU">Lëtzebuergesch</option>
+        </SelectInput>
+      </Field>
+      <Field label="Client Type">
+        <SelectInput value={form.type} onChange={ev => set("type", ev.target.value)}>
+          <option>Residential</option><option>Commercial</option><option>Office</option><option>Industrial</option><option>Airbnb</option>
+        </SelectInput>
+      </Field>
+      <Field label="Status">
+        <SelectInput value={form.status} onChange={ev => set("status", ev.target.value)}>
+          <option value="active">Active</option><option value="inactive">Inactive</option><option value="prospect">Prospect</option>
+        </SelectInput>
+      </Field>
+      {(form.type === "Commercial" || form.type === "Office") && <Field label="Tax / VAT ID"><TextInput value={form.taxId || ""} onChange={ev => set("taxId", ev.target.value)} placeholder="LU..." /></Field>}
+    </div>
+  )}
+
+  {activeTab === "address" && (
+    <div className="form-grid">
+      <div style={{ gridColumn: "1/-1" }}><Field label="Street Address"><TextInput value={form.address} onChange={ev => set("address", ev.target.value)} placeholder="Street name & house number" /></Field></div>
+      <Field label="Apt / Floor / Unit"><TextInput value={form.apartmentFloor || ""} onChange={ev => set("apartmentFloor", ev.target.value)} placeholder="e.g. 3rd floor, Apt 12B" /></Field>
+      <Field label="Postal Code"><TextInput value={form.postalCode || ""} onChange={ev => set("postalCode", ev.target.value)} placeholder="L-1234" /></Field>
+      <Field label="City"><TextInput value={form.city || ""} onChange={ev => set("city", ev.target.value)} /></Field>
+      <Field label="Country"><TextInput value={form.country || ""} onChange={ev => set("country", ev.target.value)} /></Field>
+      <div style={{ gridColumn: "1/-1", borderTop: `1px solid ${CL.bd}`, paddingTop: 12, marginTop: 4 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: CL.gold, marginBottom: 10 }}>Access Information</div>
+      </div>
+      <Field label="Building Code / Digicode"><TextInput value={form.accessCode || ""} onChange={ev => set("accessCode", ev.target.value)} placeholder="e.g. #1234" /></Field>
+      <Field label="Key Location"><TextInput value={form.keyLocation || ""} onChange={ev => set("keyLocation", ev.target.value)} placeholder="e.g. Under mat, with concierge" /></Field>
+      <Field label="Parking Info"><TextInput value={form.parkingInfo || ""} onChange={ev => set("parkingInfo", ev.target.value)} placeholder="e.g. Free street parking" /></Field>
+      <div style={{ gridColumn: "1/-1" }}>
+        <Field label="Access / Entry Instructions"><TextArea value={form.specialInstructions || ""} onChange={ev => set("specialInstructions", ev.target.value)} placeholder="Special instructions to enter..." /></Field>
+      </div>
+    </div>
+  )}
+
+  {activeTab === "service" && (
+    <div className="form-grid">
+      <Field label="Cleaning Frequency">
+        <SelectInput value={form.cleaningFrequency} onChange={ev => set("cleaningFrequency", ev.target.value)}>
+          <option>One-time</option><option>Weekly</option><option>Bi-weekly</option><option>Monthly</option><option>2x per week</option><option>3x per week</option><option>Daily</option><option>Custom</option>
+        </SelectInput>
+      </Field>
+      <Field label="Preferred Day">
+        <SelectInput value={form.preferredDay || ""} onChange={ev => set("preferredDay", ev.target.value)}>
+          <option value="">No preference</option><option>Monday</option><option>Tuesday</option><option>Wednesday</option><option>Thursday</option><option>Friday</option><option>Saturday</option>
+        </SelectInput>
+      </Field>
+      <Field label="Preferred Time"><TextInput value={form.preferredTime || ""} onChange={ev => set("preferredTime", ev.target.value)} placeholder="e.g. 09:00-12:00" /></Field>
+      <Field label="Billing Type">
+        <SelectInput value={form.billingType} onChange={ev => set("billingType", ev.target.value)}>
+          <option value="hourly">Hourly</option><option value="fixed">Fixed Price</option>
+        </SelectInput>
+      </Field>
+      {form.billingType === "hourly"
+        ? <Field label="Price per Hour (€)"><TextInput type="number" step=".5" value={form.pricePerHour} onChange={ev => set("pricePerHour", parseFloat(ev.target.value) || 0)} /></Field>
+        : <Field label="Fixed Price (€)"><TextInput type="number" value={form.priceFixed} onChange={ev => set("priceFixed", parseFloat(ev.target.value) || 0)} /></Field>
+      }
+      <Field label="Contract Start"><TextInput type="date" value={form.contractStart || ""} onChange={ev => set("contractStart", ev.target.value)} /></Field>
+      <Field label="Contract End"><TextInput type="date" value={form.contractEnd || ""} onChange={ev => set("contractEnd", ev.target.value)} /></Field>
+    </div>
+  )}
+
+  {activeTab === "details" && (
+    <div className="form-grid">
+      <Field label="Property Size (m²)"><TextInput type="number" value={form.squareMeters || ""} onChange={ev => set("squareMeters", ev.target.value)} placeholder="e.g. 120" /></Field>
+      <Field label="Pets"><TextInput value={form.petInfo || ""} onChange={ev => set("petInfo", ev.target.value)} placeholder="e.g. 1 cat (friendly)" /></Field>
+      <div style={{ gridColumn: "1/-1" }}>
+        <Field label="Notes & Special Requests"><TextArea value={form.notes || ""} onChange={ev => set("notes", ev.target.value)} placeholder="Allergies, products to use/avoid, rooms to skip..." /></Field>
+      </div>
+    </div>
+  )}
+
+  <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 10 }}>
+    <button style={btnSec} onClick={onCancel}>Cancel</button>
+    <button style={btnPri} onClick={() => form.name && onSave(form)}>Save Client</button>
+  </div>
+</div>
+```
+
+);
+}
+
+// ══════════════════════════════════════════════
+// SCHEDULE PAGE — Monthly Calendar
+// ══════════════════════════════════════════════
+function SchedulePage({ data, updateData, showToast }) {
+const [modal, setModal] = useState(null);
+const [selectedDate, setSelectedDate] = useState(null);
+const [filterEmp, setFilterEmp] = useState(””);
+const now = new Date();
+const [viewYear, setViewYear] = useState(now.getFullYear());
+const [viewMonth, setViewMonth] = useState(now.getMonth());
+
+const emptySchedule = { clientId: “”, employeeId: “”, date: getToday(), startTime: “08:00”, endTime: “12:00”, status: “scheduled”, notes: “”, recurrence: “none” };
+
+// Calendar math
+const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+const firstDayOfWeek = (new Date(viewYear, viewMonth, 1).getDay() + 6) % 7; // Monday = 0
+const monthStr = `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}`;
+const monthLabel = new Date(viewYear, viewMonth).toLocaleDateString(“en-GB”, { month: “long”, year: “numeric” });
+const todayStr = getToday();
+
+const prevMonth = () => {
+if (viewMonth === 0) { setViewYear(viewYear - 1); setViewMonth(11); }
+else setViewMonth(viewMonth - 1);
+};
+const nextMonth = () => {
+if (viewMonth === 11) { setViewYear(viewYear + 1); setViewMonth(0); }
+else setViewMonth(viewMonth + 1);
+};
+const goToday = () => { setViewYear(now.getFullYear()); setViewMonth(now.getMonth()); };
+
+// Filtered schedules for this month
+const monthSchedules = data.schedules.filter(s => {
+if (!s.date?.startsWith(monthStr)) return false;
+if (filterEmp && s.employeeId !== filterEmp) return false;
+return true;
+});
+
+// Employee color map for visual coding
+const empColors = {};
+const colorPalette = [CL.blue, CL.green, “#E06CC0”, CL.orange, “#8B6CE0”, “#6CE0B8”, “#E0A86C”, “#6C8BE0”, CL.red, “#C0E06C”];
+data.employees.forEach((emp, idx) => { empColors[emp.id] = colorPalette[idx % colorPalette.length]; });
+
+// Build calendar grid cells (42 cells = 6 rows x 7 cols)
+const calendarCells = [];
+for (let i = 0; i < firstDayOfWeek; i++) calendarCells.push(null);
+for (let d = 1; d <= daysInMonth; d++) calendarCells.push(d);
+while (calendarCells.length < 42) calendarCells.push(null);
+
+// Selected date details
+const selectedDateStr = selectedDate ? `${monthStr}-${String(selectedDate).padStart(2, "0")}` : null;
+const selectedDateScheds = selectedDateStr ? data.schedules.filter(s => s.date === selectedDateStr) : [];
+
+const handleSave = (schedData) => {
+if (schedData.id) {
+updateData(“schedules”, prev => prev.map(s => s.id === schedData.id ? schedData : s));
+showToast(“Updated”);
+} else {
+const items = [{ …schedData, id: makeId() }];
+if (schedData.recurrence !== “none”) {
+const interval = schedData.recurrence === “weekly” ? 7 : schedData.recurrence === “biweekly” ? 14 : 28;
+for (let i = 1; i <= 12; i++) {
+const d = new Date(schedData.date);
+d.setDate(d.getDate() + interval * i);
+items.push({ …schedData, id: makeId(), date: d.toISOString().slice(0, 10) });
+}
+}
+updateData(“schedules”, prev => […prev, …items]);
+showToast(`${items.length} job(s) scheduled`);
+}
+setModal(null);
+};
+
+const handleDelete = (id) => {
+updateData(“schedules”, prev => prev.filter(s => s.id !== id));
+showToast(“Removed”, “error”);
+};
+
+const dayHeaders = [“Mon”, “Tue”, “Wed”, “Thu”, “Fri”, “Sat”, “Sun”];
+
+return (
+<div>
+{/* Header */}
+<div style={{ display: “flex”, justifyContent: “space-between”, alignItems: “center”, marginBottom: 16, flexWrap: “wrap”, gap: 8 }}>
+<h1 style={{ fontSize: 26, fontFamily: “var(–hd)”, color: CL.gold }}>Schedule</h1>
+<button style={btnPri} onClick={() => setModal({ …emptySchedule })}>{ICN.plus} New Job</button>
+</div>
+
+```
+  {/* Month nav + filter */}
+  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <button onClick={prevMonth} style={{ ...btnSec, ...btnSm, padding: "8px 14px", fontSize: 16 }}>‹</button>
+      <button onClick={goToday} style={{ ...btnSec, ...btnSm }}>Today</button>
+      <button onClick={nextMonth} style={{ ...btnSec, ...btnSm, padding: "8px 14px", fontSize: 16 }}>›</button>
+      <h2 style={{ margin: 0, fontSize: 20, fontFamily: "var(--hd)", color: CL.text, marginLeft: 8 }}>{monthLabel}</h2>
+    </div>
+    <SelectInput value={filterEmp} onChange={ev => setFilterEmp(ev.target.value)} style={{ width: 180 }}>
+      <option value="">All Employees</option>
+      {data.employees.filter(emp => emp.status === "active").map(emp => (
+        <option key={emp.id} value={emp.id}>{emp.name}</option>
+      ))}
+    </SelectInput>
+  </div>
+
+  {/* Stats row */}
+  <div className="stat-row" style={{ marginBottom: 16 }}>
+    <StatCard label="This Month" value={`${monthSchedules.length} jobs`} icon={ICN.cal} color={CL.blue} />
+    <StatCard label="Completed" value={monthSchedules.filter(s => s.status === "completed").length} icon={ICN.check} color={CL.green} />
+    <StatCard label="Upcoming" value={monthSchedules.filter(s => s.status === "scheduled").length} icon={ICN.clock} color={CL.gold} />
+  </div>
+
+  <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+    {/* Calendar Grid */}
+    <div style={{ flex: "1 1 600px", minWidth: 0 }}>
+      <div style={{ ...cardSt, padding: 12 }}>
+        {/* Day headers */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, marginBottom: 4 }}>
+          {dayHeaders.map(d => (
+            <div key={d} style={{ textAlign: "center", padding: "6px 0", fontSize: 11, fontWeight: 600, color: CL.muted, textTransform: "uppercase" }}>{d}</div>
+          ))}
+        </div>
+        {/* Date cells */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2 }}>
+          {calendarCells.map((day, idx) => {
+            if (day === null) return <div key={`empty-${idx}`} style={{ minHeight: 70, background: CL.bg + "40", borderRadius: 6 }} />;
+
+            const dateStr = `${monthStr}-${String(day).padStart(2, "0")}`;
+            const dayScheds = monthSchedules.filter(s => s.date === dateStr);
+            const isToday = dateStr === todayStr;
+            const isSelected = day === selectedDate;
+            const isPast = dateStr < todayStr;
+
+            return (
+              <div
+                key={day}
+                onClick={() => setSelectedDate(day === selectedDate ? null : day)}
+                style={{
+                  minHeight: 70, padding: 4, borderRadius: 6, cursor: "pointer",
+                  background: isSelected ? CL.gold + "15" : isToday ? CL.blue + "08" : CL.s2,
+                  border: isSelected ? `2px solid ${CL.gold}` : isToday ? `2px solid ${CL.blue}40` : `1px solid ${CL.bd}50`,
+                  opacity: isPast ? 0.6 : 1,
+                  transition: "all 0.15s",
+                }}
+              >
+                <div style={{ fontSize: 12, fontWeight: isToday ? 700 : 500, color: isToday ? CL.blue : CL.text, marginBottom: 3, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span>{day}</span>
+                  {dayScheds.length > 0 && <span style={{ fontSize: 9, background: CL.gold + "30", color: CL.gold, padding: "1px 5px", borderRadius: 8, fontWeight: 600 }}>{dayScheds.length}</span>}
+                </div>
+                {/* Show up to 3 jobs */}
+                {dayScheds.slice(0, 3).map(sched => {
+                  const empColor = empColors[sched.employeeId] || CL.muted;
+                  const client = data.clients.find(c => c.id === sched.clientId);
+                  return (
+                    <div
+                      key={sched.id}
+                      onClick={ev => { ev.stopPropagation(); setModal({ ...sched }); }}
+                      style={{
+                        padding: "2px 4px", marginBottom: 1, borderRadius: 3, fontSize: 9,
+                        background: empColor + "20", borderLeft: `3px solid ${empColor}`,
+                        cursor: "pointer", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis",
+                      }}
+                    >
+                      <span style={{ fontWeight: 600, color: CL.text }}>{sched.startTime} </span>
+                      <span style={{ color: CL.muted }}>{client?.name?.slice(0, 10) || "?"}</span>
+                    </div>
+                  );
+                })}
+                {dayScheds.length > 3 && <div style={{ fontSize: 8, color: CL.muted, textAlign: "center" }}>+{dayScheds.length - 3} more</div>}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Employee color legend */}
+      {data.employees.filter(emp => emp.status === "active").length > 0 && (
+        <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 10 }}>
+          {data.employees.filter(emp => emp.status === "active").map(emp => (
+            <div key={emp.id} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: CL.muted }}>
+              <div style={{ width: 10, height: 10, borderRadius: 3, background: empColors[emp.id] }} />
+              {emp.name.split(" ")[0]}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+
+    {/* Side panel: selected date details */}
+    <div style={{ flex: "0 0 280px", minWidth: 240 }}>
+      <div style={cardSt}>
+        {selectedDate ? (
+          <>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <h3 style={{ fontSize: 15, fontWeight: 600, color: CL.gold, fontFamily: "var(--hd)", margin: 0 }}>
+                {fmtDate(selectedDateStr)}
+              </h3>
+              <button
+                style={{ ...btnPri, ...btnSm, background: CL.green }}
+                onClick={() => setModal({ ...emptySchedule, date: selectedDateStr })}
+              >{ICN.plus} Add</button>
+            </div>
+            {selectedDateScheds.length === 0 ? (
+              <p style={{ color: CL.muted, fontSize: 13, textAlign: "center", padding: "20px 0" }}>No jobs this day</p>
+            ) : (
+              selectedDateScheds.map(sched => {
+                const client = data.clients.find(c => c.id === sched.clientId);
+                const employee = data.employees.find(emp => emp.id === sched.employeeId);
+                const empColor = empColors[sched.employeeId] || CL.muted;
+                return (
+                  <div
+                    key={sched.id}
+                    onClick={() => setModal({ ...sched })}
+                    style={{
+                      padding: "10px 12px", marginBottom: 8, borderRadius: 8, cursor: "pointer",
+                      background: CL.s2, borderLeft: `4px solid ${empColor}`,
+                      transition: "background 0.15s",
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div style={{ fontWeight: 600, fontSize: 14, color: CL.text }}>{client?.name || "?"}</div>
+                      <Badge color={sched.status === "completed" ? CL.green : sched.status === "cancelled" ? CL.red : CL.blue}>
+                        {sched.status}
+                      </Badge>
+                    </div>
+                    <div style={{ fontSize: 12, color: CL.muted, marginTop: 4 }}>
+                      {sched.startTime} – {sched.endTime}
+                    </div>
+                    <div style={{ fontSize: 12, color: empColor, marginTop: 2 }}>
+                      {employee?.name || "Unassigned"}
+                    </div>
+                    {client?.address && (
+                      <div style={{ fontSize: 11, color: CL.dim, marginTop: 3 }}>
+                        {client.address}{client.city ? `, ${client.city}` : ""}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </>
+        ) : (
+          <div style={{ textAlign: "center", padding: "30px 10px" }}>
+            <div style={{ color: CL.muted, marginBottom: 8 }}>{ICN.cal}</div>
+            <p style={{ color: CL.muted, fontSize: 13 }}>Click a date to see details</p>
+            <p style={{ color: CL.dim, fontSize: 11, marginTop: 4 }}>or click a job to edit it</p>
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+
+  {/* Modal */}
+  {modal && (
+    <ModalBox title={modal.id ? "Edit Job" : "New Job"} onClose={() => setModal(null)}>
+      <ScheduleForm initialData={modal} data={data} onSave={handleSave} onDelete={handleDelete} onCancel={() => setModal(null)} />
+    </ModalBox>
+  )}
+</div>
+```
+
+);
+}
+
+function ScheduleForm({ initialData, data, onSave, onDelete, onCancel }) {
+const [form, setForm] = useState(initialData);
+const set = (key, value) => setForm(prev => ({ …prev, [key]: value }));
+
+// Show client details when selected
+const selectedClient = data.clients.find(c => c.id === form.clientId);
+
+return (
+<div>
+<div className="form-grid">
+<Field label="Client *">
+<SelectInput value={form.clientId} onChange={ev => set(“clientId”, ev.target.value)}>
+<option value="">Select…</option>
+{data.clients.filter(c => c.status === “active”).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+</SelectInput>
+</Field>
+<Field label="Employee *">
+<SelectInput value={form.employeeId} onChange={ev => set(“employeeId”, ev.target.value)}>
+<option value="">Select…</option>
+{data.employees.filter(emp => emp.status === “active”).map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
+</SelectInput>
+</Field>
+<Field label="Date"><TextInput type=“date” value={form.date} onChange={ev => set(“date”, ev.target.value)} /></Field>
+<Field label="Status">
+<SelectInput value={form.status} onChange={ev => set(“status”, ev.target.value)}>
+<option value="scheduled">Scheduled</option><option value="in-progress">In Progress</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option>
+</SelectInput>
+</Field>
+<Field label="Start"><TextInput type=“time” value={form.startTime} onChange={ev => set(“startTime”, ev.target.value)} /></Field>
+<Field label="End"><TextInput type=“time” value={form.endTime} onChange={ev => set(“endTime”, ev.target.value)} /></Field>
+{!form.id && (
+<Field label="Recurrence">
+<SelectInput value={form.recurrence} onChange={ev => set(“recurrence”, ev.target.value)}>
+<option value="none">One-time</option><option value="weekly">Weekly (12 weeks)</option><option value="biweekly">Bi-weekly (12x)</option><option value="monthly">Monthly (12 months)</option>
+</SelectInput>
+</Field>
+)}
+</div>
+
+```
+  {/* Client quick info */}
+  {selectedClient && (
+    <div style={{ padding: 10, background: CL.s2, borderRadius: 8, marginBottom: 12, fontSize: 12 }}>
+      <div style={{ fontWeight: 600, color: CL.gold, marginBottom: 4 }}>Client Info</div>
+      <div style={{ color: CL.muted }}>
+        {selectedClient.address}{selectedClient.apartmentFloor ? `, ${selectedClient.apartmentFloor}` : ""}
+        {selectedClient.city ? ` · ${selectedClient.postalCode || ""} ${selectedClient.city}` : ""}
+      </div>
+      {selectedClient.accessCode && <div style={{ color: CL.orange }}>Code: {selectedClient.accessCode}</div>}
+      {selectedClient.keyLocation && <div style={{ color: CL.orange }}>Key: {selectedClient.keyLocation}</div>}
+      {selectedClient.petInfo && <div style={{ color: CL.orange }}>Pets: {selectedClient.petInfo}</div>}
+      {selectedClient.preferredDay && <div style={{ color: CL.dim }}>Prefers: {selectedClient.preferredDay} {selectedClient.preferredTime || ""}</div>}
+    </div>
+  )}
+
+  <Field label="Notes"><TextArea value={form.notes || ""} onChange={ev => set("notes", ev.target.value)} /></Field>
+  <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, flexWrap: "wrap", gap: 8 }}>
+    <div>{form.id && <button style={{ ...btnDng, ...btnSm }} onClick={() => { onCancel(); onDelete(form.id); }}>Delete Job</button>}</div>
+    <div style={{ display: "flex", gap: 10 }}>
+      <button style={btnSec} onClick={onCancel}>Cancel</button>
+      <button style={btnPri} onClick={() => form.clientId && form.employeeId && onSave(form)}>Save Job</button>
+    </div>
+  </div>
+</div>
+```
+
+);
+}
+
+// ══════════════════════════════════════════════
+// TIME CLOCK PAGE
+// ══════════════════════════════════════════════
+function TimeClockPage({ data, updateData, showToast }) {
+const [selectedEmp, setSelectedEmp] = useState(””);
+const [selectedCli, setSelectedCli] = useState(””);
+const [filters, setFilters] = useState({ emp: “”, month: getToday().slice(0, 7) });
+const [editEntry, setEditEntry] = useState(null);
+
+const doClockIn = () => {
+if (!selectedEmp || !selectedCli) { showToast(“Select both”, “error”); return; }
+if (data.clockEntries.find(c => c.employeeId === selectedEmp && !c.clockOut)) { showToast(“Already in!”, “error”); return; }
+updateData(“clockEntries”, prev => […prev, { id: makeId(), employeeId: selectedEmp, clientId: selectedCli, clockIn: new Date().toISOString(), clockOut: null, notes: “” }]);
+showToast(“Clocked in!”);
+};
+
+const doClockOut = (id) => {
+updateData(“clockEntries”, prev => prev.map(c => c.id === id ? { …c, clockOut: new Date().toISOString() } : c));
+showToast(“Clocked out!”);
+};
+
+const saveEntry = (entry) => {
+updateData(“clockEntries”, prev => prev.map(c => c.id === entry.id ? entry : c));
+showToast(“Updated”);
+setEditEntry(null);
+};
+
+const deleteEntry = (id) => {
+updateData(“clockEntries”, prev => prev.filter(c => c.id !== id));
+showToast(“Deleted”, “error”);
+};
+
+const activeClocks = data.clockEntries.filter(c => !c.clockOut);
+const filteredEntries = data.clockEntries.filter(c => {
+if (filters.emp && c.employeeId !== filters.emp) return false;
+if (filters.month && c.clockIn && !c.clockIn.startsWith(filters.month)) return false;
+return true;
+}).sort((a, b) => new Date(b.clockIn) - new Date(a.clockIn));
+
+return (
+<div>
+<h1 style={{ fontSize: 26, fontFamily: “var(–hd)”, color: CL.gold, marginBottom: 16 }}>Time Clock</h1>
+
+```
+  <div style={{ ...cardSt, marginBottom: 16 }}>
+    <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>Quick Clock In</h3>
+    <div style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
+      <div style={{ flex: 1, minWidth: 160 }}>
+        <Field label="Employee">
+          <SelectInput value={selectedEmp} onChange={ev => setSelectedEmp(ev.target.value)}>
+            <option value="">Select...</option>
+            {data.employees.filter(emp => emp.status === "active").map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
+          </SelectInput>
+        </Field>
+      </div>
+      <div style={{ flex: 1, minWidth: 160 }}>
+        <Field label="Client">
+          <SelectInput value={selectedCli} onChange={ev => setSelectedCli(ev.target.value)}>
+            <option value="">Select...</option>
+            {data.clients.filter(c => c.status === "active").map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </SelectInput>
+        </Field>
+      </div>
+      <button style={{ ...btnPri, marginBottom: 14, background: CL.green }} onClick={doClockIn}>Clock In</button>
+    </div>
+    {activeClocks.length > 0 && (
+      <div style={{ marginTop: 6 }}>
+        <div style={{ fontSize: 12, color: CL.green, fontWeight: 600, marginBottom: 4 }}>Active:</div>
+        {activeClocks.map(clk => {
+          const employee = data.employees.find(e => e.id === clk.employeeId);
+          const client = data.clients.find(c => c.id === clk.clientId);
+          return (
+            <div key={clk.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: `1px solid ${CL.bd}` }}>
+              <span><strong>{employee?.name}</strong> at {client?.name} · {fmtTime(clk.clockIn)}</span>
+              <button style={{ ...btnDng, ...btnSm }} onClick={() => doClockOut(clk.id)}>Out</button>
+            </div>
+          );
+        })}
+      </div>
+    )}
+  </div>
+
+  <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+    <SelectInput value={filters.emp} onChange={ev => setFilters(f => ({ ...f, emp: ev.target.value }))} style={{ width: 160 }}>
+      <option value="">All Employees</option>
+      {data.employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
+    </SelectInput>
+    <TextInput type="month" value={filters.month} onChange={ev => setFilters(f => ({ ...f, month: ev.target.value }))} style={{ width: 160 }} />
+  </div>
+
+  <div style={cardSt} className="tbl-wrap">
+    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+      <thead><tr><th style={thSt}>Employee</th><th style={thSt}>Client</th><th style={thSt}>In</th><th style={thSt}>Out</th><th style={thSt}>Hours</th><th style={thSt}>Actions</th></tr></thead>
+      <tbody>
+        {filteredEntries.map(entry => {
+          const employee = data.employees.find(e => e.id === entry.employeeId);
+          const client = data.clients.find(c => c.id === entry.clientId);
+          const hours = calcHrs(entry.clockIn, entry.clockOut);
+          return (
+            <tr key={entry.id}>
+              <td style={tdSt}>{employee?.name || "—"}</td>
+              <td style={tdSt}>{client?.name || "—"}</td>
+              <td style={tdSt}>{fmtBoth(entry.clockIn)}</td>
+              <td style={tdSt}>{entry.clockOut ? fmtBoth(entry.clockOut) : <Badge color={CL.green}>Active</Badge>}</td>
+              <td style={tdSt}>{entry.clockOut ? `${hours.toFixed(2)}h` : "—"}</td>
+              <td style={tdSt}>
+                <div style={{ display: "flex", gap: 4 }}>
+                  <button style={{ ...btnSec, ...btnSm }} onClick={() => setEditEntry({ ...entry })}>{ICN.edit}</button>
+                  <button style={{ ...btnSec, ...btnSm, color: CL.red }} onClick={() => deleteEntry(entry.id)}>{ICN.trash}</button>
+                </div>
+              </td>
+            </tr>
+          );
+        })}
+        {filteredEntries.length === 0 && <tr><td colSpan={6} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>No entries</td></tr>}
+      </tbody>
+    </table>
+  </div>
+
+  {editEntry && (
+    <ModalBox title="Edit Entry" onClose={() => setEditEntry(null)}>
+      <TimeEntryForm entry={editEntry} data={data} onSave={saveEntry} onCancel={() => setEditEntry(null)} />
+    </ModalBox>
+  )}
+</div>
+```
+
+);
+}
+
+function TimeEntryForm({ entry, data, onSave, onCancel }) {
+const clockInDate = entry.clockIn ? entry.clockIn.slice(0, 10) : getToday();
+const clockInTime = entry.clockIn ? entry.clockIn.slice(11, 16) : “08:00”;
+const clockOutDate = entry.clockOut ? entry.clockOut.slice(0, 10) : clockInDate;
+const clockOutTime = entry.clockOut ? entry.clockOut.slice(11, 16) : “17:00”;
+
+const [form, setForm] = useState({ …entry, clockInDate, clockInTime, clockOutDate, clockOutTime });
+const set = (key, value) => setForm(prev => ({ …prev, [key]: value }));
+
+const handleSave = () => {
+const updated = {
+…form,
+clockIn: makeISO(form.clockInDate, form.clockInTime),
+clockOut: form.clockOutDate && form.clockOutTime ? makeISO(form.clockOutDate, form.clockOutTime) : null,
+};
+delete updated.clockInDate;
+delete updated.clockInTime;
+delete updated.clockOutDate;
+delete updated.clockOutTime;
+onSave(updated);
+};
+
+return (
+<div>
+<div className="form-grid">
+<Field label="Employee">
+<SelectInput value={form.employeeId} onChange={ev => set(“employeeId”, ev.target.value)}>
+{data.employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
+</SelectInput>
+</Field>
+<Field label="Client">
+<SelectInput value={form.clientId} onChange={ev => set(“clientId”, ev.target.value)}>
+{data.clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+</SelectInput>
+</Field>
+<Field label="In Date"><TextInput type=“date” value={form.clockInDate} onChange={ev => set(“clockInDate”, ev.target.value)} /></Field>
+<Field label="In Time"><TextInput type=“time” value={form.clockInTime} onChange={ev => set(“clockInTime”, ev.target.value)} /></Field>
+<Field label="Out Date"><TextInput type=“date” value={form.clockOutDate} onChange={ev => set(“clockOutDate”, ev.target.value)} /></Field>
+<Field label="Out Time"><TextInput type=“time” value={form.clockOutTime} onChange={ev => set(“clockOutTime”, ev.target.value)} /></Field>
+</div>
+<div style={{ display: “flex”, gap: 10, justifyContent: “flex-end”, marginTop: 6 }}>
+<button style={btnSec} onClick={onCancel}>Cancel</button>
+<button style={btnPri} onClick={handleSave}>Save</button>
+</div>
+</div>
+);
+}
+
+// ══════════════════════════════════════════════
+// INVOICES PAGE
+// ══════════════════════════════════════════════
+function InvoicesPage({ data, updateData, showToast }) {
+const [modal, setModal] = useState(null);
+const [preview, setPreview] = useState(null);
+
+const nextInvoiceNum = () => {
+const year = new Date().getFullYear();
+const count = data.invoices.filter(inv => inv.invoiceNumber?.startsWith(`LA-${year}`)).length;
+return `LA-${year}-${String(count + 1).padStart(4, "0")}`;
+};
+
+const autoFillInvoice = (inv) => {
+const client = data.clients.find(c => c.id === inv.clientId);
+if (!client) return inv;
+const month = inv.date?.slice(0, 7);
+const entries = data.clockEntries.filter(c => c.clientId === inv.clientId && c.clockOut && c.clockIn?.startsWith(month));
+let items;
+if (client.billingType === “hourly”) {
+const totalH = entries.reduce((sum, ce) => sum + calcHrs(ce.clockIn, ce.clockOut), 0);
+items = [{ description: `Cleaning – ${month} (${totalH.toFixed(1)}h)`, quantity: Math.round(totalH * 100) / 100, unitPrice: client.pricePerHour, total: Math.round(totalH * client.pricePerHour * 100) / 100 }];
+} else {
+items = [{ description: `Cleaning – ${client.cleaningFrequency} (${month})`, quantity: 1, unitPrice: client.priceFixed, total: client.priceFixed }];
+}
+const subtotal = items.reduce((sum, it) => sum + it.total, 0);
+const vatAmount = Math.round(subtotal * inv.vatRate / 100 * 100) / 100;
+return { …inv, items, subtotal, vatAmount, total: subtotal + vatAmount };
+};
+
+const handleSave = (inv) => {
+const subtotal = inv.items.reduce((sum, it) => sum + (it.total || 0), 0);
+const vatAmount = Math.round(subtotal * (inv.vatRate || 0) / 100 * 100) / 100;
+const final = { …inv, subtotal, vatAmount, total: subtotal + vatAmount };
+if (final.id) {
+updateData(“invoices”, prev => prev.map(i => i.id === final.id ? final : i));
+showToast(“Updated”);
+} else {
+updateData(“invoices”, prev => […prev, { …final, id: makeId() }]);
+showToast(“Created”);
+}
+setModal(null);
+};
+
+const handleDelete = (id) => {
+updateData(“invoices”, prev => prev.filter(i => i.id !== id));
+showToast(“Deleted”, “error”);
+};
+
+return (
+<div>
+<div style={{ display: “flex”, justifyContent: “space-between”, alignItems: “center”, marginBottom: 16, flexWrap: “wrap”, gap: 8 }}>
+<h1 style={{ fontSize: 26, fontFamily: “var(–hd)”, color: CL.gold }}>Invoices</h1>
+<button style={btnPri} onClick={() => setModal({ clientId: “”, date: getToday(), dueDate: “”, invoiceNumber: nextInvoiceNum(), items: [{ description: “Cleaning services”, quantity: 1, unitPrice: 0, total: 0 }], subtotal: 0, vatRate: data.settings.defaultVatRate, vatAmount: 0, total: 0, status: “draft”, notes: “”, paymentTerms: “Payment due within 30 days.” })}>{ICN.plus} New</button>
+</div>
+<div style={cardSt} className="tbl-wrap">
+<table style={{ width: “100%”, borderCollapse: “collapse”, fontSize: 14 }}>
+<thead><tr><th style={thSt}>#</th><th style={thSt}>Client</th><th style={thSt}>Date</th><th style={thSt}>Total</th><th style={thSt}>Status</th><th style={thSt}>Actions</th></tr></thead>
+<tbody>
+{data.invoices.sort((a, b) => (b.date || “”).localeCompare(a.date || “”)).map(inv => {
+const client = data.clients.find(c => c.id === inv.clientId);
+return (
+<tr key={inv.id}>
+<td style={tdSt}><strong>{inv.invoiceNumber}</strong></td>
+<td style={tdSt}>{client?.name || “—”}</td>
+<td style={tdSt}>{fmtDate(inv.date)}</td>
+<td style={{ …tdSt, fontWeight: 600 }}>€{(inv.total || 0).toFixed(2)}</td>
+<td style={tdSt}><Badge color={inv.status === “paid” ? CL.green : inv.status === “overdue” ? CL.red : inv.status === “sent” ? CL.blue : CL.muted}>{inv.status}</Badge></td>
+<td style={tdSt}>
+<div style={{ display: “flex”, gap: 4 }}>
+<button style={{ …btnSec, …btnSm }} onClick={() => setPreview(inv)}>View</button>
+<button style={{ …btnSec, …btnSm }} onClick={() => setModal({ …inv })}>{ICN.edit}</button>
+<button style={{ …btnSec, …btnSm, color: CL.red }} onClick={() => handleDelete(inv.id)}>{ICN.trash}</button>
+</div>
+</td>
+</tr>
+);
+})}
+{data.invoices.length === 0 && <tr><td colSpan={6} style={{ …tdSt, textAlign: “center”, color: CL.muted }}>No invoices</td></tr>}
+</tbody>
+</table>
+</div>
+
+```
+  {preview && (
+    <ModalBox title="" onClose={() => setPreview(null)} wide>
+      <InvoicePreviewContent invoice={preview} data={data} />
+      <div className="no-print" style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 12 }}>
+        <button style={btnSec} onClick={() => setPreview(null)}>Close</button>
+        <button style={btnPri} onClick={() => window.print()}>{ICN.download} Print</button>
+      </div>
+    </ModalBox>
+  )}
+
+  {modal && (
+    <ModalBox title={modal.id ? "Edit Invoice" : "New Invoice"} onClose={() => setModal(null)} wide>
+      <InvoiceFormContent invoice={modal} data={data} onSave={handleSave} autoFill={autoFillInvoice} onCancel={() => setModal(null)} />
+    </ModalBox>
+  )}
+</div>
+```
+
+);
+}
+
+function InvoiceFormContent({ invoice, data, onSave, autoFill, onCancel }) {
+const [form, setForm] = useState(invoice);
+const set = (key, value) => setForm(prev => ({ …prev, [key]: value }));
+
+const updateItem = (idx, key, value) => {
+setForm(prev => {
+const items = […prev.items];
+items[idx] = { …items[idx], [key]: value };
+if (key === “quantity” || key === “unitPrice”) {
+items[idx].total = Math.round((items[idx].quantity || 0) * (items[idx].unitPrice || 0) * 100) / 100;
+}
+return { …prev, items };
+});
+};
+
+const subtotal = form.items.reduce((sum, it) => sum + (it.total || 0), 0);
+const vatAmount = Math.round(subtotal * (form.vatRate || 0) / 100 * 100) / 100;
+
+return (
+<div>
+<div className="form-grid">
+<Field label="Invoice #"><TextInput value={form.invoiceNumber} onChange={ev => set(“invoiceNumber”, ev.target.value)} /></Field>
+<Field label="Status">
+<SelectInput value={form.status} onChange={ev => set(“status”, ev.target.value)}>
+<option value="draft">Draft</option><option value="sent">Sent</option><option value="paid">Paid</option><option value="overdue">Overdue</option>
+</SelectInput>
+</Field>
+<Field label="Client *">
+<div style={{ display: “flex”, gap: 5 }}>
+<SelectInput value={form.clientId} onChange={ev => set(“clientId”, ev.target.value)} style={{ flex: 1 }}>
+<option value="">Select…</option>
+{data.clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+</SelectInput>
+<button style={{ …btnSec, …btnSm }} onClick={() => setForm(autoFill(form))}>Auto</button>
+</div>
+</Field>
+<Field label="VAT %"><TextInput type=“number” value={form.vatRate} onChange={ev => set(“vatRate”, parseFloat(ev.target.value) || 0)} /></Field>
+<Field label="Date"><TextInput type=“date” value={form.date} onChange={ev => set(“date”, ev.target.value)} /></Field>
+<Field label="Due"><TextInput type=“date” value={form.dueDate || “”} onChange={ev => set(“dueDate”, ev.target.value)} /></Field>
+</div>
+
+```
+  <div style={{ marginTop: 12 }}>
+    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
+      <span style={{ fontSize: 13, color: CL.muted }}>Line Items</span>
+      <button style={{ ...btnSec, ...btnSm }} onClick={() => setForm(prev => ({ ...prev, items: [...prev.items, { description: "", quantity: 1, unitPrice: 0, total: 0 }] }))}>+ Add</button>
+    </div>
+    {form.items.map((item, idx) => (
+      <div key={idx} style={{ display: "flex", gap: 5, marginBottom: 5, alignItems: "center", flexWrap: "wrap" }}>
+        <TextInput placeholder="Description" value={item.description} onChange={ev => updateItem(idx, "description", ev.target.value)} style={{ flex: 3, minWidth: 150 }} />
+        <TextInput type="number" placeholder="Qty" value={item.quantity} onChange={ev => updateItem(idx, "quantity", parseFloat(ev.target.value) || 0)} style={{ flex: 1, minWidth: 60 }} />
+        <TextInput type="number" placeholder="€" value={item.unitPrice} onChange={ev => updateItem(idx, "unitPrice", parseFloat(ev.target.value) || 0)} style={{ flex: 1, minWidth: 60 }} />
+        <div style={{ minWidth: 70, textAlign: "right", fontWeight: 600 }}>€{(item.total || 0).toFixed(2)}</div>
+        <button style={{ background: "none", border: "none", cursor: "pointer", color: CL.red }} onClick={() => setForm(prev => ({ ...prev, items: prev.items.filter((_, j) => j !== idx) }))}>{ICN.close}</button>
+      </div>
+    ))}
+    <div style={{ textAlign: "right", marginTop: 10, fontSize: 14 }}>
+      <div style={{ color: CL.muted }}>Sub: <strong style={{ color: CL.text }}>€{subtotal.toFixed(2)}</strong></div>
+      <div style={{ color: CL.muted }}>VAT ({form.vatRate}%): <strong style={{ color: CL.text }}>€{vatAmount.toFixed(2)}</strong></div>
+      <div style={{ fontSize: 18, fontWeight: 700, color: CL.gold, marginTop: 4 }}>Total: €{(subtotal + vatAmount).toFixed(2)}</div>
+    </div>
+  </div>
+
+  <Field label="Terms"><TextInput value={form.paymentTerms || ""} onChange={ev => set("paymentTerms", ev.target.value)} /></Field>
+  <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 6 }}>
+    <button style={btnSec} onClick={onCancel}>Cancel</button>
+    <button style={btnPri} onClick={() => form.clientId && onSave(form)}>Save</button>
+  </div>
+</div>
+```
+
+);
+}
+
+function InvoicePreviewContent({ invoice, data }) {
+const client = data.clients.find(c => c.id === invoice.clientId);
+const settings = data.settings;
+
+return (
+<div style={{ background: “#fff”, color: “#1a1a1a”, padding: 28, borderRadius: 8 }}>
+<div style={{ display: “flex”, justifyContent: “space-between”, marginBottom: 24, flexWrap: “wrap”, gap: 16 }}>
+<div>
+<h1 style={{ fontSize: 24, fontWeight: 700, color: “#C9A84C”, fontFamily: “‘Cormorant Garamond’, serif”, margin: 0 }}>{settings.companyName}</h1>
+<div style={{ fontSize: 11, color: “#666”, marginTop: 3, lineHeight: 1.6 }}>{settings.companyAddress}<br />{settings.companyEmail}<br />{settings.companyPhone}<br />VAT: {settings.vatNumber}</div>
+</div>
+<div style={{ textAlign: “right” }}>
+<h2 style={{ fontSize: 20, color: “#333”, margin: 0 }}>INVOICE</h2>
+<div style={{ fontSize: 12, color: “#666”, marginTop: 5 }}><strong>{invoice.invoiceNumber}</strong><br />Date: {fmtDate(invoice.date)}{invoice.dueDate && <><br />Due: {fmtDate(invoice.dueDate)}</>}</div>
+</div>
+</div>
+<div style={{ marginBottom: 18, padding: 12, background: “#f8f8f8”, borderRadius: 8 }}>
+<div style={{ fontSize: 10, color: “#999”, textTransform: “uppercase”, marginBottom: 2 }}>Bill To</div>
+<div style={{ fontWeight: 600 }}>{client?.name}</div>
+{client?.address && <div style={{ fontSize: 12, color: “#666” }}>{client.address}{client.apartmentFloor ? `, ${client.apartmentFloor}` : “”}</div>}
+{client?.postalCode && <div style={{ fontSize: 12, color: “#666” }}>{client.postalCode} {client.city}</div>}
+{client?.email && <div style={{ fontSize: 12, color: “#666” }}>{client.email}</div>}
+</div>
+<div style={{ overflowX: “auto” }}>
+<table style={{ width: “100%”, borderCollapse: “collapse”, marginBottom: 18 }}>
+<thead><tr style={{ borderBottom: “2px solid #C9A84C” }}>
+<th style={{ textAlign: “left”, padding: “5px 0”, fontSize: 10, color: “#999” }}>DESCRIPTION</th>
+<th style={{ textAlign: “right”, padding: “5px 0”, fontSize: 10, color: “#999” }}>QTY</th>
+<th style={{ textAlign: “right”, padding: “5px 0”, fontSize: 10, color: “#999” }}>PRICE</th>
+<th style={{ textAlign: “right”, padding: “5px 0”, fontSize: 10, color: “#999” }}>AMOUNT</th>
+</tr></thead>
+<tbody>
+{invoice.items?.map((item, idx) => (
+<tr key={idx} style={{ borderBottom: “1px solid #eee” }}>
+<td style={{ padding: “8px 0” }}>{item.description}</td>
+<td style={{ padding: “8px 0”, textAlign: “right” }}>{item.quantity}</td>
+<td style={{ padding: “8px 0”, textAlign: “right” }}>€{Number(item.unitPrice).toFixed(2)}</td>
+<td style={{ padding: “8px 0”, textAlign: “right” }}>€{Number(item.total).toFixed(2)}</td>
+</tr>
+))}
+</tbody>
+</table>
+</div>
+<div style={{ textAlign: “right”, marginBottom: 18 }}>
+<div style={{ fontSize: 12, color: “#666” }}>Subtotal: €{(invoice.subtotal || 0).toFixed(2)}</div>
+<div style={{ fontSize: 12, color: “#666” }}>VAT ({invoice.vatRate}%): €{(invoice.vatAmount || 0).toFixed(2)}</div>
+<div style={{ fontSize: 20, fontWeight: 700, color: “#C9A84C”, marginTop: 5 }}>Total: €{(invoice.total || 0).toFixed(2)}</div>
+</div>
+<div style={{ padding: 12, background: “#f8f8f8”, borderRadius: 8, fontSize: 11, color: “#666” }}>
+{invoice.paymentTerms && <div><strong>Terms:</strong> {invoice.paymentTerms}</div>}
+<div><strong>Bank:</strong> {settings.bankIban}</div>
+</div>
+</div>
+);
+}
+
+// ══════════════════════════════════════════════
+// PAYSLIPS PAGE
+// ══════════════════════════════════════════════
+function PayslipsPage({ data, updateData, showToast }) {
+const [preview, setPreview] = useState(null);
+const [month, setMonth] = useState(getToday().slice(0, 7));
+
+const generatePayslips = () => {
+const payslips = data.employees.filter(emp => emp.status === “active”).map(emp => {
+const entries = data.clockEntries.filter(c => c.employeeId === emp.id && c.clockOut && c.clockIn?.startsWith(month));
+const totalH = entries.reduce((sum, ce) => sum + calcHrs(ce.clockIn, ce.clockOut), 0);
+const gross = Math.round(totalH * emp.hourlyRate * 100) / 100;
+const social = Math.round(gross * 0.125 * 100) / 100;
+const tax = Math.round(gross * 0.15 * 100) / 100;
+return {
+id: makeId(), employeeId: emp.id, month, totalHours: Math.round(totalH * 100) / 100,
+hourlyRate: emp.hourlyRate, grossPay: gross, socialCharges: social, taxEstimate: tax,
+netPay: Math.round((gross - social - tax) * 100) / 100, status: “draft”,
+createdAt: new Date().toISOString(),
+payslipNumber: `PS-${month.replace("-", "")}-${emp.name.slice(0, 3).toUpperCase()}`,
+};
+});
+updateData(“payslips”, prev => […prev, …payslips]);
+showToast(`${payslips.length} generated`);
+};
+
+const markPaid = (id) => {
+updateData(“payslips”, prev => prev.map(ps => ps.id === id ? { …ps, status: “paid” } : ps));
+showToast(“Marked paid”);
+};
+
+return (
+<div>
+<div style={{ display: “flex”, justifyContent: “space-between”, alignItems: “center”, marginBottom: 16, flexWrap: “wrap”, gap: 8 }}>
+<h1 style={{ fontSize: 26, fontFamily: “var(–hd)”, color: CL.gold }}>Payslips</h1>
+<div style={{ display: “flex”, gap: 8, flexWrap: “wrap” }}>
+<TextInput type=“month” value={month} onChange={ev => setMonth(ev.target.value)} style={{ width: 160 }} />
+<button style={btnPri} onClick={generatePayslips}>{ICN.plus} Generate</button>
+</div>
+</div>
+<div style={cardSt} className="tbl-wrap">
+<table style={{ width: “100%”, borderCollapse: “collapse”, fontSize: 14 }}>
+<thead><tr><th style={thSt}>#</th><th style={thSt}>Employee</th><th style={thSt}>Month</th><th style={thSt}>Hours</th><th style={thSt}>Gross</th><th style={thSt}>Net</th><th style={thSt}>Status</th><th style={thSt}>Actions</th></tr></thead>
+<tbody>
+{data.payslips.sort((a, b) => b.month.localeCompare(a.month)).map(ps => {
+const employee = data.employees.find(e => e.id === ps.employeeId);
+return (
+<tr key={ps.id}>
+<td style={tdSt}><strong>{ps.payslipNumber}</strong></td>
+<td style={tdSt}>{employee?.name || “—”}</td>
+<td style={tdSt}>{ps.month}</td>
+<td style={tdSt}>{ps.totalHours}h</td>
+<td style={tdSt}>€{ps.grossPay?.toFixed(2)}</td>
+<td style={{ …tdSt, fontWeight: 600 }}>€{ps.netPay?.toFixed(2)}</td>
+<td style={tdSt}><Badge color={ps.status === “paid” ? CL.green : CL.muted}>{ps.status}</Badge></td>
+<td style={tdSt}>
+<div style={{ display: “flex”, gap: 4 }}>
+<button style={{ …btnSec, …btnSm }} onClick={() => setPreview(ps)}>View</button>
+{ps.status !== “paid” && <button style={{ …btnSec, …btnSm, color: CL.green }} onClick={() => markPaid(ps.id)}>{ICN.check}</button>}
+</div>
+</td>
+</tr>
+);
+})}
+{data.payslips.length === 0 && <tr><td colSpan={8} style={{ …tdSt, textAlign: “center”, color: CL.muted }}>No payslips</td></tr>}
+</tbody>
+</table>
+</div>
+
+```
+  {preview && (
+    <ModalBox title="" onClose={() => setPreview(null)}>
+      {(() => {
+        const employee = data.employees.find(e => e.id === preview.employeeId);
+        const settings = data.settings;
+        return (
+          <div style={{ background: "#fff", color: "#1a1a1a", padding: 28, borderRadius: 8 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 18, flexWrap: "wrap", gap: 12 }}>
+              <div><h1 style={{ fontSize: 22, fontWeight: 700, color: "#C9A84C", fontFamily: "'Cormorant Garamond', serif", margin: 0 }}>{settings.companyName}</h1><div style={{ fontSize: 10, color: "#666" }}>{settings.companyAddress}</div></div>
+              <div style={{ textAlign: "right" }}><h2 style={{ fontSize: 18, color: "#333", margin: 0 }}>PAYSLIP</h2><div style={{ fontSize: 11, color: "#666" }}>{preview.payslipNumber}<br />{preview.month}</div></div>
+            </div>
+            <div style={{ padding: 12, background: "#f8f8f8", borderRadius: 8, marginBottom: 18 }}>
+              <div style={{ fontSize: 10, color: "#999", textTransform: "uppercase" }}>Employee</div>
+              <div style={{ fontWeight: 600 }}>{employee?.name}</div>
+              <div style={{ fontSize: 11, color: "#666" }}>{employee?.role} · SSN: {employee?.socialSecNumber || "N/A"}</div>
+              {employee?.bankIban && <div style={{ fontSize: 11, color: "#666" }}>IBAN: {employee.bankIban}</div>}
+            </div>
+            <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 18 }}>
+              <tbody>
+                <tr style={{ borderBottom: "1px solid #eee" }}><td style={{ padding: "7px 0", color: "#666" }}>Hours</td><td style={{ padding: "7px 0", textAlign: "right", fontWeight: 600 }}>{preview.totalHours}h</td></tr>
+                <tr style={{ borderBottom: "1px solid #eee" }}><td style={{ padding: "7px 0", color: "#666" }}>Rate</td><td style={{ padding: "7px 0", textAlign: "right" }}>€{preview.hourlyRate?.toFixed(2)}</td></tr>
+                <tr style={{ borderBottom: "2px solid #C9A84C" }}><td style={{ padding: "7px 0", fontWeight: 600 }}>Gross</td><td style={{ padding: "7px 0", textAlign: "right", fontWeight: 600 }}>€{preview.grossPay?.toFixed(2)}</td></tr>
+                <tr style={{ borderBottom: "1px solid #eee" }}><td style={{ padding: "7px 0", color: "#c00" }}>Social (~12.5%)</td><td style={{ padding: "7px 0", textAlign: "right", color: "#c00" }}>−€{preview.socialCharges?.toFixed(2)}</td></tr>
+                <tr style={{ borderBottom: "1px solid #eee" }}><td style={{ padding: "7px 0", color: "#c00" }}>Tax (~15%)</td><td style={{ padding: "7px 0", textAlign: "right", color: "#c00" }}>−€{preview.taxEstimate?.toFixed(2)}</td></tr>
+                <tr><td style={{ padding: "10px 0", fontSize: 18, fontWeight: 700, color: "#C9A84C" }}>Net Pay</td><td style={{ padding: "10px 0", textAlign: "right", fontSize: 18, fontWeight: 700, color: "#C9A84C" }}>€{preview.netPay?.toFixed(2)}</td></tr>
+              </tbody>
+            </table>
+            <div style={{ fontSize: 9, color: "#999", textAlign: "center" }}>Simplified — verify with your accountant for exact Luxembourg calculations.</div>
+          </div>
+        );
+      })()}
+      <div className="no-print" style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 12 }}>
+        <button style={btnSec} onClick={() => setPreview(null)}>Close</button>
+        <button style={btnPri} onClick={() => window.print()}>{ICN.download} Print</button>
+      </div>
+    </ModalBox>
+  )}
+</div>
+```
+
+);
+}
+
+// ══════════════════════════════════════════════
+// REMINDERS PAGE
+// ══════════════════════════════════════════════
+function RemindersPage({ data, showToast }) {
+const tomorrow = new Date(Date.now() + 864e5).toISOString().slice(0, 10);
+const tomorrowScheds = data.schedules.filter(s => s.date === tomorrow);
+const emails = tomorrowScheds.map(sched => {
+const client = data.clients.find(c => c.id === sched.clientId);
+const employee = data.employees.find(e => e.id === sched.employeeId);
+if (!client?.email) return null;
+return { client, employee, sched };
+}).filter(Boolean);
+
+return (
+<div>
+<h1 style={{ fontSize: 26, fontFamily: “var(–hd)”, color: CL.gold, marginBottom: 5 }}>Reminders</h1>
+<p style={{ color: CL.muted, marginBottom: 16 }}>Tomorrow ({fmtDate(tomorrow)})</p>
+{emails.length === 0 ? (
+<div style={{ …cardSt, textAlign: “center”, padding: 36, color: CL.muted }}>No reminders needed</div>
+) : (
+<div>
+<div style={{ …cardSt, marginBottom: 12, padding: 12, background: CL.blue + “10”, borderColor: CL.blue }}>
+<p style={{ color: CL.blue, fontWeight: 600, margin: 0 }}>{emails.length} reminder(s) ready</p>
+</div>
+{emails.map((item, idx) => (
+<div key={idx} style={{ …cardSt, marginBottom: 8 }}>
+<div style={{ display: “flex”, justifyContent: “space-between”, alignItems: “flex-start”, flexWrap: “wrap”, gap: 8 }}>
+<div>
+<div style={{ fontWeight: 600, fontSize: 15 }}>{item.client.name}</div>
+<div style={{ fontSize: 12, color: CL.muted, marginTop: 3 }}>To: {item.client.email} · {item.sched.startTime}–{item.sched.endTime} · {item.employee?.name || “TBA”}</div>
+</div>
+<button style={btnPri} onClick={() => {
+const subject = encodeURIComponent(`Cleaning Reminder – ${fmtDate(item.sched.date)}`);
+const body = encodeURIComponent(`Dear ${item.client.contactPerson || item.client.name},\n\nReminder: cleaning tomorrow.\n\nDate: ${fmtDate(item.sched.date)}\nTime: ${item.sched.startTime}–${item.sched.endTime}\nCleaner: ${item.employee?.name || "TBA"}\n\nTo reschedule: ${data.settings.companyPhone}\n\nBest,\n${data.settings.companyName}`);
+window.open(`mailto:${item.client.email}?subject=${subject}&body=${body}`);
+showToast(“Email opened!”);
+}}>{ICN.mail} Send</button>
+</div>
+</div>
+))}
+</div>
+)}
+</div>
+);
+}
+
+// ══════════════════════════════════════════════
+// REPORTS PAGE
+// ══════════════════════════════════════════════
+function ReportsPage({ data }) {
+const [month, setMonth] = useState(getToday().slice(0, 7));
+const monthEntries = data.clockEntries.filter(c => c.clockOut && c.clockIn?.startsWith(month));
+
+const empSummary = data.employees.filter(emp => emp.status === “active”).map(emp => {
+const entries = monthEntries.filter(c => c.employeeId === emp.id);
+const totalH = entries.reduce((sum, ce) => sum + calcHrs(ce.clockIn, ce.clockOut), 0);
+return { …emp, totalH: Math.round(totalH * 100) / 100, cost: Math.round(totalH * emp.hourlyRate * 100) / 100 };
+});
+
+const clientSummary = data.clients.filter(c => c.status === “active”).map(client => {
+const entries = monthEntries.filter(c => c.clientId === client.id);
+const totalH = entries.reduce((sum, ce) => sum + calcHrs(ce.clockIn, ce.clockOut), 0);
+const revenue = client.billingType === “fixed” ? client.priceFixed : totalH * client.pricePerHour;
+const invoiced = data.invoices.filter(inv => inv.clientId === client.id && inv.date?.startsWith(month)).reduce((sum, inv) => sum + (inv.total || 0), 0);
+return { …client, totalH: Math.round(totalH * 100) / 100, revenue: Math.round(revenue * 100) / 100, invoiced: Math.round(invoiced * 100) / 100 };
+});
+
+const totalRevenue = clientSummary.reduce((sum, c) => sum + c.revenue, 0);
+const totalCost = empSummary.reduce((sum, e) => sum + e.cost, 0);
+const totalHours = empSummary.reduce((sum, e) => sum + e.totalH, 0);
+const profit = totalRevenue - totalCost;
+
+return (
+<div>
+<div style={{ display: “flex”, justifyContent: “space-between”, alignItems: “center”, marginBottom: 16, flexWrap: “wrap”, gap: 8 }}>
+<h1 style={{ fontSize: 26, fontFamily: “var(–hd)”, color: CL.gold }}>Reports</h1>
+<TextInput type=“month” value={month} onChange={ev => setMonth(ev.target.value)} style={{ width: 160 }} />
+</div>
+<div className=“stat-row” style={{ marginBottom: 22 }}>
+<StatCard label=“Hours” value={`${totalHours.toFixed(1)}h`} icon={ICN.clock} color={CL.blue} />
+<StatCard label=“Revenue” value={`€${totalRevenue.toFixed(2)}`} icon={ICN.chart} color={CL.green} />
+<StatCard label=“Labour” value={`€${totalCost.toFixed(2)}`} icon={ICN.team} color={CL.red} />
+<StatCard label=“Profit” value={`€${profit.toFixed(2)}`} icon={ICN.check} color={profit >= 0 ? CL.green : CL.red} />
+</div>
+<div className="grid-2">
+<div style={cardSt}>
+<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>Employee Hours</h3>
+<div className="tbl-wrap">
+<table style={{ width: “100%”, borderCollapse: “collapse”, fontSize: 14 }}>
+<thead><tr><th style={thSt}>Employee</th><th style={thSt}>Hours</th><th style={thSt}>Rate</th><th style={thSt}>Cost</th></tr></thead>
+<tbody>
+{empSummary.map(emp => <tr key={emp.id}><td style={tdSt}>{emp.name}</td><td style={tdSt}>{emp.totalH}h</td><td style={tdSt}>€{emp.hourlyRate}/hr</td><td style={{ …tdSt, fontWeight: 600 }}>€{emp.cost.toFixed(2)}</td></tr>)}
+{empSummary.length === 0 && <tr><td colSpan={4} style={{ …tdSt, textAlign: “center”, color: CL.muted }}>—</td></tr>}
+</tbody>
+</table>
+</div>
+</div>
+<div style={cardSt}>
+<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>Client Revenue</h3>
+<div className="tbl-wrap">
+<table style={{ width: “100%”, borderCollapse: “collapse”, fontSize: 14 }}>
+<thead><tr><th style={thSt}>Client</th><th style={thSt}>Hours</th><th style={thSt}>Revenue</th><th style={thSt}>Invoiced</th></tr></thead>
+<tbody>
+{clientSummary.map(cl => <tr key={cl.id}><td style={tdSt}>{cl.name}</td><td style={tdSt}>{cl.totalH}h</td><td style={tdSt}>€{cl.revenue.toFixed(2)}</td><td style={{ …tdSt, color: cl.invoiced >= cl.revenue ? CL.green : CL.red }}>€{cl.invoiced.toFixed(2)}</td></tr>)}
+{clientSummary.length === 0 && <tr><td colSpan={4} style={{ …tdSt, textAlign: “center”, color: CL.muted }}>—</td></tr>}
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+);
+}
+
+// ══════════════════════════════════════════════
+// EXCEL DB PAGE
+// ══════════════════════════════════════════════
+function ExcelDBPage({ data, setData, showToast }) {
+const fileRef = useRef(null);
+const [exporting, setExporting] = useState(false);
+
+const doExport = async () => {
+setExporting(true);
+try { await exportExcel(data); showToast(“Exported!”); }
+catch (err) { console.error(err); showToast(“Failed”, “error”); }
+setExporting(false);
+};
+
+const doImport = (ev) => {
+const file = ev.target.files[0];
+if (!file) return;
+importExcel(file, setData, showToast);
+ev.target.value = “”;
+};
+
+return (
+<div>
+<h1 style={{ fontSize: 26, fontFamily: “var(–hd)”, color: CL.gold, marginBottom: 5 }}>Excel Database</h1>
+<p style={{ color: CL.muted, marginBottom: 20 }}>Full backup/restore with structured 8-sheet Excel file.</p>
+<div className=“grid-2” style={{ marginBottom: 20 }}>
+<div style={{ …cardSt, textAlign: “center”, padding: 28 }}>
+<div style={{ width: 56, height: 56, borderRadius: 16, background: CL.green + “15”, display: “flex”, alignItems: “center”, justifyContent: “center”, color: CL.green, margin: “0 auto 12px” }}>{ICN.download}</div>
+<h3 style={{ fontFamily: “var(–hd)”, fontSize: 18, color: CL.green, marginBottom: 6 }}>Export Database</h3>
+<p style={{ color: CL.muted, fontSize: 12, marginBottom: 14 }}>8 sheets: Employees, Clients, Schedule, Time Clock, Invoices, Payslips, Settings, Summary</p>
+<button style={{ …btnPri, background: CL.green, justifyContent: “center”, width: “100%” }} onClick={doExport}>{exporting ? “Exporting…” : “Export .xlsx”}</button>
+</div>
+<div style={{ …cardSt, textAlign: “center”, padding: 28 }}>
+<div style={{ width: 56, height: 56, borderRadius: 16, background: CL.blue + “15”, display: “flex”, alignItems: “center”, justifyContent: “center”, color: CL.blue, margin: “0 auto 12px” }}>{ICN.excel}</div>
+<h3 style={{ fontFamily: “var(–hd)”, fontSize: 18, color: CL.blue, marginBottom: 6 }}>Import Database</h3>
+<p style={{ color: CL.muted, fontSize: 12, marginBottom: 14 }}>Upload a previously exported Excel file to restore all data.</p>
+<input type=“file” accept=”.xlsx,.xls” ref={fileRef} onChange={doImport} style={{ display: “none” }} />
+<button style={{ …btnPri, background: CL.blue, justifyContent: “center”, width: “100%” }} onClick={() => fileRef.current?.click()}>Import .xlsx</button>
+</div>
+</div>
+<div style={cardSt}>
+<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: CL.gold }}>Data Summary</h3>
+<div className="grid-3">
+{[
+{ label: “Employees”, count: data.employees.length, color: CL.blue },
+{ label: “Clients”, count: data.clients.length, color: CL.green },
+{ label: “Schedules”, count: data.schedules.length, color: CL.gold },
+{ label: “Time Entries”, count: data.clockEntries.length, color: CL.orange },
+{ label: “Invoices”, count: data.invoices.length, color: CL.blue },
+{ label: “Payslips”, count: data.payslips.length, color: CL.green },
+].map(d => (
+<div key={d.label} style={{ padding: 12, background: CL.s2, borderRadius: 8, textAlign: “center” }}>
+<div style={{ fontSize: 20, fontWeight: 700, color: d.color }}>{d.count}</div>
+<div style={{ fontSize: 11, color: CL.muted }}>{d.label}</div>
+</div>
+))}
+</div>
+</div>
+</div>
+);
+}
+
+// ══════════════════════════════════════════════
+// SETTINGS PAGE
+// ══════════════════════════════════════════════
+function SettingsPage({ data, updateData, setData, showToast }) {
+const [form, setForm] = useState(data.settings);
+const [pin, setPin] = useState(data.ownerPin);
+const set = (key, value) => setForm(prev => ({ …prev, [key]: value }));
+
+const handleSave = () => {
+updateData(“settings”, form);
+setData(prev => ({ …prev, ownerPin: pin }));
+showToast(“Saved”);
+};
+
+return (
+<div>
+<h1 style={{ fontSize: 26, fontFamily: “var(–hd)”, color: CL.gold, marginBottom: 16 }}>Settings</h1>
+<div style={cardSt}>
+<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: CL.gold }}>Company Info</h3>
+<div className="form-grid">
+<Field label="Company Name"><TextInput value={form.companyName} onChange={ev => set(“companyName”, ev.target.value)} /></Field>
+<Field label="Email"><TextInput value={form.companyEmail} onChange={ev => set(“companyEmail”, ev.target.value)} /></Field>
+<Field label="Phone"><TextInput value={form.companyPhone} onChange={ev => set(“companyPhone”, ev.target.value)} /></Field>
+<Field label="VAT Number"><TextInput value={form.vatNumber} onChange={ev => set(“vatNumber”, ev.target.value)} /></Field>
+<Field label="Default VAT %"><TextInput type=“number” value={form.defaultVatRate} onChange={ev => set(“defaultVatRate”, parseFloat(ev.target.value) || 0)} /></Field>
+<Field label="Bank IBAN"><TextInput value={form.bankIban} onChange={ev => set(“bankIban”, ev.target.value)} /></Field>
+</div>
+<Field label="Address"><TextInput value={form.companyAddress} onChange={ev => set(“companyAddress”, ev.target.value)} /></Field>
+</div>
+<div style={{ …cardSt, marginTop: 14 }}>
+<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: CL.gold }}>Owner PIN</h3>
+<Field label="PIN (4-6 digits)"><TextInput maxLength={6} value={pin} onChange={ev => setPin(ev.target.value.replace(/\D/g, “”))} style={{ width: 180 }} /></Field>
+</div>
+<div style={{ marginTop: 14 }}><button style={btnPri} onClick={handleSave}>{ICN.check} Save All</button></div>
+<div style={{ …cardSt, marginTop: 14 }}>
+<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: CL.red }}>Danger Zone</h3>
+<button style={btnDng} onClick={() => { if (confirm(“DELETE ALL DATA?”)) { saveStore(DEFAULTS); window.location.reload(); } }}>Reset Everything</button>
+</div>
+</div>
+);
+}

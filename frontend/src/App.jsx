@@ -1,12 +1,14 @@
+// This is the beginning of the Lux Angels app scaffold.
+
 import React from 'react';
 
 function App() {
-  return (
-    <div>
-      <h1>Lux Angels Cleaning</h1>
-      <p>App is running.</p>
-    </div>
-  );
+    return (
+        <div className="App">
+            <h1>Welcome to Lux Angels</h1>
+            {/* more code to be appended */}
+        </div>
+    );
 }
 
 export default App;

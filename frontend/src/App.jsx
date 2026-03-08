@@ -421,7 +421,7 @@ return (
       </div>
     ) : (
       <div style={{ ...cardSt, textAlign: "left" }}>
-        <button onClick={() => { setMode(null); setPin(""); setError(""); setSelEmp(""); }} style={{ background: "none", border: "none", color: CL.muted, cursor: "pointer", fontSize: 13, marginBottom: 12 }}><- Back</button>
+        <button onClick={() => { setMode(null); setPin(""); setError(""); setSelEmp(""); }} style={{ background: "none", border: "none", color: CL.muted, cursor: "pointer", fontSize: 13, marginBottom: 12 }}>← Back</button>
         <h3 style={{ fontFamily: "'Cormorant Garamond', serif", color: mode === "owner" ? CL.gold : CL.blue, fontSize: 20, marginBottom: 16 }}>{mode === "owner" ? "Owner Login" : "Cleaner Login"}</h3>
         {mode === "cleaner" && (
           <Field label="Your Name">

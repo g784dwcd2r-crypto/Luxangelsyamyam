@@ -1,35 +1,26 @@
 # Lux Angels Cleaning Management System
 
-## Setup Instructions
+## Installation
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/g784dwcd2r-crypto/Luxangelsyamyam.git
-   cd Luxangelsyamyam
-   ```
-2. Set up the backend:
-   - Navigate to the `backend` directory.
-   - Make sure to have the following software installed:
-     - Node.js
-     - PostgreSQL
-   - Install dependencies:
-     ```bash
-     npm install
-     ```
-   - Configure the database and environment variables by copying `.env.example` to `.env` and updating the values.
-3. Run the backend server:
-   ```bash
-   npm run dev
-   ```
-4. Set up the frontend:
-   - Navigate to the `frontend` directory.
-   - Install dependencies:
-     ```bash
-     npm install
-     ```
-   - Run the frontend development server:
-   ```bash
-   npm run dev
-   ```
+### Frontend
+1. Navigate to the `frontend` directory.
+2. Install dependencies with `npm install`.
+3. Run the frontend application using `npm run dev`.
 
-Now you can access the application at `http://localhost:5173`.  Make sure the backend is running on `http://localhost:3000`.  
+### Backend
+1. Navigate to the `backend` directory.
+2. Install dependencies with `npm install`.
+3. Run the backend application using `node app.js`.
+
+## Environment Variables
+
+Make sure to create a `.env` file in both frontend and backend directories.
+
+- **Frontend**:
+  - `VITE_API_BASE_URL`: The base URL for the API
+
+- **Backend**:
+  - `DATABASE_URL`: Your PostgreSQL database URL (do not commit the actual secret).
+
+## Note
+This project uses a PIN-only authentication system for users.

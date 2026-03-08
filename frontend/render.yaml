@@ -1,0 +1,5 @@
+# Render Configuration
+
+# This file sets the configuration for deploying the frontend using Render.
+
+publishDir: frontend/dist

@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 
 /* ===========================================================
-LUX ANGELS CLEANING - Management System v3 (Bug-free)
+LUX ANGELS CLEANING - Management System v3 (Bug-free) 
 =========================================================== */
 
 // -- Persistence --

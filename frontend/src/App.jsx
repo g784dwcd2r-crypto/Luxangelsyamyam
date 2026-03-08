@@ -1,10 +1,10 @@
 import React from 'react';
 
-function App(props) {
+function App() {
   return (
     <div>
-      <h1>Hello, World!</h1>
-      <p>{...props}</p>
+      <h1>Lux Angels Cleaning</h1>
+      <p>App is running.</p>
     </div>
   );
 }

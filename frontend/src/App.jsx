@@ -1,14 +1,21 @@
-// This is the beginning of the Lux Angels app scaffold.
-
 import React from 'react';
+import { SvgIcon } from '@material-ui/core';
+import { createTheme, ThemeProvider } from '@material-ui/core/styles';
 
-function App() {
+const theme = createTheme();
+
+const App = () => {
     return (
-        <div className="App">
-            <h1>Welcome to Lux Angels</h1>
-            {/* more code to be appended */}
-        </div>
+        <ThemeProvider theme={theme}>
+            <div>
+                <h1>Lux Angels Cleaning</h1>
+                <p>Loading...</p>
+                <SvgIcon>
+                    {/* Add SVG content here */}
+                </SvgIcon>
+            </div>
+        </ThemeProvider>
     );
-}
+};
 
 export default App;

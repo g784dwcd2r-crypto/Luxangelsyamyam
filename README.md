@@ -35,7 +35,7 @@ Luxangelsyamyam/
 
 | Layer     | Technology                              |
 |-----------|-----------------------------------------|
-| Frontend  | React 18, Vite, SheetJS (xlsx)          |
+| Frontend  | React 18, Vite, ExcelJS                 |
 | Backend   | Node.js, Express 4, cors, dotenv        |
 | Database  | PostgreSQL 14+ (via `pg` pool)          |
 | Auth      | PIN-only (no JWT, no sessions)          |

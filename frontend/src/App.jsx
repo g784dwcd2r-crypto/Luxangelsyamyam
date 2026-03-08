@@ -1,7 +1,7 @@
 
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 
 /* ===========================================================
 LUX ANGELS CLEANING - Management System v3 (Bug-free) 
@@ -130,11 +130,11 @@ const FormTabs = ({ tabs, active, onChange }) => (
 
 // -- Excel Export --
 const exportExcel = async (data) => {
-const wb = XLSX.utils.book_new();
+const wb = new ExcelJS.Workbook();
 const addSheet = (name, rows, cols) => {
-const ws = XLSX.utils.json_to_sheet(rows.length ? rows : [Object.fromEntries(cols.map(c => [c, ""]))]);
-ws["!cols"] = cols.map(c => ({ wch: Math.max(c.length + 4, 14) }));
-XLSX.utils.book_append_sheet(wb, ws, name);
+const ws = wb.addWorksheet(name);
+ws.columns = cols.map(c => ({ header: c, key: c, width: Math.max(c.length + 4, 14) }));
+ws.addRows(rows.length ? rows : [Object.fromEntries(cols.map(c => [c, ""]))]);
 };
 
 addSheet("Employees", data.employees.map(emp => ({ ID: emp.id, Name: emp.name, Email: emp.email, Phone: emp.phone, Mobile: emp.phoneMobile || "", Role: emp.role, "Rate": emp.hourlyRate, Address: emp.address, City: emp.city || "", Zip: emp.postalCode || "", Country: emp.country || "", "Start": emp.startDate, Status: emp.status, Contract: emp.contractType || "", IBAN: emp.bankIban || "", SSN: emp.socialSecNumber || "", DOB: emp.dateOfBirth || "", Nationality: emp.nationality || "", Languages: emp.languages || "", Transport: emp.transport || "", "WorkPermit": emp.workPermit || "", "EmergName": emp.emergencyName || "", "EmergPhone": emp.emergencyPhone || "", PIN: data.employeePins?.[emp.id] || "0000", Notes: emp.notes || "" })),
@@ -172,16 +172,38 @@ const revenue = data.invoices.filter(inv => inv.date?.startsWith(mo)).reduce((su
 return { Month: mo, Hours: Math.round(totalH * 100) / 100, Labor: Math.round(laborCost * 100) / 100, Revenue: Math.round(revenue * 100) / 100, Profit: Math.round((revenue - laborCost) * 100) / 100 };
 }), ["Month", "Hours", "Labor", "Revenue", "Profit"]);
 
-XLSX.writeFile(wb, `LuxAngels_DB_${getToday()}.xlsx`);
+const buffer = await wb.xlsx.writeBuffer();
+const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+const url = URL.createObjectURL(blob);
+const a = document.createElement("a");
+a.href = url; a.download = `LuxAngels_DB_${getToday()}.xlsx`; a.click();
+URL.revokeObjectURL(url);
 };
 
 // -- Excel Import --
 const importExcel = async (file, setData, showToast) => {
-const reader = new FileReader();
-reader.onload = (evt) => {
 try {
-const wb = XLSX.read(evt.target.result, { type: "array" });
-const sheet = (name) => { const ws = wb.Sheets[name]; return ws ? XLSX.utils.sheet_to_json(ws) : []; };
+const buffer = await file.arrayBuffer();
+const wb = new ExcelJS.Workbook();
+await wb.xlsx.load(buffer);
+const sheet = (name) => {
+  const ws = wb.getWorksheet(name);
+  if (!ws) return [];
+  const hdrs = [];
+  ws.getRow(1).eachCell({ includeEmpty: true }, (cell, colIdx) => {
+    hdrs[colIdx] = cell.value;
+  });
+  const rows = [];
+  ws.eachRow((row, rowNum) => {
+    if (rowNum === 1) return;
+    const obj = {};
+    row.eachCell({ includeEmpty: true }, (cell, colIdx) => {
+      if (hdrs[colIdx]) obj[hdrs[colIdx]] = cell.value != null ? cell.value : "";
+    });
+    if (Object.keys(obj).length) rows.push(obj);
+  });
+  return rows;
+};
 
   const emps = sheet("Employees").filter(r => r.ID && r.Name).map(r => ({ id: r.ID, name: r.Name, email: r.Email || "", phone: r.Phone || "", phoneMobile: r.Mobile || "", role: r.Role || "Cleaner", hourlyRate: parseFloat(r.Rate) || 15, address: r.Address || "", city: r.City || "", postalCode: r.Zip || "", country: r.Country || "Luxembourg", startDate: r.Start || getToday(), status: r.Status || "active", contractType: r.Contract || "CDI", bankIban: r.IBAN || "", socialSecNumber: r.SSN || "", dateOfBirth: r.DOB || "", nationality: r.Nationality || "", languages: r.Languages || "", transport: r.Transport || "", workPermit: r.WorkPermit || "", emergencyName: r.EmergName || "", emergencyPhone: r.EmergPhone || "", notes: r.Notes || "" }));
   const pins = {}; sheet("Employees").filter(r => r.ID && r.PIN).forEach(r => { pins[r.ID] = String(r.PIN); });
@@ -215,9 +237,6 @@ const sheet = (name) => { const ws = wb.Sheets[name]; return ws ? XLSX.utils.she
   }));
   showToast("Excel imported!", "success");
 } catch (err) { console.error(err); showToast("Import failed", "error"); }
-
-};
-reader.readAsArrayBuffer(file);
 };
 
 // ==============================================

@@ -1,6 +1,7 @@
 'use strict';
 
 const { Router } = require('express');
+const rateLimit = require('express-rate-limit');
 const { z } = require('zod');
 const { v4: uuidv4 } = require('uuid');
 const { query } = require('../db');
@@ -9,7 +10,26 @@ const { requireAuth, requireRole } = require('../middleware/auth');
 
 const router = Router();
 
-// All employee routes require authentication
+// Limit all employee route requests to 100 per 15 minutes per IP
+const employeeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests. Please try again later.' },
+});
+
+// Limit PIN change attempts to 10 per 15 minutes per IP
+const pinChangeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many PIN change attempts. Please try again later.' },
+});
+
+// All employee routes: rate limit first, then authenticate
+router.use(employeeLimiter);
 router.use(requireAuth);
 
 const createEmployeeSchema = z.object({
@@ -55,7 +75,7 @@ router.post('/', requireRole('owner'), async (req, res, next) => {
  * Owner can reset any employee PIN.
  * Employee can change their own PIN if they provide oldPin.
  */
-router.put('/:id/pin', async (req, res, next) => {
+router.put('/:id/pin', pinChangeLimiter, async (req, res, next) => {
   try {
     const { id } = req.params;
     const parsed = updatePinSchema.safeParse(req.body);

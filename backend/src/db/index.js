@@ -13,7 +13,7 @@ pool.on('error', (err) => {
 });
 
 /**
- * Execute a parameterised query.
+ * Execute a parameterized query.
  * @param {string} text  SQL query string
  * @param {Array}  params  Query parameters
  * @returns {Promise<import('pg').QueryResult>}

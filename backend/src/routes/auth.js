@@ -1,12 +1,22 @@
 'use strict';
 
 const { Router } = require('express');
+const rateLimit = require('express-rate-limit');
 const { z } = require('zod');
 const { query } = require('../db');
 const { verifyPin } = require('../utils/pin');
 const { signToken } = require('../middleware/auth');
 
 const router = Router();
+
+// Limit PIN login attempts to 10 per 15 minutes per IP
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many login attempts. Please try again later.' },
+});
 
 const pinLoginSchema = z.object({
   role: z.enum(['owner', 'employee']),
@@ -19,7 +29,7 @@ const pinLoginSchema = z.object({
  * Body: { role, pin, employeeId? }
  * Returns: { token, user: { id, role, name } }
  */
-router.post('/pin-login', async (req, res, next) => {
+router.post('/pin-login', loginLimiter, async (req, res, next) => {
   try {
     const parsed = pinLoginSchema.safeParse(req.body);
     if (!parsed.success) {

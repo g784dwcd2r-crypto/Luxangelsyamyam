@@ -1,26 +1,141 @@
 # Lux Angels Cleaning Management System
 
+A full-stack cleaning business management app built with **React (Vite)** + **Node.js/Express** + **PostgreSQL**.
+
+---
+
+## Project Structure
+
+```
+Luxangelsyamyam/
+├── frontend/          ← React 18 + Vite SPA (all pages in src/App.jsx)
+│   ├── src/
+│   │   ├── App.jsx    ← Main application component
+│   │   └── main.jsx
+│   ├── package.json
+│   ├── vite.config.js
+│   └── .env.example
+├── backend/           ← Express API + PostgreSQL
+│   ├── app.js         ← All REST route implementations
+│   ├── db.js          ← PostgreSQL connection pool
+│   ├── schema.sql     ← Database schema + seed data
+│   ├── package.json
+│   └── .env.example
+├── README.md
+├── App.jsx            ← ⚠️  Legacy draft — ignore, use frontend/src/App.jsx
+└── text_fixed.jsx     ← ⚠️  Legacy draft — ignore, use frontend/src/App.jsx
+```
+
+> **Note:** The root-level `App.jsx` and `text_fixed.jsx` files are old draft copies left over from early development.  
+> The canonical source is **`frontend/src/App.jsx`**. The root files can be safely ignored.
+
+---
+
+## Tech Stack
+
+| Layer     | Technology                              |
+|-----------|-----------------------------------------|
+| Frontend  | React 18, Vite, SheetJS (xlsx)          |
+| Backend   | Node.js, Express 4, cors, dotenv        |
+| Database  | PostgreSQL 14+ (via `pg` pool)          |
+| Auth      | PIN-only (no JWT, no sessions)          |
+| Export    | Excel (.xlsx) via SheetJS               |
+
+---
+
+## Default PIN Credentials
+
+| Role   | Default PIN |
+|--------|-------------|
+| Owner  | `1234`      |
+| Cleaner| `0000`      |
+
+These can be changed from the Settings page (owner) or by the owner via the employee PIN management screen.
+
+---
+
+## Database Setup
+
+1. Create a PostgreSQL database:
+   ```sql
+   CREATE DATABASE luxangels;
+   ```
+
+2. Run the schema (creates all tables + seeds default settings):
+   ```bash
+   psql -d luxangels -f backend/schema.sql
+   ```
+
+---
+
 ## Installation
 
-### Frontend
-1. Navigate to the `frontend` directory.
-2. Install dependencies with `npm install`.
-3. Run the frontend application using `npm run dev`.
-
 ### Backend
-1. Navigate to the `backend` directory.
-2. Install dependencies with `npm install`.
-3. Run the backend application using `node app.js`.
+
+```bash
+cd backend
+npm install
+cp .env.example .env
+# Edit .env: set DATABASE_URL to your PostgreSQL connection string
+node app.js
+```
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+cp .env.example .env
+# Edit .env: set VITE_API_BASE_URL if backend runs on a non-default port
+npm run dev
+```
+
+---
 
 ## Environment Variables
 
-Make sure to create a `.env` file in both frontend and backend directories.
+### `backend/.env`
 
-- **Frontend**:
-  - `VITE_API_BASE_URL`: The base URL for the API
+| Variable       | Description                                      | Default                                            |
+|----------------|--------------------------------------------------|----------------------------------------------------|
+| `DATABASE_URL` | PostgreSQL connection string (**required**)      | `postgresql://user:password@localhost:5432/luxangels` |
+| `PORT`         | Port the API server listens on                   | `5000`                                             |
 
-- **Backend**:
-  - `DATABASE_URL`: Your PostgreSQL database URL (do not commit the actual secret).
+### `frontend/.env`
 
-## Note
-This project uses a PIN-only authentication system for users.
+| Variable             | Description                    | Default                  |
+|----------------------|--------------------------------|--------------------------|
+| `VITE_API_BASE_URL`  | Base URL for the backend API   | `http://localhost:5000`  |
+
+---
+
+## API Endpoints
+
+| Method | Path                        | Description                  |
+|--------|-----------------------------|------------------------------|
+| POST   | `/api/auth/pin-login`       | PIN login (owner or cleaner) |
+| GET    | `/api/employees`            | List all employees           |
+| POST   | `/api/employees`            | Create employee              |
+| PUT    | `/api/employees/:id`        | Update employee              |
+| DELETE | `/api/employees/:id`        | Delete employee              |
+| PUT    | `/api/employees/:id/pin`    | Update employee PIN          |
+| GET    | `/api/clients`              | List all clients             |
+| POST   | `/api/clients`              | Create client                |
+| PUT    | `/api/clients/:id`          | Update client                |
+| DELETE | `/api/clients/:id`          | Delete client                |
+| GET    | `/api/schedules`            | List all schedules           |
+| POST   | `/api/schedules`            | Create schedule              |
+| PUT    | `/api/schedules/:id`        | Update schedule              |
+| DELETE | `/api/schedules/:id`        | Delete schedule              |
+| GET    | `/api/clock-entries`        | List clock entries           |
+| POST   | `/api/clock-entries`        | Clock in                     |
+| PUT    | `/api/clock-entries/:id`    | Clock out                    |
+| GET    | `/api/invoices`             | List all invoices            |
+| POST   | `/api/invoices`             | Create invoice               |
+| PUT    | `/api/invoices/:id`         | Update invoice               |
+| DELETE | `/api/invoices/:id`         | Delete invoice               |
+| GET    | `/api/payslips`             | List all payslips            |
+| POST   | `/api/payslips`             | Create payslip               |
+| PUT    | `/api/payslips/:id`         | Update payslip               |
+| GET    | `/api/settings`             | Get all settings             |
+| PUT    | `/api/settings`             | Bulk update settings         |

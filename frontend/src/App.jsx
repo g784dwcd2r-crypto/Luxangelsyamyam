@@ -14,6 +14,7 @@ const saveStore = (d) => { try { localStorage.setItem(STORE_KEY, JSON.stringify(
 
 const DEFAULTS = {
 employees: [], clients: [], schedules: [], clockEntries: [], invoices: [], payslips: [],
+photoUploads: [], timeOffRequests: [],
 ownerPin: "1234", employeePins: {},
 settings: {
 companyName: "LAC Lux angels cleaning",
@@ -436,7 +437,7 @@ return (
         </button>
         <button onClick={() => setMode("cleaner")} style={{ ...cardSt, padding: "16px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 13, border: `1px solid ${CL.bd}`, textAlign: "left" }}>
           <div style={{ width: 44, height: 44, borderRadius: 12, background: CL.blue + "15", display: "flex", alignItems: "center", justifyContent: "center", color: CL.blue, flexShrink: 0 }}>{ICN.user}</div>
-          <div><div style={{ fontWeight: 600, color: CL.text, fontSize: 15 }}>Cleaner Access</div><div style={{ fontSize: 12, color: CL.muted }}>Schedule, hours & earnings</div></div>
+          <div><div style={{ fontWeight: 600, color: CL.text, fontSize: 15 }}>Cleaner Access</div><div style={{ fontSize: 12, color: CL.muted }}>Schedule, hours, clock & time-off</div></div>
         </button>
       </div>
     ) : (
@@ -472,12 +473,16 @@ function CleanerPortal({ data, updateData, auth, onLogout, showToast, toast }) {
 const [tab, setTab] = useState("schedule");
 const emp = data.employees.find(e => e.id === auth.employeeId);
 const [monthFilter, setMonthFilter] = useState(getToday().slice(0, 7));
+const [uploadNote, setUploadNote] = useState("");
+const [timeOffForm, setTimeOffForm] = useState({ startDate: "", endDate: "", reason: "" });
 
 const upcoming = data.schedules.filter(s => s.employeeId === auth.employeeId && s.date >= getToday() && s.status !== "cancelled").sort((a, b) => a.date.localeCompare(b.date));
 const myClocks = data.clockEntries.filter(c => c.employeeId === auth.employeeId).sort((a, b) => new Date(b.clockIn) - new Date(a.clockIn));
 const activeClock = myClocks.find(c => !c.clockOut);
 const monthClocks = myClocks.filter(c => c.clockOut && c.clockIn?.startsWith(monthFilter));
 const monthHours = monthClocks.reduce((sum, c) => sum + calcHrs(c.clockIn, c.clockOut), 0);
+const myUploads = (data.photoUploads || []).filter(u => u.employeeId === auth.employeeId).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+const myTimeOffRequests = (data.timeOffRequests || []).filter(r => r.employeeId === auth.employeeId).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
 const doClockIn = (clientId) => {
 if (activeClock) { showToast("Already clocked in!", "error"); return; }
@@ -490,11 +495,46 @@ updateData("clockEntries", prev => prev.map(c => c.id === activeClock.id ? { ...
 showToast("Clocked out!");
 };
 
+const readAsDataUrl = (file) => new Promise((resolve, reject) => {
+const fr = new FileReader();
+fr.onload = () => resolve(fr.result);
+fr.onerror = reject;
+fr.readAsDataURL(file);
+});
+
+const onUploadPhoto = async (file) => {
+if (!file) return;
+if (!file.type?.startsWith("image/")) { showToast("Please upload an image file", "error"); return; }
+try {
+const imageData = await readAsDataUrl(file);
+updateData("photoUploads", (prev = []) => [...prev, {
+id: makeId(), employeeId: auth.employeeId, createdAt: new Date().toISOString(),
+fileName: file.name, imageData, note: uploadNote.trim(),
+}]);
+setUploadNote("");
+showToast("Photo uploaded");
+} catch {
+showToast("Upload failed", "error");
+}
+};
+
+const submitTimeOff = () => {
+if (!timeOffForm.startDate || !timeOffForm.endDate) { showToast("Select start and end dates", "error"); return; }
+if (timeOffForm.endDate < timeOffForm.startDate) { showToast("End date must be after start date", "error"); return; }
+updateData("timeOffRequests", (prev = []) => [...prev, {
+id: makeId(), employeeId: auth.employeeId, ...timeOffForm,
+reason: timeOffForm.reason.trim(), status: "pending", createdAt: new Date().toISOString(),
+}]);
+setTimeOffForm({ startDate: "", endDate: "", reason: "" });
+showToast("Time-off request sent");
+};
+
 const tabItems = [
 { id: "schedule", label: "My Schedule", icon: ICN.cal },
 { id: "clock", label: "Clock In/Out", icon: ICN.clock },
 { id: "hours", label: "My Hours", icon: ICN.chart },
-{ id: "earnings", label: "Earnings", icon: ICN.pay },
+{ id: "photos", label: "Photo Uploads", icon: ICN.doc },
+{ id: "timeoff", label: "Holiday / Time-Off", icon: ICN.cal },
 ];
 
 return (
@@ -608,26 +648,54 @@ return (
       </div>
     )}
 
-    {tab === "earnings" && (
+    {tab === "photos" && (
       <div>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 8 }}>
-          <h2 style={{ fontFamily: "'Cormorant Garamond', serif", color: CL.blue, fontSize: 22 }}>Earnings</h2>
-          <TextInput type="month" value={monthFilter} onChange={ev => setMonthFilter(ev.target.value)} style={{ width: 160 }} />
-        </div>
-        <div className="stat-row" style={{ marginBottom: 18 }}>
-          <StatCard label="Hours" value={`${monthHours.toFixed(1)}h`} icon={ICN.clock} color={CL.blue} />
-          <StatCard label="Rate" value={`€${(emp?.hourlyRate || 0).toFixed(2)}/hr`} icon={ICN.pay} color={CL.gold} />
-          <StatCard label="Gross" value={`€${(monthHours * (emp?.hourlyRate || 0)).toFixed(2)}`} icon={ICN.chart} color={CL.green} />
+        <h2 style={{ fontFamily: "'Cormorant Garamond', serif", color: CL.blue, fontSize: 22, marginBottom: 14 }}>Photo Uploads</h2>
+        <div style={{ ...cardSt, marginBottom: 14 }}>
+          <Field label="Upload cleaning photo">
+            <TextInput type="file" accept="image/*" onChange={ev => onUploadPhoto(ev.target.files?.[0])} />
+          </Field>
+          <Field label="Optional note">
+            <TextArea value={uploadNote} onChange={ev => setUploadNote(ev.target.value)} placeholder="Add context for this photo" />
+          </Field>
         </div>
         <div style={cardSt}>
-          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: CL.blue }}>My Payslips</h3>
-          {data.payslips.filter(ps => ps.employeeId === auth.employeeId).sort((a, b) => b.month.localeCompare(a.month)).map(ps => (
-            <div key={ps.id} style={{ padding: "8px 0", borderBottom: `1px solid ${CL.bd}`, display: "flex", justifyContent: "space-between" }}>
-              <div><div style={{ fontWeight: 600 }}>{ps.payslipNumber}</div><div style={{ fontSize: 12, color: CL.muted }}>{ps.month} · {ps.totalHours}h</div></div>
-              <div style={{ textAlign: "right" }}><div style={{ fontWeight: 600, color: CL.green }}>€{ps.netPay?.toFixed(2)}</div><Badge color={ps.status === "paid" ? CL.green : CL.muted}>{ps.status}</Badge></div>
+          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: CL.blue }}>My Uploaded Photos</h3>
+          {myUploads.map(up => (
+            <div key={up.id} style={{ padding: "10px 0", borderBottom: `1px solid ${CL.bd}` }}>
+              <div style={{ fontSize: 12, color: CL.muted, marginBottom: 8 }}>{fmtBoth(up.createdAt)} · {up.fileName}</div>
+              {up.note && <div style={{ fontSize: 12, color: CL.text, marginBottom: 8 }}>{up.note}</div>}
+              {up.imageData && <img src={up.imageData} alt={up.fileName} style={{ width: "100%", maxWidth: 360, borderRadius: 8, border: `1px solid ${CL.bd}` }} />}
             </div>
           ))}
-          {data.payslips.filter(ps => ps.employeeId === auth.employeeId).length === 0 && <p style={{ color: CL.muted, textAlign: "center" }}>No payslips yet</p>}
+          {myUploads.length === 0 && <p style={{ color: CL.muted, textAlign: "center" }}>No photos uploaded yet</p>}
+        </div>
+      </div>
+    )}
+
+    {tab === "timeoff" && (
+      <div>
+        <h2 style={{ fontFamily: "'Cormorant Garamond', serif", color: CL.blue, fontSize: 22, marginBottom: 14 }}>Holiday / Time-Off</h2>
+        <div style={{ ...cardSt, marginBottom: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 10 }}>
+            <Field label="Start Date"><TextInput type="date" value={timeOffForm.startDate} onChange={ev => setTimeOffForm(v => ({ ...v, startDate: ev.target.value }))} /></Field>
+            <Field label="End Date"><TextInput type="date" value={timeOffForm.endDate} onChange={ev => setTimeOffForm(v => ({ ...v, endDate: ev.target.value }))} /></Field>
+          </div>
+          <Field label="Reason"><TextArea value={timeOffForm.reason} onChange={ev => setTimeOffForm(v => ({ ...v, reason: ev.target.value }))} placeholder="Vacation, personal, medical, etc." /></Field>
+          <button onClick={submitTimeOff} style={btnPri}>Submit Request</button>
+        </div>
+        <div style={cardSt}>
+          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: CL.blue }}>My Requests</h3>
+          {myTimeOffRequests.map(req => (
+            <div key={req.id} style={{ padding: "10px 0", borderBottom: `1px solid ${CL.bd}`, display: "flex", justifyContent: "space-between", gap: 10 }}>
+              <div>
+                <div style={{ fontWeight: 600 }}>{fmtDate(req.startDate)} - {fmtDate(req.endDate)}</div>
+                <div style={{ fontSize: 12, color: CL.muted }}>{req.reason || "No reason provided"}</div>
+              </div>
+              <Badge color={req.status === "approved" ? CL.green : req.status === "rejected" ? CL.red : CL.orange}>{req.status}</Badge>
+            </div>
+          ))}
+          {myTimeOffRequests.length === 0 && <p style={{ color: CL.muted, textAlign: "center" }}>No requests submitted yet</p>}
         </div>
       </div>
     )}

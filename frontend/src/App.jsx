@@ -1,6 +1,6 @@
 
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import ExcelJS from "exceljs";
 
 /* ===========================================================
@@ -9,12 +9,37 @@ LUX ANGELS CLEANING - Management System v3 (Bug-free)
 
 // -- Persistence --
 const STORE_KEY = "lux-angels-v3";
+const LANG_KEY = "lux-angels-lang";
 const loadStore = () => { try { return JSON.parse(localStorage.getItem(STORE_KEY)); } catch { return null; } };
 const saveStore = (d) => { try { localStorage.setItem(STORE_KEY, JSON.stringify(d)); } catch {} };
+const loadLang = () => {
+try { return localStorage.getItem(LANG_KEY) || "fr"; } catch { return "fr"; }
+};
+const saveLang = (lang) => { try { localStorage.setItem(LANG_KEY, lang); } catch {} };
+
+const I18N = {
+fr: {
+language: "Langue", french: "Français", english: "Anglais", login: "Connexion", welcome: "Bienvenue", selectRole: "Rôle", pin: "Code PIN", loginBtn: "Se connecter",
+dashboard: "Tableau de bord", employees: "Employés", clients: "Clients", schedule: "Planning", timeclock: "Pointage", inventory: "Stock", devis: "Devis", invoices: "Factures", payslips: "Fiches de paie", conges: "Congés", reminders: "Rappels", reports: "Rapports", database: "Excel DB", settings: "Paramètres",
+newQuote: "Nouveau devis", editQuote: "Modifier devis", newInvoice: "Nouvelle facture", editInvoice: "Modifier facture", save: "Enregistrer", cancel: "Annuler", actions: "Actions", status: "Statut", client: "Client", date: "Date", amount: "Montant", view: "Voir", sendEmail: "Envoyer email", draft: "Brouillon", sent: "Envoyée", paid: "Payée", overdue: "En retard", auto: "Auto", select: "Sélectionner...", prestationDate: "Date de prestation",
+invoice: "Facture", quote: "Devis", dueDate: "Date échéance", notes: "Notes", total: "Total", subtotal: "Sous-total", vat: "TVA", item: "Ligne", qty: "Qté", unitPrice: "Prix unitaire", description: "Description"
+},
+en: {
+language: "Language", french: "French", english: "English", login: "Login", welcome: "Welcome", selectRole: "Role", pin: "PIN", loginBtn: "Sign in",
+dashboard: "Dashboard", employees: "Employees", clients: "Clients", schedule: "Schedule", timeclock: "Time Clock", inventory: "Inventory", devis: "Quotes", invoices: "Invoices", payslips: "Payslips", conges: "Leave", reminders: "Reminders", reports: "Reports", database: "Excel DB", settings: "Settings",
+newQuote: "New quote", editQuote: "Edit quote", newInvoice: "New invoice", editInvoice: "Edit invoice", save: "Save", cancel: "Cancel", actions: "Actions", status: "Status", client: "Client", date: "Date", amount: "Amount", view: "View", sendEmail: "Send email", draft: "Draft", sent: "Sent", paid: "Paid", overdue: "Overdue", auto: "Auto", select: "Select...", prestationDate: "Service date",
+invoice: "Invoice", quote: "Quote", dueDate: "Due date", notes: "Notes", total: "Total", subtotal: "Subtotal", vat: "VAT", item: "Item", qty: "Qty", unitPrice: "Unit price", description: "Description"
+}
+};
+const LanguageContext = createContext({ lang: "fr", setLang: () => {}, t: (k) => k });
+const useI18n = () => useContext(LanguageContext);
+const tr = (lang, key, fallback = key) => I18N[lang]?.[key] || I18N.fr?.[key] || fallback;
+const localeForLang = (lang) => lang === "en" ? "en-GB" : "fr-FR";
+let CURRENT_LANG = "fr";
 
 const DEFAULTS = {
-employees: [], clients: [], schedules: [], clockEntries: [], invoices: [], payslips: [],
-photoUploads: [], timeOffRequests: [],
+employees: [], clients: [], schedules: [], clockEntries: [], quotes: [], invoices: [], payslips: [],
+photoUploads: [], timeOffRequests: [], inventoryProducts: [], productRequests: [], cleanerProductHoldings: [],
 ownerPin: "1234", employeePins: {},
 settings: {
 companyName: "LAC Lux angels cleaning",
@@ -31,11 +56,52 @@ defaultVatRate: 17,
 let _idCtr = Date.now();
 const makeId = () => `id_${_idCtr++}`;
 const getToday = () => new Date().toISOString().slice(0, 10);
-const fmtDate = (d) => d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "";
-const fmtTime = (d) => d ? new Date(d).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : "";
+const fmtDate = (d) => d ? new Date(d).toLocaleDateString(localeForLang(CURRENT_LANG), { day: "2-digit", month: "short", year: "numeric" }) : "";
+const fmtTime = (d) => d ? new Date(d).toLocaleTimeString(localeForLang(CURRENT_LANG), { hour: "2-digit", minute: "2-digit" }) : "";
 const fmtBoth = (d) => `${fmtDate(d)} ${fmtTime(d)}`;
 const calcHrs = (a, b) => (a && b) ? Math.max(0, Math.round((new Date(b) - new Date(a)) / 36e5 * 100) / 100) : 0;
 const makeISO = (d, t) => `${d}T${t}:00`;
+const scheduleStatusColor = (status) => status === "completed" ? CL.green : status === "in-progress" ? CL.orange : status === "cancelled" ? CL.red : CL.blue;
+const getScheduleForClockEvent = (schedules, { employeeId, clientId, date }) => schedules
+.filter(s => s.employeeId === employeeId && s.clientId === clientId && s.date === date && s.status !== "cancelled")
+.sort((a, b) => (a.startTime || "").localeCompare(b.startTime || ""))[0];
+const getLateMeta = (schedules, { employeeId, clientId, clockInAt = new Date() }) => {
+const date = clockInAt.toISOString().slice(0, 10);
+const scheduled = getScheduleForClockEvent(schedules, { employeeId, clientId, date });
+if (!scheduled?.startTime) return { isLate: false, lateMinutes: 0, scheduledStart: null, scheduleId: scheduled?.id || null, workDate: date };
+const scheduledAt = new Date(makeISO(date, scheduled.startTime));
+const lateMinutes = Math.max(0, Math.round((clockInAt - scheduledAt) / 60000));
+return { isLate: lateMinutes > 0, lateMinutes, scheduledStart: makeISO(date, scheduled.startTime), scheduleId: scheduled.id, workDate: date };
+};
+const leaveDaysInclusive = (startDate, endDate) => {
+if (!startDate || !endDate) return 0;
+const start = new Date(`${startDate}T00:00:00`);
+const end = new Date(`${endDate}T00:00:00`);
+if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) return 0;
+return Math.floor((end - start) / 86400000) + 1;
+};
+const getLeaveSummary = (data, employeeId, year = getToday().slice(0, 4)) => {
+const allowance = data.employees.find(e => e.id === employeeId)?.leaveAllowance ?? 26;
+const requests = (data.timeOffRequests || []).filter(r => r.employeeId === employeeId && (r.startDate || "").startsWith(year));
+const approvedDays = requests.filter(r => r.status === "approved").reduce((sum, r) => sum + leaveDaysInclusive(r.startDate, r.endDate), 0);
+const pendingDays = requests.filter(r => r.status === "pending").reduce((sum, r) => sum + leaveDaysInclusive(r.startDate, r.endDate), 0);
+return { allowance, approvedDays, pendingDays, remaining: Math.max(0, allowance - approvedDays), requests };
+};
+const updateScheduleStatusForJob = (schedules, { employeeId, clientId, date, from, to }) => {
+const idx = schedules.findIndex(s => s.employeeId === employeeId && s.clientId === clientId && s.date === date && s.status === from);
+if (idx === -1) return schedules;
+const next = [...schedules];
+next[idx] = { ...next[idx], status: to };
+return next;
+};
+const syncSchedulesWithClockEntries = (schedules = [], clockEntries = []) => schedules.map(sched => {
+if (sched.status === "cancelled") return sched;
+const related = clockEntries.filter(c => c.employeeId === sched.employeeId && c.clientId === sched.clientId && c.clockIn?.slice(0, 10) === sched.date);
+const hasActive = related.some(c => !c.clockOut);
+const hasCompleted = related.some(c => c.clockOut);
+const nextStatus = hasActive ? "in-progress" : hasCompleted ? "completed" : "scheduled";
+return sched.status === nextStatus ? sched : { ...sched, status: nextStatus };
+});
 
 // -- Theme --
 const CL = {
@@ -147,7 +213,7 @@ addSheet("Clients", data.clients.map(cl => ({ ID: cl.id, Name: cl.name, Contact:
 addSheet("Schedule", data.schedules.map(sc => { const cl = data.clients.find(c => c.id === sc.clientId); const em = data.employees.find(e => e.id === sc.employeeId); return { ID: sc.id, Date: sc.date, Client: cl?.name || "", CliID: sc.clientId, Employee: em?.name || "", EmpID: sc.employeeId, Start: sc.startTime, End: sc.endTime, Status: sc.status, Notes: sc.notes || "" }; }),
 ["ID","Date","Client","CliID","Employee","EmpID","Start","End","Status","Notes"]);
 
-addSheet("TimeClock", data.clockEntries.map(ce => { const em = data.employees.find(e => e.id === ce.employeeId); const cl = data.clients.find(c => c.id === ce.clientId); const h = calcHrs(ce.clockIn, ce.clockOut); return { ID: ce.id, Employee: em?.name || "", EmpID: ce.employeeId, Client: cl?.name || "", CliID: ce.clientId, In: ce.clockIn || "", Out: ce.clockOut || "", Hours: ce.clockOut ? h : "Active", Rate: em?.hourlyRate || 0, Cost: ce.clockOut ? Math.round(h * (em?.hourlyRate || 0) * 100) / 100 : "" }; }),
+addSheet("TimeClock", data.clockEntries.map(ce => { const em = data.employees.find(e => e.id === ce.employeeId); const cl = data.clients.find(c => c.id === ce.clientId); const h = calcHrs(ce.clockIn, ce.clockOut); return { ID: ce.id, Employee: em?.name || "", EmpID: ce.employeeId, Client: cl?.name || "", CliID: ce.clientId, In: ce.clockIn || "", Out: ce.clockOut || "", Hours: ce.clockOut ? h : "Active", Late: ce.isLate ? "yes" : "no", LateMins: ce.lateMinutes || 0, Note: ce.notes || "", Rate: em?.hourlyRate || 0, Cost: ce.clockOut ? Math.round(h * (em?.hourlyRate || 0) * 100) / 100 : "" }; }),
 ["ID","Employee","EmpID","Client","CliID","In","Out","Hours","Rate","Cost"]);
 
 const invRows = [];
@@ -212,7 +278,7 @@ const sheet = (name) => {
   const clients = sheet("Clients").filter(r => r.ID && r.Name).map(r => ({ id: r.ID, name: r.Name, contactPerson: r.Contact || "", email: r.Email || "", phone: r.Phone || "", phoneMobile: r.Mobile || "", address: r.Address || "", apartmentFloor: r.Apt || "", city: r.City || "", postalCode: r.Zip || "", country: r.Country || "Luxembourg", type: r.Type || "Residential", cleaningFrequency: r.Freq || "Weekly", billingType: r.Billing || "hourly", pricePerHour: parseFloat(r.Hourly) || 35, priceFixed: parseFloat(r.Fixed) || 0, status: r.Status || "active", language: r.Lang || "FR", accessCode: r.Code || "", keyLocation: r.KeyLoc || "", parkingInfo: r.Parking || "", petInfo: r.Pets || "", preferredDay: r.PrefDay || "", preferredTime: r.PrefTime || "", contractStart: r.ContStart || "", contractEnd: r.ContEnd || "", squareMeters: r.SqM || "", taxId: r.TaxID || "", specialInstructions: r.Instructions || "", notes: r.Notes || "" }));
 
   const scheds = sheet("Schedule").filter(r => r.ID).map(r => ({ id: r.ID, date: r.Date || "", clientId: r.CliID || "", employeeId: r.EmpID || "", startTime: r.Start || "08:00", endTime: r.End || "12:00", status: r.Status || "scheduled", notes: r.Notes || "", recurrence: "none" }));
-  const clocks = sheet("TimeClock").filter(r => r.ID).map(r => ({ id: r.ID, employeeId: r.EmpID || "", clientId: r.CliID || "", clockIn: r.In || "", clockOut: r.Out || null, notes: "" }));
+  const clocks = sheet("TimeClock").filter(r => r.ID).map(r => ({ id: r.ID, employeeId: r.EmpID || "", clientId: r.CliID || "", clockIn: r.In || "", clockOut: r.Out || null, notes: r.Note || "", isLate: String(r.Late || "").toLowerCase() === "yes", lateMinutes: parseFloat(r.LateMins) || 0 }));
 
   const invMap = {};
   sheet("Invoices").filter(r => r.Inv).forEach(r => {
@@ -296,14 +362,28 @@ const globalCSS = `
 // ==============================================
 // MAIN APP
 // ==============================================
+function LanguageSwitcher({ compact = false }) {
+const { lang, setLang, t } = useI18n();
+return (
+<div style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
+{!compact && <span style={{ color: CL.muted, fontSize: 12 }}>{t("language")}</span>}
+<button style={{ ...btnSec, ...btnSm, background: lang === "fr" ? CL.gold + "20" : CL.s2, color: lang === "fr" ? CL.gold : CL.text }} onClick={() => setLang("fr")}>{t("french")}</button>
+<button style={{ ...btnSec, ...btnSm, background: lang === "en" ? CL.gold + "20" : CL.s2, color: lang === "en" ? CL.gold : CL.text }} onClick={() => setLang("en")}>{t("english")}</button>
+</div>
+);
+}
+
 export default function App() {
 const [data, setData] = useState(() => loadStore() || DEFAULTS);
+const [lang, setLang] = useState(() => loadLang());
 const [auth, setAuth] = useState(null);
 const [toast, setToast] = useState(null);
 const [section, setSection] = useState("dashboard");
 const [sideOpen, setSideOpen] = useState(true);
 
 useEffect(() => { saveStore(data); }, [data]);
+useEffect(() => { saveLang(lang); CURRENT_LANG = lang; }, [lang]);
+const t = useCallback((key, fallback) => tr(lang, key, fallback), [lang]);
 
 const showToast = useCallback((msg, type = "success") => {
 setToast({ msg, type });
@@ -311,37 +391,50 @@ setTimeout(() => setToast(null), 3000);
 }, []);
 
 const updateData = useCallback((key, val) => {
-setData(prev => ({ ...prev, [key]: typeof val === "function" ? val(prev[key]) : val }));
+setData(prev => {
+const nextValue = typeof val === "function" ? val(prev[key]) : val;
+const draft = { ...prev, [key]: nextValue };
+if (key === "clockEntries" || key === "schedules") {
+draft.schedules = syncSchedulesWithClockEntries(draft.schedules, draft.clockEntries);
+}
+return draft;
+});
 }, []);
 
-if (!auth) return <LoginScreen data={data} onAuth={setAuth} />;
-if (auth.role === "cleaner") return <CleanerPortal data={data} updateData={updateData} auth={auth} onLogout={() => setAuth(null)} showToast={showToast} toast={toast} />;
+if (!auth) return <LanguageContext.Provider value={{ lang, setLang, t }}><LoginScreen data={data} onAuth={setAuth} /></LanguageContext.Provider>;
+if (auth.role === "cleaner") return <LanguageContext.Provider value={{ lang, setLang, t }}><CleanerPortal data={data} updateData={updateData} auth={auth} onLogout={() => setAuth(null)} showToast={showToast} toast={toast} /></LanguageContext.Provider>;
 
 // Owner nav items
 const navItems = [
-{ id: "dashboard", label: "Dashboard", icon: ICN.dash },
-{ id: "employees", label: "Employees", icon: ICN.team },
-{ id: "clients", label: "Clients", icon: ICN.user },
-{ id: "schedule", label: "Schedule", icon: ICN.cal },
-{ id: "timeclock", label: "Time Clock", icon: ICN.clock },
-{ id: "invoices", label: "Invoices", icon: ICN.doc },
-{ id: "payslips", label: "Payslips", icon: ICN.pay },
-{ id: "reminders", label: "Reminders", icon: ICN.mail },
-{ id: "reports", label: "Reports", icon: ICN.chart },
+{ id: "dashboard", label: t("dashboard"), icon: ICN.dash },
+{ id: "employees", label: t("employees"), icon: ICN.team },
+{ id: "clients", label: t("clients"), icon: ICN.user },
+{ id: "schedule", label: t("schedule"), icon: ICN.cal },
+{ id: "timeclock", label: t("timeclock"), icon: ICN.clock },
+{ id: "inventory", label: t("inventory"), icon: ICN.doc },
+{ id: "devis", label: t("devis"), icon: ICN.doc },
+{ id: "invoices", label: t("invoices"), icon: ICN.doc },
+{ id: "payslips", label: t("payslips"), icon: ICN.pay },
+{ id: "conges", label: t("conges"), icon: ICN.cal },
+{ id: "reminders", label: t("reminders"), icon: ICN.mail },
+{ id: "reports", label: t("reports"), icon: ICN.chart },
 { id: "database", label: "Excel DB", icon: ICN.excel },
-{ id: "settings", label: "Settings", icon: ICN.gear },
+{ id: "settings", label: t("settings"), icon: ICN.gear },
 ];
 
 const renderSection = () => {
-const props = { data, updateData, showToast, setData };
+const props = { data, updateData, showToast, setData, auth };
 switch (section) {
 case "dashboard": return <DashboardPage data={data} />;
 case "employees": return <EmployeesPage {...props} />;
 case "clients": return <ClientsPage {...props} />;
 case "schedule": return <SchedulePage {...props} />;
 case "timeclock": return <TimeClockPage {...props} />;
+case "inventory": return <InventoryPage {...props} />;
+case "devis": return <DevisPage {...props} />;
 case "invoices": return <InvoicesPage {...props} />;
 case "payslips": return <PayslipsPage {...props} />;
+case "conges": return <LeaveManagementPage {...props} />;
 case "reminders": return <RemindersPage data={data} showToast={showToast} />;
 case "reports": return <ReportsPage data={data} />;
 case "database": return <ExcelDBPage data={data} setData={setData} showToast={showToast} />;
@@ -351,6 +444,7 @@ default: return <DashboardPage data={data} />;
 };
 
 return (
+<LanguageContext.Provider value={{ lang, setLang, t }}>
 <div style={{ display: "flex", height: "100vh", background: CL.bg, fontFamily: "'Outfit', sans-serif", color: CL.text, overflow: "hidden" }}>
 <style>{globalCSS}</style>
 {toast && <ToastMsg message={toast.msg} type={toast.type} />}
@@ -389,11 +483,14 @@ return (
 
   {/* Main Content */}
   <div className="main-content" style={{ flex: 1, overflow: "auto" }}>
+    <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}><LanguageSwitcher compact /></div>
     <div style={{ maxWidth: 1200, margin: "0 auto", animation: "fadeIn .3s ease" }}>
       {renderSection()}
     </div>
   </div>
 </div>
+
+</LanguageContext.Provider>
 
 );
 }
@@ -402,6 +499,7 @@ return (
 // LOGIN SCREEN
 // ==============================================
 function LoginScreen({ data, onAuth }) {
+const { t, lang } = useI18n();
 const [mode, setMode] = useState(null);
 const [pin, setPin] = useState("");
 const [selEmp, setSelEmp] = useState("");
@@ -410,12 +508,12 @@ const [error, setError] = useState("");
 const doLogin = () => {
 if (mode === "owner") {
 if (pin === data.ownerPin) onAuth({ role: "owner" });
-else setError("Wrong PIN");
+else setError(lang === "en" ? "Wrong PIN" : "PIN incorrect");
 } else {
-if (!selEmp) { setError("Select your name"); return; }
+if (!selEmp) { setError(lang === "en" ? "Select your name" : "Sélectionnez votre nom"); return; }
 const correctPin = data.employeePins?.[selEmp] || "0000";
 if (pin === correctPin) onAuth({ role: "cleaner", employeeId: selEmp });
-else setError("Wrong PIN");
+else setError(lang === "en" ? "Wrong PIN" : "PIN incorrect");
 }
 };
 
@@ -423,11 +521,12 @@ return (
 <div style={{ minHeight: "100vh", background: CL.bg, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Outfit', sans-serif" }}>
 <style>{globalCSS}</style>
 <div style={{ animation: "fadeIn .5s ease", textAlign: "center", width: 380, padding: "0 16px" }}>
+<div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}><LanguageSwitcher /></div>
 <div style={{ width: 80, height: 80, borderRadius: 24, background: `linear-gradient(135deg, ${CL.gold}, ${CL.goldDark})`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 32, fontWeight: 700, color: CL.bg, fontFamily: "'Cormorant Garamond', serif" }}>LAC</div>
 <h1 style={{ fontSize: 30, fontWeight: 700, color: CL.gold, fontFamily: "'Cormorant Garamond', serif", marginBottom: 4 }}>Lux Angels Cleaning</h1>
 <div style={{ width: 80, height: 80, borderRadius: 24, background: `linear-gradient(135deg, ${CL.gold}, ${CL.goldDark})`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 32, fontWeight: 700, color: CL.bg, fontFamily: "'Cormorant Garamond', serif" }}>LA</div>
 <h1 style={{ fontSize: 30, fontWeight: 700, color: CL.gold, fontFamily: "'Cormorant Garamond', serif", marginBottom: 4 }}>LAC Lux angels cleaning</h1>
-<p style={{ color: CL.muted, marginBottom: 30 }}>Management System</p>
+<p style={{ color: CL.muted, marginBottom: 30 }}>{lang === "en" ? "Management System" : "Système de gestion"}</p>
 
     {!mode ? (
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -442,12 +541,12 @@ return (
       </div>
     ) : (
       <div style={{ ...cardSt, textAlign: "left" }}>
-        <button onClick={() => { setMode(null); setPin(""); setError(""); setSelEmp(""); }} style={{ background: "none", border: "none", color: CL.muted, cursor: "pointer", fontSize: 13, marginBottom: 12 }}>← Back</button>
-        <h3 style={{ fontFamily: "'Cormorant Garamond', serif", color: mode === "owner" ? CL.gold : CL.blue, fontSize: 20, marginBottom: 16 }}>{mode === "owner" ? "Owner Login" : "Cleaner Login"}</h3>
+        <button onClick={() => { setMode(null); setPin(""); setError(""); setSelEmp(""); }} style={{ background: "none", border: "none", color: CL.muted, cursor: "pointer", fontSize: 13, marginBottom: 12 }}>← {lang === "en" ? "Back" : "Retour"}</button>
+        <h3 style={{ fontFamily: "'Cormorant Garamond', serif", color: mode === "owner" ? CL.gold : CL.blue, fontSize: 20, marginBottom: 16 }}>{mode === "owner" ? (lang === "en" ? "Owner Login" : "Connexion Propriétaire") : (lang === "en" ? "Cleaner Login" : "Connexion Agent")}</h3>
         {mode === "cleaner" && (
-          <Field label="Your Name">
+          <Field label={lang === "en" ? "Your Name" : "Votre nom"}>
             <SelectInput value={selEmp} onChange={ev => setSelEmp(ev.target.value)}>
-              <option value="">Choose...</option>
+              <option value="">{lang === "en" ? "Choose..." : "Choisir..."}</option>
               {data.employees.filter(emp => emp.status === "active").map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
             </SelectInput>
           </Field>
@@ -456,7 +555,7 @@ return (
           <TextInput type="password" maxLength={6} placeholder="****" value={pin} onChange={ev => { setPin(ev.target.value); setError(""); }} onKeyDown={ev => ev.key === "Enter" && doLogin()} style={{ fontSize: 22, textAlign: "center", letterSpacing: 10 }} />
         </Field>
         {error && <div style={{ color: CL.red, fontSize: 13, marginBottom: 10, textAlign: "center" }}>{error}</div>}
-        <button onClick={doLogin} style={{ ...btnPri, width: "100%", justifyContent: "center", background: mode === "owner" ? CL.gold : CL.blue }}>Login</button>
+        <button onClick={doLogin} style={{ ...btnPri, width: "100%", justifyContent: "center", background: mode === "owner" ? CL.gold : CL.blue }}>{t("loginBtn")}</button>
         <p style={{ color: CL.dim, fontSize: 11, textAlign: "center", marginTop: 12 }}>{mode === "owner" ? "Default PIN: 1234" : "Default PIN: 0000"}</p>
       </div>
     )}
@@ -470,11 +569,15 @@ return (
 // CLEANER PORTAL
 // ==============================================
 function CleanerPortal({ data, updateData, auth, onLogout, showToast, toast }) {
+const { lang } = useI18n();
 const [tab, setTab] = useState("schedule");
 const emp = data.employees.find(e => e.id === auth.employeeId);
 const [monthFilter, setMonthFilter] = useState(getToday().slice(0, 7));
 const [uploadNote, setUploadNote] = useState("");
+const [uploadType, setUploadType] = useState("issue");
+const [clockInNote, setClockInNote] = useState("");
 const [timeOffForm, setTimeOffForm] = useState({ startDate: "", endDate: "", reason: "" });
+const [productForm, setProductForm] = useState({ productId: "", quantity: 1, note: "", deliveryAt: "" });
 
 const upcoming = data.schedules.filter(s => s.employeeId === auth.employeeId && s.date >= getToday() && s.status !== "cancelled").sort((a, b) => a.date.localeCompare(b.date));
 const myClocks = data.clockEntries.filter(c => c.employeeId === auth.employeeId).sort((a, b) => new Date(b.clockIn) - new Date(a.clockIn));
@@ -483,15 +586,34 @@ const monthClocks = myClocks.filter(c => c.clockOut && c.clockIn?.startsWith(mon
 const monthHours = monthClocks.reduce((sum, c) => sum + calcHrs(c.clockIn, c.clockOut), 0);
 const myUploads = (data.photoUploads || []).filter(u => u.employeeId === auth.employeeId).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 const myTimeOffRequests = (data.timeOffRequests || []).filter(r => r.employeeId === auth.employeeId).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+const leaveSummary = getLeaveSummary(data, auth.employeeId);
+const myProductRequests = (data.productRequests || []).filter(r => r.employeeId === auth.employeeId).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+const inventoryProducts = (data.inventoryProducts || []).filter(p => p.active !== false);
+const myReceivedTotal = myProductRequests.reduce((sum, r) => sum + (Number(r.deliveredQty) || 0), 0);
+const myRequestedTotal = myProductRequests.reduce((sum, r) => sum + (Number(r.quantity) || 0), 0);
+const myHoldings = (data.cleanerProductHoldings || []).filter(h => h.employeeId === auth.employeeId && Number(h.qtyInHand) > 0);
+const myInHandTotal = myHoldings.reduce((sum, h) => sum + (Number(h.qtyInHand) || 0), 0);
 
 const doClockIn = (clientId) => {
 if (activeClock) { showToast("Already clocked in!", "error"); return; }
-updateData("clockEntries", prev => [...prev, { id: makeId(), employeeId: auth.employeeId, clientId, clockIn: new Date().toISOString(), clockOut: null, notes: "" }]);
-showToast("Clocked in!");
+const nowAt = new Date();
+const lateMeta = getLateMeta(data.schedules, { employeeId: auth.employeeId, clientId, clockInAt: nowAt });
+updateData("clockEntries", prev => [...prev, {
+id: makeId(), employeeId: auth.employeeId, clientId,
+clockIn: nowAt.toISOString(), clockOut: null,
+notes: clockInNote.trim(),
+isLate: lateMeta.isLate, lateMinutes: lateMeta.lateMinutes,
+scheduledStart: lateMeta.scheduledStart,
+}]);
+updateData("schedules", prev => updateScheduleStatusForJob(prev, { employeeId: auth.employeeId, clientId, date: lateMeta.workDate, from: "scheduled", to: "in-progress" }));
+setClockInNote("");
+showToast(lateMeta.isLate ? `Clocked in (Late by ${lateMeta.lateMinutes} min)` : "Clocked in!");
 };
 const doClockOut = () => {
 if (!activeClock) return;
+const today = activeClock.clockIn?.slice(0, 10) || getToday();
 updateData("clockEntries", prev => prev.map(c => c.id === activeClock.id ? { ...c, clockOut: new Date().toISOString() } : c));
+updateData("schedules", prev => updateScheduleStatusForJob(prev, { employeeId: auth.employeeId, clientId: activeClock.clientId, date: today, from: "in-progress", to: "completed" }));
 showToast("Clocked out!");
 };
 
@@ -505,13 +627,18 @@ fr.readAsDataURL(file);
 const onUploadPhoto = async (file) => {
 if (!file) return;
 if (!file.type?.startsWith("image/")) { showToast("Please upload an image file", "error"); return; }
+if (!activeClock) { showToast("Clock in to a job before uploading photos", "error"); return; }
 try {
 const imageData = await readAsDataUrl(file);
 updateData("photoUploads", (prev = []) => [...prev, {
 id: makeId(), employeeId: auth.employeeId, createdAt: new Date().toISOString(),
 fileName: file.name, imageData, note: uploadNote.trim(),
+type: uploadType,
+clockEntryId: activeClock.id,
+clientId: activeClock.clientId,
 }]);
 setUploadNote("");
+setUploadType("issue");
 showToast("Photo uploaded");
 } catch {
 showToast("Upload failed", "error");
@@ -521,20 +648,38 @@ showToast("Upload failed", "error");
 const submitTimeOff = () => {
 if (!timeOffForm.startDate || !timeOffForm.endDate) { showToast("Select start and end dates", "error"); return; }
 if (timeOffForm.endDate < timeOffForm.startDate) { showToast("End date must be after start date", "error"); return; }
+const requestedDays = leaveDaysInclusive(timeOffForm.startDate, timeOffForm.endDate);
+if (!requestedDays) { showToast("Invalid leave dates", "error"); return; }
+if (requestedDays > leaveSummary.remaining) { showToast("Request exceeds remaining leave balance", "error"); return; }
 updateData("timeOffRequests", (prev = []) => [...prev, {
 id: makeId(), employeeId: auth.employeeId, ...timeOffForm,
+requestedDays,
 reason: timeOffForm.reason.trim(), status: "pending", createdAt: new Date().toISOString(),
+reviewedAt: null, reviewedBy: null, reviewNote: "",
 }]);
 setTimeOffForm({ startDate: "", endDate: "", reason: "" });
-showToast("Time-off request sent");
+showToast("Leave request sent");
+};
+
+const submitProductRequest = () => {
+if (!productForm.productId) { showToast("Select a product", "error"); return; }
+if (!productForm.quantity || Number(productForm.quantity) <= 0) { showToast("Enter quantity", "error"); return; }
+updateData("productRequests", (prev = []) => [...prev, {
+id: makeId(), employeeId: auth.employeeId,
+productId: productForm.productId, quantity: Number(productForm.quantity),
+note: productForm.note.trim(), deliveryAt: productForm.deliveryAt || "",
+status: "pending", approvedQty: 0, deliveredQty: 0, createdAt: new Date().toISOString(),
+}]);
+setProductForm({ productId: "", quantity: 1, note: "", deliveryAt: "" });
+showToast("Product request sent");
 };
 
 const tabItems = [
 { id: "schedule", label: "My Schedule", icon: ICN.cal },
 { id: "clock", label: "Clock In/Out", icon: ICN.clock },
-{ id: "hours", label: "My Hours", icon: ICN.chart },
 { id: "photos", label: "Photo Uploads", icon: ICN.doc },
-{ id: "timeoff", label: "Holiday / Time-Off", icon: ICN.cal },
+{ id: "products", label: "Products", icon: ICN.doc },
+{ id: "timeoff", label: "Congés", icon: ICN.cal },
 ];
 
 return (
@@ -547,7 +692,7 @@ return (
 <div style={{ width: 32, height: 32, borderRadius: 9, background: CL.blue + "20", display: "flex", alignItems: "center", justifyContent: "center", color: CL.blue }}>{ICN.user}</div>
 <div><div style={{ fontWeight: 600, fontSize: 14 }}>{emp?.name || "Cleaner"}</div><div style={{ fontSize: 10, color: CL.muted }}>{emp?.role}</div></div>
 </div>
-<button onClick={onLogout} style={{ ...btnSec, ...btnSm, color: CL.red }}>{ICN.logout} Logout</button>
+<div style={{ display: "flex", alignItems: "center", gap: 8 }}><LanguageSwitcher compact /><button onClick={onLogout} style={{ ...btnSec, ...btnSm, color: CL.red }}>{ICN.logout} {lang === "en" ? "Logout" : "Déconnexion"}</button></div>
 </div>
 {/* Tabs */}
 <div style={{ display: "flex", background: CL.sf, borderBottom: `1px solid ${CL.bd}`, overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
@@ -574,7 +719,10 @@ return (
 {client?.specialInstructions && <div style={{ fontSize: 11, color: CL.dim, marginTop: 2 }}>{client.specialInstructions}</div>}
 <div style={{ fontSize: 13, color: CL.blue, marginTop: 3 }}>{fmtDate(sched.date)} · {sched.startTime}-{sched.endTime}</div>
 </div>
+<div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end" }}>
 <Badge color={sched.date === getToday() ? CL.green : CL.blue}>{sched.date === getToday() ? "Today" : fmtDate(sched.date)}</Badge>
+<Badge color={scheduleStatusColor(sched.status)}>{sched.status}</Badge>
+</div>
 </div>
 );
 })
@@ -595,6 +743,9 @@ return (
         ) : (
           <div style={cardSt}>
             <p style={{ color: CL.muted, marginBottom: 12 }}>Select client to clock in:</p>
+            <Field label="Clock-in note (optional)">
+              <TextArea value={clockInNote} onChange={ev => setClockInNote(ev.target.value)} placeholder="Late reason, traffic, access issues..." />
+            </Field>
             {(() => {
               const todayJobs = data.schedules.filter(sc => sc.date === getToday() && sc.employeeId === auth.employeeId && sc.status !== "cancelled");
               const todayClientIds = todayJobs.map(sc => sc.clientId);
@@ -652,18 +803,36 @@ return (
       <div>
         <h2 style={{ fontFamily: "'Cormorant Garamond', serif", color: CL.blue, fontSize: 22, marginBottom: 14 }}>Photo Uploads</h2>
         <div style={{ ...cardSt, marginBottom: 14 }}>
+          <p style={{ fontSize: 12, color: activeClock ? CL.green : CL.orange, marginBottom: 12 }}>
+            {activeClock
+              ? `Clocked in at ${data.clients.find(c => c.id === activeClock.clientId)?.name || "this job"}. Photos will be saved to this active job.`
+              : "You must clock in before uploading job photos."}
+          </p>
+          <Field label="Photo type">
+            <SelectInput value={uploadType} onChange={ev => setUploadType(ev.target.value)} disabled={!activeClock}>
+              <option value="before">Before</option>
+              <option value="after">After</option>
+              <option value="issue">Issue / Damage Proof</option>
+            </SelectInput>
+          </Field>
           <Field label="Upload cleaning photo">
-            <TextInput type="file" accept="image/*" onChange={ev => onUploadPhoto(ev.target.files?.[0])} />
+            <TextInput type="file" accept="image/*" disabled={!activeClock} onChange={ev => onUploadPhoto(ev.target.files?.[0])} />
           </Field>
           <Field label="Optional note">
-            <TextArea value={uploadNote} onChange={ev => setUploadNote(ev.target.value)} placeholder="Add context for this photo" />
+            <TextArea value={uploadNote} onChange={ev => setUploadNote(ev.target.value)} disabled={!activeClock} placeholder="Add context for this photo" />
           </Field>
         </div>
         <div style={cardSt}>
           <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: CL.blue }}>My Uploaded Photos</h3>
           {myUploads.map(up => (
             <div key={up.id} style={{ padding: "10px 0", borderBottom: `1px solid ${CL.bd}` }}>
-              <div style={{ fontSize: 12, color: CL.muted, marginBottom: 8 }}>{fmtBoth(up.createdAt)} · {up.fileName}</div>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center", marginBottom: 8, flexWrap: "wrap" }}>
+                <div style={{ fontSize: 12, color: CL.muted }}>{fmtBoth(up.createdAt)} · {up.fileName}</div>
+                <Badge color={up.type === "before" ? CL.blue : up.type === "after" ? CL.green : CL.orange}>{up.type || "issue"}</Badge>
+              </div>
+              <div style={{ fontSize: 12, color: CL.dim, marginBottom: 8 }}>
+                Job: {data.clients.find(c => c.id === up.clientId)?.name || "Unknown client"}
+              </div>
               {up.note && <div style={{ fontSize: 12, color: CL.text, marginBottom: 8 }}>{up.note}</div>}
               {up.imageData && <img src={up.imageData} alt={up.fileName} style={{ width: "100%", maxWidth: 360, borderRadius: 8, border: `1px solid ${CL.bd}` }} />}
             </div>
@@ -673,10 +842,62 @@ return (
       </div>
     )}
 
+    {tab === "products" && (
+      <div>
+        <h2 style={{ fontFamily: "'Cormorant Garamond', serif", color: CL.blue, fontSize: 22, marginBottom: 14 }}>Products</h2>
+        <div className="stat-row" style={{ marginBottom: 14 }}>
+          <StatCard label="Requested" value={`${myRequestedTotal}`} icon={ICN.doc} color={CL.blue} />
+          <StatCard label="Received" value={`${myReceivedTotal}`} icon={ICN.check} color={CL.green} />
+          <StatCard label="In Hand" value={`${myInHandTotal}`} icon={ICN.user} color={CL.green} />
+          <StatCard label="Open Requests" value={myProductRequests.filter(r => r.status === "pending").length} icon={ICN.clock} color={CL.orange} />
+        </div>
+        <div style={{ ...cardSt, marginBottom: 14 }}>
+          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.blue }}>Products I Currently Have</h3>
+          {myHoldings.map(h => {
+            const prod = (data.inventoryProducts || []).find(p => p.id === h.productId);
+            return <div key={h.id} style={{ padding: "8px 0", borderBottom: `1px solid ${CL.bd}` }}><div style={{ fontWeight: 600 }}>{prod?.name || "Unknown product"}</div><div style={{ fontSize: 12, color: CL.muted }}>In hand: {h.qtyInHand} {prod?.unit || "pcs"} · Total assigned: {h.qtyAssigned || 0}</div></div>;
+          })}
+          {myHoldings.length === 0 && <p style={{ color: CL.muted, textAlign: "center" }}>No products currently assigned</p>}
+        </div>
+
+        <div style={{ ...cardSt, marginBottom: 14 }}>
+          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.blue }}>Request Products</h3>
+          <div className="form-grid">
+            <Field label="Product"><SelectInput value={productForm.productId} onChange={ev => setProductForm(v => ({ ...v, productId: ev.target.value }))}><option value="">Select...</option>{inventoryProducts.map(p => <option key={p.id} value={p.id}>{p.name} ({p.stock || 0} {p.unit || "pcs"} in stock)</option>)}</SelectInput></Field>
+            <Field label="Quantity"><TextInput type="number" min={1} value={productForm.quantity} onChange={ev => setProductForm(v => ({ ...v, quantity: ev.target.value }))} /></Field>
+            <Field label="Delivery Date & Time"><TextInput type="datetime-local" value={productForm.deliveryAt} onChange={ev => setProductForm(v => ({ ...v, deliveryAt: ev.target.value }))} /></Field>
+          </div>
+          <Field label="Note"><TextArea value={productForm.note} onChange={ev => setProductForm(v => ({ ...v, note: ev.target.value }))} placeholder="Need for upcoming jobs, preferred handover location..." /></Field>
+          <button style={btnPri} onClick={submitProductRequest}>Submit Request</button>
+        </div>
+        <div style={cardSt}>
+          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: CL.blue }}>My Product Requests</h3>
+          {myProductRequests.map(req => { const prod = inventoryProducts.find(p => p.id === req.productId) || (data.inventoryProducts || []).find(p => p.id === req.productId); return (
+            <div key={req.id} style={{ padding: "10px 0", borderBottom: `1px solid ${CL.bd}`, display: "flex", justifyContent: "space-between", gap: 10 }}>
+              <div>
+                <div style={{ fontWeight: 600 }}>{prod?.name || "Unknown product"} · Qty {req.quantity}</div>
+                <div style={{ fontSize: 12, color: CL.muted }}>Requested {fmtBoth(req.createdAt)}{req.deliveryAt ? ` · Delivery ${fmtBoth(req.deliveryAt)}` : ""}</div>
+                {req.note && <div style={{ fontSize: 12, color: CL.dim }}>{req.note}</div>}
+                <div style={{ fontSize: 12, color: CL.text }}>Approved: {req.approvedQty || 0} · Received: {req.deliveredQty || 0}</div>
+              </div>
+              <Badge color={req.status === "delivered" ? CL.green : req.status === "rejected" ? CL.red : req.status === "approved" ? CL.blue : CL.orange}>{req.status}</Badge>
+            </div>
+          ); })}
+          {myProductRequests.length === 0 && <p style={{ color: CL.muted, textAlign: "center" }}>No product requests yet</p>}
+        </div>
+      </div>
+    )}
+
     {tab === "timeoff" && (
       <div>
-        <h2 style={{ fontFamily: "'Cormorant Garamond', serif", color: CL.blue, fontSize: 22, marginBottom: 14 }}>Holiday / Time-Off</h2>
+        <h2 style={{ fontFamily: "'Cormorant Garamond', serif", color: CL.blue, fontSize: 22, marginBottom: 14 }}>Congés</h2>
+        <div className="stat-row" style={{ marginBottom: 14 }}>
+          <StatCard label="Allowance" value={`${leaveSummary.allowance}d`} icon={ICN.cal} color={CL.blue} />
+          <StatCard label="Approved" value={`${leaveSummary.approvedDays}d`} icon={ICN.check} color={CL.green} />
+          <StatCard label="Remaining" value={`${leaveSummary.remaining}d`} icon={ICN.clock} color={CL.gold} />
+        </div>
         <div style={{ ...cardSt, marginBottom: 14 }}>
+          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.blue }}>New Leave Request</h3>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 10 }}>
             <Field label="Start Date"><TextInput type="date" value={timeOffForm.startDate} onChange={ev => setTimeOffForm(v => ({ ...v, startDate: ev.target.value }))} /></Field>
             <Field label="End Date"><TextInput type="date" value={timeOffForm.endDate} onChange={ev => setTimeOffForm(v => ({ ...v, endDate: ev.target.value }))} /></Field>
@@ -685,17 +906,18 @@ return (
           <button onClick={submitTimeOff} style={btnPri}>Submit Request</button>
         </div>
         <div style={cardSt}>
-          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: CL.blue }}>My Requests</h3>
+          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: CL.blue }}>My Request Status</h3>
           {myTimeOffRequests.map(req => (
             <div key={req.id} style={{ padding: "10px 0", borderBottom: `1px solid ${CL.bd}`, display: "flex", justifyContent: "space-between", gap: 10 }}>
               <div>
-                <div style={{ fontWeight: 600 }}>{fmtDate(req.startDate)} - {fmtDate(req.endDate)}</div>
+                <div style={{ fontWeight: 600 }}>{fmtDate(req.startDate)} - {fmtDate(req.endDate)} ({leaveDaysInclusive(req.startDate, req.endDate)}d)</div>
                 <div style={{ fontSize: 12, color: CL.muted }}>{req.reason || "No reason provided"}</div>
+                {req.reviewedAt && <div style={{ fontSize: 11, color: CL.dim }}>Reviewed {fmtBoth(req.reviewedAt)} {req.reviewNote ? `· ${req.reviewNote}` : ""}</div>}
               </div>
               <Badge color={req.status === "approved" ? CL.green : req.status === "rejected" ? CL.red : CL.orange}>{req.status}</Badge>
             </div>
           ))}
-          {myTimeOffRequests.length === 0 && <p style={{ color: CL.muted, textAlign: "center" }}>No requests submitted yet</p>}
+          {myTimeOffRequests.length === 0 && <p style={{ color: CL.muted, textAlign: "center" }}>No leave requests submitted yet</p>}
         </div>
       </div>
     )}
@@ -733,10 +955,15 @@ return (
 todayScheds.map(sched => {
 const client = data.clients.find(c => c.id === sched.clientId);
 const employee = data.employees.find(e => e.id === sched.employeeId);
+const clockInfo = data.clockEntries.find(c => c.employeeId === sched.employeeId && c.clientId === sched.clientId && c.clockIn?.slice(0, 10) === sched.date);
 return (
-<div key={sched.id} style={{ padding: "7px 0", borderBottom: `1px solid ${CL.bd}`, display: "flex", justifyContent: "space-between" }}>
-<div><div style={{ fontWeight: 600, fontSize: 13 }}>{client?.name || "?"}</div><div style={{ fontSize: 11, color: CL.muted }}>{employee?.name || "-"} · {sched.startTime}-{sched.endTime}</div></div>
-<Badge color={sched.status === "completed" ? CL.green : CL.blue}>{sched.status}</Badge>
+<div key={sched.id} style={{ padding: "7px 0", borderBottom: `1px solid ${CL.bd}`, display: "flex", justifyContent: "space-between", gap: 8 }}>
+<div>
+<div style={{ fontWeight: 600, fontSize: 13 }}>{client?.name || "?"}</div>
+<div style={{ fontSize: 11, color: CL.muted }}>{employee?.name || "-"} · {sched.startTime}-{sched.endTime}</div>
+{clockInfo?.isLate && <div style={{ fontSize: 11, color: CL.orange, fontWeight: 600 }}>Late by {clockInfo.lateMinutes || 0} min</div>}
+</div>
+<Badge color={scheduleStatusColor(sched.status)}>{sched.status}</Badge>
 </div>
 );
 })
@@ -863,7 +1090,7 @@ return (
 </td>
 </tr>
 ))}
-{filtered.length === 0 && <tr><td colSpan={8} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>No employees</td></tr>}
+{filtered.length === 0 && <tr><td colSpan={7} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>No employees</td></tr>}
 </tbody>
 </table>
 </div>
@@ -1189,15 +1416,16 @@ function SchedulePage({ data, updateData, showToast }) {
 const [modal, setModal] = useState(null);
 const [selectedDate, setSelectedDate] = useState(null);
 const [filterEmp, setFilterEmp] = useState("");
+const [viewMode, setViewMode] = useState("calendar");
 const now = new Date();
 const [viewYear, setViewYear] = useState(now.getFullYear());
 const [viewMonth, setViewMonth] = useState(now.getMonth());
 
 const emptySchedule = { clientId: "", employeeId: "", date: getToday(), startTime: "08:00", endTime: "12:00", status: "scheduled", notes: "", recurrence: "none" };
+const dayHeaders = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-// Calendar math
 const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
-const firstDayOfWeek = (new Date(viewYear, viewMonth, 1).getDay() + 6) % 7; // Monday = 0
+const firstDayOfWeek = (new Date(viewYear, viewMonth, 1).getDay() + 6) % 7;
 const monthStr = `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}`;
 const monthLabel = new Date(viewYear, viewMonth).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
 const todayStr = getToday();
@@ -1212,27 +1440,24 @@ else setViewMonth(viewMonth + 1);
 };
 const goToday = () => { setViewYear(now.getFullYear()); setViewMonth(now.getMonth()); };
 
-// Filtered schedules for this month
 const monthSchedules = data.schedules.filter(s => {
 if (!s.date?.startsWith(monthStr)) return false;
 if (filterEmp && s.employeeId !== filterEmp) return false;
 return true;
 });
+const orderedMonthSchedules = [...monthSchedules].sort((a, b) => `${a.date} ${a.startTime}`.localeCompare(`${b.date} ${b.startTime}`));
 
-// Employee color map for visual coding
 const empColors = {};
 const colorPalette = [CL.blue, CL.green, "#E06CC0", CL.orange, "#8B6CE0", "#6CE0B8", "#E0A86C", "#6C8BE0", CL.red, "#C0E06C"];
 data.employees.forEach((emp, idx) => { empColors[emp.id] = colorPalette[idx % colorPalette.length]; });
 
-// Build calendar grid cells (42 cells = 6 rows x 7 cols)
 const calendarCells = [];
 for (let i = 0; i < firstDayOfWeek; i++) calendarCells.push(null);
 for (let d = 1; d <= daysInMonth; d++) calendarCells.push(d);
 while (calendarCells.length < 42) calendarCells.push(null);
 
-// Selected date details
 const selectedDateStr = selectedDate ? `${monthStr}-${String(selectedDate).padStart(2, "0")}` : null;
-const selectedDateScheds = selectedDateStr ? data.schedules.filter(s => s.date === selectedDateStr) : [];
+const selectedDateScheds = selectedDateStr ? orderedMonthSchedules.filter(s => s.date === selectedDateStr) : [];
 
 const handleSave = (schedData) => {
 if (schedData.id) {
@@ -1259,187 +1484,114 @@ updateData("schedules", prev => prev.filter(s => s.id !== id));
 showToast("Removed", "error");
 };
 
-const dayHeaders = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
 return (
 <div>
-{/* Header */}
 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
 <h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold }}>Schedule</h1>
 <button style={btnPri} onClick={() => setModal({ ...emptySchedule })}>{ICN.plus} New Job</button>
 </div>
 
-  {/* Month nav + filter */}
-  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
-    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-      <button onClick={prevMonth} style={{ ...btnSec, ...btnSm, padding: "8px 14px", fontSize: 16 }}>‹</button>
-      <button onClick={goToday} style={{ ...btnSec, ...btnSm }}>Today</button>
-      <button onClick={nextMonth} style={{ ...btnSec, ...btnSm, padding: "8px 14px", fontSize: 16 }}>›</button>
-      <h2 style={{ margin: 0, fontSize: 20, fontFamily: "'Cormorant Garamond', serif", color: CL.text, marginLeft: 8 }}>{monthLabel}</h2>
-    </div>
-    <SelectInput value={filterEmp} onChange={ev => setFilterEmp(ev.target.value)} style={{ width: 180 }}>
-      <option value="">All Employees</option>
-      {data.employees.filter(emp => emp.status === "active").map(emp => (
-        <option key={emp.id} value={emp.id}>{emp.name}</option>
-      ))}
-    </SelectInput>
-  </div>
-
-  {/* Stats row */}
-  <div className="stat-row" style={{ marginBottom: 16 }}>
-    <StatCard label="This Month" value={`${monthSchedules.length} jobs`} icon={ICN.cal} color={CL.blue} />
-    <StatCard label="Completed" value={monthSchedules.filter(s => s.status === "completed").length} icon={ICN.check} color={CL.green} />
-    <StatCard label="Upcoming" value={monthSchedules.filter(s => s.status === "scheduled").length} icon={ICN.clock} color={CL.gold} />
-  </div>
-
-  <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-    {/* Calendar Grid */}
-    <div style={{ flex: "1 1 600px", minWidth: 0 }}>
-      <div style={{ ...cardSt, padding: 12 }}>
-        {/* Day headers */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, marginBottom: 4 }}>
-          {dayHeaders.map(d => (
-            <div key={d} style={{ textAlign: "center", padding: "6px 0", fontSize: 11, fontWeight: 600, color: CL.muted, textTransform: "uppercase" }}>{d}</div>
-          ))}
-        </div>
-        {/* Date cells */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2 }}>
-          {calendarCells.map((day, idx) => {
-            if (day === null) return <div key={`empty-${idx}`} style={{ minHeight: 70, background: CL.bg + "40", borderRadius: 6 }} />;
-
-            const dateStr = `${monthStr}-${String(day).padStart(2, "0")}`;
-            const dayScheds = monthSchedules.filter(s => s.date === dateStr);
-            const isToday = dateStr === todayStr;
-            const isSelected = day === selectedDate;
-            const isPast = dateStr < todayStr;
-
-            return (
-              <div
-                key={day}
-                onClick={() => setSelectedDate(day === selectedDate ? null : day)}
-                style={{
-                  minHeight: 70, padding: 4, borderRadius: 6, cursor: "pointer",
-                  background: isSelected ? CL.gold + "15" : isToday ? CL.blue + "08" : CL.s2,
-                  border: isSelected ? `2px solid ${CL.gold}` : isToday ? `2px solid ${CL.blue}40` : `1px solid ${CL.bd}50`,
-                  opacity: isPast ? 0.6 : 1,
-                  transition: "all 0.15s",
-                }}
-              >
-                <div style={{ fontSize: 12, fontWeight: isToday ? 700 : 500, color: isToday ? CL.blue : CL.text, marginBottom: 3, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span>{day}</span>
-                  {dayScheds.length > 0 && <span style={{ fontSize: 9, background: CL.gold + "30", color: CL.gold, padding: "1px 5px", borderRadius: 8, fontWeight: 600 }}>{dayScheds.length}</span>}
-                </div>
-                {/* Show up to 3 jobs */}
-                {dayScheds.slice(0, 3).map(sched => {
-                  const empColor = empColors[sched.employeeId] || CL.muted;
-                  const client = data.clients.find(c => c.id === sched.clientId);
-                  return (
-                    <div
-                      key={sched.id}
-                      onClick={ev => { ev.stopPropagation(); setModal({ ...sched }); }}
-                      style={{
-                        padding: "2px 4px", marginBottom: 1, borderRadius: 3, fontSize: 9,
-                        background: empColor + "20", borderLeft: `3px solid ${empColor}`,
-                        cursor: "pointer", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis",
-                      }}
-                    >
-                      <span style={{ fontWeight: 600, color: CL.text }}>{sched.startTime} </span>
-                      <span style={{ color: CL.muted }}>{client?.name?.slice(0, 10) || "?"}</span>
-                    </div>
-                  );
-                })}
-                {dayScheds.length > 3 && <div style={{ fontSize: 8, color: CL.muted, textAlign: "center" }}>+{dayScheds.length - 3} more</div>}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Employee color legend */}
-      {data.employees.filter(emp => emp.status === "active").length > 0 && (
-        <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 10 }}>
-          {data.employees.filter(emp => emp.status === "active").map(emp => (
-            <div key={emp.id} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: CL.muted }}>
-              <div style={{ width: 10, height: 10, borderRadius: 3, background: empColors[emp.id] }} />
-              {emp.name.split(" ")[0]}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-
-    {/* Side panel: selected date details */}
-    <div style={{ flex: "0 0 280px", minWidth: 240 }}>
-      <div style={cardSt}>
-        {selectedDate ? (
-          <>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-              <h3 style={{ fontSize: 15, fontWeight: 600, color: CL.gold, fontFamily: "'Cormorant Garamond', serif", margin: 0 }}>
-                {fmtDate(selectedDateStr)}
-              </h3>
-              <button
-                style={{ ...btnPri, ...btnSm, background: CL.green }}
-                onClick={() => setModal({ ...emptySchedule, date: selectedDateStr })}
-              >{ICN.plus} Add</button>
-            </div>
-            {selectedDateScheds.length === 0 ? (
-              <p style={{ color: CL.muted, fontSize: 13, textAlign: "center", padding: "20px 0" }}>No jobs this day</p>
-            ) : (
-              selectedDateScheds.map(sched => {
-                const client = data.clients.find(c => c.id === sched.clientId);
-                const employee = data.employees.find(emp => emp.id === sched.employeeId);
-                const empColor = empColors[sched.employeeId] || CL.muted;
-                return (
-                  <div
-                    key={sched.id}
-                    onClick={() => setModal({ ...sched })}
-                    style={{
-                      padding: "10px 12px", marginBottom: 8, borderRadius: 8, cursor: "pointer",
-                      background: CL.s2, borderLeft: `4px solid ${empColor}`,
-                      transition: "background 0.15s",
-                    }}
-                  >
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <div style={{ fontWeight: 600, fontSize: 14, color: CL.text }}>{client?.name || "?"}</div>
-                      <Badge color={sched.status === "completed" ? CL.green : sched.status === "cancelled" ? CL.red : CL.blue}>
-                        {sched.status}
-                      </Badge>
-                    </div>
-                    <div style={{ fontSize: 12, color: CL.muted, marginTop: 4 }}>
-                      {sched.startTime} - {sched.endTime}
-                    </div>
-                    <div style={{ fontSize: 12, color: empColor, marginTop: 2 }}>
-                      {employee?.name || "Unassigned"}
-                    </div>
-                    {client?.address && (
-                      <div style={{ fontSize: 11, color: CL.dim, marginTop: 3 }}>
-                        {client.address}{client.city ? `, ${client.city}` : ""}
-                      </div>
-                    )}
-                  </div>
-                );
-              })
-            )}
-          </>
-        ) : (
-          <div style={{ textAlign: "center", padding: "30px 10px" }}>
-            <div style={{ color: CL.muted, marginBottom: 8 }}>{ICN.cal}</div>
-            <p style={{ color: CL.muted, fontSize: 13 }}>Click a date to see details</p>
-            <p style={{ color: CL.dim, fontSize: 11, marginTop: 4 }}>or click a job to edit it</p>
-          </div>
-        )}
-      </div>
-    </div>
-  </div>
-
-  {/* Modal */}
-  {modal && (
-    <ModalBox title={modal.id ? "Edit Job" : "New Job"} onClose={() => setModal(null)}>
-      <ScheduleForm initialData={modal} data={data} onSave={handleSave} onDelete={handleDelete} onCancel={() => setModal(null)} />
-    </ModalBox>
-  )}
+<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
+<div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+<button onClick={prevMonth} style={{ ...btnSec, ...btnSm, padding: "8px 14px", fontSize: 16 }}>‹</button>
+<button onClick={goToday} style={{ ...btnSec, ...btnSm }}>Today</button>
+<button onClick={nextMonth} style={{ ...btnSec, ...btnSm, padding: "8px 14px", fontSize: 16 }}>›</button>
+<h2 style={{ margin: 0, fontSize: 20, fontFamily: "'Cormorant Garamond', serif", color: CL.text, marginLeft: 8 }}>{monthLabel}</h2>
+</div>
+<div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+<div style={{ display: "flex", background: CL.s2, border: `1px solid ${CL.bd}`, borderRadius: 8, padding: 2 }}>
+<button style={{ ...btnSec, ...btnSm, background: viewMode === "calendar" ? CL.blue : "transparent", border: "none", color: viewMode === "calendar" ? CL.white : CL.muted }} onClick={() => setViewMode("calendar")}>Calendar</button>
+<button style={{ ...btnSec, ...btnSm, background: viewMode === "list" ? CL.blue : "transparent", border: "none", color: viewMode === "list" ? CL.white : CL.muted }} onClick={() => setViewMode("list")}>List</button>
+</div>
+<SelectInput value={filterEmp} onChange={ev => setFilterEmp(ev.target.value)} style={{ width: 180 }}>
+<option value="">All Employees</option>
+{data.employees.filter(emp => emp.status === "active").map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
+</SelectInput>
+</div>
 </div>
 
+<div className="stat-row" style={{ marginBottom: 16 }}>
+<StatCard label="This Month" value={`${monthSchedules.length} jobs`} icon={ICN.cal} color={CL.blue} />
+<StatCard label="In Progress" value={monthSchedules.filter(s => s.status === "in-progress").length} icon={ICN.clock} color={CL.orange} />
+<StatCard label="Completed" value={monthSchedules.filter(s => s.status === "completed").length} icon={ICN.check} color={CL.green} />
+</div>
+
+{viewMode === "calendar" ? (
+<div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+<div style={{ flex: "1 1 600px", minWidth: 0 }}>
+<div style={{ ...cardSt, padding: 12 }}>
+<div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, marginBottom: 4 }}>
+{dayHeaders.map(d => <div key={d} style={{ textAlign: "center", padding: "6px 0", fontSize: 11, fontWeight: 600, color: CL.muted, textTransform: "uppercase" }}>{d}</div>)}
+</div>
+<div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2 }}>
+{calendarCells.map((day, idx) => {
+if (day === null) return <div key={`empty-${idx}`} style={{ minHeight: 70, background: CL.bg + "40", borderRadius: 6 }} />;
+const dateStr = `${monthStr}-${String(day).padStart(2, "0")}`;
+const dayScheds = orderedMonthSchedules.filter(s => s.date === dateStr);
+const isToday = dateStr === todayStr;
+const isSelected = day === selectedDate;
+const isPast = dateStr < todayStr;
+return (
+<div key={day} onClick={() => setSelectedDate(day === selectedDate ? null : day)} style={{ minHeight: 70, padding: 4, borderRadius: 6, cursor: "pointer", background: isSelected ? CL.gold + "15" : isToday ? CL.blue + "08" : CL.s2, border: isSelected ? `2px solid ${CL.gold}` : isToday ? `2px solid ${CL.blue}40` : `1px solid ${CL.bd}50`, opacity: isPast ? 0.7 : 1, transition: "all 0.15s" }}>
+<div style={{ fontSize: 12, fontWeight: isToday ? 700 : 500, color: isToday ? CL.blue : CL.text, marginBottom: 3, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+<span>{day}</span>
+{dayScheds.length > 0 && <span style={{ fontSize: 9, background: CL.gold + "30", color: CL.gold, padding: "1px 5px", borderRadius: 8, fontWeight: 600 }}>{dayScheds.length}</span>}
+</div>
+{dayScheds.slice(0, 3).map(sched => {
+const client = data.clients.find(c => c.id === sched.clientId);
+const statusColor = scheduleStatusColor(sched.status);
+return <div key={sched.id} onClick={ev => { ev.stopPropagation(); setModal({ ...sched }); }} style={{ padding: "2px 4px", marginBottom: 1, borderRadius: 3, fontSize: 9, background: statusColor + "20", borderLeft: `3px solid ${statusColor}`, cursor: "pointer", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}><span style={{ fontWeight: 600, color: CL.text }}>{sched.startTime} </span><span style={{ color: CL.muted }}>{client?.name?.slice(0, 10) || "?"}</span></div>;
+})}
+{dayScheds.length > 3 && <div style={{ fontSize: 8, color: CL.muted, textAlign: "center" }}>+{dayScheds.length - 3} more</div>}
+</div>
+);
+})}
+</div>
+</div>
+</div>
+
+<div style={{ flex: "0 0 280px", minWidth: 240 }}>
+<div style={cardSt}>
+{selectedDate ? (<>
+<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+<h3 style={{ fontSize: 15, fontWeight: 600, color: CL.gold, fontFamily: "'Cormorant Garamond', serif", margin: 0 }}>{fmtDate(selectedDateStr)}</h3>
+<button style={{ ...btnPri, ...btnSm, background: CL.green }} onClick={() => setModal({ ...emptySchedule, date: selectedDateStr })}>{ICN.plus} Add</button>
+</div>
+{selectedDateScheds.length === 0 ? <p style={{ color: CL.muted, fontSize: 13, textAlign: "center", padding: "20px 0" }}>No jobs this day</p> : selectedDateScheds.map(sched => {
+const client = data.clients.find(c => c.id === sched.clientId);
+const employee = data.employees.find(emp => emp.id === sched.employeeId);
+const empColor = empColors[sched.employeeId] || CL.muted;
+return <div key={sched.id} onClick={() => setModal({ ...sched })} style={{ padding: "10px 12px", marginBottom: 8, borderRadius: 8, cursor: "pointer", background: CL.s2, borderLeft: `4px solid ${empColor}` }}><div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><div style={{ fontWeight: 600, fontSize: 14, color: CL.text }}>{client?.name || "?"}</div><Badge color={scheduleStatusColor(sched.status)}>{sched.status}</Badge></div><div style={{ fontSize: 12, color: CL.muted, marginTop: 4 }}>{sched.startTime} - {sched.endTime}</div><div style={{ fontSize: 12, color: empColor, marginTop: 2 }}>{employee?.name || "Unassigned"}</div></div>;
+})}
+</>) : <div style={{ textAlign: "center", padding: "30px 10px" }}><div style={{ color: CL.muted, marginBottom: 8 }}>{ICN.cal}</div><p style={{ color: CL.muted, fontSize: 13 }}>Click a date to see details</p></div>}
+</div>
+</div>
+</div>
+) : (
+<div style={cardSt}>
+<div style={{ fontSize: 12, color: CL.muted, marginBottom: 10 }}>Monthly job list by date (readable after clocking/status changes).</div>
+<div className="tbl-wrap">
+<table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+<thead><tr><th style={thSt}>Date</th><th style={thSt}>Time</th><th style={thSt}>Client</th><th style={thSt}>Cleaner</th><th style={thSt}>Status</th></tr></thead>
+<tbody>
+{orderedMonthSchedules.map(s => {
+const client = data.clients.find(c => c.id === s.clientId);
+const employee = data.employees.find(e => e.id === s.employeeId);
+return <tr key={s.id} onClick={() => setModal({ ...s })} style={{ cursor: "pointer" }}><td style={tdSt}>{fmtDate(s.date)}</td><td style={tdSt}>{s.startTime} - {s.endTime}</td><td style={tdSt}>{client?.name || "-"}</td><td style={tdSt}>{employee?.name || "Unassigned"}</td><td style={tdSt}><Badge color={scheduleStatusColor(s.status)}>{s.status}</Badge></td></tr>;
+})}
+{orderedMonthSchedules.length === 0 && <tr><td colSpan={5} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>No jobs in this month</td></tr>}
+</tbody>
+</table>
+</div>
+</div>
+)}
+
+{modal && (
+<ModalBox title={modal.id ? "Edit Job" : "New Job"} onClose={() => setModal(null)}>
+<ScheduleForm initialData={modal} data={data} onSave={handleSave} onDelete={handleDelete} onCancel={() => setModal(null)} />
+</ModalBox>
+)}
+</div>
 );
 }
 
@@ -1516,18 +1668,34 @@ return (
 function TimeClockPage({ data, updateData, showToast }) {
 const [selectedEmp, setSelectedEmp] = useState("");
 const [selectedCli, setSelectedCli] = useState("");
+const [clockInNote, setClockInNote] = useState("");
 const [filters, setFilters] = useState({ emp: "", month: getToday().slice(0, 7) });
 const [editEntry, setEditEntry] = useState(null);
 
 const doClockIn = () => {
 if (!selectedEmp || !selectedCli) { showToast("Select both", "error"); return; }
 if (data.clockEntries.find(c => c.employeeId === selectedEmp && !c.clockOut)) { showToast("Already in!", "error"); return; }
-updateData("clockEntries", prev => [...prev, { id: makeId(), employeeId: selectedEmp, clientId: selectedCli, clockIn: new Date().toISOString(), clockOut: null, notes: "" }]);
-showToast("Clocked in!");
+const nowAt = new Date();
+const lateMeta = getLateMeta(data.schedules, { employeeId: selectedEmp, clientId: selectedCli, clockInAt: nowAt });
+updateData("clockEntries", prev => [...prev, {
+id: makeId(), employeeId: selectedEmp, clientId: selectedCli,
+clockIn: nowAt.toISOString(), clockOut: null,
+notes: clockInNote.trim(),
+isLate: lateMeta.isLate, lateMinutes: lateMeta.lateMinutes,
+scheduledStart: lateMeta.scheduledStart,
+}]);
+updateData("schedules", prev => updateScheduleStatusForJob(prev, { employeeId: selectedEmp, clientId: selectedCli, date: lateMeta.workDate, from: "scheduled", to: "in-progress" }));
+setClockInNote("");
+showToast(lateMeta.isLate ? `Clocked in (Late by ${lateMeta.lateMinutes} min)` : "Clocked in!");
 };
 
 const doClockOut = (id) => {
+const entry = data.clockEntries.find(c => c.id === id);
 updateData("clockEntries", prev => prev.map(c => c.id === id ? { ...c, clockOut: new Date().toISOString() } : c));
+if (entry) {
+const workDate = entry.clockIn?.slice(0, 10) || getToday();
+updateData("schedules", prev => updateScheduleStatusForJob(prev, { employeeId: entry.employeeId, clientId: entry.clientId, date: workDate, from: "in-progress", to: "completed" }));
+}
 showToast("Clocked out!");
 };
 
@@ -1574,6 +1742,9 @@ return (
       </div>
       <button style={{ ...btnPri, marginBottom: 14, background: CL.green }} onClick={doClockIn}>Clock In</button>
     </div>
+    <Field label="Clock-in note (optional)">
+      <TextInput value={clockInNote} onChange={ev => setClockInNote(ev.target.value)} placeholder="Late reason, traffic, access issue..." />
+    </Field>
     {activeClocks.length > 0 && (
       <div style={{ marginTop: 6 }}>
         <div style={{ fontSize: 12, color: CL.green, fontWeight: 600, marginBottom: 4 }}>Active:</div>
@@ -1582,7 +1753,7 @@ return (
           const client = data.clients.find(c => c.id === clk.clientId);
           return (
             <div key={clk.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: `1px solid ${CL.bd}` }}>
-              <span><strong>{employee?.name}</strong> at {client?.name} · {fmtTime(clk.clockIn)}</span>
+              <span><strong>{employee?.name}</strong> at {client?.name} · {fmtTime(clk.clockIn)} {clk.isLate ? `· Late ${clk.lateMinutes || 0}m` : ""}</span>
               <button style={{ ...btnDng, ...btnSm }} onClick={() => doClockOut(clk.id)}>Out</button>
             </div>
           );
@@ -1601,7 +1772,7 @@ return (
 
   <div style={cardSt} className="tbl-wrap">
     <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-      <thead><tr><th style={thSt}>Employee</th><th style={thSt}>Client</th><th style={thSt}>In</th><th style={thSt}>Out</th><th style={thSt}>Hours</th><th style={thSt}>Actions</th></tr></thead>
+      <thead><tr><th style={thSt}>Employee</th><th style={thSt}>Client</th><th style={thSt}>In</th><th style={thSt}>Out</th><th style={thSt}>Late</th><th style={thSt}>Notes</th><th style={thSt}>Hours</th><th style={thSt}>Actions</th></tr></thead>
       <tbody>
         {filteredEntries.map(entry => {
           const employee = data.employees.find(e => e.id === entry.employeeId);
@@ -1613,6 +1784,8 @@ return (
               <td style={tdSt}>{client?.name || "-"}</td>
               <td style={tdSt}>{fmtBoth(entry.clockIn)}</td>
               <td style={tdSt}>{entry.clockOut ? fmtBoth(entry.clockOut) : <Badge color={CL.green}>Active</Badge>}</td>
+              <td style={tdSt}>{entry.isLate ? <Badge color={CL.orange}>Late {entry.lateMinutes || 0}m</Badge> : <Badge color={CL.green}>On time</Badge>}</td>
+              <td style={tdSt}>{entry.notes || "-"}</td>
               <td style={tdSt}>{entry.clockOut ? `${hours.toFixed(2)}h` : "-"}</td>
               <td style={tdSt}>
                 <div style={{ display: "flex", gap: 4 }}>
@@ -1623,7 +1796,7 @@ return (
             </tr>
           );
         })}
-        {filteredEntries.length === 0 && <tr><td colSpan={6} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>No entries</td></tr>}
+        {filteredEntries.length === 0 && <tr><td colSpan={8} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>No entries</td></tr>}
       </tbody>
     </table>
   </div>
@@ -1689,230 +1862,503 @@ return (
 // ==============================================
 // INVOICES PAGE
 // ==============================================
-function InvoicesPage({ data, updateData, showToast }) {
-const [modal, setModal] = useState(null);
-const [preview, setPreview] = useState(null);
 
-const nextInvoiceNum = () => {
-const year = new Date().getFullYear();
-const count = data.invoices.filter(inv => inv.invoiceNumber?.startsWith(`LA-${year}`)).length;
-return `LA-${year}-${String(count + 1).padStart(4, "0")}`;
+function InventoryPage({ data, updateData, showToast }) {
+const [productForm, setProductForm] = useState({ name: "", unit: "bottles", stock: 0, minStock: 0, note: "" });
+
+const products = (data.inventoryProducts || []).sort((a, b) => a.name.localeCompare(b.name));
+const requests = (data.productRequests || []).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+const holdings = (data.cleanerProductHoldings || []);
+
+const saveProduct = () => {
+if (!productForm.name.trim()) { showToast("Product name required", "error"); return; }
+updateData("inventoryProducts", (prev = []) => [...prev, { id: makeId(), active: true, ...productForm, name: productForm.name.trim(), stock: Number(productForm.stock) || 0, minStock: Number(productForm.minStock) || 0 }]);
+setProductForm({ name: "", unit: "bottles", stock: 0, minStock: 0, note: "" });
+showToast("Product added");
 };
 
-const autoFillInvoice = (inv) => {
-const client = data.clients.find(c => c.id === inv.clientId);
-if (!client) return inv;
-const month = inv.date?.slice(0, 7);
-const entries = data.clockEntries.filter(c => c.clientId === inv.clientId && c.clockOut && c.clockIn?.startsWith(month));
-let items;
-if (client.billingType === "hourly") {
-const totalH = entries.reduce((sum, ce) => sum + calcHrs(ce.clockIn, ce.clockOut), 0);
-items = [{ description: `Cleaning - ${month} (${totalH.toFixed(1)}h)`, quantity: Math.round(totalH * 100) / 100, unitPrice: client.pricePerHour, total: Math.round(totalH * client.pricePerHour * 100) / 100 }];
-} else {
-items = [{ description: `Cleaning - ${client.cleaningFrequency} (${month})`, quantity: 1, unitPrice: client.priceFixed, total: client.priceFixed }];
-}
-const subtotal = items.reduce((sum, it) => sum + it.total, 0);
-const vatAmount = Math.round(subtotal * inv.vatRate / 100 * 100) / 100;
-return { ...inv, items, subtotal, vatAmount, total: subtotal + vatAmount };
+const adjustStock = (id, delta) => {
+updateData("inventoryProducts", prev => (prev || []).map(p => p.id === id ? { ...p, stock: Math.max(0, (Number(p.stock) || 0) + delta) } : p));
 };
 
-const handleSave = (inv) => {
-const subtotal = inv.items.reduce((sum, it) => sum + (it.total || 0), 0);
-const vatAmount = Math.round(subtotal * (inv.vatRate || 0) / 100 * 100) / 100;
-const final = { ...inv, subtotal, vatAmount, total: subtotal + vatAmount };
-if (final.id) {
-updateData("invoices", prev => prev.map(i => i.id === final.id ? final : i));
-showToast("Updated");
-} else {
-updateData("invoices", prev => [...prev, { ...final, id: makeId() }]);
-showToast("Created");
-}
-setModal(null);
+const setRequestStatus = (id, status) => {
+updateData("productRequests", prev => (prev || []).map(r => r.id === id ? { ...r, status } : r));
 };
 
-const handleDelete = (id) => {
-updateData("invoices", prev => prev.filter(i => i.id !== id));
-showToast("Deleted", "error");
+const approveRequest = (req, qty) => {
+const approved = Math.max(0, Number(qty) || 0);
+updateData("productRequests", prev => (prev || []).map(r => r.id === req.id ? { ...r, status: "approved", approvedQty: approved } : r));
+showToast("Request approved");
+};
+
+const upsertHolding = (employeeId, productId, deliveredQty) => {
+updateData("cleanerProductHoldings", (prev = []) => {
+const idx = prev.findIndex(h => h.employeeId === employeeId && h.productId === productId);
+if (idx === -1) return [...prev, { id: makeId(), employeeId, productId, qtyAssigned: deliveredQty, qtyInHand: deliveredQty, updatedAt: new Date().toISOString() }];
+const next = [...prev];
+next[idx] = { ...next[idx], qtyAssigned: (Number(next[idx].qtyAssigned) || 0) + deliveredQty, qtyInHand: (Number(next[idx].qtyInHand) || 0) + deliveredQty, updatedAt: new Date().toISOString() };
+return next;
+});
+};
+
+const updateHoldingInHand = (holdingId, qtyInHand) => {
+updateData("cleanerProductHoldings", prev => (prev || []).map(h => h.id === holdingId ? { ...h, qtyInHand: Math.max(0, Number(qtyInHand) || 0), updatedAt: new Date().toISOString() } : h));
+};
+
+const deliverRequest = (req, qty) => {
+const delivered = Math.max(0, Number(qty) || 0);
+updateData("productRequests", prev => (prev || []).map(r => r.id === req.id ? { ...r, status: "delivered", deliveredQty: delivered } : r));
+updateData("inventoryProducts", prev => (prev || []).map(p => p.id === req.productId ? { ...p, stock: Math.max(0, (Number(p.stock) || 0) - delivered) } : p));
+upsertHolding(req.employeeId, req.productId, delivered);
+showToast("Products delivered");
 };
 
 return (
 <div>
 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
-<h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold }}>Invoices</h1>
-<button style={btnPri} onClick={() => setModal({ clientId: "", date: getToday(), dueDate: "", invoiceNumber: nextInvoiceNum(), items: [{ description: "Cleaning services", quantity: 1, unitPrice: 0, total: 0 }], subtotal: 0, vatRate: data.settings.defaultVatRate, vatAmount: 0, total: 0, status: "draft", notes: "", paymentTerms: "Payment due within 30 days." })}>{ICN.plus} New</button>
+<h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold }}>Inventory</h1>
+</div>
+
+<div className="grid-2" style={{ marginBottom: 16 }}>
+<div style={cardSt}>
+<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>Add Product</h3>
+<div className="form-grid">
+<Field label="Name"><TextInput value={productForm.name} onChange={ev => setProductForm(v => ({ ...v, name: ev.target.value }))} /></Field>
+<Field label="Unit"><TextInput value={productForm.unit} onChange={ev => setProductForm(v => ({ ...v, unit: ev.target.value }))} /></Field>
+<Field label="Stock"><TextInput type="number" value={productForm.stock} onChange={ev => setProductForm(v => ({ ...v, stock: ev.target.value }))} /></Field>
+<Field label="Min Stock"><TextInput type="number" value={productForm.minStock} onChange={ev => setProductForm(v => ({ ...v, minStock: ev.target.value }))} /></Field>
+</div>
+<Field label="Note"><TextArea value={productForm.note} onChange={ev => setProductForm(v => ({ ...v, note: ev.target.value }))} /></Field>
+<button style={btnPri} onClick={saveProduct}>{ICN.plus} Add Product</button>
+</div>
+<div style={cardSt}>
+<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>Usage Overview</h3>
+{products.map(p => {
+const reqs = requests.filter(r => r.productId === p.id);
+const requested = reqs.reduce((s, r) => s + (Number(r.quantity) || 0), 0);
+const delivered = reqs.reduce((s, r) => s + (Number(r.deliveredQty) || 0), 0);
+return <div key={p.id} style={{ padding: "8px 0", borderBottom: `1px solid ${CL.bd}` }}><div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}><div><div style={{ fontWeight: 600 }}>{p.name}</div><div style={{ fontSize: 12, color: CL.muted }}>Stock: {p.stock} {p.unit} · Requested: {requested} · Delivered: {delivered}</div></div><div style={{ display: "flex", gap: 4 }}><button style={{ ...btnSec, ...btnSm }} onClick={() => adjustStock(p.id, -1)}>-1</button><button style={{ ...btnSec, ...btnSm }} onClick={() => adjustStock(p.id, 1)}>+1</button></div></div></div>;
+})}
+{products.length === 0 && <p style={{ color: CL.muted }}>No products added yet.</p>}
+</div>
+</div>
+
+<div style={{ ...cardSt, marginBottom: 16 }}>
+<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>Assigned / In-Hand by Cleaner</h3>
+<div className="tbl-wrap">
+<table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+<thead><tr><th style={thSt}>Cleaner</th><th style={thSt}>Product</th><th style={thSt}>Assigned</th><th style={thSt}>In Hand</th><th style={thSt}>Update In Hand</th></tr></thead>
+<tbody>
+{holdings.map(h => { const emp = data.employees.find(e => e.id === h.employeeId); const prod = products.find(p => p.id === h.productId) || (data.inventoryProducts || []).find(p => p.id === h.productId); return (
+<tr key={h.id}><td style={tdSt}>{emp?.name || "-"}</td><td style={tdSt}>{prod?.name || "-"}</td><td style={tdSt}>{h.qtyAssigned || 0}</td><td style={tdSt}>{h.qtyInHand || 0}</td><td style={tdSt}><div style={{ display: "flex", gap: 4 }}><button style={{ ...btnSec, ...btnSm }} onClick={() => updateHoldingInHand(h.id, (Number(h.qtyInHand)||0) - 1)}>-1</button><button style={{ ...btnSec, ...btnSm }} onClick={() => updateHoldingInHand(h.id, (Number(h.qtyInHand)||0) + 1)}>+1</button></div></td></tr>
+); })}
+{holdings.length === 0 && <tr><td colSpan={5} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>No product assignments yet</td></tr>}
+</tbody>
+</table>
+</div>
+</div>
+
+<div style={cardSt} className="tbl-wrap">
+<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>Cleaner Product Requests</h3>
+<table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+<thead><tr><th style={thSt}>Cleaner</th><th style={thSt}>Product</th><th style={thSt}>Qty</th><th style={thSt}>Delivery</th><th style={thSt}>Status</th><th style={thSt}>Actions</th></tr></thead>
+<tbody>
+{requests.map(req => { const emp = data.employees.find(e => e.id === req.employeeId); const prod = products.find(p => p.id === req.productId) || (data.inventoryProducts || []).find(p => p.id === req.productId); return (
+<tr key={req.id}><td style={tdSt}>{emp?.name || "-"}</td><td style={tdSt}>{prod?.name || "-"}</td><td style={tdSt}>{req.quantity}</td><td style={tdSt}>{req.deliveryAt ? fmtBoth(req.deliveryAt) : "-"}</td><td style={tdSt}><Badge color={req.status === "delivered" ? CL.green : req.status === "rejected" ? CL.red : req.status === "approved" ? CL.blue : CL.orange}>{req.status}</Badge></td><td style={tdSt}><div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+{req.status === "pending" && <button style={{ ...btnSec, ...btnSm, color: CL.green }} onClick={() => approveRequest(req, req.quantity)}>{ICN.check} Approve</button>}
+{["pending", "approved"].includes(req.status) && <button style={{ ...btnSec, ...btnSm }} onClick={() => deliverRequest(req, req.approvedQty || req.quantity)}>{ICN.doc} Deliver</button>}
+{req.status !== "rejected" && req.status !== "delivered" && <button style={{ ...btnSec, ...btnSm, color: CL.red }} onClick={() => setRequestStatus(req.id, "rejected")}>{ICN.close} Reject</button>}
+</div></td></tr>
+); })}
+{requests.length === 0 && <tr><td colSpan={6} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>No product requests yet</td></tr>}
+</tbody>
+</table>
+</div>
+</div>
+);
+}
+
+function DevisPage({ data, updateData, showToast }) {
+const { t, lang } = useI18n();
+const [modal, setModal] = useState(null);
+const [preview, setPreview] = useState(null);
+
+const quoteNumber = () => {
+const year = getToday().slice(0, 4);
+const prefix = `DEV-${year}-`;
+const nums = (data.quotes || []).map(q => String(q.quoteNumber || "")).filter(n => n.startsWith(prefix)).map(n => parseInt(n.slice(prefix.length), 10)).filter(n => Number.isFinite(n));
+return `${prefix}${String(nums.length ? Math.max(...nums) + 1 : 1).padStart(4, "0")}`;
+};
+
+const saveQuote = (q) => {
+const subtotal = (q.items || []).reduce((sum, it) => sum + (Number(it.total) || 0), 0);
+const vatAmount = Math.round(subtotal * (Number(q.vatRate) || 0) / 100 * 100) / 100;
+const final = { ...q, subtotal, vatAmount, total: subtotal + vatAmount };
+if (final.id) updateData("quotes", prev => (prev || []).map(x => x.id === final.id ? final : x));
+else updateData("quotes", prev => [...(prev || []), { ...final, id: makeId() }]);
+showToast(final.id ? "Quote updated" : "Quote created");
+setModal(null);
+};
+
+const deleteQuote = (id) => { updateData("quotes", prev => (prev || []).filter(q => q.id !== id)); showToast("Quote deleted", "error"); };
+
+const sendQuote = (q) => {
+const client = data.clients.find(c => c.id === q.clientId);
+if (!client?.email) { showToast("Client email missing", "error"); return; }
+const subject = encodeURIComponent(`Quote ${q.quoteNumber}`);
+const body = encodeURIComponent(`Dear ${client.contactPerson || client.name},
+
+Please find quote ${q.quoteNumber}.
+Date: ${fmtDate(q.date)}
+Total: €${(q.total || 0).toFixed(2)}
+
+Best regards,
+${data.settings.companyName}`);
+window.open(`mailto:${client.email}?subject=${subject}&body=${body}`);
+showToast("Quote email draft opened");
+};
+
+const toInvoiceNum = () => {
+const [year, month, day] = getToday().split("-");
+const prefix = `LA-${year}-${month}-${day}-`;
+const nums = (data.invoices || []).map(i => String(i.invoiceNumber || "")).filter(n => n.startsWith(prefix)).map(n => parseInt(n.slice(prefix.length), 10)).filter(n => Number.isFinite(n));
+return `${prefix}${nums.length ? Math.max(...nums) + 1 : 500}`;
+};
+
+const convertToInvoice = (q) => {
+const invoice = {
+id: makeId(),
+invoiceNumber: toInvoiceNum(),
+clientId: q.clientId,
+date: getToday(),
+dueDate: q.validUntil || "",
+items: (q.items || []).map(it => ({ ...it })),
+visibleColumns: q.visibleColumns || { prestationDate: true, description: true, hours: true, unitPrice: true, total: true, tva: true },
+subtotal: q.subtotal || 0,
+vatRate: q.vatRate || data.settings.defaultVatRate,
+vatAmount: q.vatAmount || 0,
+total: q.total || 0,
+status: "draft",
+notes: q.notes || "",
+paymentTerms: q.paymentTerms || "Payment due within 30 days.",
+};
+updateData("invoices", prev => [...prev, invoice]);
+updateData("quotes", prev => (prev || []).map(x => x.id === q.id ? { ...x, status: "converted", convertedInvoiceId: invoice.id } : x));
+showToast("Quote converted to invoice");
+};
+
+return (
+<div>
+<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
+<h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold }}>{t("devis")}</h1>
+<button style={btnPri} onClick={() => setModal({ quoteNumber: quoteNumber(), clientId: "", date: getToday(), validUntil: "", items: [{ prestationDate: getToday(), description: "Cleaning service", hours: "", quantity: 1, unitPrice: 0, total: 0 }], visibleColumns: { prestationDate: true, description: true, hours: true, unitPrice: true, total: true, tva: true }, vatRate: data.settings.defaultVatRate, subtotal: 0, vatAmount: 0, total: 0, status: "draft", notes: "", paymentTerms: "Quote valid for 30 days." })}>{ICN.plus} {t("newQuote")}</button>
 </div>
 <div style={cardSt} className="tbl-wrap">
 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-<thead><tr><th style={thSt}>#</th><th style={thSt}>Client</th><th style={thSt}>Date</th><th style={thSt}>Total</th><th style={thSt}>Status</th><th style={thSt}>Actions</th></tr></thead>
+<thead><tr><th style={thSt}>{t("quote")} #</th><th style={thSt}>{t("client")}</th><th style={thSt}>{t("date")}</th><th style={thSt}>{t("total")}</th><th style={thSt}>{t("status")}</th><th style={thSt}>{t("actions")}</th></tr></thead>
 <tbody>
-{data.invoices.sort((a, b) => (b.date || "").localeCompare(a.date || "")).map(inv => {
-const client = data.clients.find(c => c.id === inv.clientId);
-return (
-<tr key={inv.id}>
-<td style={tdSt}><strong>{inv.invoiceNumber}</strong></td>
-<td style={tdSt}>{client?.name || "-"}</td>
-<td style={tdSt}>{fmtDate(inv.date)}</td>
-<td style={{ ...tdSt, fontWeight: 600 }}>€{(inv.total || 0).toFixed(2)}</td>
-<td style={tdSt}><Badge color={inv.status === "paid" ? CL.green : inv.status === "overdue" ? CL.red : inv.status === "sent" ? CL.blue : CL.muted}>{inv.status}</Badge></td>
-<td style={tdSt}>
-<div style={{ display: "flex", gap: 4 }}>
-<button style={{ ...btnSec, ...btnSm }} onClick={() => setPreview(inv)}>View</button>
-<button style={{ ...btnSec, ...btnSm }} onClick={() => setModal({ ...inv })}>{ICN.edit}</button>
-<button style={{ ...btnSec, ...btnSm, color: CL.red }} onClick={() => handleDelete(inv.id)}>{ICN.trash}</button>
+{(data.quotes || []).sort((a,b)=>(b.date||"").localeCompare(a.date||"")).map(q => { const client = data.clients.find(c => c.id === q.clientId); return (
+<tr key={q.id}><td style={tdSt}><strong>{q.quoteNumber}</strong></td><td style={tdSt}>{client?.name || "-"}</td><td style={tdSt}>{fmtDate(q.date)}</td><td style={{ ...tdSt, fontWeight: 600 }}>€{(q.total || 0).toFixed(2)}</td><td style={tdSt}><Badge color={q.status === "accepted" || q.status === "converted" ? CL.green : q.status === "rejected" ? CL.red : CL.blue}>{q.status || t("draft")}</Badge></td><td style={tdSt}><div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}><button style={{ ...btnSec, ...btnSm }} onClick={() => setPreview({ ...q, invoiceNumber: q.quoteNumber, dueDate: q.validUntil })}>{t("view")}</button><button style={{ ...btnSec, ...btnSm }} onClick={() => setModal({ ...q })}>{ICN.edit}</button><button style={{ ...btnSec, ...btnSm }} onClick={() => sendQuote(q)}>{ICN.mail}</button>{q.status !== "converted" && <button style={{ ...btnSec, ...btnSm, color: CL.green }} onClick={() => convertToInvoice(q)}>{lang === "en" ? "To Invoice" : "Vers facture"}</button>}<button style={{ ...btnSec, ...btnSm, color: CL.red }} onClick={() => deleteQuote(q.id)}>{ICN.trash}</button></div></td></tr>
+); })}
+{(data.quotes || []).length === 0 && <tr><td colSpan={6} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>No quotes</td></tr>}
+</tbody>
+</table>
 </div>
-</td>
-</tr>
+
+{preview && <ModalBox title={lang === "en" ? "Quote Preview" : "Aperçu devis"} onClose={() => setPreview(null)} wide><InvoicePreviewContent invoice={preview} data={data} /><div className="no-print" style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 12 }}><button style={btnSec} onClick={() => setPreview(null)}>{lang === "en" ? "Close" : "Fermer"}</button></div></ModalBox>}
+{modal && <ModalBox title={modal.id ? t("editQuote") : t("newQuote")} onClose={() => setModal(null)} wide><QuoteForm quote={modal} data={data} onSave={saveQuote} onCancel={() => setModal(null)} /></ModalBox>}
+</div>
 );
-})}
+}
+
+function QuoteForm({ quote, data, onSave, onCancel }) {
+const [form, setForm] = useState({ visibleColumns: { prestationDate: true, description: true, hours: true, unitPrice: true, total: true, tva: true }, ...quote });
+const set = (k,v) => setForm(prev => ({ ...prev, [k]: v }));
+
+const onClientChange = (clientId) => {
+const cl = data.clients.find(c => c.id === clientId);
+const unit = cl ? (cl.billingType === "fixed" ? (cl.priceFixed || cl.pricePerHour || 0) : (cl.pricePerHour || cl.priceFixed || 0)) : 0;
+setForm(prev => ({ ...prev, clientId, items: (prev.items || []).map(it => ({ ...it, unitPrice: unit, total: Math.round((Number(it.quantity)||0) * unit * 100) / 100 })) }));
+};
+
+const updateItem = (idx, key, value) => setForm(prev => {
+const items = [...(prev.items || [])];
+items[idx] = { ...items[idx], [key]: value };
+if (key === "hours") items[idx].quantity = value === "" ? 1 : Number(value) || 0;
+const qty = Number(items[idx].quantity || 0);
+const unit = Number(items[idx].unitPrice || 0);
+items[idx].total = Math.round(qty * unit * 100) / 100;
+return { ...prev, items };
+});
+
+const subtotal = (form.items || []).reduce((s, it) => s + (Number(it.total) || 0), 0);
+const vatAmount = Math.round(subtotal * (Number(form.vatRate) || 0) / 100 * 100) / 100;
+
+return (
+<div>
+<div className="form-grid">
+<Field label="Quote #"><TextInput value={form.quoteNumber} onChange={ev => set("quoteNumber", ev.target.value)} /></Field>
+<Field label="Status"><SelectInput value={form.status || "draft"} onChange={ev => set("status", ev.target.value)}><option value="draft">Draft</option><option value="sent">Sent</option><option value="accepted">Accepted</option><option value="rejected">Rejected</option><option value="converted">Converted</option></SelectInput></Field>
+<Field label="Client"><SelectInput value={form.clientId} onChange={ev => onClientChange(ev.target.value)}><option value="">Select...</option>{data.clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</SelectInput></Field>
+<Field label="Date"><TextInput type="date" value={form.date} onChange={ev => set("date", ev.target.value)} /></Field>
+<Field label="Valid Until"><TextInput type="date" value={form.validUntil || ""} onChange={ev => set("validUntil", ev.target.value)} /></Field>
+<Field label="TVA %"><TextInput type="number" value={form.vatRate} onChange={ev => set("vatRate", parseFloat(ev.target.value) || 0)} /></Field>
+</div>
+<div style={{ marginTop: 8 }}>
+<div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}><span style={{ fontSize: 13, color: CL.muted }}>Quote Lines</span><button style={{ ...btnSec, ...btnSm }} onClick={() => setForm(prev => ({ ...prev, items: [...(prev.items || []), { prestationDate: prev.date, description: "", hours: "", quantity: 1, unitPrice: 0, total: 0 }] }))}>+ Add</button></div>
+{(form.items || []).map((it, idx) => <div key={idx} style={{ display: "grid", gridTemplateColumns: "1fr 2fr .8fr .9fr .9fr auto", gap: 5, marginBottom: 5, alignItems: "center" }}><TextInput type="date" value={it.prestationDate || ""} onChange={ev => updateItem(idx, "prestationDate", ev.target.value)} /><TextInput value={it.description || ""} onChange={ev => updateItem(idx, "description", ev.target.value)} /><TextInput type="number" step="0.25" value={it.hours ?? ""} onChange={ev => updateItem(idx, "hours", ev.target.value === "" ? "" : parseFloat(ev.target.value) || 0)} /><TextInput type="number" step="0.01" value={it.unitPrice} onChange={ev => updateItem(idx, "unitPrice", parseFloat(ev.target.value) || 0)} /><div style={{ textAlign: "right", fontWeight: 600 }}>€{Number(it.total || 0).toFixed(2)}</div><button style={{ background: "none", border: "none", color: CL.red, cursor: "pointer" }} onClick={() => setForm(prev => ({ ...prev, items: (prev.items || []).filter((_, j) => j !== idx) }))}>{ICN.close}</button></div>)}
+</div>
+<div style={{ textAlign: "right", marginTop: 8 }}><div style={{ color: CL.muted }}>Subtotal: €{subtotal.toFixed(2)}</div><div style={{ color: CL.muted }}>TVA ({form.vatRate}%): €{vatAmount.toFixed(2)}</div><div style={{ fontSize: 18, fontWeight: 700, color: CL.gold }}>Total: €{(subtotal + vatAmount).toFixed(2)}</div></div>
+<Field label="Notes"><TextArea value={form.notes || ""} onChange={ev => set("notes", ev.target.value)} /></Field>
+<div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}><button style={btnSec} onClick={onCancel}>Cancel</button><button style={btnPri} onClick={() => form.clientId && onSave({ ...form, subtotal, vatAmount, total: subtotal + vatAmount })}>Save Quote</button></div>
+</div>
+);
+}
+
+function InvoicesPage({ data, updateData, showToast }) {
+const { t, lang } = useI18n();
+const [modal, setModal] = useState(null);
+const [preview, setPreview] = useState(null);
+
+const nextInvoiceNum = (dateStr = getToday()) => {
+const [year, month, day] = (dateStr || getToday()).split("-");
+const prefix = `LA-${year || new Date().getFullYear()}-${(month || "01").padStart(2, "0")}-${(day || "01").padStart(2, "0")}-`;
+const nums = data.invoices.map(i => String(i.invoiceNumber || "")).filter(n => n.startsWith(prefix)).map(n => parseInt(n.slice(prefix.length), 10)).filter(n => Number.isFinite(n));
+return `${prefix}${nums.length ? Math.max(...nums) + 1 : 500}`;
+};
+
+const buildPrestationOptions = (clientId, month) => {
+const scheds = data.schedules.filter(s => s.clientId === clientId && s.status === "completed" && (!month || s.date?.startsWith(month))).map(s => {
+const employee = data.employees.find(e => e.id === s.employeeId);
+const clock = data.clockEntries.find(c => c.clientId === s.clientId && c.employeeId === s.employeeId && c.clockIn?.slice(0, 10) === s.date && c.clockOut);
+const hours = clock ? calcHrs(clock.clockIn, clock.clockOut) : 0;
+return { id: `sched-${s.id}`, prestationDate: s.date, description: `Cleaning service (${s.startTime}-${s.endTime})`, hours, employeeName: employee?.name || "Unassigned" };
+});
+const clocks = data.clockEntries.filter(c => c.clientId === clientId && c.clockOut && (!month || c.clockIn?.startsWith(month))).map(c => {
+const employee = data.employees.find(e => e.id === c.employeeId);
+const hours = calcHrs(c.clockIn, c.clockOut);
+return { id: `clock-${c.id}`, prestationDate: c.clockIn.slice(0, 10), description: `Cleaning service (clock ${fmtTime(c.clockIn)}-${fmtTime(c.clockOut)})`, hours, employeeName: employee?.name || "Unassigned" };
+});
+const seen = new Set();
+return [...scheds, ...clocks].filter(x => { const k = `${x.prestationDate}-${x.employeeName}-${x.description}`; if (seen.has(k)) return false; seen.add(k); return true; }).sort((a,b)=>`${b.prestationDate}`.localeCompare(a.prestationDate));
+};
+
+const handleSave = (inv) => {
+const subtotal = (inv.items || []).reduce((sum, it) => sum + (Number(it.total) || 0), 0);
+const vatAmount = Math.round(subtotal * (Number(inv.vatRate) || 0) / 100 * 100) / 100;
+const hasValidFormat = /^LA-\d{4}-\d{2}-\d{2}-\d+$/.test(inv.invoiceNumber || "");
+const final = { ...inv, invoiceNumber: hasValidFormat ? inv.invoiceNumber : nextInvoiceNum(inv.date || getToday()), subtotal, vatAmount, total: subtotal + vatAmount };
+if (final.id) updateData("invoices", prev => prev.map(i => i.id === final.id ? final : i));
+else updateData("invoices", prev => [...prev, { ...final, id: makeId() }]);
+showToast(final.id ? "Updated" : "Created");
+setModal(null);
+};
+
+const handleDelete = (id) => { updateData("invoices", prev => prev.filter(i => i.id !== id)); showToast("Deleted", "error"); };
+
+const downloadInvoicePng = (inv) => {
+const client = data.clients.find(c => c.id === inv.clientId);
+const canvas = document.createElement("canvas");
+canvas.width = 1200; canvas.height = 1600;
+const ctx = canvas.getContext("2d");
+ctx.fillStyle = "#fff"; ctx.fillRect(0,0,canvas.width,canvas.height);
+ctx.fillStyle = "#111"; ctx.font = "bold 36px Arial"; ctx.fillText(`${data.settings.companyName} - INVOICE`, 40, 70);
+ctx.font = "24px Arial"; ctx.fillText(inv.invoiceNumber || "", 40, 110);
+ctx.fillText(`Client: ${client?.name || "-"}`, 40, 145);
+ctx.fillText(`Date: ${inv.date || "-"}`, 40, 180);
+let y = 230;
+ctx.font = "bold 20px Arial";
+ctx.fillText("Prestation", 40, y); ctx.fillText("Description", 260, y); if (inv.visibleColumns?.hours !== false) ctx.fillText("Hours", 760, y); ctx.fillText("Unit", 880, y); ctx.fillText("Total", 1020, y);
+ctx.font = "18px Arial"; y += 30;
+(inv.items || []).forEach(it => { if (y > 1450) return; ctx.fillText(it.prestationDate || "-", 40, y); ctx.fillText((it.description || "").slice(0, 45), 260, y); if (inv.visibleColumns?.hours !== false) ctx.fillText(String(it.hours ?? ""), 760, y); ctx.fillText(`€${Number(it.unitPrice || 0).toFixed(2)}`, 880, y); ctx.fillText(`€${Number(it.total || 0).toFixed(2)}`, 1020, y); y += 28; });
+ctx.font = "bold 24px Arial"; ctx.fillText(`TVA ${Number(inv.vatRate||0)}%: €${Number(inv.vatAmount||0).toFixed(2)}`, 760, 1510); ctx.fillText(`TOTAL: €${Number(inv.total||0).toFixed(2)}`, 760, 1550);
+const a = document.createElement("a"); a.href = canvas.toDataURL("image/png"); a.download = `${inv.invoiceNumber || "invoice"}.png`; a.click();
+};
+
+const emailInvoice = (inv) => {
+const client = data.clients.find(c => c.id === inv.clientId);
+if (!client?.email) { showToast("Client email missing", "error"); return; }
+const template = inv.emailTemplate || "standard";
+const subject = encodeURIComponent(`Invoice ${inv.invoiceNumber}`);
+const bodyPlain = template === "friendly"
+? `Hello ${client.contactPerson || client.name},
+
+Please find your invoice ${inv.invoiceNumber} for cleaning services on ${fmtDate(inv.date)}.
+Amount due: €${(inv.total || 0).toFixed(2)}
+
+Best regards,
+${data.settings.companyName}`
+: `Dear ${client.contactPerson || client.name},
+
+Invoice: ${inv.invoiceNumber}
+Date: ${fmtDate(inv.date)}
+Total: €${(inv.total || 0).toFixed(2)}
+
+Regards,
+${data.settings.companyName}`;
+const fromInfo = inv.zohoEmail ? `
+
+Sender (Zoho configured): ${inv.zohoEmail}` : `
+
+Sender: ${data.settings.companyEmail}`;
+window.open(`mailto:${client.email}?subject=${subject}&body=${encodeURIComponent(bodyPlain + fromInfo)}`);
+showToast("Email draft opened");
+};
+
+return (
+<div>
+<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
+<h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold }}>{t("invoices")}</h1>
+<button style={btnPri} onClick={() => setModal({ clientId: "", date: getToday(), dueDate: "", invoiceNumber: nextInvoiceNum(), items: [{ prestationDate: getToday(), description: "Cleaning services", hours: "", quantity: 1, unitPrice: 0, total: 0 }], visibleColumns: { prestationDate: true, description: true, hours: true, unitPrice: true, total: true, tva: true }, subtotal: 0, vatRate: data.settings.defaultVatRate, vatAmount: 0, total: 0, status: "draft", notes: "", paymentTerms: "Payment due within 30 days.", emailTemplate: "standard", zohoEmail: "" })}>{ICN.plus} {t("newInvoice")}</button>
+</div>
+<div style={cardSt} className="tbl-wrap">
+<table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+<thead><tr><th style={thSt}>#</th><th style={thSt}>{t("client")}</th><th style={thSt}>{t("date")}</th><th style={thSt}>{t("total")}</th><th style={thSt}>{t("status")}</th><th style={thSt}>{t("actions")}</th></tr></thead>
+<tbody>
+{data.invoices.sort((a, b) => (b.date || "").localeCompare(a.date || "")).map(inv => { const client = data.clients.find(c => c.id === inv.clientId); return (
+<tr key={inv.id}><td style={tdSt}><strong>{inv.invoiceNumber}</strong></td><td style={tdSt}>{client?.name || "-"}</td><td style={tdSt}>{fmtDate(inv.date)}</td><td style={{ ...tdSt, fontWeight: 600 }}>€{(inv.total || 0).toFixed(2)}</td><td style={tdSt}><Badge color={inv.status === "paid" ? CL.green : inv.status === "overdue" ? CL.red : inv.status === "sent" ? CL.blue : CL.muted}>{t(inv.status, inv.status)}</Badge></td><td style={tdSt}><div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}><button style={{ ...btnSec, ...btnSm }} onClick={() => setPreview(inv)}>{t("view")}</button><button style={{ ...btnSec, ...btnSm }} onClick={() => setModal({ ...inv })}>{ICN.edit}</button><button style={{ ...btnSec, ...btnSm }} onClick={() => emailInvoice(inv)}>{ICN.mail}</button><button style={{ ...btnSec, ...btnSm, color: CL.red }} onClick={() => handleDelete(inv.id)}>{ICN.trash}</button></div></td></tr>
+); })}
 {data.invoices.length === 0 && <tr><td colSpan={6} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>No invoices</td></tr>}
 </tbody>
 </table>
 </div>
 
-  {preview && (
-    <ModalBox title="" onClose={() => setPreview(null)} wide>
-      <InvoicePreviewContent invoice={preview} data={data} />
-      <div className="no-print" style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 12 }}>
-        <button style={btnSec} onClick={() => setPreview(null)}>Close</button>
-        <button style={btnPri} onClick={() => window.print()}>{ICN.download} Print</button>
-      </div>
-    </ModalBox>
-  )}
-
-  {modal && (
-    <ModalBox title={modal.id ? "Edit Invoice" : "New Invoice"} onClose={() => setModal(null)} wide>
-      <InvoiceFormContent invoice={modal} data={data} onSave={handleSave} autoFill={autoFillInvoice} onCancel={() => setModal(null)} />
-    </ModalBox>
-  )}
+{preview && (
+<ModalBox title="" onClose={() => setPreview(null)} wide>
+<InvoicePreviewContent invoice={preview} data={data} />
+<div className="no-print" style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 12, flexWrap: "wrap" }}>
+<button style={btnSec} onClick={() => setPreview(null)}>{lang === "en" ? "Close" : "Fermer"}</button>
+<button style={btnSec} onClick={() => downloadInvoicePng(preview)}>{ICN.download} PNG</button>
+<button style={btnPri} onClick={() => window.print()}>{ICN.download} PDF</button>
+<button style={{ ...btnSec, color: CL.blue }} onClick={() => emailInvoice(preview)}>{ICN.mail} {t("sendEmail")}</button>
 </div>
+</ModalBox>
+)}
 
+{modal && (
+<ModalBox title={modal.id ? t("editInvoice") : t("newInvoice")} onClose={() => setModal(null)} wide>
+<InvoiceFormContent invoice={modal} data={data} onSave={handleSave} nextInvoiceNum={nextInvoiceNum} buildPrestationOptions={buildPrestationOptions} onCancel={() => setModal(null)} />
+</ModalBox>
+)}
+</div>
 );
 }
 
-function InvoiceFormContent({ invoice, data, onSave, autoFill, onCancel }) {
-const [form, setForm] = useState(invoice);
+function InvoiceFormContent({ invoice, data, onSave, nextInvoiceNum, buildPrestationOptions, onCancel }) {
+const { t, lang } = useI18n();
+const [form, setForm] = useState({ visibleColumns: { prestationDate: true, description: true, hours: true, unitPrice: true, total: true, tva: true }, ...invoice });
 const set = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
 
-const updateItem = (idx, key, value) => {
-setForm(prev => {
-const items = [...prev.items];
+const client = data.clients.find(c => c.id === form.clientId);
+const defaultUnitPrice = client ? (client.billingType === "fixed" ? (client.priceFixed || client.pricePerHour || 0) : (client.pricePerHour || client.priceFixed || 0)) : 0;
+const prestations = form.clientId ? buildPrestationOptions(form.clientId, form.date?.slice(0, 7)) : [];
+
+const updateItem = (idx, key, value) => setForm(prev => {
+const items = [...(prev.items || [])];
 items[idx] = { ...items[idx], [key]: value };
-if (key === "quantity" || key === "unitPrice") {
-items[idx].total = Math.round((items[idx].quantity || 0) * (items[idx].unitPrice || 0) * 100) / 100;
-}
+const qty = Number(items[idx].quantity || 0);
+const unit = Number(items[idx].unitPrice || 0);
+items[idx].total = Math.round(qty * unit * 100) / 100;
 return { ...prev, items };
+});
+
+const addPrestation = (p) => setForm(prev => {
+const unitPrice = Number(defaultUnitPrice || 0);
+const quantity = p.hours && p.hours > 0 ? Math.round(p.hours * 100) / 100 : 1;
+const row = { prestationDate: p.prestationDate, description: p.description, hours: p.hours ? Math.round(p.hours * 100) / 100 : "", quantity, unitPrice, total: Math.round(quantity * unitPrice * 100) / 100 };
+return { ...prev, items: [...(prev.items || []), row] };
+});
+
+const onClientChange = (clientId) => {
+const cl = data.clients.find(c => c.id === clientId);
+const unit = cl ? (cl.billingType === "fixed" ? (cl.priceFixed || cl.pricePerHour || 0) : (cl.pricePerHour || cl.priceFixed || 0)) : 0;
+setForm(prev => {
+const nextItems = (prev.items || []).length ? prev.items.map(it => ({ ...it, unitPrice: unit, total: Math.round((Number(it.quantity)||0) * unit * 100) / 100 })) : [{ prestationDate: prev.date, description: "Cleaning services", hours: "", quantity: 1, unitPrice: unit, total: unit }];
+return { ...prev, clientId, items: nextItems };
 });
 };
 
-const subtotal = form.items.reduce((sum, it) => sum + (it.total || 0), 0);
-const vatAmount = Math.round(subtotal * (form.vatRate || 0) / 100 * 100) / 100;
+const subtotal = (form.items || []).reduce((sum, it) => sum + (Number(it.total) || 0), 0);
+const vatAmount = Math.round(subtotal * (Number(form.vatRate) || 0) / 100 * 100) / 100;
 
 return (
 <div>
 <div className="form-grid">
-<Field label="Invoice #"><TextInput value={form.invoiceNumber} onChange={ev => set("invoiceNumber", ev.target.value)} /></Field>
-<Field label="Status">
-<SelectInput value={form.status} onChange={ev => set("status", ev.target.value)}>
-<option value="draft">Draft</option><option value="sent">Sent</option><option value="paid">Paid</option><option value="overdue">Overdue</option>
-</SelectInput>
-</Field>
-<Field label="Client *">
-<div style={{ display: "flex", gap: 5 }}>
-<SelectInput value={form.clientId} onChange={ev => set("clientId", ev.target.value)} style={{ flex: 1 }}>
-<option value="">Select...</option>
-{data.clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-</SelectInput>
-<button style={{ ...btnSec, ...btnSm }} onClick={() => setForm(autoFill(form))}>Auto</button>
-</div>
-</Field>
-<Field label="VAT %"><TextInput type="number" value={form.vatRate} onChange={ev => set("vatRate", parseFloat(ev.target.value) || 0)} /></Field>
-<Field label="Date"><TextInput type="date" value={form.date} onChange={ev => set("date", ev.target.value)} /></Field>
+<Field label={`${t("invoice")} #`}><div style={{ display: "flex", gap: 5 }}><TextInput value={form.invoiceNumber} onChange={ev => set("invoiceNumber", ev.target.value)} style={{ flex: 1 }} /><button style={{ ...btnSec, ...btnSm }} onClick={() => set("invoiceNumber", nextInvoiceNum(form.date || getToday()))}>{t("auto")}</button></div></Field>
+<Field label={t("status")}><SelectInput value={form.status} onChange={ev => set("status", ev.target.value)}><option value="draft">{t("draft")}</option><option value="sent">{t("sent")}</option><option value="paid">{t("paid")}</option><option value="overdue">{t("overdue")}</option></SelectInput></Field>
+<Field label={t("client")}><SelectInput value={form.clientId} onChange={ev => onClientChange(ev.target.value)}><option value="">{t("select")}</option>{data.clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</SelectInput></Field>
+<Field label={t("prestationDate")}><TextInput type="date" value={form.date} onChange={ev => { const v = ev.target.value; set("date", v); if (!form.invoiceNumber || /^LA-\d{4}-\d{2}-\d{2}-\d+$/.test(form.invoiceNumber)) set("invoiceNumber", nextInvoiceNum(v)); }} /></Field>
+<Field label="TVA %"><TextInput type="number" value={form.vatRate} onChange={ev => set("vatRate", parseFloat(ev.target.value) || 0)} /></Field>
 <Field label="Due"><TextInput type="date" value={form.dueDate || ""} onChange={ev => set("dueDate", ev.target.value)} /></Field>
 </div>
 
-  <div style={{ marginTop: 12 }}>
-    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
-      <span style={{ fontSize: 13, color: CL.muted }}>Line Items</span>
-      <button style={{ ...btnSec, ...btnSm }} onClick={() => setForm(prev => ({ ...prev, items: [...prev.items, { description: "", quantity: 1, unitPrice: 0, total: 0 }] }))}>+ Add</button>
-    </div>
-    {form.items.map((item, idx) => (
-      <div key={idx} style={{ display: "flex", gap: 5, marginBottom: 5, alignItems: "center", flexWrap: "wrap" }}>
-        <TextInput placeholder="Description" value={item.description} onChange={ev => updateItem(idx, "description", ev.target.value)} style={{ flex: 3, minWidth: 150 }} />
-        <TextInput type="number" placeholder="Qty" value={item.quantity} onChange={ev => updateItem(idx, "quantity", parseFloat(ev.target.value) || 0)} style={{ flex: 1, minWidth: 60 }} />
-        <TextInput type="number" placeholder="€" value={item.unitPrice} onChange={ev => updateItem(idx, "unitPrice", parseFloat(ev.target.value) || 0)} style={{ flex: 1, minWidth: 60 }} />
-        <div style={{ minWidth: 70, textAlign: "right", fontWeight: 600 }}>€{(item.total || 0).toFixed(2)}</div>
-        <button style={{ background: "none", border: "none", cursor: "pointer", color: CL.red }} onClick={() => setForm(prev => ({ ...prev, items: prev.items.filter((_, j) => j !== idx) }))}>{ICN.close}</button>
-      </div>
-    ))}
-    <div style={{ textAlign: "right", marginTop: 10, fontSize: 14 }}>
-      <div style={{ color: CL.muted }}>Sub: <strong style={{ color: CL.text }}>€{subtotal.toFixed(2)}</strong></div>
-      <div style={{ color: CL.muted }}>VAT ({form.vatRate}%): <strong style={{ color: CL.text }}>€{vatAmount.toFixed(2)}</strong></div>
-      <div style={{ fontSize: 18, fontWeight: 700, color: CL.gold, marginTop: 4 }}>Total: €{(subtotal + vatAmount).toFixed(2)}</div>
-    </div>
-  </div>
-
-  <Field label="Terms"><TextInput value={form.paymentTerms || ""} onChange={ev => set("paymentTerms", ev.target.value)} /></Field>
-  <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 6 }}>
-    <button style={btnSec} onClick={onCancel}>Cancel</button>
-    <button style={btnPri} onClick={() => form.clientId && onSave(form)}>Save</button>
-  </div>
+<div style={{ ...cardSt, padding: 12, marginBottom: 10 }}>
+<div style={{ fontSize: 12, color: CL.muted, marginBottom: 8 }}>Completed prestations (select several)</div>
+<div style={{ maxHeight: 140, overflow: "auto" }}>
+{prestations.map(p => <button key={p.id} style={{ ...btnSec, ...btnSm, width: "100%", marginBottom: 5, justifyContent: "space-between" }} onClick={() => addPrestation(p)}><span>{fmtDate(p.prestationDate)} · {p.employeeName} · {p.description}</span><span>{p.hours ? `${p.hours.toFixed(2)}h` : ""}</span></button>)}
+{prestations.length === 0 && <div style={{ fontSize: 12, color: CL.dim }}>No completed prestation found for this client/month.</div>}
+</div>
 </div>
 
+<div style={{ marginTop: 12 }}>
+<div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5, flexWrap: "wrap", gap: 8 }}>
+<span style={{ fontSize: 13, color: CL.muted }}>Fields (columns) and line items</span>
+<div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+{["prestationDate","description","hours","unitPrice","total","tva"].map(col => <label key={col} style={{ fontSize: 12, color: CL.muted }}><input type="checkbox" checked={form.visibleColumns?.[col] !== false} onChange={ev => setForm(prev => ({ ...prev, visibleColumns: { ...(prev.visibleColumns || {}), [col]: ev.target.checked } }))} /> {col}</label>)}
+<button style={{ ...btnSec, ...btnSm }} onClick={() => setForm(prev => ({ ...prev, items: [...(prev.items || []), { prestationDate: prev.date, description: "", hours: "", quantity: 1, unitPrice: defaultUnitPrice || 0, total: defaultUnitPrice || 0 }] }))}>+ Add field/row</button>
+</div>
+</div>
+{(form.items || []).map((item, idx) => (
+<div key={idx} style={{ display: "grid", gridTemplateColumns: "1.1fr 2fr .8fr .9fr .9fr auto", gap: 5, marginBottom: 5, alignItems: "center" }}>
+<TextInput type="date" placeholder="Prestation date" value={item.prestationDate || ""} onChange={ev => updateItem(idx, "prestationDate", ev.target.value)} />
+<TextInput placeholder="Description" value={item.description || ""} onChange={ev => updateItem(idx, "description", ev.target.value)} />
+<TextInput type="number" step="0.25" placeholder="Hours" value={item.hours ?? ""} onChange={ev => { const h = ev.target.value; updateItem(idx, "hours", h === "" ? "" : parseFloat(h) || 0); updateItem(idx, "quantity", h === "" ? 1 : parseFloat(h) || 0); }} />
+<TextInput type="number" step="0.01" placeholder="Unit price" value={item.unitPrice} onChange={ev => updateItem(idx, "unitPrice", parseFloat(ev.target.value) || 0)} />
+<div style={{ minWidth: 70, textAlign: "right", fontWeight: 600 }}>€{Number(item.total || 0).toFixed(2)}</div>
+<button style={{ background: "none", border: "none", cursor: "pointer", color: CL.red }} onClick={() => setForm(prev => ({ ...prev, items: (prev.items || []).filter((_, j) => j !== idx) }))}>{ICN.close}</button>
+</div>
+))}
+<div style={{ textAlign: "right", marginTop: 10, fontSize: 14 }}>
+<div style={{ color: CL.muted }}>Subtotal: <strong style={{ color: CL.text }}>€{subtotal.toFixed(2)}</strong></div>
+{form.visibleColumns?.tva !== false && <div style={{ color: CL.muted }}>TVA ({form.vatRate}%): <strong style={{ color: CL.text }}>€{vatAmount.toFixed(2)}</strong></div>}
+<div style={{ fontSize: 18, fontWeight: 700, color: CL.gold, marginTop: 4 }}>Total: €{(subtotal + (form.visibleColumns?.tva === false ? 0 : vatAmount)).toFixed(2)}</div>
+</div>
+</div>
+
+<div className="form-grid" style={{ marginTop: 12 }}>
+<Field label="Zoho sender email"><TextInput value={form.zohoEmail || ""} onChange={ev => set("zohoEmail", ev.target.value)} placeholder="name@yourcompany.com" /></Field>
+<Field label="Email template"><SelectInput value={form.emailTemplate || "standard"} onChange={ev => set("emailTemplate", ev.target.value)}><option value="standard">Standard</option><option value="friendly">Friendly reminder</option></SelectInput></Field>
+</div>
+
+<Field label="Terms"><TextInput value={form.paymentTerms || ""} onChange={ev => set("paymentTerms", ev.target.value)} /></Field>
+<div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 6 }}>
+<button style={btnSec} onClick={onCancel}>{t("cancel")}</button>
+<button style={btnPri} onClick={() => form.clientId && onSave({ ...form, subtotal, vatAmount: form.visibleColumns?.tva === false ? 0 : vatAmount, total: subtotal + (form.visibleColumns?.tva === false ? 0 : vatAmount) })}>{t("save")}</button>
+</div>
+</div>
 );
 }
 
 function InvoicePreviewContent({ invoice, data }) {
+const { lang } = useI18n();
 const client = data.clients.find(c => c.id === invoice.clientId);
 const settings = data.settings;
-
+const cols = { prestationDate: true, description: true, hours: true, unitPrice: true, total: true, tva: true, ...(invoice.visibleColumns || {}) };
 return (
 <div style={{ background: "#fff", color: "#1a1a1a", padding: 28, borderRadius: 8 }}>
 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 24, flexWrap: "wrap", gap: 16 }}>
-<div>
-<h1 style={{ fontSize: 24, fontWeight: 700, color: "#C9A84C", fontFamily: "'Cormorant Garamond', serif", margin: 0 }}>{settings.companyName}</h1>
-<div style={{ fontSize: 11, color: "#666", marginTop: 3, lineHeight: 1.6 }}>{settings.companyAddress}<br />{settings.companyEmail}<br />{settings.companyPhone}<br />VAT: {settings.vatNumber}</div>
+<div><h1 style={{ fontSize: 24, fontWeight: 700, color: "#C9A84C", fontFamily: "'Cormorant Garamond', serif", margin: 0 }}>{settings.companyName}</h1><div style={{ fontSize: 11, color: "#666", marginTop: 3, lineHeight: 1.6 }}>{settings.companyAddress}<br />{settings.companyEmail}<br />{settings.companyPhone}<br />TVA: {settings.vatNumber}</div></div>
+<div style={{ textAlign: "right" }}><h2 style={{ fontSize: 20, color: "#333", margin: 0 }}>{lang === "en" ? "INVOICE" : "FACTURE"}</h2><div style={{ fontSize: 12, color: "#666", marginTop: 5 }}><strong>{invoice.invoiceNumber}</strong><br />{lang === "en" ? "Date" : "Date"}: {fmtDate(invoice.date)}{invoice.dueDate && <><br />{lang === "en" ? "Due" : "Échéance"}: {fmtDate(invoice.dueDate)}</>}</div></div>
 </div>
-<div style={{ textAlign: "right" }}>
-<h2 style={{ fontSize: 20, color: "#333", margin: 0 }}>INVOICE</h2>
-<div style={{ fontSize: 12, color: "#666", marginTop: 5 }}><strong>{invoice.invoiceNumber}</strong><br />Date: {fmtDate(invoice.date)}{invoice.dueDate && <><br />Due: {fmtDate(invoice.dueDate)}</>}</div>
-</div>
-</div>
-<div style={{ marginBottom: 18, padding: 12, background: "#f8f8f8", borderRadius: 8 }}>
-<div style={{ fontSize: 10, color: "#999", textTransform: "uppercase", marginBottom: 2 }}>Bill To</div>
-<div style={{ fontWeight: 600 }}>{client?.name}</div>
-{client?.address && <div style={{ fontSize: 12, color: "#666" }}>{client.address}{client.apartmentFloor ? `, ${client.apartmentFloor}` : ""}</div>}
-{client?.postalCode && <div style={{ fontSize: 12, color: "#666" }}>{client.postalCode} {client.city}</div>}
-{client?.email && <div style={{ fontSize: 12, color: "#666" }}>{client.email}</div>}
-</div>
+<div style={{ marginBottom: 18, padding: 12, background: "#f8f8f8", borderRadius: 8 }}><div style={{ fontSize: 10, color: "#999", textTransform: "uppercase", marginBottom: 2 }}>{lang === "en" ? "Client" : "Client"}</div><div style={{ fontWeight: 600 }}>{client?.name}</div>{client?.email && <div style={{ fontSize: 12, color: "#666" }}>{client.email}</div>}</div>
 <div style={{ overflowX: "auto" }}>
 <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 18 }}>
-<thead><tr style={{ borderBottom: "2px solid #C9A84C" }}>
-<th style={{ textAlign: "left", padding: "5px 0", fontSize: 10, color: "#999" }}>DESCRIPTION</th>
-<th style={{ textAlign: "right", padding: "5px 0", fontSize: 10, color: "#999" }}>QTY</th>
-<th style={{ textAlign: "right", padding: "5px 0", fontSize: 10, color: "#999" }}>PRICE</th>
-<th style={{ textAlign: "right", padding: "5px 0", fontSize: 10, color: "#999" }}>AMOUNT</th>
-</tr></thead>
-<tbody>
-{invoice.items?.map((item, idx) => (
-<tr key={idx} style={{ borderBottom: "1px solid #eee" }}>
-<td style={{ padding: "8px 0" }}>{item.description}</td>
-<td style={{ padding: "8px 0", textAlign: "right" }}>{item.quantity}</td>
-<td style={{ padding: "8px 0", textAlign: "right" }}>€{Number(item.unitPrice).toFixed(2)}</td>
-<td style={{ padding: "8px 0", textAlign: "right" }}>€{Number(item.total).toFixed(2)}</td>
-</tr>
-))}
-</tbody>
+<thead><tr style={{ borderBottom: "2px solid #C9A84C" }}>{cols.prestationDate && <th style={{ textAlign: "left", padding: "5px 0", fontSize: 10, color: "#999" }}>PRESTATION DATE</th>}{cols.description && <th style={{ textAlign: "left", padding: "5px 0", fontSize: 10, color: "#999" }}>DESCRIPTION</th>}{cols.hours && <th style={{ textAlign: "right", padding: "5px 0", fontSize: 10, color: "#999" }}>HOURS</th>}{cols.unitPrice && <th style={{ textAlign: "right", padding: "5px 0", fontSize: 10, color: "#999" }}>UNIT PRICE</th>}{cols.total && <th style={{ textAlign: "right", padding: "5px 0", fontSize: 10, color: "#999" }}>TOTAL</th>}</tr></thead>
+<tbody>{(invoice.items || []).map((item, idx) => <tr key={idx} style={{ borderBottom: "1px solid #eee" }}>{cols.prestationDate && <td style={{ padding: "8px 0" }}>{fmtDate(item.prestationDate)}</td>}{cols.description && <td style={{ padding: "8px 0" }}>{item.description}</td>}{cols.hours && <td style={{ padding: "8px 0", textAlign: "right" }}>{item.hours === "" || item.hours == null ? "" : Number(item.hours).toFixed(2)}</td>}{cols.unitPrice && <td style={{ padding: "8px 0", textAlign: "right" }}>€{Number(item.unitPrice || 0).toFixed(2)}</td>}{cols.total && <td style={{ padding: "8px 0", textAlign: "right" }}>€{Number(item.total || 0).toFixed(2)}</td>}</tr>)}</tbody>
 </table>
 </div>
-<div style={{ textAlign: "right", marginBottom: 18 }}>
-<div style={{ fontSize: 12, color: "#666" }}>Subtotal: €{(invoice.subtotal || 0).toFixed(2)}</div>
-<div style={{ fontSize: 12, color: "#666" }}>VAT ({invoice.vatRate}%): €{(invoice.vatAmount || 0).toFixed(2)}</div>
-<div style={{ fontSize: 20, fontWeight: 700, color: "#C9A84C", marginTop: 5 }}>Total: €{(invoice.total || 0).toFixed(2)}</div>
-</div>
-<div style={{ padding: 12, background: "#f8f8f8", borderRadius: 8, fontSize: 11, color: "#666" }}>
-{invoice.paymentTerms && <div><strong>Terms:</strong> {invoice.paymentTerms}</div>}
-<div><strong>Bank:</strong> {settings.bankIban}</div>
-</div>
+<div style={{ textAlign: "right", marginBottom: 18 }}><div style={{ fontSize: 12, color: "#666" }}>Subtotal: €{(invoice.subtotal || 0).toFixed(2)}</div>{cols.tva !== false && <div style={{ fontSize: 12, color: "#666" }}>TVA ({invoice.vatRate}%): €{(invoice.vatAmount || 0).toFixed(2)}</div>}<div style={{ fontSize: 20, fontWeight: 700, color: "#C9A84C", marginTop: 5 }}>Total: €{(invoice.total || 0).toFixed(2)}</div></div>
+<div style={{ padding: 12, background: "#f8f8f8", borderRadius: 8, fontSize: 11, color: "#666" }}>{invoice.paymentTerms && <div><strong>Terms:</strong> {invoice.paymentTerms}</div>}<div><strong>Bank:</strong> {settings.bankIban}</div></div>
 </div>
 );
 }
@@ -1920,22 +2366,21 @@ return (
 // ==============================================
 // PAYSLIPS PAGE
 // ==============================================
-function PayslipsPage({ data, updateData, showToast }) {
+function PayslipsPage({ data, updateData, showToast, auth }) {
 const [preview, setPreview] = useState(null);
 const [month, setMonth] = useState(getToday().slice(0, 7));
+
+if (auth?.role !== "owner") return <div style={cardSt}>Payroll access is restricted.</div>;
 
 const generatePayslips = () => {
 const payslips = data.employees.filter(emp => emp.status === "active").map(emp => {
 const entries = data.clockEntries.filter(c => c.employeeId === emp.id && c.clockOut && c.clockIn?.startsWith(month));
 const totalH = entries.reduce((sum, ce) => sum + calcHrs(ce.clockIn, ce.clockOut), 0);
 const gross = Math.round(totalH * emp.hourlyRate * 100) / 100;
-const social = Math.round(gross * 0.125 * 100) / 100;
-const tax = Math.round(gross * 0.15 * 100) / 100;
 return {
 id: makeId(), employeeId: emp.id, month, totalHours: Math.round(totalH * 100) / 100,
-hourlyRate: emp.hourlyRate, grossPay: gross, socialCharges: social, taxEstimate: tax,
-netPay: Math.round((gross - social - tax) * 100) / 100, status: "draft",
-createdAt: new Date().toISOString(),
+hourlyRate: emp.hourlyRate, grossPay: gross,
+status: "draft", createdAt: new Date().toISOString(),
 payslipNumber: `PS-${month.replace("-", "")}-${emp.name.slice(0, 3).toUpperCase()}`,
 };
 });
@@ -1959,7 +2404,7 @@ return (
 </div>
 <div style={cardSt} className="tbl-wrap">
 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-<thead><tr><th style={thSt}>#</th><th style={thSt}>Employee</th><th style={thSt}>Month</th><th style={thSt}>Hours</th><th style={thSt}>Gross</th><th style={thSt}>Net</th><th style={thSt}>Status</th><th style={thSt}>Actions</th></tr></thead>
+<thead><tr><th style={thSt}>#</th><th style={thSt}>Employee</th><th style={thSt}>Month</th><th style={thSt}>Hours</th><th style={thSt}>Gross</th><th style={thSt}>Status</th><th style={thSt}>Actions</th></tr></thead>
 <tbody>
 {data.payslips.sort((a, b) => b.month.localeCompare(a.month)).map(ps => {
 const employee = data.employees.find(e => e.id === ps.employeeId);
@@ -1969,8 +2414,7 @@ return (
 <td style={tdSt}>{employee?.name || "-"}</td>
 <td style={tdSt}>{ps.month}</td>
 <td style={tdSt}>{ps.totalHours}h</td>
-<td style={tdSt}>€{ps.grossPay?.toFixed(2)}</td>
-<td style={{ ...tdSt, fontWeight: 600 }}>€{ps.netPay?.toFixed(2)}</td>
+<td style={{ ...tdSt, fontWeight: 600 }}>€{ps.grossPay?.toFixed(2)}</td>
 <td style={tdSt}><Badge color={ps.status === "paid" ? CL.green : CL.muted}>{ps.status}</Badge></td>
 <td style={tdSt}>
 <div style={{ display: "flex", gap: 4 }}>
@@ -1981,7 +2425,7 @@ return (
 </tr>
 );
 })}
-{data.payslips.length === 0 && <tr><td colSpan={8} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>No payslips</td></tr>}
+{data.payslips.length === 0 && <tr><td colSpan={7} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>No payslips</td></tr>}
 </tbody>
 </table>
 </div>
@@ -2008,12 +2452,10 @@ return (
                 <tr style={{ borderBottom: "1px solid #eee" }}><td style={{ padding: "7px 0", color: "#666" }}>Hours</td><td style={{ padding: "7px 0", textAlign: "right", fontWeight: 600 }}>{preview.totalHours}h</td></tr>
                 <tr style={{ borderBottom: "1px solid #eee" }}><td style={{ padding: "7px 0", color: "#666" }}>Rate</td><td style={{ padding: "7px 0", textAlign: "right" }}>€{preview.hourlyRate?.toFixed(2)}</td></tr>
                 <tr style={{ borderBottom: "2px solid #C9A84C" }}><td style={{ padding: "7px 0", fontWeight: 600 }}>Gross</td><td style={{ padding: "7px 0", textAlign: "right", fontWeight: 600 }}>€{preview.grossPay?.toFixed(2)}</td></tr>
-                <tr style={{ borderBottom: "1px solid #eee" }}><td style={{ padding: "7px 0", color: "#c00" }}>Social (~12.5%)</td><td style={{ padding: "7px 0", textAlign: "right", color: "#c00" }}>−€{preview.socialCharges?.toFixed(2)}</td></tr>
-                <tr style={{ borderBottom: "1px solid #eee" }}><td style={{ padding: "7px 0", color: "#c00" }}>Tax (~15%)</td><td style={{ padding: "7px 0", textAlign: "right", color: "#c00" }}>−€{preview.taxEstimate?.toFixed(2)}</td></tr>
-                <tr><td style={{ padding: "10px 0", fontSize: 18, fontWeight: 700, color: "#C9A84C" }}>Net Pay</td><td style={{ padding: "10px 0", textAlign: "right", fontSize: 18, fontWeight: 700, color: "#C9A84C" }}>€{preview.netPay?.toFixed(2)}</td></tr>
+                <tr><td style={{ padding: "10px 0", fontSize: 18, fontWeight: 700, color: "#C9A84C" }}>Gross Amount</td><td style={{ padding: "10px 0", textAlign: "right", fontSize: 18, fontWeight: 700, color: "#C9A84C" }}>€{preview.grossPay?.toFixed(2)}</td></tr>
               </tbody>
             </table>
-            <div style={{ fontSize: 9, color: "#999", textAlign: "center" }}>Simplified - verify with your accountant for exact Luxembourg calculations.</div>
+            <div style={{ fontSize: 9, color: "#999", textAlign: "center" }}>Gross-only payroll view.</div>
           </div>
         );
       })()}
@@ -2028,48 +2470,266 @@ return (
 );
 }
 
+
+// ==============================================
+// LEAVE MANAGEMENT (CONGÉS) - OWNER
+// ==============================================
+function LeaveManagementPage({ data, updateData, showToast }) {
+const [employeeFilter, setEmployeeFilter] = useState("");
+const [yearFilter, setYearFilter] = useState(getToday().slice(0, 4));
+const [reviewNote, setReviewNote] = useState({});
+
+const requests = (data.timeOffRequests || [])
+.filter(r => (!employeeFilter || r.employeeId === employeeFilter) && (!yearFilter || (r.startDate || "").startsWith(yearFilter)))
+.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+const pendingCount = requests.filter(r => r.status === "pending").length;
+const approvedCount = requests.filter(r => r.status === "approved").length;
+const rejectedCount = requests.filter(r => r.status === "rejected").length;
+
+const reviewRequest = (id, status) => {
+updateData("timeOffRequests", prev => prev.map(r => r.id === id ? {
+...r,
+status,
+reviewedAt: new Date().toISOString(),
+reviewedBy: "owner",
+reviewNote: (reviewNote[id] || "").trim(),
+} : r));
+setReviewNote(prev => ({ ...prev, [id]: "" }));
+showToast(status === "approved" ? "Leave approved" : "Leave rejected", status === "approved" ? "success" : "error");
+};
+
+const summaryRows = data.employees.filter(emp => emp.status === "active").map(emp => ({ emp, ...getLeaveSummary(data, emp.id, yearFilter) }));
+
+return (
+<div>
+<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
+<h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold }}>Congés</h1>
+<div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+<SelectInput value={employeeFilter} onChange={ev => setEmployeeFilter(ev.target.value)} style={{ width: 180 }}>
+<option value="">All Cleaners</option>
+{data.employees.filter(e => e.status === "active").map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+</SelectInput>
+<TextInput type="number" value={yearFilter} onChange={ev => setYearFilter(ev.target.value)} style={{ width: 110 }} />
+</div>
+</div>
+
+<div className="stat-row" style={{ marginBottom: 16 }}>
+<StatCard label="Pending" value={pendingCount} icon={ICN.clock} color={CL.orange} />
+<StatCard label="Approved" value={approvedCount} icon={ICN.check} color={CL.green} />
+<StatCard label="Rejected" value={rejectedCount} icon={ICN.close} color={CL.red} />
+</div>
+
+<div style={{ ...cardSt, marginBottom: 16 }}>
+<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>Holiday Counter</h3>
+<div className="tbl-wrap">
+<table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+<thead><tr><th style={thSt}>Cleaner</th><th style={thSt}>Allowance</th><th style={thSt}>Approved</th><th style={thSt}>Pending</th><th style={thSt}>Remaining</th></tr></thead>
+<tbody>
+{summaryRows.map(row => <tr key={row.emp.id}><td style={tdSt}>{row.emp.name}</td><td style={tdSt}>{row.allowance}d</td><td style={tdSt}>{row.approvedDays}d</td><td style={tdSt}>{row.pendingDays}d</td><td style={{ ...tdSt, fontWeight: 700, color: row.remaining > 5 ? CL.green : CL.orange }}>{row.remaining}d</td></tr>)}
+{summaryRows.length === 0 && <tr><td colSpan={5} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>No active cleaners</td></tr>}
+</tbody>
+</table>
+</div>
+</div>
+
+<div style={cardSt}>
+<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: CL.gold }}>Time-off Requests</h3>
+{requests.map(req => {
+const employee = data.employees.find(e => e.id === req.employeeId);
+const days = req.requestedDays || leaveDaysInclusive(req.startDate, req.endDate);
+return (
+<div key={req.id} style={{ padding: "12px 0", borderBottom: `1px solid ${CL.bd}` }}>
+<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+<div>
+<div style={{ fontWeight: 600 }}>{employee?.name || "Unknown"} · {fmtDate(req.startDate)} - {fmtDate(req.endDate)} ({days}d)</div>
+<div style={{ fontSize: 12, color: CL.muted }}>{req.reason || "No reason"}</div>
+<div style={{ fontSize: 11, color: CL.dim }}>Requested {fmtBoth(req.createdAt)}</div>
+{req.reviewedAt && <div style={{ fontSize: 11, color: CL.dim }}>Reviewed {fmtBoth(req.reviewedAt)} {req.reviewNote ? `· ${req.reviewNote}` : ""}</div>}
+</div>
+<Badge color={req.status === "approved" ? CL.green : req.status === "rejected" ? CL.red : CL.orange}>{req.status}</Badge>
+</div>
+{req.status === "pending" && (
+<div style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+<TextInput value={reviewNote[req.id] || ""} onChange={ev => setReviewNote(v => ({ ...v, [req.id]: ev.target.value }))} placeholder="Optional comment" style={{ minWidth: 220, flex: 1 }} />
+<button style={{ ...btnPri, ...btnSm, background: CL.green }} onClick={() => reviewRequest(req.id, "approved")}>{ICN.check} Approve</button>
+<button style={{ ...btnSec, ...btnSm, color: CL.red }} onClick={() => reviewRequest(req.id, "rejected")}>{ICN.close} Reject</button>
+</div>
+)}
+</div>
+);
+})}
+{requests.length === 0 && <p style={{ color: CL.muted, textAlign: "center" }}>No leave requests found.</p>}
+</div>
+</div>
+);
+}
+
 // ==============================================
 // REMINDERS PAGE
 // ==============================================
 function RemindersPage({ data, showToast }) {
+const [channel, setChannel] = useState("email");
+const [workflowType, setWorkflowType] = useState("all");
+const [selectedOnly, setSelectedOnly] = useState(false);
+const [selectedClientIds, setSelectedClientIds] = useState([]);
+const [campaignFrequency, setCampaignFrequency] = useState("weekly");
+const [campaignChannel, setCampaignChannel] = useState("email");
+const [campaignSubject, setCampaignSubject] = useState("Lux Angels update");
+const [campaignBody, setCampaignBody] = useState("Hello, this is your scheduled client communication from Lux Angels.");
+
+const clients = data.clients.filter(c => c.status === "active");
+
+const toggleClient = (id) => setSelectedClientIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+
+const openEmail = ({ to, subject, body }) => {
+if (!to) { showToast("Client email missing", "error"); return; }
+window.open(`mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
+};
+const openWhatsApp = ({ phone, message }) => {
+if (!phone) { showToast("Client phone missing", "error"); return; }
+const cleaned = String(phone).replace(/[^\d+]/g, "").replace(/^00/, "+");
+window.open(`https://wa.me/${cleaned.replace("+", "")}?text=${encodeURIComponent(message)}`, "_blank");
+};
+const openZohoDraft = ({ to, subject, body }) => {
+if (!to) { showToast("Client email missing", "error"); return; }
+const zohoEmail = data.settings.companyEmail;
+window.open(`mailto:${to}?subject=${encodeURIComponent(`[ZOHO] ${subject}`)}&body=${encodeURIComponent(`${body}\n\nFrom (Zoho configured): ${zohoEmail}`)}`);
+};
+
+const dispatch = (mode, payload, client) => {
+if (mode === "whatsapp") return openWhatsApp({ phone: client.phoneMobile || client.phone, message: payload.body });
+if (mode === "zoho") return openZohoDraft(payload);
+return openEmail(payload);
+};
+
 const tomorrow = new Date(Date.now() + 864e5).toISOString().slice(0, 10);
-const tomorrowScheds = data.schedules.filter(s => s.date === tomorrow);
-const emails = tomorrowScheds.map(sched => {
+const upcomingShiftReminders = data.schedules
+.filter(s => s.date === tomorrow && s.status !== "cancelled")
+.map(sched => {
 const client = data.clients.find(c => c.id === sched.clientId);
 const employee = data.employees.find(e => e.id === sched.employeeId);
-if (!client?.email) return null;
-return { client, employee, sched };
+if (!client) return null;
+return {
+id: `shift-${sched.id}`,
+kind: "work",
+client,
+title: `Upcoming shift reminder · ${client.name}`,
+details: `${fmtDate(sched.date)} ${sched.startTime}-${sched.endTime} · ${employee?.name || "TBA"}`,
+buildPayload: () => ({
+to: client.email,
+subject: `Appointment reminder - ${fmtDate(sched.date)}`,
+body: `Dear ${client.contactPerson || client.name},\n\nReminder for your cleaning appointment:\nDate: ${fmtDate(sched.date)}\nTime: ${sched.startTime}-${sched.endTime}\nCleaner: ${employee?.name || "TBA"}\n\nRegards,\n${data.settings.companyName}`,
+}),
+};
 }).filter(Boolean);
+
+const invoiceSentReminders = (data.invoices || [])
+.filter(inv => inv.status === "sent")
+.map(inv => {
+const client = data.clients.find(c => c.id === inv.clientId);
+if (!client) return null;
+return {
+id: `invoice-${inv.id}`,
+kind: "followup",
+client,
+title: `Invoice sent notification · ${client.name}`,
+details: `${inv.invoiceNumber} · ${fmtDate(inv.date)} · €${(inv.total || 0).toFixed(2)}`,
+buildPayload: () => ({
+to: client.email,
+subject: `Invoice ${inv.invoiceNumber} sent`,
+body: `Dear ${client.contactPerson || client.name},\n\nYour invoice ${inv.invoiceNumber} has been sent.\nAmount: €${(inv.total || 0).toFixed(2)}\nDate: ${fmtDate(inv.date)}\n\nRegards,\n${data.settings.companyName}`,
+}),
+};
+}).filter(Boolean);
+
+const paymentFollowUpReminders = (data.invoices || [])
+.filter(inv => ["sent", "overdue"].includes(inv.status) && inv.dueDate && inv.dueDate < getToday())
+.map(inv => {
+const client = data.clients.find(c => c.id === inv.clientId);
+if (!client) return null;
+return {
+id: `pay-${inv.id}`,
+kind: "followup",
+client,
+title: `Payment follow-up · ${client.name}`,
+details: `${inv.invoiceNumber} due ${fmtDate(inv.dueDate)} · €${(inv.total || 0).toFixed(2)}`,
+buildPayload: () => ({
+to: client.email,
+subject: `Payment follow-up - ${inv.invoiceNumber}`,
+body: `Dear ${client.contactPerson || client.name},\n\nThis is a friendly follow-up for invoice ${inv.invoiceNumber}.\nDue date: ${fmtDate(inv.dueDate)}\nOutstanding amount: €${(inv.total || 0).toFixed(2)}\n\nPlease let us know if payment has already been made.\n\nRegards,\n${data.settings.companyName}`,
+}),
+};
+}).filter(Boolean);
+
+const workflows = [...upcomingShiftReminders, ...invoiceSentReminders, ...paymentFollowUpReminders];
+const filtered = workflows.filter(w => (workflowType === "all" || w.kind === workflowType) && (!selectedOnly || selectedClientIds.includes(w.client.id)));
+
+const sendReminder = (rem) => {
+const payload = rem.buildPayload();
+dispatch(channel, payload, rem.client);
+showToast(`Reminder opened via ${channel}`);
+};
+
+const sendCampaign = () => {
+const recipients = clients.filter(c => selectedClientIds.includes(c.id));
+if (!recipients.length) { showToast("Select at least one client for campaign", "error"); return; }
+recipients.forEach((client, idx) => {
+const payload = {
+to: client.email,
+subject: `[${campaignFrequency.toUpperCase()}] ${campaignSubject}`,
+body: `Dear ${client.contactPerson || client.name},\n\n${campaignBody}\n\nRegards,\n${data.settings.companyName}`,
+};
+setTimeout(() => dispatch(campaignChannel, payload, client), idx * 200);
+});
+showToast(`Campaign opened for ${recipients.length} client(s)`);
+};
 
 return (
 <div>
 <h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold, marginBottom: 5 }}>Reminders</h1>
-<p style={{ color: CL.muted, marginBottom: 16 }}>Tomorrow ({fmtDate(tomorrow)})</p>
-{emails.length === 0 ? (
-<div style={{ ...cardSt, textAlign: "center", padding: 36, color: CL.muted }}>No reminders needed</div>
-) : (
-<div>
-<div style={{ ...cardSt, marginBottom: 12, padding: 12, background: CL.blue + "10", borderColor: CL.blue }}>
-<p style={{ color: CL.blue, fontWeight: 600, margin: 0 }}>{emails.length} reminder(s) ready</p>
+<p style={{ color: CL.muted, marginBottom: 16 }}>Operational reminders + business follow-up + marketing communication workflows.</p>
+
+<div style={{ ...cardSt, marginBottom: 12 }}>
+<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, color: CL.gold }}>Recipient Selection</h3>
+<div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+<button style={{ ...btnSec, ...btnSm }} onClick={() => setSelectedClientIds(clients.map(c => c.id))}>Select all</button>
+<button style={{ ...btnSec, ...btnSm }} onClick={() => setSelectedClientIds([])}>Clear</button>
+<label style={{ fontSize: 12, color: CL.muted, display: "flex", alignItems: "center", gap: 6 }}><input type="checkbox" checked={selectedOnly} onChange={ev => setSelectedOnly(ev.target.checked)} /> Restrict reminders to selected clients only</label>
 </div>
-{emails.map((item, idx) => (
-<div key={idx} style={{ ...cardSt, marginBottom: 8 }}>
-<div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 8 }}>
-<div>
-<div style={{ fontWeight: 600, fontSize: 15 }}>{item.client.name}</div>
-<div style={{ fontSize: 12, color: CL.muted, marginTop: 3 }}>To: {item.client.email} · {item.sched.startTime}-{item.sched.endTime} · {item.employee?.name || "TBA"}</div>
-</div>
-<button style={btnPri} onClick={() => {
-const subject = encodeURIComponent(`Cleaning Reminder - ${fmtDate(item.sched.date)}`);
-const body = encodeURIComponent(`Dear ${item.client.contactPerson || item.client.name},\n\nReminder: cleaning tomorrow.\n\nDate: ${fmtDate(item.sched.date)}\nTime: ${item.sched.startTime}-${item.sched.endTime}\nCleaner: ${item.employee?.name || "TBA"}\n\nTo reschedule: ${data.settings.companyPhone}\n\nBest,\n${data.settings.companyName}`);
-window.open(`mailto:${item.client.email}?subject=${subject}&body=${body}`);
-showToast("Email opened!");
-}}>{ICN.mail} Send</button>
+<div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 6 }}>
+{clients.map(c => <label key={c.id} style={{ fontSize: 12, color: CL.text, display: "flex", gap: 6, alignItems: "center" }}><input type="checkbox" checked={selectedClientIds.includes(c.id)} onChange={() => toggleClient(c.id)} /> {c.name}</label>)}
 </div>
 </div>
-))}
+
+<div style={{ ...cardSt, marginBottom: 12, padding: 12, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+<SelectInput value={workflowType} onChange={ev => setWorkflowType(ev.target.value)} style={{ width: 220 }}>
+<option value="all">All workflows</option>
+<option value="work">Work reminders / upcoming shifts</option>
+<option value="followup">Business follow-up</option>
+</SelectInput>
+<SelectInput value={channel} onChange={ev => setChannel(ev.target.value)} style={{ width: 170 }}>
+<option value="email">Email</option>
+<option value="whatsapp">WhatsApp</option>
+<option value="zoho">Zoho</option>
+</SelectInput>
+<div style={{ fontSize: 12, color: CL.muted }}>Ready reminders: {filtered.length}</div>
 </div>
+
+{filtered.length === 0 ? <div style={{ ...cardSt, textAlign: "center", padding: 26, color: CL.muted }}>No reminders ready for this filter.</div> : (
+<div>{filtered.map(rem => <div key={rem.id} style={{ ...cardSt, marginBottom: 8 }}><div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 8 }}><div><div style={{ fontWeight: 600, fontSize: 15 }}>{rem.title}</div><div style={{ fontSize: 12, color: CL.muted, marginTop: 3 }}>{rem.details}</div><div style={{ fontSize: 12, color: CL.dim, marginTop: 2 }}>{rem.client.email || rem.client.phone || rem.client.phoneMobile || "No contact"}</div></div><button style={btnPri} onClick={() => sendReminder(rem)}>{ICN.mail} Send via {channel}</button></div></div>)}</div>
 )}
+
+<div style={{ ...cardSt, marginTop: 12 }}>
+<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>Email Marketing Campaigns</h3>
+<div className="form-grid">
+<Field label="Frequency"><SelectInput value={campaignFrequency} onChange={ev => setCampaignFrequency(ev.target.value)}><option value="weekly">Weekly</option><option value="monthly">Monthly</option></SelectInput></Field>
+<Field label="Channel"><SelectInput value={campaignChannel} onChange={ev => setCampaignChannel(ev.target.value)}><option value="email">Email</option><option value="whatsapp">WhatsApp</option><option value="zoho">Zoho</option></SelectInput></Field>
+</div>
+<Field label="Campaign subject"><TextInput value={campaignSubject} onChange={ev => setCampaignSubject(ev.target.value)} /></Field>
+<Field label="Campaign content"><TextArea value={campaignBody} onChange={ev => setCampaignBody(ev.target.value)} /></Field>
+<div style={{ display: "flex", justifyContent: "flex-end" }}><button style={btnPri} onClick={sendCampaign}>{ICN.mail} Send Campaign to Selected Clients</button></div>
+</div>
 </div>
 );
 }

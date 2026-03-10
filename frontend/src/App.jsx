@@ -16,7 +16,7 @@ const DEFAULTS = {
 employees: [], clients: [], schedules: [], clockEntries: [], invoices: [], payslips: [],
 ownerPin: "1234", employeePins: {},
 settings: {
-companyName: "Lux Angels Cleaning",
+companyName: "LAC Lux angels cleaning",
 companyAddress: "12 Rue de la Liberté, L-1930 Luxembourg",
 companyEmail: "info@luxangels.lu",
 companyPhone: "+352 123 456",
@@ -423,7 +423,7 @@ return (
 <style>{globalCSS}</style>
 <div style={{ animation: "fadeIn .5s ease", textAlign: "center", width: 380, padding: "0 16px" }}>
 <div style={{ width: 80, height: 80, borderRadius: 24, background: `linear-gradient(135deg, ${CL.gold}, ${CL.goldDark})`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 32, fontWeight: 700, color: CL.bg, fontFamily: "'Cormorant Garamond', serif" }}>LA</div>
-<h1 style={{ fontSize: 30, fontWeight: 700, color: CL.gold, fontFamily: "'Cormorant Garamond', serif", marginBottom: 4 }}>Lux Angels Cleaning</h1>
+<h1 style={{ fontSize: 30, fontWeight: 700, color: CL.gold, fontFamily: "'Cormorant Garamond', serif", marginBottom: 4 }}>LAC Lux angels cleaning</h1>
 <p style={{ color: CL.muted, marginBottom: 30 }}>Management System</p>
 
     {!mode ? (

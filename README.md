@@ -1,4 +1,4 @@
-# Lux Angels Cleaning Management System
+# LAC Lux angels cleaning Management System
 
 A full-stack cleaning business management app built with **React (Vite)** + **Node.js/Express** + **PostgreSQL**.
 

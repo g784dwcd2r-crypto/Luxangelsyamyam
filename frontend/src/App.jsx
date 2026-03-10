@@ -357,8 +357,8 @@ return (
   {/* Desktop Sidebar */}
   <div className="no-print desk-sidebar" style={{ width: sideOpen ? 215 : 54, background: CL.sf, borderRight: `1px solid ${CL.bd}`, flexDirection: "column", transition: "width .2s", overflow: "hidden", flexShrink: 0 }}>
     <div style={{ padding: sideOpen ? "16px 12px" : "16px 8px", borderBottom: `1px solid ${CL.bd}`, display: "flex", alignItems: "center", gap: 9, cursor: "pointer" }} onClick={() => setSideOpen(!sideOpen)}>
-      <div style={{ width: 30, height: 30, borderRadius: 8, background: `linear-gradient(135deg, ${CL.gold}, ${CL.goldDark})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: CL.bg, flexShrink: 0 }}>LA</div>
-      {sideOpen && <div><div style={{ fontSize: 13, fontWeight: 700, color: CL.gold, fontFamily: "'Cormorant Garamond', serif", whiteSpace: "nowrap" }}>Lux Angels</div><div style={{ fontSize: 10, color: CL.muted }}>Owner Portal</div></div>}
+      <div style={{ width: 30, height: 30, borderRadius: 8, background: `linear-gradient(135deg, ${CL.gold}, ${CL.goldDark})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: CL.bg, flexShrink: 0 }}>LAC</div>
+      {sideOpen && <div><div style={{ fontSize: 13, fontWeight: 700, color: CL.gold, fontFamily: "'Cormorant Garamond', serif", whiteSpace: "nowrap" }}>Lux Angels Cleaning</div><div style={{ fontSize: 10, color: CL.muted }}>Owner Portal</div></div>}
     </div>
     <nav style={{ flex: 1, padding: "6px 4px", overflowY: "auto" }}>
       {navItems.map(nav => (
@@ -422,6 +422,8 @@ return (
 <div style={{ minHeight: "100vh", background: CL.bg, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Outfit', sans-serif" }}>
 <style>{globalCSS}</style>
 <div style={{ animation: "fadeIn .5s ease", textAlign: "center", width: 380, padding: "0 16px" }}>
+<div style={{ width: 80, height: 80, borderRadius: 24, background: `linear-gradient(135deg, ${CL.gold}, ${CL.goldDark})`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 32, fontWeight: 700, color: CL.bg, fontFamily: "'Cormorant Garamond', serif" }}>LAC</div>
+<h1 style={{ fontSize: 30, fontWeight: 700, color: CL.gold, fontFamily: "'Cormorant Garamond', serif", marginBottom: 4 }}>Lux Angels Cleaning</h1>
 <div style={{ width: 80, height: 80, borderRadius: 24, background: `linear-gradient(135deg, ${CL.gold}, ${CL.goldDark})`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 32, fontWeight: 700, color: CL.bg, fontFamily: "'Cormorant Garamond', serif" }}>LA</div>
 <h1 style={{ fontSize: 30, fontWeight: 700, color: CL.gold, fontFamily: "'Cormorant Garamond', serif", marginBottom: 4 }}>LAC Lux angels cleaning</h1>
 <p style={{ color: CL.muted, marginBottom: 30 }}>Management System</p>

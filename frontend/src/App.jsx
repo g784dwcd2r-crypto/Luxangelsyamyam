@@ -233,7 +233,7 @@ if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start)
 return Math.floor((end - start) / 86400000) + 1;
 };
 
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || "").trim().replace(/\/$/, "");
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
 const apiUrl = (path) => `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
 
 const getLeaveSummary = (data, employeeId, year = getToday().slice(0, 4)) => {
@@ -724,6 +724,8 @@ const [error, setError] = useState("");
 const norm = (v) => String(v || "").trim().toLowerCase();
 
 const loginWithServer = async ({ user, pass }) => {
+  if (!API_BASE) return false;
+
   const attempts = [
     { role: "owner" },
     { role: "manager", employeeId: user },
@@ -757,13 +759,19 @@ const loginWithServer = async ({ user, pass }) => {
 };
 
 const doLogin = async () => {
-const rawUser = String(username || "").trim();
-const user = norm(rawUser);
+const user = norm(username);
 const pass = String(password || "").trim();
 if (!rawUser || !pass) { setError(lang === "en" ? "Enter username/email and password" : "Saisissez identifiant/email et mot de passe"); return; }
 
 try {
   const authenticatedByServer = await loginWithServer({ user: rawUser, pass });
+  if (authenticatedByServer) return;
+} catch {
+  // fall back to local login when API is unreachable
+}
+
+try {
+  const authenticatedByServer = await loginWithServer({ user, pass });
   if (authenticatedByServer) return;
 } catch {
   // fall back to local login when API is unreachable

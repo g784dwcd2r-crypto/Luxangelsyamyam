@@ -157,7 +157,7 @@ shield: <SvgIcon paths={<><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/
 // -- UI Components --
 const ModalBox = ({ title, onClose, children, wide }) => (
 
-  <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 0 }} onClick={onClose}>
+  <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "20px" }} onClick={onClose}>
     <div className={wide ? "modal-wide" : "modal-normal"} style={{ ...cardSt, overflow: "auto" }} onClick={ev => ev.stopPropagation()}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, position: "sticky", top: 0, background: CL.sf, paddingBottom: 10, zIndex: 1 }}>
         <h2 style={{ margin: 0, fontSize: 20, color: CL.gold, fontFamily: "'Cormorant Garamond', serif" }}>{title}</h2>
@@ -327,9 +327,9 @@ const globalCSS = `
   input:focus, select:focus, textarea:focus { border-color: ${CL.gold} !important; }
   @media print { .no-print { display: none !important; } }
 
-.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
 .stat-row { display: flex; gap: 12px; flex-wrap: wrap; }
 .sched-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
 .cal-layout { display: flex; gap: 16px; flex-wrap: wrap; }
@@ -337,8 +337,8 @@ const globalCSS = `
 .cal-side { flex: 0 0 280px; min-width: 240px; }
 .tbl-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .tbl-wrap table { min-width: 600px; }
-.modal-normal { width: 560px; max-width: 95vw; max-height: 90vh; }
-.modal-wide { width: 680px; max-width: 95vw; max-height: 90vh; }
+.modal-normal { width: 680px; max-width: 96vw; max-height: 92vh; padding: 28px !important; }
+.modal-wide { width: 860px; max-width: 96vw; max-height: 92vh; padding: 30px !important; }
 .desk-sidebar { display: flex; }
 .mob-nav { display: none; }
 .main-content { padding: 22px; }
@@ -355,7 +355,7 @@ const globalCSS = `
 .main-content { padding: 14px 12px 80px 12px; }
 .grid-2, .form-grid { grid-template-columns: 1fr; }
 .stat-row > div { min-width: calc(50% - 8px) !important; flex: 1 1 calc(50% - 8px) !important; }
-.modal-normal, .modal-wide { width: 100% !important; max-width: 100vw !important; max-height: 100vh !important; border-radius: 0 !important; }
+.modal-normal, .modal-wide { width: 100% !important; max-width: 100vw !important; max-height: 100vh !important; border-radius: 0 !important; padding: 18px !important; }
 }
 @media (max-width: 480px) {
 .sched-grid { grid-template-columns: repeat(7, 1fr); }

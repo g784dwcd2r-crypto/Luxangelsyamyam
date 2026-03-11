@@ -22,13 +22,19 @@ fr: {
 language: "Langue", french: "Français", english: "Anglais", login: "Connexion", welcome: "Bienvenue", selectRole: "Rôle", pin: "Code PIN", loginBtn: "Se connecter",
 dashboard: "Tableau de bord", employees: "Employés", clients: "Clients", schedule: "Planning", timeclock: "Pointage", inventory: "Stock", devis: "Devis", invoices: "Factures", payslips: "Fiches de paie", conges: "Congés", reminders: "Rappels", reports: "Rapports", database: "Excel DB", settings: "Paramètres",
 newQuote: "Nouveau devis", editQuote: "Modifier devis", newInvoice: "Nouvelle facture", editInvoice: "Modifier facture", save: "Enregistrer", cancel: "Annuler", actions: "Actions", status: "Statut", client: "Client", date: "Date", amount: "Montant", view: "Voir", sendEmail: "Envoyer email", draft: "Brouillon", sent: "Envoyée", paid: "Payée", overdue: "En retard", auto: "Auto", select: "Sélectionner...", prestationDate: "Date de prestation",
-invoice: "Facture", quote: "Devis", dueDate: "Date échéance", notes: "Notes", total: "Total", subtotal: "Sous-total", vat: "TVA", item: "Ligne", qty: "Qté", unitPrice: "Prix unitaire", description: "Description"
+invoice: "Facture", quote: "Devis", dueDate: "Date échéance", notes: "Notes", total: "Total", subtotal: "Sous-total", vat: "TVA", item: "Ligne", qty: "Qté", unitPrice: "Prix unitaire", description: "Description",
+managementSystem: "Système de gestion", ownerAccess: "Accès propriétaire", ownerAccessDesc: "Tableau de gestion complet", cleanerAccess: "Accès agent", cleanerAccessDesc: "Planning, heures, pointage et congés",
+back: "Retour", ownerLogin: "Connexion propriétaire", cleanerLogin: "Connexion agent", yourName: "Votre nom", choose: "Choisir...", logout: "Déconnexion",
+mySchedule: "Mon planning", clockInOut: "Pointage entrée/sortie", photoUploads: "Photos", products: "Produits", upcomingJobs: "Interventions à venir", noUpcomingJobs: "Aucune intervention à venir"
 },
 en: {
 language: "Language", french: "French", english: "English", login: "Login", welcome: "Welcome", selectRole: "Role", pin: "PIN", loginBtn: "Sign in",
 dashboard: "Dashboard", employees: "Employees", clients: "Clients", schedule: "Schedule", timeclock: "Time Clock", inventory: "Inventory", devis: "Quotes", invoices: "Invoices", payslips: "Payslips", conges: "Leave", reminders: "Reminders", reports: "Reports", database: "Excel DB", settings: "Settings",
 newQuote: "New quote", editQuote: "Edit quote", newInvoice: "New invoice", editInvoice: "Edit invoice", save: "Save", cancel: "Cancel", actions: "Actions", status: "Status", client: "Client", date: "Date", amount: "Amount", view: "View", sendEmail: "Send email", draft: "Draft", sent: "Sent", paid: "Paid", overdue: "Overdue", auto: "Auto", select: "Select...", prestationDate: "Service date",
-invoice: "Invoice", quote: "Quote", dueDate: "Due date", notes: "Notes", total: "Total", subtotal: "Subtotal", vat: "VAT", item: "Item", qty: "Qty", unitPrice: "Unit price", description: "Description"
+invoice: "Invoice", quote: "Quote", dueDate: "Due date", notes: "Notes", total: "Total", subtotal: "Subtotal", vat: "VAT", item: "Item", qty: "Qty", unitPrice: "Unit price", description: "Description",
+managementSystem: "Management System", ownerAccess: "Owner Access", ownerAccessDesc: "Full management dashboard", cleanerAccess: "Cleaner Access", cleanerAccessDesc: "Schedule, hours, clock & time-off",
+back: "Back", ownerLogin: "Owner Login", cleanerLogin: "Cleaner Login", yourName: "Your Name", choose: "Choose...", logout: "Logout",
+mySchedule: "My Schedule", clockInOut: "Clock In/Out", photoUploads: "Photo Uploads", products: "Products", upcomingJobs: "Upcoming Jobs", noUpcomingJobs: "No upcoming jobs"
 }
 };
 const LanguageContext = createContext({ lang: "fr", setLang: () => {}, t: (k) => k });
@@ -523,30 +529,28 @@ return (
 <div style={{ animation: "fadeIn .5s ease", textAlign: "center", width: 380, padding: "0 16px" }}>
 <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}><LanguageSwitcher /></div>
 <div style={{ width: 80, height: 80, borderRadius: 24, background: `linear-gradient(135deg, ${CL.gold}, ${CL.goldDark})`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 32, fontWeight: 700, color: CL.bg, fontFamily: "'Cormorant Garamond', serif" }}>LAC</div>
-<h1 style={{ fontSize: 30, fontWeight: 700, color: CL.gold, fontFamily: "'Cormorant Garamond', serif", marginBottom: 4 }}>Lux Angels Cleaning</h1>
-<div style={{ width: 80, height: 80, borderRadius: 24, background: `linear-gradient(135deg, ${CL.gold}, ${CL.goldDark})`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 32, fontWeight: 700, color: CL.bg, fontFamily: "'Cormorant Garamond', serif" }}>LA</div>
-<h1 style={{ fontSize: 30, fontWeight: 700, color: CL.gold, fontFamily: "'Cormorant Garamond', serif", marginBottom: 4 }}>LAC Lux angels cleaning</h1>
-<p style={{ color: CL.muted, marginBottom: 30 }}>{lang === "en" ? "Management System" : "Système de gestion"}</p>
+<h1 style={{ fontSize: 30, fontWeight: 700, color: CL.gold, fontFamily: "'Cormorant Garamond', serif", marginBottom: 4 }}>{data.settings?.companyName || "Lux Angels Cleaning"}</h1>
+<p style={{ color: CL.muted, marginBottom: 30 }}>{t("managementSystem")}</p>
 
     {!mode ? (
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <button onClick={() => setMode("owner")} style={{ ...cardSt, padding: "16px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 13, border: `1px solid ${CL.bd}`, textAlign: "left" }}>
           <div style={{ width: 44, height: 44, borderRadius: 12, background: CL.gold + "15", display: "flex", alignItems: "center", justifyContent: "center", color: CL.gold, flexShrink: 0 }}>{ICN.shield}</div>
-          <div><div style={{ fontWeight: 600, color: CL.text, fontSize: 15 }}>Owner Access</div><div style={{ fontSize: 12, color: CL.muted }}>Full management dashboard</div></div>
+          <div><div style={{ fontWeight: 600, color: CL.text, fontSize: 15 }}>{t("ownerAccess")}</div><div style={{ fontSize: 12, color: CL.muted }}>{t("ownerAccessDesc")}</div></div>
         </button>
         <button onClick={() => setMode("cleaner")} style={{ ...cardSt, padding: "16px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 13, border: `1px solid ${CL.bd}`, textAlign: "left" }}>
           <div style={{ width: 44, height: 44, borderRadius: 12, background: CL.blue + "15", display: "flex", alignItems: "center", justifyContent: "center", color: CL.blue, flexShrink: 0 }}>{ICN.user}</div>
-          <div><div style={{ fontWeight: 600, color: CL.text, fontSize: 15 }}>Cleaner Access</div><div style={{ fontSize: 12, color: CL.muted }}>Schedule, hours, clock & time-off</div></div>
+          <div><div style={{ fontWeight: 600, color: CL.text, fontSize: 15 }}>{t("cleanerAccess")}</div><div style={{ fontSize: 12, color: CL.muted }}>{t("cleanerAccessDesc")}</div></div>
         </button>
       </div>
     ) : (
       <div style={{ ...cardSt, textAlign: "left" }}>
-        <button onClick={() => { setMode(null); setPin(""); setError(""); setSelEmp(""); }} style={{ background: "none", border: "none", color: CL.muted, cursor: "pointer", fontSize: 13, marginBottom: 12 }}>← {lang === "en" ? "Back" : "Retour"}</button>
-        <h3 style={{ fontFamily: "'Cormorant Garamond', serif", color: mode === "owner" ? CL.gold : CL.blue, fontSize: 20, marginBottom: 16 }}>{mode === "owner" ? (lang === "en" ? "Owner Login" : "Connexion Propriétaire") : (lang === "en" ? "Cleaner Login" : "Connexion Agent")}</h3>
+        <button onClick={() => { setMode(null); setPin(""); setError(""); setSelEmp(""); }} style={{ background: "none", border: "none", color: CL.muted, cursor: "pointer", fontSize: 13, marginBottom: 12 }}>← {t("back")}</button>
+        <h3 style={{ fontFamily: "'Cormorant Garamond', serif", color: mode === "owner" ? CL.gold : CL.blue, fontSize: 20, marginBottom: 16 }}>{mode === "owner" ? t("ownerLogin") : t("cleanerLogin")}</h3>
         {mode === "cleaner" && (
-          <Field label={lang === "en" ? "Your Name" : "Votre nom"}>
+          <Field label={t("yourName")}>
             <SelectInput value={selEmp} onChange={ev => setSelEmp(ev.target.value)}>
-              <option value="">{lang === "en" ? "Choose..." : "Choisir..."}</option>
+              <option value="">{t("choose")}</option>
               {data.employees.filter(emp => emp.status === "active").map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
             </SelectInput>
           </Field>
@@ -675,10 +679,10 @@ showToast("Product request sent");
 };
 
 const tabItems = [
-{ id: "schedule", label: "My Schedule", icon: ICN.cal },
-{ id: "clock", label: "Clock In/Out", icon: ICN.clock },
-{ id: "photos", label: "Photo Uploads", icon: ICN.doc },
-{ id: "products", label: "Products", icon: ICN.doc },
+{ id: "schedule", label: t("mySchedule"), icon: ICN.cal },
+{ id: "clock", label: t("clockInOut"), icon: ICN.clock },
+{ id: "photos", label: t("photoUploads"), icon: ICN.doc },
+{ id: "products", label: t("products"), icon: ICN.doc },
 { id: "timeoff", label: "Congés", icon: ICN.cal },
 ];
 
@@ -692,7 +696,7 @@ return (
 <div style={{ width: 32, height: 32, borderRadius: 9, background: CL.blue + "20", display: "flex", alignItems: "center", justifyContent: "center", color: CL.blue }}>{ICN.user}</div>
 <div><div style={{ fontWeight: 600, fontSize: 14 }}>{emp?.name || "Cleaner"}</div><div style={{ fontSize: 10, color: CL.muted }}>{emp?.role}</div></div>
 </div>
-<div style={{ display: "flex", alignItems: "center", gap: 8 }}><LanguageSwitcher compact /><button onClick={onLogout} style={{ ...btnSec, ...btnSm, color: CL.red }}>{ICN.logout} {lang === "en" ? "Logout" : "Déconnexion"}</button></div>
+<div style={{ display: "flex", alignItems: "center", gap: 8 }}><LanguageSwitcher compact /><button onClick={onLogout} style={{ ...btnSec, ...btnSm, color: CL.red }}>{ICN.logout} {t("logout")}</button></div>
 </div>
 {/* Tabs */}
 <div style={{ display: "flex", background: CL.sf, borderBottom: `1px solid ${CL.bd}`, overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
@@ -704,8 +708,8 @@ return (
 <div style={{ padding: 18, maxWidth: 800, margin: "0 auto" }}>
 {tab === "schedule" && (
 <div>
-<h2 style={{ fontFamily: "'Cormorant Garamond', serif", color: CL.blue, fontSize: 22, marginBottom: 14 }}>Upcoming Jobs</h2>
-{upcoming.length === 0 ? <div style={{ ...cardSt, textAlign: "center", padding: 36, color: CL.muted }}>No upcoming jobs</div> :
+<h2 style={{ fontFamily: "'Cormorant Garamond', serif", color: CL.blue, fontSize: 22, marginBottom: 14 }}>{t("upcomingJobs")}</h2>
+{upcoming.length === 0 ? <div style={{ ...cardSt, textAlign: "center", padding: 36, color: CL.muted }}>{t("noUpcomingJobs")}</div> :
 upcoming.slice(0, 20).map(sched => {
 const client = data.clients.find(c => c.id === sched.clientId);
 return (

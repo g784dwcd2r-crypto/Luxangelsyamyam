@@ -1443,6 +1443,21 @@ if (viewMonth === 11) { setViewYear(viewYear + 1); setViewMonth(0); }
 else setViewMonth(viewMonth + 1);
 };
 const goToday = () => { setViewYear(now.getFullYear()); setViewMonth(now.getMonth()); };
+const jumpToDate = (dateObj) => {
+setViewYear(dateObj.getFullYear());
+setViewMonth(dateObj.getMonth());
+setSelectedDate(dateObj.getDate());
+};
+const goTomorrow = () => {
+const tomorrow = new Date();
+tomorrow.setDate(tomorrow.getDate() + 1);
+jumpToDate(tomorrow);
+};
+const goNextWeek = () => {
+const nextWeek = new Date();
+nextWeek.setDate(nextWeek.getDate() + 7);
+jumpToDate(nextWeek);
+};
 
 const monthSchedules = data.schedules.filter(s => {
 if (!s.date?.startsWith(monthStr)) return false;
@@ -1470,11 +1485,33 @@ showToast("Updated");
 } else {
 const items = [{ ...schedData, id: makeId() }];
 if (schedData.recurrence !== "none") {
+const baseDate = new Date(schedData.date);
+if (schedData.recurrence === "daily") {
+for (let i = 1; i <= 30; i++) {
+const d = new Date(baseDate);
+d.setDate(d.getDate() + i);
+items.push({ ...schedData, id: makeId(), date: d.toISOString().slice(0, 10) });
+}
+} else if (schedData.recurrence === "daily-weekdays") {
+let added = 0;
+let offset = 1;
+while (added < 30) {
+const d = new Date(baseDate);
+d.setDate(d.getDate() + offset);
+const dayOfWeek = d.getDay();
+if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+items.push({ ...schedData, id: makeId(), date: d.toISOString().slice(0, 10) });
+added++;
+}
+offset++;
+}
+} else {
 const interval = schedData.recurrence === "weekly" ? 7 : schedData.recurrence === "biweekly" ? 14 : 28;
 for (let i = 1; i <= 12; i++) {
-const d = new Date(schedData.date);
+const d = new Date(baseDate);
 d.setDate(d.getDate() + interval * i);
 items.push({ ...schedData, id: makeId(), date: d.toISOString().slice(0, 10) });
+}
 }
 }
 updateData("schedules", prev => [...prev, ...items]);
@@ -1499,6 +1536,8 @@ return (
 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
 <button onClick={prevMonth} style={{ ...btnSec, ...btnSm, padding: "8px 14px", fontSize: 16 }}>‹</button>
 <button onClick={goToday} style={{ ...btnSec, ...btnSm }}>Today</button>
+<button onClick={goTomorrow} style={{ ...btnSec, ...btnSm }}>Tomorrow</button>
+<button onClick={goNextWeek} style={{ ...btnSec, ...btnSm }}>Next Week</button>
 <button onClick={nextMonth} style={{ ...btnSec, ...btnSm, padding: "8px 14px", fontSize: 16 }}>›</button>
 <h2 style={{ margin: 0, fontSize: 20, fontFamily: "'Cormorant Garamond', serif", color: CL.text, marginLeft: 8 }}>{monthLabel}</h2>
 </div>
@@ -1632,7 +1671,7 @@ return (
 {!form.id && (
 <Field label="Recurrence">
 <SelectInput value={form.recurrence} onChange={ev => set("recurrence", ev.target.value)}>
-<option value="none">One-time</option><option value="weekly">Weekly (12 weeks)</option><option value="biweekly">Bi-weekly (12x)</option><option value="monthly">Monthly (12 months)</option>
+<option value="none">One-time</option><option value="daily">Daily (weekends included)</option><option value="daily-weekdays">Daily (weekdays only)</option><option value="weekly">Weekly (12 weeks)</option><option value="biweekly">Bi-weekly (12x)</option><option value="monthly">Monthly (12 months)</option>
 </SelectInput>
 </Field>
 )}

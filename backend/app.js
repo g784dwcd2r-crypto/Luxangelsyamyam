@@ -3,6 +3,8 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const rateLimit = require('express-rate-limit');
+const fs = require('fs');
+const path = require('path');
 const pool = require('./db');
 
 const app = express();
@@ -597,9 +599,27 @@ app.put('/api/settings', async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// Start server
+// Start server — initialize schema on first boot if tables are missing
 // ---------------------------------------------------------------------------
+async function initDb() {
+  try {
+    const { rows } = await pool.query(
+      "SELECT to_regclass('public.settings') AS exists"
+    );
+    if (!rows[0].exists) {
+      console.log('Database tables not found — running schema initialization…');
+      const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
+      await pool.query(schema);
+      console.log('Schema initialized successfully.');
+    }
+  } catch (err) {
+    console.error('Schema initialization failed:', err.message);
+  }
+}
+
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+initDb().then(() => {
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
 });

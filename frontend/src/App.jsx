@@ -522,11 +522,12 @@ return (
 // LOGIN SCREEN
 // ==============================================
 function LoginScreen({ data, onAuth }) {
-const { t, lang } = useI18n();
-const [mode, setMode] = useState(null);
-const [pin, setPin] = useState("");
-const [selEmp, setSelEmp] = useState("");
+const { lang } = useI18n();
+const [username, setUsername] = useState("");
+const [password, setPassword] = useState("");
 const [error, setError] = useState("");
+
+const norm = (v) => String(v || "").trim().toLowerCase();
 
 const doLogin = () => {
 if (mode === "owner") {
@@ -541,12 +542,18 @@ const correctPin = data.employeePins?.[selEmp] || "0000";
 if (pin === correctPin) onAuth({ role: "cleaner", employeeId: selEmp });
 else setError(lang === "en" ? "Wrong PIN" : "PIN incorrect");
 }
+
+const employee = data.employees.find(emp => emp.status === "active" && (norm(emp.email) === user || norm(emp.name) === user));
+if (!employee) { setError(lang === "en" ? "User not found" : "Utilisateur introuvable"); return; }
+const correctPin = data.employeePins?.[employee.id] || "0000";
+if (pass === String(correctPin)) onAuth({ role: "cleaner", employeeId: employee.id });
+else setError(lang === "en" ? "Wrong password" : "Mot de passe incorrect");
 };
 
 return (
 <div style={{ minHeight: "100vh", background: CL.bg, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Outfit', sans-serif" }}>
 <style>{globalCSS}</style>
-<div style={{ animation: "fadeIn .5s ease", textAlign: "center", width: 380, padding: "0 16px" }}>
+<div style={{ animation: "fadeIn .5s ease", width: 420, maxWidth: "95vw", padding: "0 16px" }}>
 <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}><LanguageSwitcher /></div>
 <div style={{ width: 80, height: 80, borderRadius: 24, background: `linear-gradient(135deg, ${CL.gold}, ${CL.goldDark})`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 32, fontWeight: 700, color: CL.bg, fontFamily: "'Cormorant Garamond', serif" }}>LAC</div>
 <h1 style={{ fontSize: 30, fontWeight: 700, color: CL.gold, fontFamily: "'Cormorant Garamond', serif", marginBottom: 4 }}>{data.settings?.companyName || "Lux Angels Cleaning"}</h1>
@@ -588,6 +595,20 @@ return (
       </div>
     )}
   </div>
+
+  <Field label="Username or email">
+    <TextInput value={username} onChange={ev => { setUsername(ev.target.value); setError(""); }} placeholder="owner email / manager / cleaner username" onKeyDown={ev => ev.key === "Enter" && doLogin()} />
+  </Field>
+
+  <Field label="Password">
+    <TextInput type="password" maxLength={24} value={password} onChange={ev => { setPassword(ev.target.value); setError(""); }} placeholder="••••••" onKeyDown={ev => ev.key === "Enter" && doLogin()} />
+  </Field>
+
+  {error && <div style={{ color: CL.red, fontSize: 13, marginBottom: 10, textAlign: "center" }}>{error}</div>}
+  <button onClick={doLogin} style={{ ...btnPri, width: "100%", justifyContent: "center", background: CL.gold }}>Sign in securely</button>
+  <p style={{ marginTop: 10, fontSize: 11, color: CL.dim, textAlign: "center" }}>Use your assigned credentials only.</p>
+</div>
+</div>
 </div>
 
 );

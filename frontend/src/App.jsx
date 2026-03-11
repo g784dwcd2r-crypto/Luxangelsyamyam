@@ -761,7 +761,14 @@ const loginWithServer = async ({ user, pass }) => {
 const doLogin = async () => {
 const user = norm(username);
 const pass = String(password || "").trim();
-if (!user || !pass) { setError(lang === "en" ? "Enter username/email and password" : "Saisissez identifiant/email et mot de passe"); return; }
+if (!rawUser || !pass) { setError(lang === "en" ? "Enter username/email and password" : "Saisissez identifiant/email et mot de passe"); return; }
+
+try {
+  const authenticatedByServer = await loginWithServer({ user: rawUser, pass });
+  if (authenticatedByServer) return;
+} catch {
+  // fall back to local login when API is unreachable
+}
 
 try {
   const authenticatedByServer = await loginWithServer({ user, pass });

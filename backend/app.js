@@ -98,8 +98,8 @@ app.post('/api/auth/pin-login', async (req, res) => {
         "SELECT key, value FROM settings WHERE key IN ('ownerPin', 'ownerUsername')"
       );
       const ownerSettings = Object.fromEntries(result.rows.map(r => [r.key, String(r.value || '').trim()]));
-      const ownerPin = ownerSettings.ownerPin || '1234';
-      const ownerUsername = (ownerSettings.ownerUsername || '').toLowerCase();
+      const ownerPin = (ownerSettings.ownerPin || '1234').trim();
+      const ownerUsername = (ownerSettings.ownerUsername || '').trim().toLowerCase();
 
       // If an ownerUsername is configured, require it to match
       if (ownerUsername && accountIdentifier && accountIdentifier.toLowerCase() !== ownerUsername) {
@@ -114,7 +114,7 @@ app.post('/api/auth/pin-login', async (req, res) => {
         "SELECT key, value FROM settings WHERE key IN ('managerPin', 'managerUsername', 'companyEmail')"
       );
       const settings = Object.fromEntries(settingsResult.rows.map(r => [r.key, String(r.value || '').trim()]));
-      const managerPin = settings.managerPin || '4321';
+      const managerPin = (settings.managerPin || '4321').trim();
       const managerUsername = (settings.managerUsername || 'manager').toLowerCase();
       const managerAliases = [managerUsername, (settings.companyEmail || '').toLowerCase()].filter(Boolean);
       if (accountIdentifier && !managerAliases.includes(accountIdentifier.toLowerCase())) {
@@ -240,7 +240,7 @@ app.put('/api/employees/:id/pin', async (req, res) => {
     if (oldPin !== undefined) {
       const check = await pool.query('SELECT pin FROM employees WHERE id=$1', [req.params.id]);
       if (!check.rows.length) return res.status(404).json({ error: 'Employee not found' });
-      if (check.rows[0].pin !== oldPin) return res.status(401).json({ error: 'Old PIN is incorrect' });
+      if (String(check.rows[0].pin).trim() !== String(oldPin).trim()) return res.status(401).json({ error: 'Old PIN is incorrect' });
     }
 
     const result = await pool.query('UPDATE employees SET pin=$1 WHERE id=$2 RETURNING id', [pin, req.params.id]);

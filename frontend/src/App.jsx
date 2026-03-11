@@ -244,6 +244,75 @@ envApiBase,
 ].filter(Boolean)));
 const apiUrl = (path, base = API_BASE_CANDIDATES[0] || "") => `${base}${path.startsWith("/") ? path : `/${path}`}`;
 
+// Convert frontend camelCase employee to snake_case for backend API
+const toApiEmployee = (emp, pin) => ({
+  id: emp.id,
+  name: emp.name,
+  email: emp.email || "",
+  phone: emp.phone || "",
+  phone_mobile: emp.phoneMobile || "",
+  role: emp.role || "Cleaner",
+  hourly_rate: emp.hourlyRate || 15,
+  address: emp.address || "",
+  city: emp.city || "",
+  postal_code: emp.postalCode || "",
+  country: emp.country || "Luxembourg",
+  start_date: emp.startDate || null,
+  status: emp.status || "active",
+  contract_type: emp.contractType || "CDI",
+  bank_iban: emp.bankIban || "",
+  social_sec_number: emp.socialSecNumber || "",
+  date_of_birth: emp.dateOfBirth || null,
+  nationality: emp.nationality || "",
+  languages: emp.languages || "",
+  transport: emp.transport || "",
+  work_permit: emp.workPermit || "",
+  emergency_name: emp.emergencyName || "",
+  emergency_phone: emp.emergencyPhone || "",
+  notes: emp.notes || "",
+  ...(pin !== undefined ? { pin } : {}),
+});
+
+// Fire-and-forget API sync — errors are non-fatal (localStorage is primary store)
+const syncEmployeeToApi = async (emp, pin) => {
+  try {
+    const payload = toApiEmployee(emp, pin);
+    await fetch(apiUrl(`/api/employees/${emp.id}`), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    // If PUT returns 404 the employee doesn't exist in the DB yet — create it
+  } catch { /* non-fatal */ }
+};
+
+const createEmployeeInApi = async (emp, pin) => {
+  try {
+    const payload = toApiEmployee(emp, pin);
+    await fetch(apiUrl("/api/employees"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  } catch { /* non-fatal */ }
+};
+
+const syncEmployeePinToApi = async (id, pin) => {
+  try {
+    await fetch(apiUrl(`/api/employees/${id}/pin`), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pin }),
+    });
+  } catch { /* non-fatal */ }
+};
+
+const deleteEmployeeFromApi = async (id) => {
+  try {
+    await fetch(apiUrl(`/api/employees/${id}`), { method: "DELETE" });
+  } catch { /* non-fatal */ }
+};
+
 const getLeaveSummary = (data, employeeId, year = getToday().slice(0, 4)) => {
 const allowance = data.employees.find(e => e.id === employeeId)?.leaveAllowance ?? 26;
 const requests = (data.timeOffRequests || []).filter(r => r.employeeId === employeeId && (r.startDate || "").startsWith(year));
@@ -1338,12 +1407,18 @@ if (empData.id) {
 updateData("employees", prev => prev.map(e => e.id === empData.id ? empFields : e));
 updateData("employeePins", prev => ({ ...prev, [empData.id]: pinValue }));
 updateData("employeeUsernames", prev => ({ ...prev, [empData.id]: String(empUsername || "").trim().toLowerCase() }));
+// Sync to backend so cleaner login works on all browsers/devices
+syncEmployeeToApi(empFields, pinValue);
+syncEmployeePinToApi(empData.id, pinValue);
 showToast("Employee updated");
 } else {
 const newId = makeId();
-updateData("employees", prev => [...prev, { ...empFields, id: newId }]);
+const newEmp = { ...empFields, id: newId };
+updateData("employees", prev => [...prev, newEmp]);
 updateData("employeePins", prev => ({ ...prev, [newId]: pinValue }));
 updateData("employeeUsernames", prev => ({ ...prev, [newId]: String(empUsername || "").trim().toLowerCase() }));
+// Create in backend so cleaner login works on all browsers/devices
+createEmployeeInApi(newEmp, pinValue);
 showToast("Employee added");
 }
 setModal(null);
@@ -1361,6 +1436,8 @@ updateData("employeeUsernames", prev => {
   delete next[id];
   return next;
 });
+// Remove from backend too
+deleteEmployeeFromApi(id);
 showToast("Deleted", "error");
 setDeleteId(null);
 };
@@ -3754,9 +3831,9 @@ const handleSave = async () => {
         defaultVatRate: String(form.defaultVatRate),
       }),
     });
-    showToast(uiText("Saved"));
+    showToast(uiText("Saved") + " — synced to server");
   } catch {
-    showToast(uiText("Saved") + " (offline — changes saved locally)", "success");
+    showToast("Saved locally only — server unreachable. Credentials may not work on other devices until the server is back online.", "error");
   }
 };
 

@@ -118,12 +118,12 @@ text: "#E4E6ED", muted: "#838AA3", dim: "#525976", white: "#FFF",
 };
 
 // -- Base Styles --
-const inputSt = { width: "100%", padding: "10px 14px", background: CL.sf, border: `1px solid ${CL.bd}`, borderRadius: 8, color: CL.text, fontSize: 14, outline: "none", boxSizing: "border-box" };
+const inputSt = { width: "100%", padding: "12px 16px", background: CL.sf, border: `1px solid ${CL.bd}`, borderRadius: 10, color: CL.text, fontSize: 14, outline: "none", boxSizing: "border-box" };
 const btnPri = { padding: "10px 20px", background: CL.gold, color: CL.bg, border: "none", borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8 };
 const btnSec = { ...btnPri, background: CL.s2, color: CL.text, border: `1px solid ${CL.bd}` };
 const btnDng = { ...btnPri, background: CL.red, color: CL.white };
 const btnSm = { padding: "6px 12px", fontSize: 13 };
-const cardSt = { background: CL.sf, border: `1px solid ${CL.bd}`, borderRadius: 12, padding: 24 };
+const cardSt = { background: CL.sf, border: `1px solid ${CL.bd}`, borderRadius: 14, padding: 28 };
 const thSt = { textAlign: "left", padding: "10px 14px", color: CL.muted, fontWeight: 500, fontSize: 11, textTransform: "uppercase", letterSpacing: ".06em", borderBottom: `1px solid ${CL.bd}` };
 const tdSt = { padding: "10px 14px", borderBottom: `1px solid ${CL.bd}`, color: CL.text, fontSize: 14 };
 
@@ -157,9 +157,9 @@ shield: <SvgIcon paths={<><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/
 // -- UI Components --
 const ModalBox = ({ title, onClose, children, wide }) => (
 
-  <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "20px" }} onClick={onClose}>
+  <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "30px" }} onClick={onClose}>
     <div className={wide ? "modal-wide" : "modal-normal"} style={{ ...cardSt, overflow: "auto" }} onClick={ev => ev.stopPropagation()}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, position: "sticky", top: 0, background: CL.sf, paddingBottom: 10, zIndex: 1 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24, position: "sticky", top: 0, background: CL.sf, paddingBottom: 14, zIndex: 1 }}>
         <h2 style={{ margin: 0, fontSize: 20, color: CL.gold, fontFamily: "'Cormorant Garamond', serif" }}>{title}</h2>
         <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: CL.muted, padding: 8 }}>{ICN.close}</button>
       </div>
@@ -327,21 +327,21 @@ const globalCSS = `
   input:focus, select:focus, textarea:focus { border-color: ${CL.gold} !important; }
   @media print { .no-print { display: none !important; } }
 
-.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
-.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-.stat-row { display: flex; gap: 12px; flex-wrap: wrap; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+.stat-row { display: flex; gap: 16px; flex-wrap: wrap; }
 .sched-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
-.cal-layout { display: flex; gap: 16px; flex-wrap: wrap; }
+.cal-layout { display: flex; gap: 22px; flex-wrap: wrap; }
 .cal-main { flex: 1 1 600px; min-width: 0; }
 .cal-side { flex: 0 0 280px; min-width: 240px; }
 .tbl-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-.tbl-wrap table { min-width: 600px; }
-.modal-normal { width: 680px; max-width: 96vw; max-height: 92vh; padding: 28px !important; }
-.modal-wide { width: 860px; max-width: 96vw; max-height: 92vh; padding: 30px !important; }
+.tbl-wrap table { min-width: 680px; }
+.modal-normal { width: 760px; max-width: 95vw; max-height: 94vh; padding: 36px !important; }
+.modal-wide { width: 1020px; max-width: 95vw; max-height: 94vh; padding: 38px !important; }
 .desk-sidebar { display: flex; }
 .mob-nav { display: none; }
-.main-content { padding: 22px; }
+.main-content { padding: 30px; }
 
 @media (max-width: 1024px) {
 .sched-grid { grid-template-columns: repeat(7, 1fr); }
@@ -352,16 +352,16 @@ const globalCSS = `
 .desk-sidebar { display: none !important; }
 .mob-nav { display: flex; position: fixed; bottom: 0; left: 0; right: 0; z-index: 900; background: ${CL.sf}; border-top: 1px solid ${CL.bd}; padding: 4px 0; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .mob-nav button { flex: none; padding: 6px 8px; display: flex; flex-direction: column; align-items: center; gap: 2px; border: none; background: transparent; cursor: pointer; font-size: 9px; min-width: 52px; white-space: nowrap; font-family: 'Outfit', sans-serif; }
-.main-content { padding: 14px 12px 80px 12px; }
+.main-content { padding: 18px 16px 84px 16px; }
 .grid-2, .form-grid { grid-template-columns: 1fr; }
 .stat-row > div { min-width: calc(50% - 8px) !important; flex: 1 1 calc(50% - 8px) !important; }
-.modal-normal, .modal-wide { width: 100% !important; max-width: 100vw !important; max-height: 100vh !important; border-radius: 0 !important; padding: 18px !important; }
+.modal-normal, .modal-wide { width: 100% !important; max-width: 100vw !important; max-height: 100vh !important; border-radius: 0 !important; padding: 22px !important; }
 }
 @media (max-width: 480px) {
 .sched-grid { grid-template-columns: repeat(7, 1fr); }
 .grid-3 { grid-template-columns: 1fr; }
 .stat-row > div { min-width: 100% !important; flex: 1 1 100% !important; }
-.main-content { padding: 10px 8px 80px 8px; }
+.main-content { padding: 14px 10px 82px 10px; }
 }
 `;
 

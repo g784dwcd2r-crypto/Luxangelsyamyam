@@ -733,11 +733,13 @@ const { lang, t } = useI18n();
 const [username, setUsername] = useState("");
 const [password, setPassword] = useState("");
 const [error, setError] = useState("");
+const [isSubmitting, setIsSubmitting] = useState(false);
 
 const norm = (v) => String(v || "").trim().toLowerCase();
 
 const loginWithServer = async ({ user, pass }) => {
   if (!API_BASE_CANDIDATES.length) return false;
+  const REQUEST_TIMEOUT_MS = 2500;
 
   const attempts = [
     { role: "owner" },
@@ -748,18 +750,28 @@ const loginWithServer = async ({ user, pass }) => {
   for (const baseUrl of API_BASE_CANDIDATES) {
     for (const payload of attempts) {
       let res;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
       try {
         res = await fetch(apiUrl("/api/auth/pin-login", baseUrl), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ ...payload, pin: pass }),
+          signal: controller.signal,
         });
+      } catch {
+        clearTimeout(timeoutId);
+        continue;
+      }
+      clearTimeout(timeoutId);
+
+      if (!res.ok) continue;
+      let body = null;
+      try {
+        body = await res.json();
       } catch {
         continue;
       }
-
-      if (!res.ok) continue;
-      const body = await res.json();
       if (body?.success && body?.role === "owner") {
         onAuth({ role: "owner" });
         return true;
@@ -783,12 +795,15 @@ const rawUser = String(username || "").trim();
 const user = norm(rawUser);
 const pass = String(password || "").trim();
 if (!rawUser || !pass) { setError(lang === "en" ? "Enter username/email and password" : "Saisissez identifiant/email et mot de passe"); return; }
+setIsSubmitting(true);
 
 try {
   const authenticatedByServer = await loginWithServer({ user: rawUser, pass });
   if (authenticatedByServer) return;
 } catch {
   // fall back to local login when API is unreachable
+} finally {
+  setIsSubmitting(false);
 }
 
 const ownerAliases = [
@@ -841,7 +856,7 @@ return (
   </Field>
 
   {error && <div style={{ color: CL.red, fontSize: 13, marginBottom: 10, textAlign: "center" }}>{error}</div>}
-  <button onClick={() => void doLogin()} style={{ ...btnPri, width: "100%", justifyContent: "center", background: CL.gold }}>{t("loginBtn")}</button>
+  <button disabled={isSubmitting} onClick={() => void doLogin()} style={{ ...btnPri, width: "100%", justifyContent: "center", background: CL.gold, opacity: isSubmitting ? 0.7 : 1, cursor: isSubmitting ? "not-allowed" : "pointer" }}>{isSubmitting ? (lang === "en" ? "Signing in..." : "Connexion...") : t("loginBtn")}</button>
   <p style={{ marginTop: 10, fontSize: 11, color: CL.dim, textAlign: "center" }}>Use your assigned credentials only.</p>
 </div>
 </div>

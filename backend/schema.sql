@@ -133,6 +133,7 @@ INSERT INTO settings (key, value) VALUES
   ('bankIban',       'LU12 3456 7890 1234 5678'),
   ('defaultVatRate', '17'),
   ('ownerPin',       '1234'),
+  ('ownerUsername',  'Yamina'),
   ('managerUsername','manager'),
   ('managerPin',     '4321')
 ON CONFLICT (key) DO NOTHING;

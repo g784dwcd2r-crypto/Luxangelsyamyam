@@ -31,6 +31,16 @@ const apiLimiter = rateLimit({
 app.use('/api/auth', authLimiter);
 app.use('/api', apiLimiter);
 
+app.get('/api/health/db', async (_req, res) => {
+  try {
+    const result = await pool.query('SELECT NOW() AS now');
+    res.json({ success: true, db: 'connected', now: result.rows[0].now });
+  } catch (err) {
+    console.error('DB health check failed:', err);
+    res.status(500).json({ success: false, db: 'disconnected' });
+  }
+});
+
 // ---------------------------------------------------------------------------
 // Helper
 // ---------------------------------------------------------------------------
@@ -58,9 +68,19 @@ app.post('/api/auth/pin-login', async (req, res) => {
     if (!requestedRole || !submittedPin) return res.status(400).json({ error: 'role and pin are required' });
 
     if (requestedRole === 'owner') {
-      const result = await pool.query("SELECT value FROM settings WHERE key = 'ownerPin'");
-      const ownerPin = result.rows[0]?.value || '1234';
-      if (submittedPin !== String(ownerPin).trim()) return res.status(401).json({ error: 'Invalid PIN' });
+      const settingsResult = await pool.query(
+        "SELECT key, value FROM settings WHERE key IN ('ownerPin', 'ownerUsername', 'companyEmail')"
+      );
+      const settings = Object.fromEntries(settingsResult.rows.map(r => [r.key, String(r.value || '').trim()]));
+      const ownerPin = settings.ownerPin || '1234';
+      const ownerUsername = (settings.ownerUsername || 'Yamina').toLowerCase();
+      const ownerAliases = [ownerUsername, (settings.companyEmail || '').toLowerCase()].filter(Boolean);
+
+      if (!accountIdentifier) return res.status(400).json({ error: 'username is required for owner login' });
+      if (!ownerAliases.includes(accountIdentifier.toLowerCase())) {
+        return res.status(401).json({ error: 'Owner not found' });
+      }
+      if (submittedPin !== ownerPin) return res.status(401).json({ error: 'Invalid PIN' });
       return res.json({ success: true, role: 'owner' });
     }
 

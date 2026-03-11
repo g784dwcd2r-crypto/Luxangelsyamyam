@@ -45,10 +45,11 @@ Luxangelsyamyam/
 
 ## Default PIN Credentials
 
-| Role   | Default PIN |
-|--------|-------------|
-| Owner  | `1234`      |
-| Cleaner| `0000`      |
+| Role   | Username | Default PIN |
+|--------|----------|-------------|
+| Owner  | `Yamina` | `1234`      |
+| Manager| `manager`| `4321`      |
+| Cleaner| *(employee ID/email/phone/name)* | `0000`      |
 
 These can be changed from the Settings page (owner) or by the owner via the employee PIN management screen.
 
@@ -64,6 +65,22 @@ These can be changed from the Settings page (owner) or by the owner via the empl
 2. Run the schema (creates all tables + seeds default settings):
    ```bash
    psql -d luxangels -f backend/schema.sql
+   ```
+
+3. (Optional) Verify DB/API connectivity:
+   ```bash
+   curl http://localhost:5000/api/health/db
+   ```
+
+4. To fully reset database schema + users (owner/manager credentials), run:
+   ```bash
+   cd backend
+   npm run reset:db
+   ```
+
+   You can override credentials at runtime:
+   ```bash
+   RESET_OWNER_PIN=9999 RESET_OWNER_USERNAME=Yamina RESET_MANAGER_USERNAME=manager RESET_MANAGER_PIN=1111 npm run reset:db
    ```
 
 ---
@@ -113,7 +130,8 @@ npm run dev
 
 | Method | Path                        | Description                  |
 |--------|-----------------------------|------------------------------|
-| POST   | `/api/auth/pin-login`       | PIN login (owner or cleaner) |
+| GET    | `/api/health/db`            | DB connectivity health check  |
+| POST   | `/api/auth/pin-login`       | PIN login (owner/manager/cleaner) |
 | GET    | `/api/employees`            | List all employees           |
 | POST   | `/api/employees`            | Create employee              |
 | PUT    | `/api/employees/:id`        | Update employee              |

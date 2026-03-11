@@ -799,13 +799,17 @@ const [password, setPassword] = useState("");
 const [error, setError] = useState("");
 const [isSubmitting, setIsSubmitting] = useState(false);
 
+// Warm-up ping: wake the server as soon as the login page mounts
+// so it's already running by the time the user submits credentials.
+useEffect(() => {
+  API_BASE_CANDIDATES.forEach(base => {
+    fetch(apiUrl("/api/health/db", base), { method: "GET" }).catch(() => {});
+  });
+}, []);
 
 const loginWithServer = async ({ user, pass }) => {
   if (!API_BASE_CANDIDATES.length) return { status: "unreachable" };
-  // Longer timeout to handle Render.com free-tier cold starts (can take 30-60s)
-  // We retry once after a cold-start delay to cover all browsers and network conditions.
   const REQUEST_TIMEOUT_MS = 12000;
-  let reachedServer = false;
 
   const attempts = [
     { role: "owner", username: user, employeeId: user },
@@ -831,18 +835,27 @@ const loginWithServer = async ({ user, pass }) => {
     }
   };
 
+  // Try all roles in PARALLEL for each API base — much faster than sequential.
   for (const baseUrl of API_BASE_CANDIDATES) {
-    for (const payload of attempts) {
-      let res = await tryFetch(baseUrl, payload);
-      // If server didn't respond (cold start), wait and retry once
-      if (!res) {
-        await new Promise(r => setTimeout(r, 3000));
-        res = await tryFetch(baseUrl, payload);
-      }
-      if (!res) continue;
+    const results = await Promise.all(
+      attempts.map(async (payload) => {
+        let res = await tryFetch(baseUrl, payload);
+        // If server didn't respond (cold start), wait and retry once
+        if (!res) {
+          await new Promise(r => setTimeout(r, 3000));
+          res = await tryFetch(baseUrl, payload);
+        }
+        return { res, payload };
+      })
+    );
 
-      reachedServer = true;
-      if (!res.ok) continue;
+    let reachedServer = false;
+    for (const { res } of results) {
+      if (res) { reachedServer = true; break; }
+    }
+
+    for (const { res } of results) {
+      if (!res || !res.ok) continue;
       let body = null;
       try { body = await res.json(); } catch { continue; }
 
@@ -859,9 +872,11 @@ const loginWithServer = async ({ user, pass }) => {
         return { status: "success" };
       }
     }
+
+    if (reachedServer) return { status: "invalid" };
   }
 
-  return { status: reachedServer ? "invalid" : "unreachable" };
+  return { status: "unreachable" };
 };
 
 const doLogin = async () => {

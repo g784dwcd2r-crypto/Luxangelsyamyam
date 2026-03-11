@@ -602,4 +602,17 @@ app.put('/api/settings', async (req, res) => {
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+
+  // Keep-alive self-ping every 14 minutes to prevent Render free-tier from
+  // spinning down the service after 15 minutes of inactivity.
+  const KEEP_ALIVE_MS = 14 * 60 * 1000;
+  const selfUrl = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
+  setInterval(() => {
+    const mod = selfUrl.startsWith('https') ? require('https') : require('http');
+    mod.get(`${selfUrl}/api/health/db`, (res) => {
+      console.log(`[keep-alive] pinged ${selfUrl}/api/health/db — ${res.statusCode}`);
+    }).on('error', (err) => {
+      console.warn('[keep-alive] ping failed:', err.message);
+    });
+  }, KEEP_ALIVE_MS);
 });

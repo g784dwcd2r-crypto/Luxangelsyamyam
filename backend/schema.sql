@@ -123,6 +123,20 @@ CREATE TABLE IF NOT EXISTS settings (
   value TEXT NOT NULL
 );
 
+-- Indexes for frequently-queried foreign keys and filter columns
+CREATE INDEX IF NOT EXISTS idx_schedules_employee_id  ON schedules(employee_id);
+CREATE INDEX IF NOT EXISTS idx_schedules_client_id    ON schedules(client_id);
+CREATE INDEX IF NOT EXISTS idx_schedules_date         ON schedules(date);
+CREATE INDEX IF NOT EXISTS idx_clock_entries_employee ON clock_entries(employee_id);
+CREATE INDEX IF NOT EXISTS idx_clock_entries_client   ON clock_entries(client_id);
+CREATE INDEX IF NOT EXISTS idx_clock_entries_clock_in ON clock_entries(clock_in DESC);
+CREATE INDEX IF NOT EXISTS idx_invoices_client_id     ON invoices(client_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_date          ON invoices(date DESC);
+CREATE INDEX IF NOT EXISTS idx_payslips_employee_id   ON payslips(employee_id);
+CREATE INDEX IF NOT EXISTS idx_employees_status       ON employees(status);
+CREATE INDEX IF NOT EXISTS idx_employees_email        ON employees(LOWER(email));
+CREATE INDEX IF NOT EXISTS idx_employees_name         ON employees(LOWER(name));
+
 -- Seed default settings
 INSERT INTO settings (key, value) VALUES
   ('companyName',    'Lux Angels Cleaning'),
@@ -132,7 +146,8 @@ INSERT INTO settings (key, value) VALUES
   ('vatNumber',      'LU12345678'),
   ('bankIban',       'LU12 3456 7890 1234 5678'),
   ('defaultVatRate', '17'),
-  ('ownerPin',       '1234'),
+  ('ownerUsername',  'LuxAdmin'),
+  ('ownerPin',       'LuxAngels@2025'),
   ('managerUsername','manager'),
-  ('managerPin',     '4321')
+  ('managerPin',     'Manager@2025')
 ON CONFLICT (key) DO NOTHING;

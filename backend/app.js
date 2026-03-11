@@ -7,8 +7,34 @@ const pool = require('./db');
 
 const app = express();
 
-// Middleware
-app.use(cors());
+// Trust reverse proxy (Render, etc.) so rate-limiting uses real IPs
+app.set('trust proxy', 1);
+
+// Middleware — explicit CORS so every browser (Safari, Firefox, Chrome) gets
+// the right preflight response regardless of which origin is calling.
+const ALLOWED_ORIGINS = [
+  'https://luxangelsyamyam.onrender.com',
+  'https://luxangelsyamyam-frontend.onrender.com',
+  /\.onrender\.com$/,
+  /\.netlify\.app$/,
+  /localhost/,
+  /127\.0\.0\.1/,
+];
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, curl, Postman, same-origin)
+    if (!origin) return callback(null, true);
+    const ok = ALLOWED_ORIGINS.some(p =>
+      typeof p === 'string' ? p === origin : p.test(origin)
+    );
+    callback(null, ok);
+  },
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+};
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions)); // Handle preflight for all routes
 app.use(bodyParser.json());
 
 // Rate limiting — stricter on auth to prevent PIN brute-force
@@ -68,9 +94,18 @@ app.post('/api/auth/pin-login', async (req, res) => {
     if (!requestedRole || !submittedPin) return res.status(400).json({ error: 'role and pin are required' });
 
     if (requestedRole === 'owner') {
-      const result = await pool.query("SELECT value FROM settings WHERE key = 'ownerPin'");
-      const ownerPin = result.rows[0]?.value || '1234';
-      if (submittedPin !== String(ownerPin).trim()) return res.status(401).json({ error: 'Invalid PIN' });
+      const result = await pool.query(
+        "SELECT key, value FROM settings WHERE key IN ('ownerPin', 'ownerUsername')"
+      );
+      const ownerSettings = Object.fromEntries(result.rows.map(r => [r.key, String(r.value || '').trim()]));
+      const ownerPin = (ownerSettings.ownerPin || '1234').trim();
+      const ownerUsername = (ownerSettings.ownerUsername || '').trim().toLowerCase();
+
+      // If an ownerUsername is configured, require it to match
+      if (ownerUsername && accountIdentifier && accountIdentifier.toLowerCase() !== ownerUsername) {
+        return res.status(401).json({ error: 'Invalid credentials' });
+      }
+      if (submittedPin !== ownerPin) return res.status(401).json({ error: 'Invalid credentials' });
       return res.json({ success: true, role: 'owner' });
     }
 
@@ -79,7 +114,7 @@ app.post('/api/auth/pin-login', async (req, res) => {
         "SELECT key, value FROM settings WHERE key IN ('managerPin', 'managerUsername', 'companyEmail')"
       );
       const settings = Object.fromEntries(settingsResult.rows.map(r => [r.key, String(r.value || '').trim()]));
-      const managerPin = settings.managerPin || '4321';
+      const managerPin = (settings.managerPin || '4321').trim();
       const managerUsername = (settings.managerUsername || 'manager').toLowerCase();
       const managerAliases = [managerUsername, (settings.companyEmail || '').toLowerCase()].filter(Boolean);
       if (accountIdentifier && !managerAliases.includes(accountIdentifier.toLowerCase())) {
@@ -205,7 +240,7 @@ app.put('/api/employees/:id/pin', async (req, res) => {
     if (oldPin !== undefined) {
       const check = await pool.query('SELECT pin FROM employees WHERE id=$1', [req.params.id]);
       if (!check.rows.length) return res.status(404).json({ error: 'Employee not found' });
-      if (check.rows[0].pin !== oldPin) return res.status(401).json({ error: 'Old PIN is incorrect' });
+      if (String(check.rows[0].pin).trim() !== String(oldPin).trim()) return res.status(401).json({ error: 'Old PIN is incorrect' });
     }
 
     const result = await pool.query('UPDATE employees SET pin=$1 WHERE id=$2 RETURNING id', [pin, req.params.id]);

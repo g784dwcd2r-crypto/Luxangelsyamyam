@@ -189,8 +189,8 @@ return UI_FR[text] || text;
 const DEFAULTS = {
 employees: [], clients: [], schedules: [], clockEntries: [], quotes: [], invoices: [], payslips: [],
 photoUploads: [], timeOffRequests: [], inventoryProducts: [], productRequests: [], cleanerProductHoldings: [], prospectVisits: [],
-ownerUsername: "info@luxangelscleaning.lu", ownerPin: "0000",
-managerUsername: "manager", managerPin: "4321",
+ownerUsername: "LuxAdmin", ownerPin: "LuxAngels@2025",
+managerUsername: "manager", managerPin: "Manager@2025",
 employeePins: {}, employeeUsernames: {},
 settings: {
 companyName: "LAC Lux angels cleaning",
@@ -243,6 +243,75 @@ envApiBase,
 ...DEFAULT_API_BASES,
 ].filter(Boolean)));
 const apiUrl = (path, base = API_BASE_CANDIDATES[0] || "") => `${base}${path.startsWith("/") ? path : `/${path}`}`;
+
+// Convert frontend camelCase employee to snake_case for backend API
+const toApiEmployee = (emp, pin) => ({
+  id: emp.id,
+  name: emp.name,
+  email: emp.email || "",
+  phone: emp.phone || "",
+  phone_mobile: emp.phoneMobile || "",
+  role: emp.role || "Cleaner",
+  hourly_rate: emp.hourlyRate || 15,
+  address: emp.address || "",
+  city: emp.city || "",
+  postal_code: emp.postalCode || "",
+  country: emp.country || "Luxembourg",
+  start_date: emp.startDate || null,
+  status: emp.status || "active",
+  contract_type: emp.contractType || "CDI",
+  bank_iban: emp.bankIban || "",
+  social_sec_number: emp.socialSecNumber || "",
+  date_of_birth: emp.dateOfBirth || null,
+  nationality: emp.nationality || "",
+  languages: emp.languages || "",
+  transport: emp.transport || "",
+  work_permit: emp.workPermit || "",
+  emergency_name: emp.emergencyName || "",
+  emergency_phone: emp.emergencyPhone || "",
+  notes: emp.notes || "",
+  ...(pin !== undefined ? { pin } : {}),
+});
+
+// Fire-and-forget API sync — errors are non-fatal (localStorage is primary store)
+const syncEmployeeToApi = async (emp, pin) => {
+  try {
+    const payload = toApiEmployee(emp, pin);
+    await fetch(apiUrl(`/api/employees/${emp.id}`), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    // If PUT returns 404 the employee doesn't exist in the DB yet — create it
+  } catch { /* non-fatal */ }
+};
+
+const createEmployeeInApi = async (emp, pin) => {
+  try {
+    const payload = toApiEmployee(emp, pin);
+    await fetch(apiUrl("/api/employees"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  } catch { /* non-fatal */ }
+};
+
+const syncEmployeePinToApi = async (id, pin) => {
+  try {
+    await fetch(apiUrl(`/api/employees/${id}/pin`), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pin }),
+    });
+  } catch { /* non-fatal */ }
+};
+
+const deleteEmployeeFromApi = async (id) => {
+  try {
+    await fetch(apiUrl(`/api/employees/${id}`), { method: "DELETE" });
+  } catch { /* non-fatal */ }
+};
 
 const getLeaveSummary = (data, employeeId, year = getToday().slice(0, 4)) => {
 const allowance = data.employees.find(e => e.id === employeeId)?.leaveAllowance ?? 26;
@@ -733,41 +802,50 @@ const [isSubmitting, setIsSubmitting] = useState(false);
 
 const loginWithServer = async ({ user, pass }) => {
   if (!API_BASE_CANDIDATES.length) return { status: "unreachable" };
-  const REQUEST_TIMEOUT_MS = 2500;
+  // Longer timeout to handle Render.com free-tier cold starts (can take 30-60s)
+  // We retry once after a cold-start delay to cover all browsers and network conditions.
+  const REQUEST_TIMEOUT_MS = 12000;
   let reachedServer = false;
 
   const attempts = [
-    { role: "owner" },
+    { role: "owner", username: user, employeeId: user },
     { role: "manager", employeeId: user },
     { role: "cleaner", employeeId: user },
   ];
 
+  const tryFetch = async (baseUrl, payload) => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    try {
+      const res = await fetch(apiUrl("/api/auth/pin-login", baseUrl), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...payload, pin: pass }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      return res;
+    } catch {
+      clearTimeout(timeoutId);
+      return null;
+    }
+  };
+
   for (const baseUrl of API_BASE_CANDIDATES) {
     for (const payload of attempts) {
-      let res;
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-      try {
-        res = await fetch(apiUrl("/api/auth/pin-login", baseUrl), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...payload, pin: pass }),
-          signal: controller.signal,
-        });
-      } catch {
-        clearTimeout(timeoutId);
-        continue;
+      let res = await tryFetch(baseUrl, payload);
+      // If server didn't respond (cold start), wait and retry once
+      if (!res) {
+        await new Promise(r => setTimeout(r, 3000));
+        res = await tryFetch(baseUrl, payload);
       }
-      clearTimeout(timeoutId);
+      if (!res) continue;
 
       reachedServer = true;
       if (!res.ok) continue;
       let body = null;
-      try {
-        body = await res.json();
-      } catch {
-        continue;
-      }
+      try { body = await res.json(); } catch { continue; }
+
       if (body?.success && body?.role === "owner") {
         onAuth({ role: "owner" });
         return { status: "success" };
@@ -789,24 +867,27 @@ const loginWithServer = async ({ user, pass }) => {
 const doLogin = async () => {
 const rawUser = String(username || "").trim();
 const pass = String(password || "").trim();
-if (!rawUser || !pass) { setError(lang === "en" ? "Enter username/email and password" : "Saisissez identifiant/email et mot de passe"); return; }
+if (!rawUser || !pass) { setError(lang === "en" ? "Enter username and password" : "Saisissez identifiant et mot de passe"); return; }
 setIsSubmitting(true);
+setError("");
 
 try {
   const serverLogin = await loginWithServer({ user: rawUser, pass });
   if (serverLogin.status === "success") return;
 
   if (serverLogin.status === "unreachable") {
-    setError(lang === "en" ? "Cannot reach login server. Check API deployment / URL." : "Serveur de connexion inaccessible. Vérifiez le déploiement / URL API.");
+    setError(lang === "en"
+      ? "Server is starting up — please wait 30 seconds and try again."
+      : "Le serveur démarre — attendez 30 secondes et réessayez.");
     return;
   }
 
   if (serverLogin.status === "invalid") {
-    setError(lang === "en" ? "User not found or wrong password" : "Utilisateur introuvable ou mot de passe incorrect");
+    setError(lang === "en" ? "Incorrect username or password" : "Identifiant ou mot de passe incorrect");
     return;
   }
 } catch {
-  setError(lang === "en" ? "Cannot reach login server. Check API deployment / URL." : "Serveur de connexion inaccessible. Vérifiez le déploiement / URL API.");
+  setError(lang === "en" ? "Connection error. Please try again." : "Erreur de connexion. Veuillez réessayer.");
 } finally {
   setIsSubmitting(false);
 }
@@ -832,7 +913,8 @@ return (
   </Field>
 
   {error && <div style={{ color: CL.red, fontSize: 13, marginBottom: 10, textAlign: "center" }}>{error}</div>}
-  <button disabled={isSubmitting} onClick={() => void doLogin()} style={{ ...btnPri, width: "100%", justifyContent: "center", background: CL.gold, opacity: isSubmitting ? 0.7 : 1, cursor: isSubmitting ? "not-allowed" : "pointer" }}>{isSubmitting ? (lang === "en" ? "Signing in..." : "Connexion...") : t("loginBtn")}</button>
+  <button disabled={isSubmitting} onClick={() => void doLogin()} style={{ ...btnPri, width: "100%", justifyContent: "center", background: CL.gold, opacity: isSubmitting ? 0.7 : 1, cursor: isSubmitting ? "not-allowed" : "pointer" }}>{isSubmitting ? (lang === "en" ? "Connecting…" : "Connexion en cours…") : t("loginBtn")}</button>
+  {isSubmitting && <p style={{ marginTop: 6, fontSize: 11, color: CL.muted, textAlign: "center" }}>{lang === "en" ? "Server may need a moment to wake up — please wait…" : "Le serveur démarre, merci de patienter…"}</p>}
   <p style={{ marginTop: 10, fontSize: 11, color: CL.dim, textAlign: "center" }}>Use your assigned credentials only.</p>
 </div>
 </div>
@@ -1325,12 +1407,18 @@ if (empData.id) {
 updateData("employees", prev => prev.map(e => e.id === empData.id ? empFields : e));
 updateData("employeePins", prev => ({ ...prev, [empData.id]: pinValue }));
 updateData("employeeUsernames", prev => ({ ...prev, [empData.id]: String(empUsername || "").trim().toLowerCase() }));
+// Sync to backend so cleaner login works on all browsers/devices
+syncEmployeeToApi(empFields, pinValue);
+syncEmployeePinToApi(empData.id, pinValue);
 showToast("Employee updated");
 } else {
 const newId = makeId();
-updateData("employees", prev => [...prev, { ...empFields, id: newId }]);
+const newEmp = { ...empFields, id: newId };
+updateData("employees", prev => [...prev, newEmp]);
 updateData("employeePins", prev => ({ ...prev, [newId]: pinValue }));
 updateData("employeeUsernames", prev => ({ ...prev, [newId]: String(empUsername || "").trim().toLowerCase() }));
+// Create in backend so cleaner login works on all browsers/devices
+createEmployeeInApi(newEmp, pinValue);
 showToast("Employee added");
 }
 setModal(null);
@@ -1348,6 +1436,8 @@ updateData("employeeUsernames", prev => {
   delete next[id];
   return next;
 });
+// Remove from backend too
+deleteEmployeeFromApi(id);
 showToast("Deleted", "error");
 setDeleteId(null);
 };
@@ -3707,16 +3797,44 @@ return (
 // ==============================================
 function SettingsPage({ data, updateData, setData, showToast, auth }) {
 const [form, setForm] = useState(data.settings);
-const [ownerUsername, setOwnerUsername] = useState(data.ownerUsername || "info@luxangelscleaning.lu");
-const [pin, setPin] = useState(data.ownerPin);
+const [ownerUsername, setOwnerUsername] = useState(data.ownerUsername || "LuxAdmin");
+const [pin, setPin] = useState(data.ownerPin || "LuxAngels@2025");
 const [managerUsername, setManagerUsername] = useState(data.managerUsername || "manager");
-const [managerPin, setManagerPin] = useState(data.managerPin || "4321");
+const [managerPin, setManagerPin] = useState(data.managerPin || "Manager@2025");
 const set = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
 
-const handleSave = () => {
-updateData("settings", form);
-setData(prev => ({ ...prev, ownerUsername: ownerUsername.trim().toLowerCase(), ownerPin: pin, managerUsername: managerUsername.trim().toLowerCase(), managerPin }));
-showToast(uiText("Saved"));
+const handleSave = async () => {
+  updateData("settings", form);
+  const newOwnerUsername = ownerUsername.trim();
+  const newOwnerPin = pin.trim();
+  const newManagerUsername = managerUsername.trim().toLowerCase();
+  const newManagerPin = managerPin.trim();
+  setData(prev => ({ ...prev, ownerUsername: newOwnerUsername, ownerPin: newOwnerPin, managerUsername: newManagerUsername, managerPin: newManagerPin }));
+
+  // Sync credentials and company settings to the backend database so all
+  // browsers use the same credentials.
+  try {
+    await fetch(apiUrl("/api/settings"), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ownerUsername: newOwnerUsername,
+        ownerPin: newOwnerPin,
+        managerUsername: newManagerUsername,
+        managerPin: newManagerPin,
+        companyName: form.companyName,
+        companyAddress: form.companyAddress,
+        companyEmail: form.companyEmail,
+        companyPhone: form.companyPhone,
+        vatNumber: form.vatNumber,
+        bankIban: form.bankIban,
+        defaultVatRate: String(form.defaultVatRate),
+      }),
+    });
+    showToast(uiText("Saved") + " — synced to server");
+  } catch {
+    showToast("Saved locally only — server unreachable. Credentials may not work on other devices until the server is back online.", "error");
+  }
 };
 
 return (

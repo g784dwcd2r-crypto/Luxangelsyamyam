@@ -530,21 +530,17 @@ const [error, setError] = useState("");
 const norm = (v) => String(v || "").trim().toLowerCase();
 
 const doLogin = () => {
-const user = norm(username);
-const pass = String(password || "").trim();
-if (!user || !pass) { setError(lang === "en" ? "Enter username and password" : "Entrez le nom d'utilisateur et le mot de passe"); return; }
-
-const ownerAliases = ["owner", "admin", norm(data.settings?.companyEmail), norm(data.settings?.companyName)];
-if (ownerAliases.includes(user)) {
-if (pass === String(data.ownerPin || "")) { onAuth({ role: "owner" }); return; }
-setError(lang === "en" ? "Wrong password" : "Mot de passe incorrect");
-return;
-}
-
-if (user === "manager") {
-if (pass === String(data.managerPin || "4321")) { onAuth({ role: "manager" }); return; }
-setError(lang === "en" ? "Wrong password" : "Mot de passe incorrect");
-return;
+if (mode === "owner") {
+if (pin === data.ownerPin) onAuth({ role: "owner" });
+else setError(lang === "en" ? "Wrong PIN" : "PIN incorrect");
+} else if (mode === "manager") {
+if (pin === (data.managerPin || "4321")) onAuth({ role: "manager" });
+else setError(lang === "en" ? "Wrong PIN" : "PIN incorrect");
+} else {
+if (!selEmp) { setError(lang === "en" ? "Select your name" : "Sélectionnez votre nom"); return; }
+const correctPin = data.employeePins?.[selEmp] || "0000";
+if (pin === correctPin) onAuth({ role: "cleaner", employeeId: selEmp });
+else setError(lang === "en" ? "Wrong PIN" : "PIN incorrect");
 }
 
 const employee = data.employees.find(emp => emp.status === "active" && (norm(emp.email) === user || norm(emp.name) === user));
@@ -559,13 +555,45 @@ return (
 <style>{globalCSS}</style>
 <div style={{ animation: "fadeIn .5s ease", width: 420, maxWidth: "95vw", padding: "0 16px" }}>
 <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}><LanguageSwitcher /></div>
-<div style={{ ...cardSt, padding: 22 }}>
-  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
-    <div style={{ width: 42, height: 42, borderRadius: 12, background: `linear-gradient(135deg, ${CL.gold}, ${CL.goldDark})`, display: "flex", alignItems: "center", justifyContent: "center", color: CL.bg, fontWeight: 700 }}>LAC</div>
-    <div>
-      <div style={{ fontWeight: 700, color: CL.gold }}>Secure Sign-In</div>
-      <div style={{ fontSize: 12, color: CL.muted }}>{data.settings?.companyName || "Lux Angels Cleaning"}</div>
-    </div>
+<div style={{ width: 80, height: 80, borderRadius: 24, background: `linear-gradient(135deg, ${CL.gold}, ${CL.goldDark})`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 32, fontWeight: 700, color: CL.bg, fontFamily: "'Cormorant Garamond', serif" }}>LAC</div>
+<h1 style={{ fontSize: 30, fontWeight: 700, color: CL.gold, fontFamily: "'Cormorant Garamond', serif", marginBottom: 4 }}>{data.settings?.companyName || "Lux Angels Cleaning"}</h1>
+<p style={{ color: CL.muted, marginBottom: 30 }}>{t("managementSystem")}</p>
+
+    {!mode ? (
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <button onClick={() => setMode("owner")} style={{ ...cardSt, padding: "16px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 13, border: `1px solid ${CL.bd}`, textAlign: "left" }}>
+          <div style={{ width: 44, height: 44, borderRadius: 12, background: CL.gold + "15", display: "flex", alignItems: "center", justifyContent: "center", color: CL.gold, flexShrink: 0 }}>{ICN.shield}</div>
+          <div><div style={{ fontWeight: 600, color: CL.text, fontSize: 15 }}>{t("ownerAccess")}</div><div style={{ fontSize: 12, color: CL.muted }}>{t("ownerAccessDesc")}</div></div>
+        </button>
+        <button onClick={() => setMode("manager")} style={{ ...cardSt, padding: "16px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 13, border: `1px solid ${CL.bd}`, textAlign: "left" }}>
+          <div style={{ width: 44, height: 44, borderRadius: 12, background: CL.green + "15", display: "flex", alignItems: "center", justifyContent: "center", color: CL.green, flexShrink: 0 }}>{ICN.shield}</div>
+          <div><div style={{ fontWeight: 600, color: CL.text, fontSize: 15 }}>Manager Access</div><div style={{ fontSize: 12, color: CL.muted }}>All sections except revenue KPI</div></div>
+        </button>
+        <button onClick={() => setMode("cleaner")} style={{ ...cardSt, padding: "16px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 13, border: `1px solid ${CL.bd}`, textAlign: "left" }}>
+          <div style={{ width: 44, height: 44, borderRadius: 12, background: CL.blue + "15", display: "flex", alignItems: "center", justifyContent: "center", color: CL.blue, flexShrink: 0 }}>{ICN.user}</div>
+          <div><div style={{ fontWeight: 600, color: CL.text, fontSize: 15 }}>{t("cleanerAccess")}</div><div style={{ fontSize: 12, color: CL.muted }}>{t("cleanerAccessDesc")}</div></div>
+        </button>
+      </div>
+    ) : (
+      <div style={{ ...cardSt, textAlign: "left" }}>
+        <button onClick={() => { setMode(null); setPin(""); setError(""); setSelEmp(""); }} style={{ background: "none", border: "none", color: CL.muted, cursor: "pointer", fontSize: 13, marginBottom: 12 }}>← {t("back")}</button>
+        <h3 style={{ fontFamily: "'Cormorant Garamond', serif", color: mode === "owner" ? CL.gold : mode === "manager" ? CL.green : CL.blue, fontSize: 20, marginBottom: 16 }}>{mode === "owner" ? t("ownerLogin") : mode === "manager" ? "Manager Login" : t("cleanerLogin")}</h3>
+        {mode === "cleaner" && (
+          <Field label={t("yourName")}>
+            <SelectInput value={selEmp} onChange={ev => setSelEmp(ev.target.value)}>
+              <option value="">{t("choose")}</option>
+              {data.employees.filter(emp => emp.status === "active").map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
+            </SelectInput>
+          </Field>
+        )}
+        <Field label="PIN">
+          <TextInput type="password" maxLength={6} placeholder="****" value={pin} onChange={ev => { setPin(ev.target.value); setError(""); }} onKeyDown={ev => ev.key === "Enter" && doLogin()} style={{ fontSize: 22, textAlign: "center", letterSpacing: 10 }} />
+        </Field>
+        {error && <div style={{ color: CL.red, fontSize: 13, marginBottom: 10, textAlign: "center" }}>{error}</div>}
+        <button onClick={doLogin} style={{ ...btnPri, width: "100%", justifyContent: "center", background: mode === "owner" ? CL.gold : mode === "manager" ? CL.green : CL.blue }}>{t("loginBtn")}</button>
+        <p style={{ color: CL.dim, fontSize: 11, textAlign: "center", marginTop: 12 }}>{mode === "owner" ? "Default PIN: 1234" : mode === "manager" ? "Default PIN: 4321" : "Default PIN: 0000"}</p>
+      </div>
+    )}
   </div>
 
   <Field label="Username or email">

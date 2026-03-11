@@ -3,6 +3,8 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const rateLimit = require('express-rate-limit');
+const fs = require('fs');
+const path = require('path');
 const pool = require('./db');
 
 const app = express();
@@ -599,9 +601,23 @@ app.put('/api/settings', async (req, res) => {
 // ---------------------------------------------------------------------------
 // Start server
 // ---------------------------------------------------------------------------
+// Auto-migrate: run schema.sql on startup to create tables if they don't exist.
+// Safe because every statement uses IF NOT EXISTS / ON CONFLICT DO NOTHING.
+const runMigrations = async () => {
+  try {
+    const schemaPath = path.join(__dirname, 'schema.sql');
+    const sql = fs.readFileSync(schemaPath, 'utf8');
+    await pool.query(sql);
+    console.log('[migration] schema.sql applied successfully');
+  } catch (err) {
+    console.error('[migration] schema.sql failed:', err.message);
+  }
+};
+
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
+  await runMigrations();
 
   // Keep-alive self-ping every 14 minutes to prevent Render free-tier from
   // spinning down the service after 15 minutes of inactivity.

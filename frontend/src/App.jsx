@@ -411,17 +411,20 @@ if (!auth) return <LanguageContext.Provider value={{ lang, setLang, t }}><LoginS
 if (auth.role === "cleaner") return <LanguageContext.Provider value={{ lang, setLang, t }}><CleanerPortal data={data} updateData={updateData} auth={auth} onLogout={() => setAuth(null)} showToast={showToast} toast={toast} /></LanguageContext.Provider>;
 
 // Owner nav items
+const pendingProductRequests = (data.productRequests || []).filter(r => r.status === "pending").length;
+const pendingTimeOffRequests = (data.timeOffRequests || []).filter(r => r.status === "pending").length;
+
 const navItems = [
 { id: "dashboard", label: t("dashboard"), icon: ICN.dash },
 { id: "employees", label: t("employees"), icon: ICN.team },
 { id: "clients", label: t("clients"), icon: ICN.user },
 { id: "schedule", label: t("schedule"), icon: ICN.cal },
 { id: "timeclock", label: t("timeclock"), icon: ICN.clock },
-{ id: "inventory", label: t("inventory"), icon: ICN.doc },
+{ id: "inventory", label: t("inventory"), icon: ICN.doc, hasAlert: pendingProductRequests > 0 },
 { id: "devis", label: t("devis"), icon: ICN.doc },
 { id: "invoices", label: t("invoices"), icon: ICN.doc },
 { id: "payslips", label: t("payslips"), icon: ICN.pay },
-{ id: "conges", label: t("conges"), icon: ICN.cal },
+{ id: "conges", label: t("conges"), icon: ICN.cal, hasAlert: pendingTimeOffRequests > 0 },
 { id: "reminders", label: t("reminders"), icon: ICN.mail },
 { id: "reports", label: t("reports"), icon: ICN.chart },
 { id: "database", label: "Excel DB", icon: ICN.excel },
@@ -464,7 +467,8 @@ return (
     <nav style={{ flex: 1, padding: "6px 4px", overflowY: "auto" }}>
       {navItems.map(nav => (
         <button key={nav.id} onClick={() => setSection(nav.id)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: sideOpen ? "7px 10px" : "7px 11px", background: section === nav.id ? CL.gold + "15" : "transparent", border: "none", borderRadius: 7, cursor: "pointer", color: section === nav.id ? CL.gold : CL.muted, fontSize: 13, fontWeight: section === nav.id ? 600 : 400, marginBottom: 1, textAlign: "left", whiteSpace: "nowrap" }}>
-          <span style={{ flexShrink: 0 }}>{nav.icon}</span>{sideOpen && nav.label}
+          <span style={{ flexShrink: 0 }}>{nav.icon}</span>
+          {sideOpen && <span>{nav.label}{nav.hasAlert ? <span style={{ color: CL.red, marginLeft: 6, fontWeight: 700 }}>!</span> : null}</span>}
         </button>
       ))}
     </nav>
@@ -597,6 +601,8 @@ const myReceivedTotal = myProductRequests.reduce((sum, r) => sum + (Number(r.del
 const myRequestedTotal = myProductRequests.reduce((sum, r) => sum + (Number(r.quantity) || 0), 0);
 const myHoldings = (data.cleanerProductHoldings || []).filter(h => h.employeeId === auth.employeeId && Number(h.qtyInHand) > 0);
 const myInHandTotal = myHoldings.reduce((sum, h) => sum + (Number(h.qtyInHand) || 0), 0);
+const hasPendingProductRequest = myProductRequests.some(r => r.status === "pending");
+const hasPendingTimeOffRequest = myTimeOffRequests.some(r => r.status === "pending");
 
 const doClockIn = (clientId) => {
 if (activeClock) { showToast("Already clocked in!", "error"); return; }
@@ -682,8 +688,8 @@ const tabItems = [
 { id: "schedule", label: t("mySchedule"), icon: ICN.cal },
 { id: "clock", label: t("clockInOut"), icon: ICN.clock },
 { id: "photos", label: t("photoUploads"), icon: ICN.doc },
-{ id: "products", label: t("products"), icon: ICN.doc },
-{ id: "timeoff", label: "Congés", icon: ICN.cal },
+{ id: "products", label: t("products"), icon: ICN.doc, hasAlert: hasPendingProductRequest },
+{ id: "timeoff", label: "Congés", icon: ICN.cal, hasAlert: hasPendingTimeOffRequest },
 ];
 
 return (
@@ -701,7 +707,7 @@ return (
 {/* Tabs */}
 <div style={{ display: "flex", background: CL.sf, borderBottom: `1px solid ${CL.bd}`, overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
 {tabItems.map(t => (
-<button key={t.id} onClick={() => setTab(t.id)} style={{ padding: "11px 16px", border: "none", background: "transparent", cursor: "pointer", color: tab === t.id ? CL.blue : CL.muted, fontWeight: tab === t.id ? 600 : 400, fontSize: 13, borderBottom: tab === t.id ? `2px solid ${CL.blue}` : "2px solid transparent", display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap", flexShrink: 0 }}>{t.icon} {t.label}</button>
+<button key={t.id} onClick={() => setTab(t.id)} style={{ padding: "11px 16px", border: "none", background: "transparent", cursor: "pointer", color: tab === t.id ? CL.blue : CL.muted, fontWeight: tab === t.id ? 600 : 400, fontSize: 13, borderBottom: tab === t.id ? `2px solid ${CL.blue}` : "2px solid transparent", display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap", flexShrink: 0 }}>{t.icon} {t.label}{t.hasAlert ? <span style={{ color: CL.red, fontWeight: 700, marginLeft: 4 }}>!</span> : null}</button>
 ))}
 </div>
 {/* Content */}
@@ -1480,17 +1486,18 @@ const selectedDateScheds = selectedDateStr ? orderedMonthSchedules.filter(s => s
 
 const handleSave = (schedData) => {
 if (schedData.id) {
-updateData("schedules", prev => prev.map(s => s.id === schedData.id ? schedData : s));
+updateData("schedules", prev => prev.map(s => s.id === schedData.id ? { ...schedData, updatedAt: new Date().toISOString() } : s));
 showToast("Updated");
 } else {
-const items = [{ ...schedData, id: makeId() }];
+const stamp = new Date().toISOString();
+const items = [{ ...schedData, id: makeId(), updatedAt: stamp }];
 if (schedData.recurrence !== "none") {
 const baseDate = new Date(schedData.date);
 if (schedData.recurrence === "daily") {
 for (let i = 1; i <= 30; i++) {
 const d = new Date(baseDate);
 d.setDate(d.getDate() + i);
-items.push({ ...schedData, id: makeId(), date: d.toISOString().slice(0, 10) });
+items.push({ ...schedData, id: makeId(), date: d.toISOString().slice(0, 10), updatedAt: stamp });
 }
 } else if (schedData.recurrence === "daily-weekdays") {
 let added = 0;
@@ -1500,7 +1507,7 @@ const d = new Date(baseDate);
 d.setDate(d.getDate() + offset);
 const dayOfWeek = d.getDay();
 if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-items.push({ ...schedData, id: makeId(), date: d.toISOString().slice(0, 10) });
+items.push({ ...schedData, id: makeId(), date: d.toISOString().slice(0, 10), updatedAt: stamp });
 added++;
 }
 offset++;
@@ -1510,7 +1517,7 @@ const interval = schedData.recurrence === "weekly" ? 7 : schedData.recurrence ==
 for (let i = 1; i <= 12; i++) {
 const d = new Date(baseDate);
 d.setDate(d.getDate() + interval * i);
-items.push({ ...schedData, id: makeId(), date: d.toISOString().slice(0, 10) });
+items.push({ ...schedData, id: makeId(), date: d.toISOString().slice(0, 10), updatedAt: stamp });
 }
 }
 }
@@ -1712,8 +1719,19 @@ function TimeClockPage({ data, updateData, showToast }) {
 const [selectedEmp, setSelectedEmp] = useState("");
 const [selectedCli, setSelectedCli] = useState("");
 const [clockInNote, setClockInNote] = useState("");
+const [manualEntry, setManualEntry] = useState({
+employeeId: "",
+clientId: "",
+clockInDate: getToday(),
+clockInTime: "08:00",
+clockOutDate: "",
+clockOutTime: "",
+notes: "",
+});
 const [filters, setFilters] = useState({ emp: "", month: getToday().slice(0, 7) });
 const [editEntry, setEditEntry] = useState(null);
+
+const setManual = (key, value) => setManualEntry(prev => ({ ...prev, [key]: value }));
 
 const doClockIn = () => {
 if (!selectedEmp || !selectedCli) { showToast("Select both", "error"); return; }
@@ -1740,6 +1758,57 @@ const workDate = entry.clockIn?.slice(0, 10) || getToday();
 updateData("schedules", prev => updateScheduleStatusForJob(prev, { employeeId: entry.employeeId, clientId: entry.clientId, date: workDate, from: "in-progress", to: "completed" }));
 }
 showToast("Clocked out!");
+};
+
+const addManualEntry = () => {
+if (!manualEntry.employeeId || !manualEntry.clientId) { showToast("Select employee and client", "error"); return; }
+if (!manualEntry.clockInDate || !manualEntry.clockInTime) { showToast("Set clock-in date/time", "error"); return; }
+
+const clockInISO = makeISO(manualEntry.clockInDate, manualEntry.clockInTime);
+const hasClockOut = Boolean(manualEntry.clockOutDate && manualEntry.clockOutTime);
+const clockOutISO = hasClockOut ? makeISO(manualEntry.clockOutDate, manualEntry.clockOutTime) : null;
+
+if (clockOutISO && new Date(clockOutISO) < new Date(clockInISO)) {
+showToast("Clock-out must be after clock-in", "error");
+return;
+}
+
+const lateMeta = getLateMeta(data.schedules, {
+employeeId: manualEntry.employeeId,
+clientId: manualEntry.clientId,
+clockInAt: new Date(clockInISO),
+});
+
+updateData("clockEntries", prev => [...prev, {
+id: makeId(),
+employeeId: manualEntry.employeeId,
+clientId: manualEntry.clientId,
+clockIn: clockInISO,
+clockOut: clockOutISO,
+notes: manualEntry.notes.trim(),
+isLate: lateMeta.isLate,
+lateMinutes: lateMeta.lateMinutes,
+scheduledStart: lateMeta.scheduledStart,
+}]);
+
+updateData("schedules", prev => updateScheduleStatusForJob(prev, {
+employeeId: manualEntry.employeeId,
+clientId: manualEntry.clientId,
+date: manualEntry.clockInDate,
+from: "scheduled",
+to: clockOutISO ? "completed" : "in-progress",
+}));
+
+setManualEntry({
+employeeId: "",
+clientId: "",
+clockInDate: getToday(),
+clockInTime: "08:00",
+clockOutDate: "",
+clockOutTime: "",
+notes: "",
+});
+showToast("Manual clock entry added");
 };
 
 const saveEntry = (entry) => {
@@ -1803,6 +1872,32 @@ return (
         })}
       </div>
     )}
+  </div>
+
+  <div style={{ ...cardSt, marginBottom: 16 }}>
+    <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.blue }}>Owner: Add missed clock-in</h3>
+    <div className="form-grid" style={{ marginBottom: 8 }}>
+      <Field label="Employee">
+        <SelectInput value={manualEntry.employeeId} onChange={ev => setManual("employeeId", ev.target.value)}>
+          <option value="">Select...</option>
+          {data.employees.filter(emp => emp.status === "active").map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
+        </SelectInput>
+      </Field>
+      <Field label="Client">
+        <SelectInput value={manualEntry.clientId} onChange={ev => setManual("clientId", ev.target.value)}>
+          <option value="">Select...</option>
+          {data.clients.filter(c => c.status === "active").map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </SelectInput>
+      </Field>
+      <Field label="In Date"><TextInput type="date" value={manualEntry.clockInDate} onChange={ev => setManual("clockInDate", ev.target.value)} /></Field>
+      <Field label="In Time"><TextInput type="time" value={manualEntry.clockInTime} onChange={ev => setManual("clockInTime", ev.target.value)} /></Field>
+      <Field label="Out Date (optional)"><TextInput type="date" value={manualEntry.clockOutDate} onChange={ev => setManual("clockOutDate", ev.target.value)} /></Field>
+      <Field label="Out Time (optional)"><TextInput type="time" value={manualEntry.clockOutTime} onChange={ev => setManual("clockOutTime", ev.target.value)} /></Field>
+    </div>
+    <Field label="Reason / note (optional)">
+      <TextInput value={manualEntry.notes} onChange={ev => setManual("notes", ev.target.value)} placeholder="Forgot to clock in, adjusted by owner..." />
+    </Field>
+    <button style={{ ...btnPri, background: CL.blue }} onClick={addManualEntry}>Add Manual Entry</button>
   </div>
 
   <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
@@ -2026,11 +2121,105 @@ const { t, lang } = useI18n();
 const [modal, setModal] = useState(null);
 const [preview, setPreview] = useState(null);
 
+const defaultQuoteColumns = { prestationDate: true, description: true, hours: true, quantity: false, unitPrice: true, total: true, tva: true };
+
 const quoteNumber = () => {
 const year = getToday().slice(0, 4);
 const prefix = `DEV-${year}-`;
 const nums = (data.quotes || []).map(q => String(q.quoteNumber || "")).filter(n => n.startsWith(prefix)).map(n => parseInt(n.slice(prefix.length), 10)).filter(n => Number.isFinite(n));
 return `${prefix}${String(nums.length ? Math.max(...nums) + 1 : 1).padStart(4, "0")}`;
+};
+
+const buildQuotePdfBlob = (q) => {
+const client = data.clients.find(c => c.id === q.clientId);
+const cols = { ...defaultQuoteColumns, ...(q.visibleColumns || {}) };
+const lines = [
+`${data.settings.companyName} - QUOTE`,
+`Quote #: ${q.quoteNumber || "-"}`,
+`Client: ${client?.name || "-"}`,
+`Date: ${fmtDate(q.date)}   Valid until: ${q.validUntil ? fmtDate(q.validUntil) : "-"}`,
+"",
+[cols.prestationDate ? "Date" : null, cols.description ? "Description" : null, cols.hours ? "Hours" : null, cols.quantity ? "Qty" : null, cols.unitPrice ? "Unit €" : null, cols.total ? "Total €" : null].filter(Boolean).join(" | "),
+...(q.items || []).map(it => [
+cols.prestationDate ? (it.prestationDate ? fmtDate(it.prestationDate) : "-") : null,
+cols.description ? (it.description || "") : null,
+cols.hours ? (it.hours === "" || it.hours == null ? "" : Number(it.hours).toFixed(2)) : null,
+cols.quantity ? Number(it.quantity || 0).toFixed(2) : null,
+cols.unitPrice ? Number(it.unitPrice || 0).toFixed(2) : null,
+cols.total ? Number(it.total || 0).toFixed(2) : null,
+].filter(v => v !== null).join(" | ")),
+"",
+`Subtotal: €${Number(q.subtotal || 0).toFixed(2)}`,
+...(cols.tva !== false ? [`TVA (${Number(q.vatRate || 0)}%): €${Number(q.vatAmount || 0).toFixed(2)}`] : []),
+`TOTAL: €${Number(q.total || 0).toFixed(2)}`,
+];
+
+const esc = (txt) => String(txt || "").replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
+const textOps = lines.map((line, i) => `BT /F1 10 Tf 40 ${790 - i * 14} Td (${esc(line)}) Tj ET`).join("\n");
+const stream = `${textOps}\n`;
+const objects = [
+"1 0 obj<< /Type /Catalog /Pages 2 0 R >>endobj\n",
+"2 0 obj<< /Type /Pages /Kids [3 0 R] /Count 1 >>endobj\n",
+"3 0 obj<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>endobj\n",
+"4 0 obj<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>endobj\n",
+`5 0 obj<< /Length ${stream.length} >>stream\n${stream}endstream\nendobj\n`,
+];
+let pdf = "%PDF-1.4\n";
+const offsets = [0];
+for (const obj of objects) { offsets.push(pdf.length); pdf += obj; }
+const xrefStart = pdf.length;
+pdf += `xref\n0 ${objects.length + 1}\n`;
+pdf += "0000000000 65535 f \n";
+for (let i = 1; i <= objects.length; i++) pdf += `${String(offsets[i]).padStart(10, "0")} 00000 n \n`;
+pdf += `trailer<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF`;
+return new Blob([pdf], { type: "application/pdf" });
+};
+
+const triggerPdfDownload = (blob, fileName) => {
+const url = URL.createObjectURL(blob);
+const a = document.createElement("a");
+a.href = url;
+a.download = fileName;
+a.click();
+setTimeout(() => URL.revokeObjectURL(url), 1000);
+};
+
+const downloadQuotePdf = (q) => {
+const pdfBlob = buildQuotePdfBlob(q);
+triggerPdfDownload(pdfBlob, `${q.quoteNumber || "quote"}.pdf`);
+showToast("Quote PDF downloaded");
+};
+
+const sendQuote = async (q) => {
+const client = data.clients.find(c => c.id === q.clientId);
+if (!client?.email) { showToast("Client email missing", "error"); return; }
+const pdfBlob = buildQuotePdfBlob(q);
+const pdfFile = new File([pdfBlob], `${q.quoteNumber || "quote"}.pdf`, { type: "application/pdf" });
+const bodyText = `Dear ${client.contactPerson || client.name},
+
+Please find quote ${q.quoteNumber}.
+Date: ${fmtDate(q.date)}
+Total: €${(q.total || 0).toFixed(2)}
+
+Best regards,
+${data.settings.companyName}`;
+
+if (navigator.canShare && navigator.canShare({ files: [pdfFile] }) && navigator.share) {
+try {
+await navigator.share({ title: `Quote ${q.quoteNumber}`, text: bodyText, files: [pdfFile] });
+showToast("Quote shared with PDF attachment");
+return;
+} catch {
+}
+}
+
+triggerPdfDownload(pdfBlob, `${q.quoteNumber || "quote"}.pdf`);
+const subject = encodeURIComponent(`Quote ${q.quoteNumber}`);
+const body = encodeURIComponent(`${bodyText}
+
+PDF downloaded automatically. Please attach it to this email.`);
+window.open(`mailto:${client.email}?subject=${subject}&body=${body}`);
+showToast("Email draft opened. PDF downloaded for attachment.");
 };
 
 const saveQuote = (q) => {
@@ -2044,22 +2233,6 @@ setModal(null);
 };
 
 const deleteQuote = (id) => { updateData("quotes", prev => (prev || []).filter(q => q.id !== id)); showToast("Quote deleted", "error"); };
-
-const sendQuote = (q) => {
-const client = data.clients.find(c => c.id === q.clientId);
-if (!client?.email) { showToast("Client email missing", "error"); return; }
-const subject = encodeURIComponent(`Quote ${q.quoteNumber}`);
-const body = encodeURIComponent(`Dear ${client.contactPerson || client.name},
-
-Please find quote ${q.quoteNumber}.
-Date: ${fmtDate(q.date)}
-Total: €${(q.total || 0).toFixed(2)}
-
-Best regards,
-${data.settings.companyName}`);
-window.open(`mailto:${client.email}?subject=${subject}&body=${body}`);
-showToast("Quote email draft opened");
-};
 
 const toInvoiceNum = () => {
 const [year, month, day] = getToday().split("-");
@@ -2076,7 +2249,8 @@ clientId: q.clientId,
 date: getToday(),
 dueDate: q.validUntil || "",
 items: (q.items || []).map(it => ({ ...it })),
-visibleColumns: q.visibleColumns || { prestationDate: true, description: true, hours: true, unitPrice: true, total: true, tva: true },
+visibleColumns: q.visibleColumns || defaultQuoteColumns,
+pricingMode: q.pricingMode || "hours",
 subtotal: q.subtotal || 0,
 vatRate: q.vatRate || data.settings.defaultVatRate,
 vatAmount: q.vatAmount || 0,
@@ -2094,45 +2268,69 @@ return (
 <div>
 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
 <h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold }}>{t("devis")}</h1>
-<button style={btnPri} onClick={() => setModal({ quoteNumber: quoteNumber(), clientId: "", date: getToday(), validUntil: "", items: [{ prestationDate: getToday(), description: "Cleaning service", hours: "", quantity: 1, unitPrice: 0, total: 0 }], visibleColumns: { prestationDate: true, description: true, hours: true, unitPrice: true, total: true, tva: true }, vatRate: data.settings.defaultVatRate, subtotal: 0, vatAmount: 0, total: 0, status: "draft", notes: "", paymentTerms: "Quote valid for 30 days." })}>{ICN.plus} {t("newQuote")}</button>
+<button style={btnPri} onClick={() => setModal({ quoteNumber: quoteNumber(), clientId: "", date: getToday(), validUntil: "", items: [{ prestationDate: getToday(), description: "Cleaning service", hours: "", quantity: 1, unitPrice: 0, total: 0 }], pricingMode: "hours", visibleColumns: { ...defaultQuoteColumns }, vatRate: data.settings.defaultVatRate, subtotal: 0, vatAmount: 0, total: 0, status: "draft", notes: "", paymentTerms: "Quote valid for 30 days." })}>{ICN.plus} {t("newQuote")}</button>
 </div>
 <div style={cardSt} className="tbl-wrap">
 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
 <thead><tr><th style={thSt}>{t("quote")} #</th><th style={thSt}>{t("client")}</th><th style={thSt}>{t("date")}</th><th style={thSt}>{t("total")}</th><th style={thSt}>{t("status")}</th><th style={thSt}>{t("actions")}</th></tr></thead>
 <tbody>
 {(data.quotes || []).sort((a,b)=>(b.date||"").localeCompare(a.date||"")).map(q => { const client = data.clients.find(c => c.id === q.clientId); return (
-<tr key={q.id}><td style={tdSt}><strong>{q.quoteNumber}</strong></td><td style={tdSt}>{client?.name || "-"}</td><td style={tdSt}>{fmtDate(q.date)}</td><td style={{ ...tdSt, fontWeight: 600 }}>€{(q.total || 0).toFixed(2)}</td><td style={tdSt}><Badge color={q.status === "accepted" || q.status === "converted" ? CL.green : q.status === "rejected" ? CL.red : CL.blue}>{q.status || t("draft")}</Badge></td><td style={tdSt}><div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}><button style={{ ...btnSec, ...btnSm }} onClick={() => setPreview({ ...q, invoiceNumber: q.quoteNumber, dueDate: q.validUntil })}>{t("view")}</button><button style={{ ...btnSec, ...btnSm }} onClick={() => setModal({ ...q })}>{ICN.edit}</button><button style={{ ...btnSec, ...btnSm }} onClick={() => sendQuote(q)}>{ICN.mail}</button>{q.status !== "converted" && <button style={{ ...btnSec, ...btnSm, color: CL.green }} onClick={() => convertToInvoice(q)}>{lang === "en" ? "To Invoice" : "Vers facture"}</button>}<button style={{ ...btnSec, ...btnSm, color: CL.red }} onClick={() => deleteQuote(q.id)}>{ICN.trash}</button></div></td></tr>
+<tr key={q.id}><td style={tdSt}><strong>{q.quoteNumber}</strong></td><td style={tdSt}>{client?.name || "-"}</td><td style={tdSt}>{fmtDate(q.date)}</td><td style={{ ...tdSt, fontWeight: 600 }}>€{(q.total || 0).toFixed(2)}</td><td style={tdSt}><Badge color={q.status === "accepted" || q.status === "converted" ? CL.green : q.status === "rejected" ? CL.red : CL.blue}>{q.status || t("draft")}</Badge></td><td style={tdSt}><div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}><button style={{ ...btnSec, ...btnSm }} onClick={() => setPreview({ ...q, invoiceNumber: q.quoteNumber, dueDate: q.validUntil })}>{t("view")}</button><button style={{ ...btnSec, ...btnSm }} onClick={() => setModal({ ...q })}>{ICN.edit}</button><button style={{ ...btnSec, ...btnSm }} onClick={() => downloadQuotePdf(q)}>{ICN.download} PDF</button><button style={{ ...btnSec, ...btnSm }} onClick={() => sendQuote(q)}>{ICN.mail}</button>{q.status !== "converted" && <button style={{ ...btnSec, ...btnSm, color: CL.green }} onClick={() => convertToInvoice(q)}>{lang === "en" ? "To Invoice" : "Vers facture"}</button>}<button style={{ ...btnSec, ...btnSm, color: CL.red }} onClick={() => deleteQuote(q.id)}>{ICN.trash}</button></div></td></tr>
 ); })}
 {(data.quotes || []).length === 0 && <tr><td colSpan={6} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>No quotes</td></tr>}
 </tbody>
 </table>
 </div>
 
-{preview && <ModalBox title={lang === "en" ? "Quote Preview" : "Aperçu devis"} onClose={() => setPreview(null)} wide><InvoicePreviewContent invoice={preview} data={data} /><div className="no-print" style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 12 }}><button style={btnSec} onClick={() => setPreview(null)}>{lang === "en" ? "Close" : "Fermer"}</button></div></ModalBox>}
-{modal && <ModalBox title={modal.id ? t("editQuote") : t("newQuote")} onClose={() => setModal(null)} wide><QuoteForm quote={modal} data={data} onSave={saveQuote} onCancel={() => setModal(null)} /></ModalBox>}
+{preview && <ModalBox title={lang === "en" ? "Quote Preview" : "Aperçu devis"} onClose={() => setPreview(null)} wide><InvoicePreviewContent invoice={preview} data={data} /><div className="no-print" style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 12, flexWrap: "wrap" }}><button style={btnSec} onClick={() => setPreview(null)}>{lang === "en" ? "Close" : "Fermer"}</button><button style={btnPri} onClick={() => downloadQuotePdf(preview)}>{ICN.download} PDF</button><button style={{ ...btnSec, color: CL.blue }} onClick={() => sendQuote(preview)}>{ICN.mail} {t("sendEmail")}</button></div></ModalBox>}
+{modal && <ModalBox title={modal.id ? t("editQuote") : t("newQuote")} onClose={() => setModal(null)} wide><QuoteForm quote={{ pricingMode: "hours", visibleColumns: { ...defaultQuoteColumns }, ...modal }} data={data} onSave={saveQuote} onCancel={() => setModal(null)} /></ModalBox>}
 </div>
 );
 }
 
 function QuoteForm({ quote, data, onSave, onCancel }) {
-const [form, setForm] = useState({ visibleColumns: { prestationDate: true, description: true, hours: true, unitPrice: true, total: true, tva: true }, ...quote });
+const defaultColumns = { prestationDate: true, description: true, hours: true, quantity: false, unitPrice: true, total: true, tva: true };
+const [form, setForm] = useState({ pricingMode: "hours", ...quote, visibleColumns: { ...defaultColumns, ...(quote.visibleColumns || {}) } });
 const set = (k,v) => setForm(prev => ({ ...prev, [k]: v }));
+
+const recalcRow = (row, pricingMode = form.pricingMode) => {
+const qty = pricingMode === "hours" ? Number(row.hours || 0) : Number(row.quantity || 0);
+const normalizedQty = Math.max(0, Number.isFinite(qty) ? qty : 0);
+return { ...row, quantity: normalizedQty, total: Math.round(normalizedQty * Number(row.unitPrice || 0) * 100) / 100 };
+};
 
 const onClientChange = (clientId) => {
 const cl = data.clients.find(c => c.id === clientId);
 const unit = cl ? (cl.billingType === "fixed" ? (cl.priceFixed || cl.pricePerHour || 0) : (cl.pricePerHour || cl.priceFixed || 0)) : 0;
-setForm(prev => ({ ...prev, clientId, items: (prev.items || []).map(it => ({ ...it, unitPrice: unit, total: Math.round((Number(it.quantity)||0) * unit * 100) / 100 })) }));
+setForm(prev => ({
+...prev,
+clientId,
+items: (prev.items || []).map(it => recalcRow({ ...it, unitPrice: unit }, prev.pricingMode)),
+}));
 };
 
 const updateItem = (idx, key, value) => setForm(prev => {
 const items = [...(prev.items || [])];
-items[idx] = { ...items[idx], [key]: value };
-if (key === "hours") items[idx].quantity = value === "" ? 1 : Number(value) || 0;
-const qty = Number(items[idx].quantity || 0);
-const unit = Number(items[idx].unitPrice || 0);
-items[idx].total = Math.round(qty * unit * 100) / 100;
+const nextRow = { ...items[idx], [key]: value };
+items[idx] = recalcRow(nextRow, prev.pricingMode);
 return { ...prev, items };
 });
+
+const changePricingMode = (mode) => {
+setForm(prev => ({
+...prev,
+pricingMode: mode,
+visibleColumns: {
+...(prev.visibleColumns || defaultColumns),
+hours: mode === "hours",
+quantity: mode === "subscription",
+},
+items: (prev.items || []).map(it => {
+const row = mode === "hours" ? { ...it, hours: it.hours === "" ? "" : Number(it.hours || it.quantity || 0) } : { ...it, quantity: Number(it.quantity || it.hours || 1) || 1 };
+return recalcRow(row, mode);
+}),
+}));
+};
 
 const subtotal = (form.items || []).reduce((s, it) => s + (Number(it.total) || 0), 0);
 const vatAmount = Math.round(subtotal * (Number(form.vatRate) || 0) / 100 * 100) / 100;
@@ -2147,13 +2345,55 @@ return (
 <Field label="Valid Until"><TextInput type="date" value={form.validUntil || ""} onChange={ev => set("validUntil", ev.target.value)} /></Field>
 <Field label="TVA %"><TextInput type="number" value={form.vatRate} onChange={ev => set("vatRate", parseFloat(ev.target.value) || 0)} /></Field>
 </div>
-<div style={{ marginTop: 8 }}>
-<div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}><span style={{ fontSize: 13, color: CL.muted }}>Quote Lines</span><button style={{ ...btnSec, ...btnSm }} onClick={() => setForm(prev => ({ ...prev, items: [...(prev.items || []), { prestationDate: prev.date, description: "", hours: "", quantity: 1, unitPrice: 0, total: 0 }] }))}>+ Add</button></div>
-{(form.items || []).map((it, idx) => <div key={idx} style={{ display: "grid", gridTemplateColumns: "1fr 2fr .8fr .9fr .9fr auto", gap: 5, marginBottom: 5, alignItems: "center" }}><TextInput type="date" value={it.prestationDate || ""} onChange={ev => updateItem(idx, "prestationDate", ev.target.value)} /><TextInput value={it.description || ""} onChange={ev => updateItem(idx, "description", ev.target.value)} /><TextInput type="number" step="0.25" value={it.hours ?? ""} onChange={ev => updateItem(idx, "hours", ev.target.value === "" ? "" : parseFloat(ev.target.value) || 0)} /><TextInput type="number" step="0.01" value={it.unitPrice} onChange={ev => updateItem(idx, "unitPrice", parseFloat(ev.target.value) || 0)} /><div style={{ textAlign: "right", fontWeight: 600 }}>€{Number(it.total || 0).toFixed(2)}</div><button style={{ background: "none", border: "none", color: CL.red, cursor: "pointer" }} onClick={() => setForm(prev => ({ ...prev, items: (prev.items || []).filter((_, j) => j !== idx) }))}>{ICN.close}</button></div>)}
+
+<div style={{ display: "flex", gap: 12, flexWrap: "wrap", margin: "8px 0 12px" }}>
+<Field label="Pricing mode">
+<SelectInput value={form.pricingMode || "hours"} onChange={ev => changePricingMode(ev.target.value)}>
+<option value="hours">By hours</option>
+<option value="subscription">By subscription</option>
+</SelectInput>
+</Field>
+<Field label="Visible columns">
+<div style={{ display: "flex", gap: 10, flexWrap: "wrap", paddingTop: 8 }}>
+{[
+["prestationDate", "Date"],
+["description", "Description"],
+["hours", "Hours"],
+["quantity", "Quantity"],
+["unitPrice", "Unit Price"],
+["total", "Line Total"],
+["tva", "TVA"],
+].map(([col, label]) => <label key={col} style={{ fontSize: 12, color: CL.muted }}><input type="checkbox" checked={form.visibleColumns?.[col] !== false} onChange={ev => setForm(prev => ({ ...prev, visibleColumns: { ...(prev.visibleColumns || {}), [col]: ev.target.checked } }))} /> {label}</label>)}
 </div>
-<div style={{ textAlign: "right", marginTop: 8 }}><div style={{ color: CL.muted }}>Subtotal: €{subtotal.toFixed(2)}</div><div style={{ color: CL.muted }}>TVA ({form.vatRate}%): €{vatAmount.toFixed(2)}</div><div style={{ fontSize: 18, fontWeight: 700, color: CL.gold }}>Total: €{(subtotal + vatAmount).toFixed(2)}</div></div>
+</Field>
+</div>
+
+<div style={{ marginTop: 8 }}>
+<div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, alignItems: "center" }}><span style={{ fontSize: 13, color: CL.muted }}>Quote Lines</span><button style={{ ...btnSec, ...btnSm }} onClick={() => setForm(prev => ({ ...prev, items: [...(prev.items || []), recalcRow({ prestationDate: prev.date, description: "", hours: "", quantity: prev.pricingMode === "hours" ? 0 : 1, unitPrice: 0, total: 0 }, prev.pricingMode)] }))}>+ Add</button></div>
+
+<div style={{ display: "grid", gridTemplateColumns: `${form.visibleColumns?.prestationDate !== false ? "1.1fr " : ""}${form.visibleColumns?.description !== false ? "2fr " : ""}${form.visibleColumns?.hours !== false ? ".8fr " : ""}${form.visibleColumns?.quantity !== false ? ".8fr " : ""}${form.visibleColumns?.unitPrice !== false ? ".9fr " : ""}${form.visibleColumns?.total !== false ? ".9fr " : ""}auto`, gap: 5, marginBottom: 6, fontSize: 11, color: CL.dim, fontWeight: 600 }}>
+{form.visibleColumns?.prestationDate !== false && <div>DATE</div>}
+{form.visibleColumns?.description !== false && <div>DESCRIPTION</div>}
+{form.visibleColumns?.hours !== false && <div style={{ textAlign: "right" }}>HOURS</div>}
+{form.visibleColumns?.quantity !== false && <div style={{ textAlign: "right" }}>QTY</div>}
+{form.visibleColumns?.unitPrice !== false && <div style={{ textAlign: "right" }}>UNIT €</div>}
+{form.visibleColumns?.total !== false && <div style={{ textAlign: "right" }}>TOTAL €</div>}
+<div></div>
+</div>
+
+{(form.items || []).map((it, idx) => <div key={idx} style={{ display: "grid", gridTemplateColumns: `${form.visibleColumns?.prestationDate !== false ? "1.1fr " : ""}${form.visibleColumns?.description !== false ? "2fr " : ""}${form.visibleColumns?.hours !== false ? ".8fr " : ""}${form.visibleColumns?.quantity !== false ? ".8fr " : ""}${form.visibleColumns?.unitPrice !== false ? ".9fr " : ""}${form.visibleColumns?.total !== false ? ".9fr " : ""}auto`, gap: 5, marginBottom: 5, alignItems: "center" }}>
+{form.visibleColumns?.prestationDate !== false && <TextInput type="date" value={it.prestationDate || ""} onChange={ev => updateItem(idx, "prestationDate", ev.target.value)} />}
+{form.visibleColumns?.description !== false && <TextInput value={it.description || ""} onChange={ev => updateItem(idx, "description", ev.target.value)} />}
+{form.visibleColumns?.hours !== false && <TextInput type="number" step="0.25" value={it.hours ?? ""} onChange={ev => updateItem(idx, "hours", ev.target.value === "" ? "" : parseFloat(ev.target.value) || 0)} />}
+{form.visibleColumns?.quantity !== false && <TextInput type="number" step="0.25" value={it.quantity ?? 0} onChange={ev => updateItem(idx, "quantity", parseFloat(ev.target.value) || 0)} />}
+{form.visibleColumns?.unitPrice !== false && <TextInput type="number" step="0.01" value={it.unitPrice} onChange={ev => updateItem(idx, "unitPrice", parseFloat(ev.target.value) || 0)} />}
+{form.visibleColumns?.total !== false && <div style={{ textAlign: "right", fontWeight: 600 }}>€{Number(it.total || 0).toFixed(2)}</div>}
+<button style={{ background: "none", border: "none", color: CL.red, cursor: "pointer" }} onClick={() => setForm(prev => ({ ...prev, items: (prev.items || []).filter((_, j) => j !== idx) }))}>{ICN.close}</button>
+</div>)}
+</div>
+<div style={{ textAlign: "right", marginTop: 8 }}><div style={{ color: CL.muted }}>Subtotal: €{subtotal.toFixed(2)}</div>{form.visibleColumns?.tva !== false && <div style={{ color: CL.muted }}>TVA ({form.vatRate}%): €{vatAmount.toFixed(2)}</div>}<div style={{ fontSize: 18, fontWeight: 700, color: CL.gold }}>Total: €{(subtotal + (form.visibleColumns?.tva === false ? 0 : vatAmount)).toFixed(2)}</div></div>
 <Field label="Notes"><TextArea value={form.notes || ""} onChange={ev => set("notes", ev.target.value)} /></Field>
-<div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}><button style={btnSec} onClick={onCancel}>Cancel</button><button style={btnPri} onClick={() => form.clientId && onSave({ ...form, subtotal, vatAmount, total: subtotal + vatAmount })}>Save Quote</button></div>
+<div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}><button style={btnSec} onClick={onCancel}>Cancel</button><button style={btnPri} onClick={() => form.clientId && onSave({ ...form, subtotal, vatAmount: form.visibleColumns?.tva === false ? 0 : vatAmount, total: subtotal + (form.visibleColumns?.tva === false ? 0 : vatAmount) })}>Save Quote</button></div>
 </div>
 );
 }
@@ -2170,20 +2410,52 @@ const nums = data.invoices.map(i => String(i.invoiceNumber || "")).filter(n => n
 return `${prefix}${nums.length ? Math.max(...nums) + 1 : 500}`;
 };
 
-const buildPrestationOptions = (clientId, month) => {
-const scheds = data.schedules.filter(s => s.clientId === clientId && s.status === "completed" && (!month || s.date?.startsWith(month))).map(s => {
+const buildPrestationOptions = (clientId, rangeStart, rangeEnd) => {
+if (!clientId || !rangeStart || !rangeEnd) return [];
+const inRange = (dateStr) => dateStr && dateStr >= rangeStart && dateStr <= rangeEnd;
+
+const latestBySlot = new Map();
+(data.schedules || []).forEach((s, idx) => {
+if (s.clientId !== clientId || s.status === "cancelled" || !inRange(s.date)) return;
+const slotKey = `${s.clientId}::${s.employeeId || "none"}::${s.date}::${s.startTime || ""}::${s.endTime || ""}`;
+const score = `${s.updatedAt || ""}|${s.date || ""}|${String(idx).padStart(6, "0")}`;
+const prev = latestBySlot.get(slotKey);
+if (!prev || score > prev.score) latestBySlot.set(slotKey, { sched: s, score });
+});
+
+const scheduleRows = [...latestBySlot.values()].map(({ sched: s }) => {
 const employee = data.employees.find(e => e.id === s.employeeId);
-const clock = data.clockEntries.find(c => c.clientId === s.clientId && c.employeeId === s.employeeId && c.clockIn?.slice(0, 10) === s.date && c.clockOut);
-const hours = clock ? calcHrs(clock.clockIn, clock.clockOut) : 0;
-return { id: `sched-${s.id}`, prestationDate: s.date, description: `Cleaning service (${s.startTime}-${s.endTime})`, hours, employeeName: employee?.name || "Unassigned" };
+const sameDayClocks = data.clockEntries.filter(c => c.clientId === s.clientId && c.employeeId === s.employeeId && c.clockIn?.slice(0, 10) === s.date && c.clockOut);
+const clockHours = sameDayClocks.reduce((sum, c) => sum + calcHrs(c.clockIn, c.clockOut), 0);
+const schedHours = calcHrs(makeISO(s.date, s.startTime || "00:00"), makeISO(s.date, s.endTime || "00:00"));
+const hours = clockHours > 0 ? clockHours : schedHours;
+return {
+id: `sched-${s.id}`,
+source: "schedule",
+prestationDate: s.date,
+description: `Prestation ${s.date} (${s.startTime || "--:--"}-${s.endTime || "--:--"})`,
+hours: Math.round((hours || 0) * 100) / 100,
+employeeName: employee?.name || "Unassigned",
+};
 });
-const clocks = data.clockEntries.filter(c => c.clientId === clientId && c.clockOut && (!month || c.clockIn?.startsWith(month))).map(c => {
+
+const existingKeys = new Set(scheduleRows.map(r => `${r.prestationDate}-${r.employeeName}`));
+const manualClockRows = data.clockEntries
+.filter(c => c.clientId === clientId && c.clockOut && inRange(c.clockIn?.slice(0, 10)))
+.map(c => {
 const employee = data.employees.find(e => e.id === c.employeeId);
-const hours = calcHrs(c.clockIn, c.clockOut);
-return { id: `clock-${c.id}`, prestationDate: c.clockIn.slice(0, 10), description: `Cleaning service (clock ${fmtTime(c.clockIn)}-${fmtTime(c.clockOut)})`, hours, employeeName: employee?.name || "Unassigned" };
-});
-const seen = new Set();
-return [...scheds, ...clocks].filter(x => { const k = `${x.prestationDate}-${x.employeeName}-${x.description}`; if (seen.has(k)) return false; seen.add(k); return true; }).sort((a,b)=>`${b.prestationDate}`.localeCompare(a.prestationDate));
+return {
+id: `clock-${c.id}`,
+source: "clock",
+prestationDate: c.clockIn.slice(0, 10),
+description: `Prestation ${c.clockIn.slice(0, 10)} (clock ${fmtTime(c.clockIn)}-${fmtTime(c.clockOut)})`,
+hours: Math.round(calcHrs(c.clockIn, c.clockOut) * 100) / 100,
+employeeName: employee?.name || "Unassigned",
+};
+})
+.filter(r => !existingKeys.has(`${r.prestationDate}-${r.employeeName}`));
+
+return [...scheduleRows, ...manualClockRows].sort((a, b) => `${a.prestationDate}`.localeCompare(b.prestationDate));
 };
 
 const handleSave = (inv) => {
@@ -2252,7 +2524,7 @@ return (
 <div>
 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
 <h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold }}>{t("invoices")}</h1>
-<button style={btnPri} onClick={() => setModal({ clientId: "", date: getToday(), dueDate: "", invoiceNumber: nextInvoiceNum(), items: [{ prestationDate: getToday(), description: "Cleaning services", hours: "", quantity: 1, unitPrice: 0, total: 0 }], visibleColumns: { prestationDate: true, description: true, hours: true, unitPrice: true, total: true, tva: true }, subtotal: 0, vatRate: data.settings.defaultVatRate, vatAmount: 0, total: 0, status: "draft", notes: "", paymentTerms: "Payment due within 30 days.", emailTemplate: "standard", zohoEmail: "" })}>{ICN.plus} {t("newInvoice")}</button>
+<button style={btnPri} onClick={() => setModal({ clientId: "", date: getToday(), dueDate: "", invoiceNumber: nextInvoiceNum(), items: [{ prestationDate: getToday(), description: "Cleaning services", hours: "", quantity: 1, unitPrice: 0, total: 0 }], visibleColumns: { prestationDate: true, description: true, hours: true, quantity: false, unitPrice: true, total: true, tva: true }, subtotal: 0, vatRate: data.settings.defaultVatRate, vatAmount: 0, total: 0, status: "draft", notes: "", paymentTerms: "Payment due within 30 days.", emailTemplate: "standard", zohoEmail: "" })}>{ICN.plus} {t("newInvoice")}</button>
 </div>
 <div style={cardSt} className="tbl-wrap">
 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
@@ -2288,13 +2560,14 @@ return (
 }
 
 function InvoiceFormContent({ invoice, data, onSave, nextInvoiceNum, buildPrestationOptions, onCancel }) {
-const { t, lang } = useI18n();
-const [form, setForm] = useState({ visibleColumns: { prestationDate: true, description: true, hours: true, unitPrice: true, total: true, tva: true }, ...invoice });
+const { t } = useI18n();
+const [form, setForm] = useState({ visibleColumns: { prestationDate: true, description: true, hours: true, quantity: false, unitPrice: true, total: true, tva: true }, billingStart: "", billingEnd: "", ...invoice });
+const [scheduleLoadMessage, setScheduleLoadMessage] = useState("");
 const set = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
 
 const client = data.clients.find(c => c.id === form.clientId);
 const defaultUnitPrice = client ? (client.billingType === "fixed" ? (client.priceFixed || client.pricePerHour || 0) : (client.pricePerHour || client.priceFixed || 0)) : 0;
-const prestations = form.clientId ? buildPrestationOptions(form.clientId, form.date?.slice(0, 7)) : [];
+const prestations = form.clientId ? buildPrestationOptions(form.clientId, form.billingStart, form.billingEnd) : [];
 
 const updateItem = (idx, key, value) => setForm(prev => {
 const items = [...(prev.items || [])];
@@ -2311,6 +2584,26 @@ const quantity = p.hours && p.hours > 0 ? Math.round(p.hours * 100) / 100 : 1;
 const row = { prestationDate: p.prestationDate, description: p.description, hours: p.hours ? Math.round(p.hours * 100) / 100 : "", quantity, unitPrice, total: Math.round(quantity * unitPrice * 100) / 100 };
 return { ...prev, items: [...(prev.items || []), row] };
 });
+
+const loadPrestationsFromRange = () => {
+if (!form.clientId || !form.billingStart || !form.billingEnd) {
+setScheduleLoadMessage("No prestations found in this billing period.");
+return;
+}
+const unitPrice = Number(defaultUnitPrice || 0);
+const nextItems = prestations.map(p => {
+const quantity = p.hours && p.hours > 0 ? Math.round(p.hours * 100) / 100 : 1;
+return { prestationDate: p.prestationDate, description: p.description, hours: p.hours ? Math.round(p.hours * 100) / 100 : "", quantity, unitPrice, total: Math.round(quantity * unitPrice * 100) / 100 };
+});
+setForm(prev => ({ ...prev, items: nextItems }));
+setScheduleLoadMessage(nextItems.length ? "Prestations loaded from the latest client schedule." : "No prestations found in this billing period.");
+};
+
+useEffect(() => {
+if (!form.clientId || !form.billingStart || !form.billingEnd) return;
+loadPrestationsFromRange();
+// eslint-disable-next-line react-hooks/exhaustive-deps
+}, [form.clientId, form.billingStart, form.billingEnd, data.schedules, data.clockEntries]);
 
 const onClientChange = (clientId) => {
 const cl = data.clients.find(c => c.id === clientId);
@@ -2336,40 +2629,45 @@ return (
 </div>
 
 <div style={{ ...cardSt, padding: 12, marginBottom: 10 }}>
-<div style={{ fontSize: 12, color: CL.muted, marginBottom: 8 }}>Completed prestations (select several)</div>
-<div style={{ maxHeight: 140, overflow: "auto" }}>
-{prestations.map(p => <button key={p.id} style={{ ...btnSec, ...btnSm, width: "100%", marginBottom: 5, justifyContent: "space-between" }} onClick={() => addPrestation(p)}><span>{fmtDate(p.prestationDate)} · {p.employeeName} · {p.description}</span><span>{p.hours ? `${p.hours.toFixed(2)}h` : ""}</span></button>)}
-{prestations.length === 0 && <div style={{ fontSize: 12, color: CL.dim }}>No completed prestation found for this client/month.</div>}
+<div style={{ fontSize: 13, color: CL.muted, marginBottom: 8 }}>Période de facturation</div>
+<div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 8, alignItems: "end", marginBottom: 8 }}>
+<Field label="Start date"><TextInput type="date" value={form.billingStart || ""} onChange={ev => set("billingStart", ev.target.value)} /></Field>
+<Field label="End date"><TextInput type="date" value={form.billingEnd || ""} onChange={ev => set("billingEnd", ev.target.value)} /></Field>
+<button style={{ ...btnPri, marginBottom: 14 }} onClick={loadPrestationsFromRange} disabled={!form.clientId}>Generate prestations from schedule</button>
 </div>
+<div style={{ fontSize: 12, color: CL.muted, marginBottom: 8 }}>Prestations from latest schedule updates for selected client and range</div>
+<div style={{ maxHeight: 150, overflow: "auto" }}>
+{prestations.map(p => <button key={p.id} style={{ ...btnSec, ...btnSm, width: "100%", marginBottom: 5, justifyContent: "space-between" }} onClick={() => addPrestation(p)}><span>{fmtDate(p.prestationDate)} · {p.employeeName} · {p.description}</span><span>{p.hours ? `${p.hours.toFixed(2)}h` : ""}</span></button>)}
+{prestations.length === 0 && <div style={{ fontSize: 12, color: CL.dim }}>No prestations found in this billing period.</div>}
+</div>
+{scheduleLoadMessage && <div style={{ fontSize: 12, color: CL.blue, marginTop: 6 }}>{scheduleLoadMessage}</div>}
 </div>
 
 <div style={{ marginTop: 12 }}>
 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5, flexWrap: "wrap", gap: 8 }}>
 <span style={{ fontSize: 13, color: CL.muted }}>Fields (columns) and line items</span>
 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-{["prestationDate","description","hours","unitPrice","total","tva"].map(col => <label key={col} style={{ fontSize: 12, color: CL.muted }}><input type="checkbox" checked={form.visibleColumns?.[col] !== false} onChange={ev => setForm(prev => ({ ...prev, visibleColumns: { ...(prev.visibleColumns || {}), [col]: ev.target.checked } }))} /> {col}</label>)}
-<button style={{ ...btnSec, ...btnSm }} onClick={() => setForm(prev => ({ ...prev, items: [...(prev.items || []), { prestationDate: prev.date, description: "", hours: "", quantity: 1, unitPrice: defaultUnitPrice || 0, total: defaultUnitPrice || 0 }] }))}>+ Add field/row</button>
+{["prestationDate","description","hours","quantity","unitPrice","total","tva"].map(col => <label key={col} style={{ fontSize: 12, color: CL.muted }}><input type="checkbox" checked={form.visibleColumns?.[col] !== false} onChange={ev => setForm(prev => ({ ...prev, visibleColumns: { ...(prev.visibleColumns || {}), [col]: ev.target.checked } }))} /> {col}</label>)}
+<button style={{ ...btnSec, ...btnSm }} onClick={() => setForm(prev => ({ ...prev, items: [...(prev.items || []), { prestationDate: prev.date, description: "", hours: "", quantity: 1, unitPrice: defaultUnitPrice || 0, total: defaultUnitPrice || 0 }] }))}>+ Add row</button>
 </div>
 </div>
 {(form.items || []).map((item, idx) => (
-<div key={idx} style={{ display: "grid", gridTemplateColumns: "1.1fr 2fr .8fr .9fr .9fr auto", gap: 5, marginBottom: 5, alignItems: "center" }}>
+<div key={idx} style={{ display: "grid", gridTemplateColumns: "1.1fr 2fr .8fr .8fr .9fr .9fr auto", gap: 5, marginBottom: 5, alignItems: "center" }}>
 <TextInput type="date" placeholder="Prestation date" value={item.prestationDate || ""} onChange={ev => updateItem(idx, "prestationDate", ev.target.value)} />
 <TextInput placeholder="Description" value={item.description || ""} onChange={ev => updateItem(idx, "description", ev.target.value)} />
 <TextInput type="number" step="0.25" placeholder="Hours" value={item.hours ?? ""} onChange={ev => { const h = ev.target.value; updateItem(idx, "hours", h === "" ? "" : parseFloat(h) || 0); updateItem(idx, "quantity", h === "" ? 1 : parseFloat(h) || 0); }} />
-<TextInput type="number" step="0.01" placeholder="Unit price" value={item.unitPrice} onChange={ev => updateItem(idx, "unitPrice", parseFloat(ev.target.value) || 0)} />
-<div style={{ minWidth: 70, textAlign: "right", fontWeight: 600 }}>€{Number(item.total || 0).toFixed(2)}</div>
-<button style={{ background: "none", border: "none", cursor: "pointer", color: CL.red }} onClick={() => setForm(prev => ({ ...prev, items: (prev.items || []).filter((_, j) => j !== idx) }))}>{ICN.close}</button>
+<TextInput type="number" step="0.25" placeholder="Qty" value={item.quantity ?? 0} onChange={ev => updateItem(idx, "quantity", parseFloat(ev.target.value) || 0)} />
+<TextInput type="number" step="0.01" placeholder="Unit" value={item.unitPrice} onChange={ev => updateItem(idx, "unitPrice", parseFloat(ev.target.value) || 0)} />
+<div style={{ textAlign: "right", fontWeight: 600 }}>€{Number(item.total || 0).toFixed(2)}</div>
+<button style={{ background: "none", border: "none", color: CL.red, cursor: "pointer" }} onClick={() => setForm(prev => ({ ...prev, items: (prev.items || []).filter((_, j) => j !== idx) }))}>{ICN.close}</button>
 </div>
 ))}
-<div style={{ textAlign: "right", marginTop: 10, fontSize: 14 }}>
-<div style={{ color: CL.muted }}>Subtotal: <strong style={{ color: CL.text }}>€{subtotal.toFixed(2)}</strong></div>
-{form.visibleColumns?.tva !== false && <div style={{ color: CL.muted }}>TVA ({form.vatRate}%): <strong style={{ color: CL.text }}>€{vatAmount.toFixed(2)}</strong></div>}
-<div style={{ fontSize: 18, fontWeight: 700, color: CL.gold, marginTop: 4 }}>Total: €{(subtotal + (form.visibleColumns?.tva === false ? 0 : vatAmount)).toFixed(2)}</div>
-</div>
 </div>
 
+<div style={{ textAlign: "right", marginTop: 8 }}><div style={{ color: CL.muted }}>Subtotal: €{subtotal.toFixed(2)}</div>{form.visibleColumns?.tva !== false && <div style={{ color: CL.muted }}>TVA ({form.vatRate}%): €{vatAmount.toFixed(2)}</div>}<div style={{ fontSize: 18, fontWeight: 700, color: CL.gold, marginTop: 4 }}>Total: €{(subtotal + (form.visibleColumns?.tva === false ? 0 : vatAmount)).toFixed(2)}</div></div>
+
 <div className="form-grid" style={{ marginTop: 12 }}>
-<Field label="Zoho sender email"><TextInput value={form.zohoEmail || ""} onChange={ev => set("zohoEmail", ev.target.value)} placeholder="name@yourcompany.com" /></Field>
+<Field label="Sender email (optional)"><TextInput value={form.zohoEmail || ""} onChange={ev => set("zohoEmail", ev.target.value)} placeholder="name@yourcompany.com" /></Field>
 <Field label="Email template"><SelectInput value={form.emailTemplate || "standard"} onChange={ev => set("emailTemplate", ev.target.value)}><option value="standard">Standard</option><option value="friendly">Friendly reminder</option></SelectInput></Field>
 </div>
 
@@ -2383,25 +2681,48 @@ return (
 }
 
 function InvoicePreviewContent({ invoice, data }) {
-const { lang } = useI18n();
 const client = data.clients.find(c => c.id === invoice.clientId);
 const settings = data.settings;
-const cols = { prestationDate: true, description: true, hours: true, unitPrice: true, total: true, tva: true, ...(invoice.visibleColumns || {}) };
+const cols = { prestationDate: true, description: true, hours: true, quantity: false, unitPrice: true, total: true, tva: true, ...(invoice.visibleColumns || {}) };
 return (
 <div style={{ background: "#fff", color: "#1a1a1a", padding: 28, borderRadius: 8 }}>
 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 24, flexWrap: "wrap", gap: 16 }}>
 <div><h1 style={{ fontSize: 24, fontWeight: 700, color: "#C9A84C", fontFamily: "'Cormorant Garamond', serif", margin: 0 }}>{settings.companyName}</h1><div style={{ fontSize: 11, color: "#666", marginTop: 3, lineHeight: 1.6 }}>{settings.companyAddress}<br />{settings.companyEmail}<br />{settings.companyPhone}<br />TVA: {settings.vatNumber}</div></div>
-<div style={{ textAlign: "right" }}><h2 style={{ fontSize: 20, color: "#333", margin: 0 }}>{lang === "en" ? "INVOICE" : "FACTURE"}</h2><div style={{ fontSize: 12, color: "#666", marginTop: 5 }}><strong>{invoice.invoiceNumber}</strong><br />{lang === "en" ? "Date" : "Date"}: {fmtDate(invoice.date)}{invoice.dueDate && <><br />{lang === "en" ? "Due" : "Échéance"}: {fmtDate(invoice.dueDate)}</>}</div></div>
+<div style={{ textAlign: "right" }}><h2 style={{ fontSize: 20, color: "#333", margin: 0 }}>FACTURE</h2><div style={{ fontSize: 12, color: "#666", marginTop: 5 }}><strong>{invoice.invoiceNumber}</strong><br />Date: {fmtDate(invoice.date)}{invoice.dueDate && <><br />Échéance: {fmtDate(invoice.dueDate)}</>}</div></div>
 </div>
-<div style={{ marginBottom: 18, padding: 12, background: "#f8f8f8", borderRadius: 8 }}><div style={{ fontSize: 10, color: "#999", textTransform: "uppercase", marginBottom: 2 }}>{lang === "en" ? "Client" : "Client"}</div><div style={{ fontWeight: 600 }}>{client?.name}</div>{client?.email && <div style={{ fontSize: 12, color: "#666" }}>{client.email}</div>}</div>
+
+<div style={{ marginBottom: 18, padding: 12, background: "#f8f8f8", borderRadius: 8 }}>
+<div style={{ fontSize: 10, color: "#999", textTransform: "uppercase", marginBottom: 2 }}>Client</div>
+<div style={{ fontWeight: 600 }}>{client?.name}</div>
+{client?.address && <div style={{ fontSize: 12, color: "#666" }}>{client.address}</div>}
+{client?.phone && <div style={{ fontSize: 12, color: "#666" }}>{client.phone}</div>}
+{client?.email && <div style={{ fontSize: 12, color: "#666" }}>{client.email}</div>}
+</div>
+
+<div style={{ marginBottom: 8, fontWeight: 600, color: "#35526b" }}>Description des prestations</div>
 <div style={{ overflowX: "auto" }}>
 <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 18 }}>
-<thead><tr style={{ borderBottom: "2px solid #C9A84C" }}>{cols.prestationDate && <th style={{ textAlign: "left", padding: "5px 0", fontSize: 10, color: "#999" }}>PRESTATION DATE</th>}{cols.description && <th style={{ textAlign: "left", padding: "5px 0", fontSize: 10, color: "#999" }}>DESCRIPTION</th>}{cols.hours && <th style={{ textAlign: "right", padding: "5px 0", fontSize: 10, color: "#999" }}>HOURS</th>}{cols.unitPrice && <th style={{ textAlign: "right", padding: "5px 0", fontSize: 10, color: "#999" }}>UNIT PRICE</th>}{cols.total && <th style={{ textAlign: "right", padding: "5px 0", fontSize: 10, color: "#999" }}>TOTAL</th>}</tr></thead>
-<tbody>{(invoice.items || []).map((item, idx) => <tr key={idx} style={{ borderBottom: "1px solid #eee" }}>{cols.prestationDate && <td style={{ padding: "8px 0" }}>{fmtDate(item.prestationDate)}</td>}{cols.description && <td style={{ padding: "8px 0" }}>{item.description}</td>}{cols.hours && <td style={{ padding: "8px 0", textAlign: "right" }}>{item.hours === "" || item.hours == null ? "" : Number(item.hours).toFixed(2)}</td>}{cols.unitPrice && <td style={{ padding: "8px 0", textAlign: "right" }}>€{Number(item.unitPrice || 0).toFixed(2)}</td>}{cols.total && <td style={{ padding: "8px 0", textAlign: "right" }}>€{Number(item.total || 0).toFixed(2)}</td>}</tr>)}</tbody>
+<thead><tr style={{ borderBottom: "2px solid #C9A84C" }}><th style={{ textAlign: "left", padding: "5px 0", fontSize: 10, color: "#999" }}>Ref</th>{cols.prestationDate && <th style={{ textAlign: "left", padding: "5px 0", fontSize: 10, color: "#999" }}>Date</th>}{cols.description && <th style={{ textAlign: "left", padding: "5px 0", fontSize: 10, color: "#999" }}>Désignation</th>}{cols.quantity && <th style={{ textAlign: "right", padding: "5px 0", fontSize: 10, color: "#999" }}>Quantité</th>}{cols.hours && <th style={{ textAlign: "right", padding: "5px 0", fontSize: 10, color: "#999" }}>Heures</th>}{cols.unitPrice && <th style={{ textAlign: "right", padding: "5px 0", fontSize: 10, color: "#999" }}>PU</th>}{cols.total && <th style={{ textAlign: "right", padding: "5px 0", fontSize: 10, color: "#999" }}>Montant HT</th>}</tr></thead>
+<tbody>{(invoice.items || []).map((item, idx) => <tr key={idx} style={{ borderBottom: "1px solid #eee" }}><td style={{ padding: "8px 0" }}>{idx + 1}</td>{cols.prestationDate && <td style={{ padding: "8px 0" }}>{fmtDate(item.prestationDate)}</td>}{cols.description && <td style={{ padding: "8px 0" }}>{item.description}</td>}{cols.quantity && <td style={{ padding: "8px 0", textAlign: "right" }}>{Number(item.quantity || 0).toFixed(2)}</td>}{cols.hours && <td style={{ padding: "8px 0", textAlign: "right" }}>{item.hours === "" || item.hours == null ? "" : Number(item.hours).toFixed(2)}</td>}{cols.unitPrice && <td style={{ padding: "8px 0", textAlign: "right" }}>€{Number(item.unitPrice || 0).toFixed(2)}</td>}{cols.total && <td style={{ padding: "8px 0", textAlign: "right" }}>€{Number(item.total || 0).toFixed(2)}</td>}</tr>)}</tbody>
 </table>
 </div>
-<div style={{ textAlign: "right", marginBottom: 18 }}><div style={{ fontSize: 12, color: "#666" }}>Subtotal: €{(invoice.subtotal || 0).toFixed(2)}</div>{cols.tva !== false && <div style={{ fontSize: 12, color: "#666" }}>TVA ({invoice.vatRate}%): €{(invoice.vatAmount || 0).toFixed(2)}</div>}<div style={{ fontSize: 20, fontWeight: 700, color: "#C9A84C", marginTop: 5 }}>Total: €{(invoice.total || 0).toFixed(2)}</div></div>
-<div style={{ padding: 12, background: "#f8f8f8", borderRadius: 8, fontSize: 11, color: "#666" }}>{invoice.paymentTerms && <div><strong>Terms:</strong> {invoice.paymentTerms}</div>}<div><strong>Bank:</strong> {settings.bankIban}</div></div>
+
+<div style={{ textAlign: "right", marginBottom: 18 }}>
+<div style={{ fontSize: 12, color: "#666" }}>TOTAL HT: €{(invoice.subtotal || 0).toFixed(2)}</div>
+{cols.tva !== false && <div style={{ fontSize: 12, color: "#666" }}>TVA ({invoice.vatRate}%): €{(invoice.vatAmount || 0).toFixed(2)}</div>}
+{cols.tva !== false && <div style={{ fontSize: 12, color: "#666" }}>TOTAL TVA: €{(invoice.vatAmount || 0).toFixed(2)}</div>}
+<div style={{ fontSize: 24, fontWeight: 700, color: "#C9A84C", marginTop: 5 }}>TOTAL TTC A PAYER: €{(invoice.total || 0).toFixed(2)}</div>
+</div>
+
+<div style={{ padding: 12, background: "#f8f8f8", borderRadius: 8, fontSize: 11, color: "#666", marginBottom: 20 }}>
+<div><strong>Conditions de paiement :</strong> {invoice.paymentTerms || "Paiement comptant."}</div>
+<div><strong>IBAN:</strong> {settings.bankIban}</div>
+</div>
+
+<div style={{ marginTop: 40 }}>
+<div style={{ fontSize: 12, color: "#333", marginBottom: 24 }}>Bon pour Accord</div>
+<div style={{ borderTop: "1px solid #333", width: 260, paddingTop: 4, fontSize: 12, color: "#333" }}>Signature Client</div>
+</div>
 </div>
 );
 }

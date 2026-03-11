@@ -45,8 +45,8 @@ let CURRENT_LANG = "fr";
 
 const DEFAULTS = {
 employees: [], clients: [], schedules: [], clockEntries: [], quotes: [], invoices: [], payslips: [],
-photoUploads: [], timeOffRequests: [], inventoryProducts: [], productRequests: [], cleanerProductHoldings: [],
-ownerPin: "1234", employeePins: {},
+photoUploads: [], timeOffRequests: [], inventoryProducts: [], productRequests: [], cleanerProductHoldings: [], prospectVisits: [],
+ownerPin: "1234", managerPin: "4321", employeePins: {},
 settings: {
 companyName: "LAC Lux angels cleaning",
 companyAddress: "12 Rue de la Liberté, L-1930 Luxembourg",
@@ -67,6 +67,7 @@ const fmtTime = (d) => d ? new Date(d).toLocaleTimeString(localeForLang(CURRENT_
 const fmtBoth = (d) => `${fmtDate(d)} ${fmtTime(d)}`;
 const calcHrs = (a, b) => (a && b) ? Math.max(0, Math.round((new Date(b) - new Date(a)) / 36e5 * 100) / 100) : 0;
 const makeISO = (d, t) => `${d}T${t}:00`;
+const mapsUrl = (address = "") => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
 const scheduleStatusColor = (status) => status === "completed" ? CL.green : status === "in-progress" ? CL.orange : status === "cancelled" ? CL.red : CL.blue;
 const getScheduleForClockEvent = (schedules, { employeeId, clientId, date }) => schedules
 .filter(s => s.employeeId === employeeId && s.clientId === clientId && s.date === date && s.status !== "cancelled")
@@ -177,7 +178,7 @@ const Field = ({ label, children }) => (
 );
 
 const TextInput = (props) => <input {...props} style={{ ...inputSt, ...(props.style || {}) }} />;
-const SelectInput = ({ children, ...props }) => <select {...props} style={{ ...inputSt, appearance: "auto", ...(props.style || {}) }}>{children}</select>;
+const SelectInput = ({ children, ...props }) => <select {...props} style={{ ...inputSt, appearance: "auto", color: CL.text, colorScheme: "dark", ...(props.style || {}) }}>{children}</select>;
 const TextArea = (props) => <textarea {...props} style={{ ...inputSt, minHeight: 80, resize: "vertical", ...(props.style || {}) }} />;
 const Badge = ({ children, color = CL.gold }) => <span style={{ display: "inline-block", padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 600, background: color + "20", color }}>{children}</span>;
 const StatCard = ({ label, value, icon, color = CL.gold }) => (
@@ -210,8 +211,8 @@ ws.columns = cols.map(c => ({ header: c, key: c, width: Math.max(c.length + 4, 1
 ws.addRows(rows.length ? rows : [Object.fromEntries(cols.map(c => [c, ""]))]);
 };
 
-addSheet("Employees", data.employees.map(emp => ({ ID: emp.id, Name: emp.name, Email: emp.email, Phone: emp.phone, Mobile: emp.phoneMobile || "", Role: emp.role, "Rate": emp.hourlyRate, Address: emp.address, City: emp.city || "", Zip: emp.postalCode || "", Country: emp.country || "", "Start": emp.startDate, Status: emp.status, Contract: emp.contractType || "", IBAN: emp.bankIban || "", SSN: emp.socialSecNumber || "", DOB: emp.dateOfBirth || "", Nationality: emp.nationality || "", Languages: emp.languages || "", Transport: emp.transport || "", "WorkPermit": emp.workPermit || "", "EmergName": emp.emergencyName || "", "EmergPhone": emp.emergencyPhone || "", PIN: data.employeePins?.[emp.id] || "0000", Notes: emp.notes || "" })),
-["ID","Name","Email","Phone","Mobile","Role","Rate","Address","City","Zip","Country","Start","Status","Contract","IBAN","SSN","DOB","Nationality","Languages","Transport","WorkPermit","EmergName","EmergPhone","PIN","Notes"]);
+addSheet("Employees", data.employees.map(emp => ({ ID: emp.id, Name: emp.name, Email: emp.email, Phone: emp.phone, Mobile: emp.phoneMobile || "", Role: emp.role, "Rate": emp.hourlyRate, Address: emp.address, City: emp.city || "", Zip: emp.postalCode || "", Country: emp.country || "", "Start": emp.startDate, Status: emp.status, Contract: emp.contractType || "", IBAN: emp.bankIban || "", SSN: emp.socialSecNumber || "", DOB: emp.dateOfBirth || "", Nationality: emp.nationality || "", Languages: emp.languages || "", Transport: emp.transport || "", "WorkPermit": emp.workPermit || "", "EmergName": emp.emergencyName || "", "EmergPhone": emp.emergencyPhone || "", PIN: data.employeePins?.[emp.id] || "0000", LeaveAllowance: emp.leaveAllowance ?? 26, Notes: emp.notes || "" })),
+["ID","Name","Email","Phone","Mobile","Role","Rate","Address","City","Zip","Country","Start","Status","Contract","IBAN","SSN","DOB","Nationality","Languages","Transport","WorkPermit","EmergName","EmergPhone","PIN","LeaveAllowance","Notes"]);
 
 addSheet("Clients", data.clients.map(cl => ({ ID: cl.id, Name: cl.name, Contact: cl.contactPerson || "", Email: cl.email, Phone: cl.phone, Mobile: cl.phoneMobile || "", Address: cl.address, "Apt": cl.apartmentFloor || "", City: cl.city || "", Zip: cl.postalCode || "", Country: cl.country || "", Type: cl.type, Freq: cl.cleaningFrequency, Billing: cl.billingType, "Hourly": cl.pricePerHour || 0, "Fixed": cl.priceFixed || 0, Status: cl.status, Lang: cl.language || "", "Code": cl.accessCode || "", "KeyLoc": cl.keyLocation || "", Parking: cl.parkingInfo || "", Pets: cl.petInfo || "", "PrefDay": cl.preferredDay || "", "PrefTime": cl.preferredTime || "", "ContStart": cl.contractStart || "", "ContEnd": cl.contractEnd || "", "SqM": cl.squareMeters || "", "TaxID": cl.taxId || "", "Instructions": cl.specialInstructions || "", Notes: cl.notes || "" })),
 ["ID","Name","Contact","Email","Phone","Mobile","Address","Apt","City","Zip","Country","Type","Freq","Billing","Hourly","Fixed","Status","Lang","Code","KeyLoc","Parking","Pets","PrefDay","PrefTime","ContStart","ContEnd","SqM","TaxID","Instructions","Notes"]);
@@ -233,7 +234,7 @@ addSheet("Settings", [
 { Key: "Company Name", Val: data.settings.companyName }, { Key: "Address", Val: data.settings.companyAddress },
 { Key: "Email", Val: data.settings.companyEmail }, { Key: "Phone", Val: data.settings.companyPhone },
 { Key: "VAT Number", Val: data.settings.vatNumber }, { Key: "Bank IBAN", Val: data.settings.bankIban },
-{ Key: "VAT Rate", Val: data.settings.defaultVatRate }, { Key: "Owner PIN", Val: data.ownerPin },
+{ Key: "VAT Rate", Val: data.settings.defaultVatRate }, { Key: "Owner PIN", Val: data.ownerPin }, { Key: "Manager PIN", Val: data.managerPin || "4321" },
 ], ["Key", "Val"]);
 
 const months = [...new Set(data.clockEntries.filter(c => c.clockOut && c.clockIn).map(c => c.clockIn.slice(0, 7)))].sort();
@@ -278,7 +279,7 @@ const sheet = (name) => {
   return rows;
 };
 
-  const emps = sheet("Employees").filter(r => r.ID && r.Name).map(r => ({ id: r.ID, name: r.Name, email: r.Email || "", phone: r.Phone || "", phoneMobile: r.Mobile || "", role: r.Role || "Cleaner", hourlyRate: parseFloat(r.Rate) || 15, address: r.Address || "", city: r.City || "", postalCode: r.Zip || "", country: r.Country || "Luxembourg", startDate: r.Start || getToday(), status: r.Status || "active", contractType: r.Contract || "CDI", bankIban: r.IBAN || "", socialSecNumber: r.SSN || "", dateOfBirth: r.DOB || "", nationality: r.Nationality || "", languages: r.Languages || "", transport: r.Transport || "", workPermit: r.WorkPermit || "", emergencyName: r.EmergName || "", emergencyPhone: r.EmergPhone || "", notes: r.Notes || "" }));
+  const emps = sheet("Employees").filter(r => r.ID && r.Name).map(r => ({ id: r.ID, name: r.Name, email: r.Email || "", phone: r.Phone || "", phoneMobile: r.Mobile || "", role: r.Role || "Cleaner", hourlyRate: parseFloat(r.Rate) || 15, address: r.Address || "", city: r.City || "", postalCode: r.Zip || "", country: r.Country || "Luxembourg", startDate: r.Start || getToday(), status: r.Status || "active", contractType: r.Contract || "CDI", bankIban: r.IBAN || "", socialSecNumber: r.SSN || "", dateOfBirth: r.DOB || "", nationality: r.Nationality || "", languages: r.Languages || "", transport: r.Transport || "", workPermit: r.WorkPermit || "", emergencyName: r.EmergName || "", emergencyPhone: r.EmergPhone || "", leaveAllowance: parseInt(r.LeaveAllowance || "26", 10) || 26, notes: r.Notes || "" }));
   const pins = {}; sheet("Employees").filter(r => r.ID && r.PIN).forEach(r => { pins[r.ID] = String(r.PIN); });
 
   const clients = sheet("Clients").filter(r => r.ID && r.Name).map(r => ({ id: r.ID, name: r.Name, contactPerson: r.Contact || "", email: r.Email || "", phone: r.Phone || "", phoneMobile: r.Mobile || "", address: r.Address || "", apartmentFloor: r.Apt || "", city: r.City || "", postalCode: r.Zip || "", country: r.Country || "Luxembourg", type: r.Type || "Residential", cleaningFrequency: r.Freq || "Weekly", billingType: r.Billing || "hourly", pricePerHour: parseFloat(r.Hourly) || 35, priceFixed: parseFloat(r.Fixed) || 0, status: r.Status || "active", language: r.Lang || "FR", accessCode: r.Code || "", keyLocation: r.KeyLoc || "", parkingInfo: r.Parking || "", petInfo: r.Pets || "", preferredDay: r.PrefDay || "", preferredTime: r.PrefTime || "", contractStart: r.ContStart || "", contractEnd: r.ContEnd || "", squareMeters: r.SqM || "", taxId: r.TaxID || "", specialInstructions: r.Instructions || "", notes: r.Notes || "" }));
@@ -306,6 +307,7 @@ const sheet = (name) => {
     invoices: Object.values(invMap).length ? Object.values(invMap) : prev.invoices,
     payslips: payslips.length ? payslips : prev.payslips,
     ownerPin: sett["Owner PIN"] || prev.ownerPin,
+    managerPin: sett["Manager PIN"] || prev.managerPin || "4321",
     settings: { ...prev.settings, companyName: sett["Company Name"] || prev.settings.companyName, companyAddress: sett["Address"] || prev.settings.companyAddress, companyEmail: sett["Email"] || prev.settings.companyEmail, companyPhone: sett["Phone"] || prev.settings.companyPhone, vatNumber: sett["VAT Number"] || prev.settings.vatNumber, bankIban: sett["Bank IBAN"] || prev.settings.bankIban, defaultVatRate: parseFloat(sett["VAT Rate"]) || prev.settings.defaultVatRate },
   }));
   showToast("Excel imported!", "success");
@@ -325,6 +327,11 @@ const globalCSS = `
   @keyframes slideIn { from { transform: translateX(60px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
   @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
   input:focus, select:focus, textarea:focus { border-color: ${CL.gold} !important; }
+  input[type="date"], input[type="time"], input[type="month"], input[type="datetime-local"] { color-scheme: dark; }
+  input[type="date"]::-webkit-calendar-picker-indicator,
+  input[type="time"]::-webkit-calendar-picker-indicator,
+  input[type="month"]::-webkit-calendar-picker-indicator,
+  input[type="datetime-local"]::-webkit-calendar-picker-indicator { filter: invert(0.95); cursor: pointer; }
   @media print { .no-print { display: none !important; } }
 
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
@@ -385,6 +392,7 @@ const [lang, setLang] = useState(() => loadLang());
 const [auth, setAuth] = useState(null);
 const [toast, setToast] = useState(null);
 const [section, setSection] = useState("dashboard");
+const [devisSeed, setDevisSeed] = useState(null);
 const [sideOpen, setSideOpen] = useState(true);
 
 useEffect(() => { saveStore(data); }, [data]);
@@ -413,18 +421,21 @@ if (auth.role === "cleaner") return <LanguageContext.Provider value={{ lang, set
 // Owner nav items
 const pendingProductRequests = (data.productRequests || []).filter(r => r.status === "pending").length;
 const pendingTimeOffRequests = (data.timeOffRequests || []).filter(r => r.status === "pending").length;
+const unseenUploads = (data.photoUploads || []).filter(u => !u.seenByOwner).length;
 
 const navItems = [
 { id: "dashboard", label: t("dashboard"), icon: ICN.dash },
 { id: "employees", label: t("employees"), icon: ICN.team },
 { id: "clients", label: t("clients"), icon: ICN.user },
 { id: "schedule", label: t("schedule"), icon: ICN.cal },
+{ id: "visits", label: "Visitation", icon: ICN.cal },
 { id: "timeclock", label: t("timeclock"), icon: ICN.clock },
 { id: "inventory", label: t("inventory"), icon: ICN.doc, hasAlert: pendingProductRequests > 0 },
 { id: "devis", label: t("devis"), icon: ICN.doc },
 { id: "invoices", label: t("invoices"), icon: ICN.doc },
 { id: "payslips", label: t("payslips"), icon: ICN.pay },
 { id: "conges", label: t("conges"), icon: ICN.cal, hasAlert: pendingTimeOffRequests > 0 },
+{ id: "history", label: "History", icon: ICN.doc, hasAlert: unseenUploads > 0 },
 { id: "reminders", label: t("reminders"), icon: ICN.mail },
 { id: "reports", label: t("reports"), icon: ICN.chart },
 { id: "database", label: "Excel DB", icon: ICN.excel },
@@ -432,23 +443,25 @@ const navItems = [
 ];
 
 const renderSection = () => {
-const props = { data, updateData, showToast, setData, auth };
+const props = { data, updateData, showToast, setData, auth, setSection, setDevisSeed, devisSeed };
 switch (section) {
-case "dashboard": return <DashboardPage data={data} />;
+case "dashboard": return <DashboardPage data={data} auth={auth} />;
 case "employees": return <EmployeesPage {...props} />;
 case "clients": return <ClientsPage {...props} />;
 case "schedule": return <SchedulePage {...props} />;
+case "visits": return <VisitationPage {...props} />;
 case "timeclock": return <TimeClockPage {...props} />;
 case "inventory": return <InventoryPage {...props} />;
 case "devis": return <DevisPage {...props} />;
 case "invoices": return <InvoicesPage {...props} />;
 case "payslips": return <PayslipsPage {...props} />;
 case "conges": return <LeaveManagementPage {...props} />;
+case "history": return <HistoryPage {...props} />;
 case "reminders": return <RemindersPage data={data} showToast={showToast} />;
 case "reports": return <ReportsPage data={data} />;
 case "database": return <ExcelDBPage data={data} setData={setData} showToast={showToast} />;
 case "settings": return <SettingsPage {...props} />;
-default: return <DashboardPage data={data} />;
+default: return <DashboardPage data={data} auth={auth} />;
 }
 };
 
@@ -462,7 +475,7 @@ return (
   <div className="no-print desk-sidebar" style={{ width: sideOpen ? 215 : 54, background: CL.sf, borderRight: `1px solid ${CL.bd}`, flexDirection: "column", transition: "width .2s", overflow: "hidden", flexShrink: 0 }}>
     <div style={{ padding: sideOpen ? "16px 12px" : "16px 8px", borderBottom: `1px solid ${CL.bd}`, display: "flex", alignItems: "center", gap: 9, cursor: "pointer" }} onClick={() => setSideOpen(!sideOpen)}>
       <div style={{ width: 30, height: 30, borderRadius: 8, background: `linear-gradient(135deg, ${CL.gold}, ${CL.goldDark})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: CL.bg, flexShrink: 0 }}>LAC</div>
-      {sideOpen && <div><div style={{ fontSize: 13, fontWeight: 700, color: CL.gold, fontFamily: "'Cormorant Garamond', serif", whiteSpace: "nowrap" }}>Lux Angels Cleaning</div><div style={{ fontSize: 10, color: CL.muted }}>Owner Portal</div></div>}
+      {sideOpen && <div><div style={{ fontSize: 13, fontWeight: 700, color: CL.gold, fontFamily: "'Cormorant Garamond', serif", whiteSpace: "nowrap" }}>Lux Angels Cleaning</div><div style={{ fontSize: 10, color: CL.muted }}>{auth.role === "manager" ? "Manager Portal" : "Owner Portal"}</div></div>}
     </div>
     <nav style={{ flex: 1, padding: "6px 4px", overflowY: "auto" }}>
       {navItems.map(nav => (
@@ -509,65 +522,65 @@ return (
 // LOGIN SCREEN
 // ==============================================
 function LoginScreen({ data, onAuth }) {
-const { t, lang } = useI18n();
-const [mode, setMode] = useState(null);
-const [pin, setPin] = useState("");
-const [selEmp, setSelEmp] = useState("");
+const { lang } = useI18n();
+const [username, setUsername] = useState("");
+const [password, setPassword] = useState("");
 const [error, setError] = useState("");
 
+const norm = (v) => String(v || "").trim().toLowerCase();
+
 const doLogin = () => {
-if (mode === "owner") {
-if (pin === data.ownerPin) onAuth({ role: "owner" });
-else setError(lang === "en" ? "Wrong PIN" : "PIN incorrect");
-} else {
-if (!selEmp) { setError(lang === "en" ? "Select your name" : "Sélectionnez votre nom"); return; }
-const correctPin = data.employeePins?.[selEmp] || "0000";
-if (pin === correctPin) onAuth({ role: "cleaner", employeeId: selEmp });
-else setError(lang === "en" ? "Wrong PIN" : "PIN incorrect");
+const user = norm(username);
+const pass = String(password || "").trim();
+if (!user || !pass) { setError(lang === "en" ? "Enter username and password" : "Entrez le nom d'utilisateur et le mot de passe"); return; }
+
+const ownerAliases = ["owner", "admin", norm(data.settings?.companyEmail), norm(data.settings?.companyName)];
+if (ownerAliases.includes(user)) {
+if (pass === String(data.ownerPin || "")) { onAuth({ role: "owner" }); return; }
+setError(lang === "en" ? "Wrong password" : "Mot de passe incorrect");
+return;
 }
+
+if (user === "manager") {
+if (pass === String(data.managerPin || "4321")) { onAuth({ role: "manager" }); return; }
+setError(lang === "en" ? "Wrong password" : "Mot de passe incorrect");
+return;
+}
+
+const employee = data.employees.find(emp => emp.status === "active" && (norm(emp.email) === user || norm(emp.name) === user));
+if (!employee) { setError(lang === "en" ? "User not found" : "Utilisateur introuvable"); return; }
+const correctPin = data.employeePins?.[employee.id] || "0000";
+if (pass === String(correctPin)) onAuth({ role: "cleaner", employeeId: employee.id });
+else setError(lang === "en" ? "Wrong password" : "Mot de passe incorrect");
 };
 
 return (
 <div style={{ minHeight: "100vh", background: CL.bg, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Outfit', sans-serif" }}>
 <style>{globalCSS}</style>
-<div style={{ animation: "fadeIn .5s ease", textAlign: "center", width: 380, padding: "0 16px" }}>
+<div style={{ animation: "fadeIn .5s ease", width: 420, maxWidth: "95vw", padding: "0 16px" }}>
 <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}><LanguageSwitcher /></div>
-<div style={{ width: 80, height: 80, borderRadius: 24, background: `linear-gradient(135deg, ${CL.gold}, ${CL.goldDark})`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 32, fontWeight: 700, color: CL.bg, fontFamily: "'Cormorant Garamond', serif" }}>LAC</div>
-<h1 style={{ fontSize: 30, fontWeight: 700, color: CL.gold, fontFamily: "'Cormorant Garamond', serif", marginBottom: 4 }}>{data.settings?.companyName || "Lux Angels Cleaning"}</h1>
-<p style={{ color: CL.muted, marginBottom: 30 }}>{t("managementSystem")}</p>
-
-    {!mode ? (
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        <button onClick={() => setMode("owner")} style={{ ...cardSt, padding: "16px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 13, border: `1px solid ${CL.bd}`, textAlign: "left" }}>
-          <div style={{ width: 44, height: 44, borderRadius: 12, background: CL.gold + "15", display: "flex", alignItems: "center", justifyContent: "center", color: CL.gold, flexShrink: 0 }}>{ICN.shield}</div>
-          <div><div style={{ fontWeight: 600, color: CL.text, fontSize: 15 }}>{t("ownerAccess")}</div><div style={{ fontSize: 12, color: CL.muted }}>{t("ownerAccessDesc")}</div></div>
-        </button>
-        <button onClick={() => setMode("cleaner")} style={{ ...cardSt, padding: "16px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 13, border: `1px solid ${CL.bd}`, textAlign: "left" }}>
-          <div style={{ width: 44, height: 44, borderRadius: 12, background: CL.blue + "15", display: "flex", alignItems: "center", justifyContent: "center", color: CL.blue, flexShrink: 0 }}>{ICN.user}</div>
-          <div><div style={{ fontWeight: 600, color: CL.text, fontSize: 15 }}>{t("cleanerAccess")}</div><div style={{ fontSize: 12, color: CL.muted }}>{t("cleanerAccessDesc")}</div></div>
-        </button>
-      </div>
-    ) : (
-      <div style={{ ...cardSt, textAlign: "left" }}>
-        <button onClick={() => { setMode(null); setPin(""); setError(""); setSelEmp(""); }} style={{ background: "none", border: "none", color: CL.muted, cursor: "pointer", fontSize: 13, marginBottom: 12 }}>← {t("back")}</button>
-        <h3 style={{ fontFamily: "'Cormorant Garamond', serif", color: mode === "owner" ? CL.gold : CL.blue, fontSize: 20, marginBottom: 16 }}>{mode === "owner" ? t("ownerLogin") : t("cleanerLogin")}</h3>
-        {mode === "cleaner" && (
-          <Field label={t("yourName")}>
-            <SelectInput value={selEmp} onChange={ev => setSelEmp(ev.target.value)}>
-              <option value="">{t("choose")}</option>
-              {data.employees.filter(emp => emp.status === "active").map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
-            </SelectInput>
-          </Field>
-        )}
-        <Field label="PIN">
-          <TextInput type="password" maxLength={6} placeholder="****" value={pin} onChange={ev => { setPin(ev.target.value); setError(""); }} onKeyDown={ev => ev.key === "Enter" && doLogin()} style={{ fontSize: 22, textAlign: "center", letterSpacing: 10 }} />
-        </Field>
-        {error && <div style={{ color: CL.red, fontSize: 13, marginBottom: 10, textAlign: "center" }}>{error}</div>}
-        <button onClick={doLogin} style={{ ...btnPri, width: "100%", justifyContent: "center", background: mode === "owner" ? CL.gold : CL.blue }}>{t("loginBtn")}</button>
-        <p style={{ color: CL.dim, fontSize: 11, textAlign: "center", marginTop: 12 }}>{mode === "owner" ? "Default PIN: 1234" : "Default PIN: 0000"}</p>
-      </div>
-    )}
+<div style={{ ...cardSt, padding: 22 }}>
+  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
+    <div style={{ width: 42, height: 42, borderRadius: 12, background: `linear-gradient(135deg, ${CL.gold}, ${CL.goldDark})`, display: "flex", alignItems: "center", justifyContent: "center", color: CL.bg, fontWeight: 700 }}>LAC</div>
+    <div>
+      <div style={{ fontWeight: 700, color: CL.gold }}>Secure Sign-In</div>
+      <div style={{ fontSize: 12, color: CL.muted }}>{data.settings?.companyName || "Lux Angels Cleaning"}</div>
+    </div>
   </div>
+
+  <Field label="Username or email">
+    <TextInput value={username} onChange={ev => { setUsername(ev.target.value); setError(""); }} placeholder="owner email / manager / cleaner username" onKeyDown={ev => ev.key === "Enter" && doLogin()} />
+  </Field>
+
+  <Field label="Password">
+    <TextInput type="password" maxLength={24} value={password} onChange={ev => { setPassword(ev.target.value); setError(""); }} placeholder="••••••" onKeyDown={ev => ev.key === "Enter" && doLogin()} />
+  </Field>
+
+  {error && <div style={{ color: CL.red, fontSize: 13, marginBottom: 10, textAlign: "center" }}>{error}</div>}
+  <button onClick={doLogin} style={{ ...btnPri, width: "100%", justifyContent: "center", background: CL.gold }}>Sign in securely</button>
+  <p style={{ marginTop: 10, fontSize: 11, color: CL.dim, textAlign: "center" }}>Use your assigned credentials only.</p>
+</div>
+</div>
 </div>
 
 );
@@ -584,7 +597,7 @@ const [monthFilter, setMonthFilter] = useState(getToday().slice(0, 7));
 const [uploadNote, setUploadNote] = useState("");
 const [uploadType, setUploadType] = useState("issue");
 const [clockInNote, setClockInNote] = useState("");
-const [timeOffForm, setTimeOffForm] = useState({ startDate: "", endDate: "", reason: "" });
+const [timeOffForm, setTimeOffForm] = useState({ startDate: "", endDate: "", reason: "", leaveType: "conge" });
 const [productForm, setProductForm] = useState({ productId: "", quantity: 1, note: "", deliveryAt: "" });
 
 const upcoming = data.schedules.filter(s => s.employeeId === auth.employeeId && s.date >= getToday() && s.status !== "cancelled").sort((a, b) => a.date.localeCompare(b.date));
@@ -606,6 +619,8 @@ const hasPendingTimeOffRequest = myTimeOffRequests.some(r => r.status === "pendi
 
 const doClockIn = (clientId) => {
 if (activeClock) { showToast("Already clocked in!", "error"); return; }
+const isCompletedToday = data.schedules.some(sc => sc.employeeId === auth.employeeId && sc.clientId === clientId && sc.date === getToday() && sc.status === "completed");
+if (isCompletedToday) { showToast("This job is already completed and locked", "error"); return; }
 const nowAt = new Date();
 const lateMeta = getLateMeta(data.schedules, { employeeId: auth.employeeId, clientId, clockInAt: nowAt });
 updateData("clockEntries", prev => [...prev, {
@@ -644,6 +659,7 @@ updateData("photoUploads", (prev = []) => [...prev, {
 id: makeId(), employeeId: auth.employeeId, createdAt: new Date().toISOString(),
 fileName: file.name, imageData, note: uploadNote.trim(),
 type: uploadType,
+seenByOwner: false,
 clockEntryId: activeClock.id,
 clientId: activeClock.clientId,
 }]);
@@ -667,7 +683,7 @@ requestedDays,
 reason: timeOffForm.reason.trim(), status: "pending", createdAt: new Date().toISOString(),
 reviewedAt: null, reviewedBy: null, reviewNote: "",
 }]);
-setTimeOffForm({ startDate: "", endDate: "", reason: "" });
+setTimeOffForm({ startDate: "", endDate: "", reason: "", leaveType: "conge" });
 showToast("Leave request sent");
 };
 
@@ -722,7 +738,7 @@ return (
 <div key={sched.id} style={{ ...cardSt, marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
 <div style={{ flex: 1 }}>
 <div style={{ fontWeight: 600 }}>{client?.name || "?"}</div>
-<div style={{ fontSize: 12, color: CL.muted }}>{client?.address}{client?.apartmentFloor ? `, ${client.apartmentFloor}` : ""}{client?.city ? ` · ${client.postalCode || ""} ${client.city}` : ""}</div>
+<div style={{ fontSize: 12, color: CL.muted }}>{client?.address}{client?.apartmentFloor ? `, ${client.apartmentFloor}` : ""} {client?.address && <a href={mapsUrl(`${client.address}${client.apartmentFloor ? ` ${client.apartmentFloor}` : ""} ${client.postalCode || ""} ${client.city || ""}`)} target="_blank" rel="noreferrer" style={{ color: CL.blue, marginLeft: 6, textDecoration: "underline" }}>Map</a>}</div>
 {client?.accessCode && <div style={{ fontSize: 11, color: CL.orange, marginTop: 2 }}>Code: {client.accessCode}</div>}
 {client?.keyLocation && <div style={{ fontSize: 11, color: CL.orange }}>Key: {client.keyLocation}</div>}
 {client?.petInfo && <div style={{ fontSize: 11, color: CL.orange }}>Pets: {client.petInfo}</div>}
@@ -766,14 +782,14 @@ return (
                   {todayClients.length > 0 && <div style={{ fontSize: 11, color: CL.green, fontWeight: 600, marginBottom: 5 }}>TODAY'S CLIENTS:</div>}
                   {todayClients.map(client => (
                     <button key={client.id} onClick={() => doClockIn(client.id)} style={{ ...cardSt, width: "100%", padding: "12px 16px", marginBottom: 5, cursor: "pointer", textAlign: "left", display: "flex", justifyContent: "space-between", borderColor: CL.green + "60" }}>
-                      <div><div style={{ fontWeight: 600 }}>{client.name}</div><div style={{ fontSize: 11, color: CL.muted }}>{client.address}</div></div>
+                      <div><div style={{ fontWeight: 600 }}>{client.name}</div><div style={{ fontSize: 11, color: CL.muted }}>{client.address} {client.address && <a href={mapsUrl(`${client.address} ${client.postalCode || ""} ${client.city || ""}`)} target="_blank" rel="noreferrer" onClick={ev => ev.stopPropagation()} style={{ color: CL.blue, marginLeft: 6, textDecoration: "underline" }}>Map</a>}</div></div>
                       <span style={{ color: CL.green, fontWeight: 600, fontSize: 13 }}>Clock In →</span>
                     </button>
                   ))}
                   {otherClients.length > 0 && <div style={{ fontSize: 11, color: CL.muted, fontWeight: 600, margin: "10px 0 5px" }}>OTHER:</div>}
                   {otherClients.map(client => (
                     <button key={client.id} onClick={() => doClockIn(client.id)} style={{ ...cardSt, width: "100%", padding: "10px 16px", marginBottom: 5, cursor: "pointer", textAlign: "left", display: "flex", justifyContent: "space-between" }}>
-                      <div><div style={{ fontWeight: 600 }}>{client.name}</div><div style={{ fontSize: 11, color: CL.muted }}>{client.address}</div></div>
+                      <div><div style={{ fontWeight: 600 }}>{client.name}</div><div style={{ fontSize: 11, color: CL.muted }}>{client.address} {client.address && <a href={mapsUrl(`${client.address} ${client.postalCode || ""} ${client.city || ""}`)} target="_blank" rel="noreferrer" onClick={ev => ev.stopPropagation()} style={{ color: CL.blue, marginLeft: 6, textDecoration: "underline" }}>Map</a>}</div></div>
                       <span style={{ color: CL.blue, fontSize: 13 }}>Clock In →</span>
                     </button>
                   ))}
@@ -902,9 +918,9 @@ return (
       <div>
         <h2 style={{ fontFamily: "'Cormorant Garamond', serif", color: CL.blue, fontSize: 22, marginBottom: 14 }}>Congés</h2>
         <div className="stat-row" style={{ marginBottom: 14 }}>
-          <StatCard label="Allowance" value={`${leaveSummary.allowance}d`} icon={ICN.cal} color={CL.blue} />
-          <StatCard label="Approved" value={`${leaveSummary.approvedDays}d`} icon={ICN.check} color={CL.green} />
-          <StatCard label="Remaining" value={`${leaveSummary.remaining}d`} icon={ICN.clock} color={CL.gold} />
+          <StatCard label="Allowance (days)" value={`${leaveSummary.allowance}d`} icon={ICN.cal} color={CL.blue} />
+          <StatCard label="Approved (days)" value={`${leaveSummary.approvedDays}d`} icon={ICN.check} color={CL.green} />
+          <StatCard label="Remaining (days)" value={`${leaveSummary.remaining}d`} icon={ICN.clock} color={CL.gold} />
         </div>
         <div style={{ ...cardSt, marginBottom: 14 }}>
           <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.blue }}>New Leave Request</h3>
@@ -912,6 +928,7 @@ return (
             <Field label="Start Date"><TextInput type="date" value={timeOffForm.startDate} onChange={ev => setTimeOffForm(v => ({ ...v, startDate: ev.target.value }))} /></Field>
             <Field label="End Date"><TextInput type="date" value={timeOffForm.endDate} onChange={ev => setTimeOffForm(v => ({ ...v, endDate: ev.target.value }))} /></Field>
           </div>
+          <Field label="Type"><SelectInput value={timeOffForm.leaveType} onChange={ev => setTimeOffForm(v => ({ ...v, leaveType: ev.target.value }))}><option value="conge">Congé</option><option value="maladie">Maladie</option></SelectInput></Field>
           <Field label="Reason"><TextArea value={timeOffForm.reason} onChange={ev => setTimeOffForm(v => ({ ...v, reason: ev.target.value }))} placeholder="Vacation, personal, medical, etc." /></Field>
           <button onClick={submitTimeOff} style={btnPri}>Submit Request</button>
         </div>
@@ -921,7 +938,7 @@ return (
             <div key={req.id} style={{ padding: "10px 0", borderBottom: `1px solid ${CL.bd}`, display: "flex", justifyContent: "space-between", gap: 10 }}>
               <div>
                 <div style={{ fontWeight: 600 }}>{fmtDate(req.startDate)} - {fmtDate(req.endDate)} ({leaveDaysInclusive(req.startDate, req.endDate)}d)</div>
-                <div style={{ fontSize: 12, color: CL.muted }}>{req.reason || "No reason provided"}</div>
+                <div style={{ fontSize: 12, color: CL.muted }}>{req.leaveType === "maladie" ? "Maladie" : "Congé"} · {req.reason || "No reason provided"}</div>
                 {req.reviewedAt && <div style={{ fontSize: 11, color: CL.dim }}>Reviewed {fmtBoth(req.reviewedAt)} {req.reviewNote ? `· ${req.reviewNote}` : ""}</div>}
               </div>
               <Badge color={req.status === "approved" ? CL.green : req.status === "rejected" ? CL.red : CL.orange}>{req.status}</Badge>
@@ -940,7 +957,7 @@ return (
 // ==============================================
 // DASHBOARD
 // ==============================================
-function DashboardPage({ data }) {
+function DashboardPage({ data, auth }) {
 const todayStr = getToday();
 const todayScheds = data.schedules.filter(s => s.date === todayStr);
 const activeClocks = data.clockEntries.filter(c => !c.clockOut);
@@ -956,7 +973,7 @@ return (
 <StatCard label="Today's Jobs" value={todayScheds.length} icon={ICN.cal} color={CL.blue} />
 <StatCard label="Clocked In" value={activeClocks.length} icon={ICN.clock} color={CL.green} />
 <StatCard label="Clients" value={data.clients.length} icon={ICN.user} color={CL.gold} />
-<StatCard label="Month Rev" value={`€${monthRev.toFixed(0)}`} icon={ICN.chart} color={CL.goldLight} />
+{auth?.role !== "manager" && <StatCard label="Month Rev" value={`€${monthRev.toFixed(0)}`} icon={ICN.chart} color={CL.goldLight} />}
 </div>
 <div className="grid-2">
 <div style={cardSt}>
@@ -1040,7 +1057,7 @@ const emptyEmployee = {
 name: "", email: "", phone: "", phoneMobile: "", address: "", city: "Luxembourg", postalCode: "", country: "Luxembourg",
 role: "Cleaner", hourlyRate: 15, startDate: getToday(), status: "active", notes: "", bankIban: "", socialSecNumber: "",
 pin: "0000", dateOfBirth: "", nationality: "", contractType: "CDI", workPermit: "", emergencyName: "", emergencyPhone: "",
-languages: "", transport: "",
+languages: "", transport: "", leaveAllowance: 26,
 };
 
 const handleSave = (empData) => {
@@ -1178,6 +1195,7 @@ return (
   {activeTab === "work" && (
     <div className="form-grid">
       <Field label="Hourly Rate (€)"><TextInput type="number" step=".5" value={form.hourlyRate} onChange={ev => set("hourlyRate", parseFloat(ev.target.value) || 0)} /></Field>
+      <Field label="Vacation allowance (days/year)"><TextInput type="number" min={0} value={form.leaveAllowance ?? 26} onChange={ev => set("leaveAllowance", Math.max(0, parseInt(ev.target.value || "0", 10) || 0))} /></Field>
       <Field label="Contract Type">
         <SelectInput value={form.contractType || "CDI"} onChange={ev => set("contractType", ev.target.value)}>
           <option>CDI</option><option>CDD</option><option>Mini-job</option><option>Freelance</option><option>Student</option>
@@ -1651,33 +1669,34 @@ const set = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
 
 // Show client details when selected
 const selectedClient = data.clients.find(c => c.id === form.clientId);
+const isCompletedLocked = Boolean(form.id && form.status === "completed");
 
 return (
 <div>
 <div className="form-grid">
 <Field label="Client *">
-<SelectInput value={form.clientId} onChange={ev => set("clientId", ev.target.value)}>
+<SelectInput value={form.clientId} onChange={ev => set("clientId", ev.target.value)} disabled={isCompletedLocked}>
 <option value="">Select...</option>
 {data.clients.filter(c => c.status === "active").map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
 </SelectInput>
 </Field>
 <Field label="Employee *">
-<SelectInput value={form.employeeId} onChange={ev => set("employeeId", ev.target.value)}>
+<SelectInput value={form.employeeId} onChange={ev => set("employeeId", ev.target.value)} disabled={isCompletedLocked}>
 <option value="">Select...</option>
 {data.employees.filter(emp => emp.status === "active").map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
 </SelectInput>
 </Field>
-<Field label="Date"><TextInput type="date" value={form.date} onChange={ev => set("date", ev.target.value)} /></Field>
+<Field label="Date"><TextInput type="date" value={form.date} onChange={ev => set("date", ev.target.value)} disabled={isCompletedLocked} /></Field>
 <Field label="Status">
-<SelectInput value={form.status} onChange={ev => set("status", ev.target.value)}>
+<SelectInput value={form.status} onChange={ev => set("status", ev.target.value)} disabled={isCompletedLocked}>
 <option value="scheduled">Scheduled</option><option value="in-progress">In Progress</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option>
 </SelectInput>
 </Field>
-<Field label="Start"><TextInput type="time" value={form.startTime} onChange={ev => set("startTime", ev.target.value)} /></Field>
-<Field label="End"><TextInput type="time" value={form.endTime} onChange={ev => set("endTime", ev.target.value)} /></Field>
+<Field label="Start"><TextInput type="time" value={form.startTime} onChange={ev => set("startTime", ev.target.value)} disabled={isCompletedLocked} /></Field>
+<Field label="End"><TextInput type="time" value={form.endTime} onChange={ev => set("endTime", ev.target.value)} disabled={isCompletedLocked} /></Field>
 {!form.id && (
 <Field label="Recurrence">
-<SelectInput value={form.recurrence} onChange={ev => set("recurrence", ev.target.value)}>
+<SelectInput value={form.recurrence} onChange={ev => set("recurrence", ev.target.value)} disabled={isCompletedLocked}>
 <option value="none">One-time</option><option value="daily">Daily (weekends included)</option><option value="daily-weekdays">Daily (weekdays only)</option><option value="weekly">Weekly (12 weeks)</option><option value="biweekly">Bi-weekly (12x)</option><option value="monthly">Monthly (12 months)</option>
 </SelectInput>
 </Field>
@@ -1685,6 +1704,7 @@ return (
 </div>
 
   {/* Client quick info */}
+  {isCompletedLocked && <div style={{ marginBottom: 10, fontSize: 12, color: CL.green }}>This job is marked as completed and can no longer be edited.</div>}
   {selectedClient && (
     <div style={{ padding: 10, background: CL.s2, borderRadius: 8, marginBottom: 12, fontSize: 12 }}>
       <div style={{ fontWeight: 600, color: CL.gold, marginBottom: 4 }}>Client Info</div>
@@ -1699,12 +1719,12 @@ return (
     </div>
   )}
 
-  <Field label="Notes"><TextArea value={form.notes || ""} onChange={ev => set("notes", ev.target.value)} /></Field>
+  <Field label="Notes"><TextArea value={form.notes || ""} onChange={ev => set("notes", ev.target.value)} disabled={isCompletedLocked} /></Field>
   <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, flexWrap: "wrap", gap: 8 }}>
-    <div>{form.id && <button style={{ ...btnDng, ...btnSm }} onClick={() => { onCancel(); onDelete(form.id); }}>Delete Job</button>}</div>
+    <div>{form.id && <button style={{ ...btnDng, ...btnSm }} disabled={isCompletedLocked} onClick={() => { onCancel(); onDelete(form.id); }}>Delete Job</button>}</div>
     <div style={{ display: "flex", gap: 10 }}>
       <button style={btnSec} onClick={onCancel}>Cancel</button>
-      <button style={btnPri} onClick={() => form.clientId && form.employeeId && onSave(form)}>Save Job</button>
+      <button style={btnPri} disabled={isCompletedLocked} onClick={() => form.clientId && form.employeeId && onSave(form)}>{isCompletedLocked ? "Completed" : "Save Job"}</button>
     </div>
   </div>
 </div>
@@ -1736,6 +1756,8 @@ const setManual = (key, value) => setManualEntry(prev => ({ ...prev, [key]: valu
 const doClockIn = () => {
 if (!selectedEmp || !selectedCli) { showToast("Select both", "error"); return; }
 if (data.clockEntries.find(c => c.employeeId === selectedEmp && !c.clockOut)) { showToast("Already in!", "error"); return; }
+const isCompletedToday = data.schedules.some(sc => sc.employeeId === selectedEmp && sc.clientId === selectedCli && sc.date === getToday() && sc.status === "completed");
+if (isCompletedToday) { showToast("Job already completed for today", "error"); return; }
 const nowAt = new Date();
 const lateMeta = getLateMeta(data.schedules, { employeeId: selectedEmp, clientId: selectedCli, clockInAt: nowAt });
 updateData("clockEntries", prev => [...prev, {
@@ -2116,12 +2138,21 @@ return <div key={p.id} style={{ padding: "8px 0", borderBottom: `1px solid ${CL.
 );
 }
 
-function DevisPage({ data, updateData, showToast }) {
+function DevisPage({ data, updateData, showToast, devisSeed, setDevisSeed }) {
 const { t, lang } = useI18n();
 const [modal, setModal] = useState(null);
 const [preview, setPreview] = useState(null);
 
 const defaultQuoteColumns = { prestationDate: true, description: true, hours: true, quantity: false, unitPrice: true, total: true, tva: true };
+
+const newQuoteDraft = (clientId = "", presetDescription = "Cleaning service") => ({ quoteNumber: quoteNumber(), clientId, date: getToday(), validUntil: "", items: [{ prestationDate: getToday(), description: presetDescription, hours: "", quantity: 1, unitPrice: 0, total: 0 }], pricingMode: "hours", visibleColumns: { ...defaultQuoteColumns }, vatRate: data.settings.defaultVatRate, subtotal: 0, vatAmount: 0, total: 0, status: "draft", notes: "", paymentTerms: "Quote valid for 30 days." });
+
+useEffect(() => {
+if (!devisSeed) return;
+setModal(newQuoteDraft(devisSeed.clientId, devisSeed.description || "Prospect visit quotation"));
+if (setDevisSeed) setDevisSeed(null);
+// eslint-disable-next-line react-hooks/exhaustive-deps
+}, [devisSeed]);
 
 const quoteNumber = () => {
 const year = getToday().slice(0, 4);
@@ -2268,7 +2299,7 @@ return (
 <div>
 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
 <h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold }}>{t("devis")}</h1>
-<button style={btnPri} onClick={() => setModal({ quoteNumber: quoteNumber(), clientId: "", date: getToday(), validUntil: "", items: [{ prestationDate: getToday(), description: "Cleaning service", hours: "", quantity: 1, unitPrice: 0, total: 0 }], pricingMode: "hours", visibleColumns: { ...defaultQuoteColumns }, vatRate: data.settings.defaultVatRate, subtotal: 0, vatAmount: 0, total: 0, status: "draft", notes: "", paymentTerms: "Quote valid for 30 days." })}>{ICN.plus} {t("newQuote")}</button>
+<button style={btnPri} onClick={() => setModal(newQuoteDraft())}>{ICN.plus} {t("newQuote")}</button>
 </div>
 <div style={cardSt} className="tbl-wrap">
 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
@@ -2471,23 +2502,55 @@ setModal(null);
 
 const handleDelete = (id) => { updateData("invoices", prev => prev.filter(i => i.id !== id)); showToast("Deleted", "error"); };
 
-const downloadInvoicePng = (inv) => {
-const client = data.clients.find(c => c.id === inv.clientId);
-const canvas = document.createElement("canvas");
-canvas.width = 1200; canvas.height = 1600;
-const ctx = canvas.getContext("2d");
-ctx.fillStyle = "#fff"; ctx.fillRect(0,0,canvas.width,canvas.height);
-ctx.fillStyle = "#111"; ctx.font = "bold 36px Arial"; ctx.fillText(`${data.settings.companyName} - INVOICE`, 40, 70);
-ctx.font = "24px Arial"; ctx.fillText(inv.invoiceNumber || "", 40, 110);
-ctx.fillText(`Client: ${client?.name || "-"}`, 40, 145);
-ctx.fillText(`Date: ${inv.date || "-"}`, 40, 180);
-let y = 230;
-ctx.font = "bold 20px Arial";
-ctx.fillText("Prestation", 40, y); ctx.fillText("Description", 260, y); if (inv.visibleColumns?.hours !== false) ctx.fillText("Hours", 760, y); ctx.fillText("Unit", 880, y); ctx.fillText("Total", 1020, y);
-ctx.font = "18px Arial"; y += 30;
-(inv.items || []).forEach(it => { if (y > 1450) return; ctx.fillText(it.prestationDate || "-", 40, y); ctx.fillText((it.description || "").slice(0, 45), 260, y); if (inv.visibleColumns?.hours !== false) ctx.fillText(String(it.hours ?? ""), 760, y); ctx.fillText(`€${Number(it.unitPrice || 0).toFixed(2)}`, 880, y); ctx.fillText(`€${Number(it.total || 0).toFixed(2)}`, 1020, y); y += 28; });
-ctx.font = "bold 24px Arial"; ctx.fillText(`TVA ${Number(inv.vatRate||0)}%: €${Number(inv.vatAmount||0).toFixed(2)}`, 760, 1510); ctx.fillText(`TOTAL: €${Number(inv.total||0).toFixed(2)}`, 760, 1550);
-const a = document.createElement("a"); a.href = canvas.toDataURL("image/png"); a.download = `${inv.invoiceNumber || "invoice"}.png`; a.click();
+const previewRef = useRef(null);
+
+const ensureLib = (src, check) => new Promise((resolve, reject) => {
+if (check()) return resolve();
+const existing = document.querySelector(`script[src="${src}"]`);
+if (existing) { existing.addEventListener("load", () => resolve()); return; }
+const script = document.createElement("script");
+script.src = src;
+script.async = true;
+script.onload = () => resolve();
+script.onerror = reject;
+document.body.appendChild(script);
+});
+
+const capturePreviewCanvas = async () => {
+if (!previewRef.current) throw new Error("Preview not ready");
+await ensureLib("https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js", () => Boolean(window.html2canvas));
+return window.html2canvas(previewRef.current, { backgroundColor: "#ffffff", scale: 2, useCORS: true });
+};
+
+const downloadInvoicePng = async (inv) => {
+const canvas = await capturePreviewCanvas();
+const a = document.createElement("a");
+a.href = canvas.toDataURL("image/png");
+a.download = `${inv.invoiceNumber || "invoice"}.png`;
+a.click();
+};
+
+const downloadInvoicePdf = async (inv) => {
+const canvas = await capturePreviewCanvas();
+await ensureLib("https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js", () => Boolean(window.jspdf));
+const { jsPDF } = window.jspdf;
+const pdf = new jsPDF("p", "mm", "a4");
+const pageWidth = pdf.internal.pageSize.getWidth();
+const pageHeight = pdf.internal.pageSize.getHeight();
+const imgData = canvas.toDataURL("image/png");
+const imgWidth = pageWidth;
+const imgHeight = (canvas.height * imgWidth) / canvas.width;
+if (imgHeight <= pageHeight) {
+pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
+} else {
+let y = 0;
+while (y < imgHeight) {
+pdf.addImage(imgData, "PNG", 0, -y, imgWidth, imgHeight);
+y += pageHeight;
+if (y < imgHeight) pdf.addPage();
+}
+}
+pdf.save(`${inv.invoiceNumber || "invoice"}.pdf`);
 };
 
 const emailInvoice = (inv) => {
@@ -2540,11 +2603,11 @@ return (
 
 {preview && (
 <ModalBox title="" onClose={() => setPreview(null)} wide>
-<InvoicePreviewContent invoice={preview} data={data} />
+<div ref={previewRef}><InvoicePreviewContent invoice={preview} data={data} /></div>
 <div className="no-print" style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 12, flexWrap: "wrap" }}>
 <button style={btnSec} onClick={() => setPreview(null)}>{lang === "en" ? "Close" : "Fermer"}</button>
 <button style={btnSec} onClick={() => downloadInvoicePng(preview)}>{ICN.download} PNG</button>
-<button style={btnPri} onClick={() => window.print()}>{ICN.download} PDF</button>
+<button style={btnPri} onClick={() => downloadInvoicePdf(preview)}>{ICN.download} PDF</button>
 <button style={{ ...btnSec, color: CL.blue }} onClick={() => emailInvoice(preview)}>{ICN.mail} {t("sendEmail")}</button>
 </div>
 </ModalBox>
@@ -2599,12 +2662,6 @@ return { prestationDate: p.prestationDate, description: "", hours: p.hours ? Mat
 setForm(prev => ({ ...prev, items: nextItems }));
 setScheduleLoadMessage(nextItems.length ? "Prestations loaded from the latest client schedule." : "No prestations found in this billing period.");
 };
-
-useEffect(() => {
-if (!form.clientId || !form.billingStart || !form.billingEnd) return;
-loadPrestationsFromRange();
-// eslint-disable-next-line react-hooks/exhaustive-deps
-}, [form.clientId, form.billingStart, form.billingEnd, data.schedules, data.clockEntries]);
 
 const onClientChange = (clientId) => {
 const cl = data.clients.find(c => c.id === clientId);
@@ -2704,8 +2761,8 @@ return (
 <div style={{ marginBottom: 18, padding: 12, background: "#f8f8f8", borderRadius: 8 }}>
 <div style={{ fontSize: 10, color: "#999", textTransform: "uppercase", marginBottom: 2 }}>Client</div>
 <div style={{ fontWeight: 600 }}>{client?.name}</div>
-{client?.address && <div style={{ fontSize: 12, color: "#666" }}>{client.address}</div>}
-{client?.phone && <div style={{ fontSize: 12, color: "#666" }}>{client.phone}</div>}
+{client?.address && <div style={{ fontSize: 12, color: "#666" }}>{client.address}{client?.apartmentFloor ? `, ${client.apartmentFloor}` : ""}</div>}
+{(client?.postalCode || client?.city || client?.country) && <div style={{ fontSize: 12, color: "#666" }}>{client?.postalCode ? `${client.postalCode} ` : ""}{client?.city || ""}{client?.country ? `, ${client.country}` : ""}</div>}
 {client?.email && <div style={{ fontSize: 12, color: "#666" }}>{client.email}</div>}
 </div>
 
@@ -2848,6 +2905,85 @@ return (
 // ==============================================
 // LEAVE MANAGEMENT (CONGÉS) - OWNER
 // ==============================================
+function VisitationPage({ data, updateData, showToast, setSection, setDevisSeed }) {
+const [form, setForm] = useState({ clientId: "", visitDate: getToday(), visitTime: "10:00", address: "", notes: "", status: "planned" });
+const visits = (data.prospectVisits || []).slice().sort((a, b) => `${b.visitDate} ${b.visitTime}`.localeCompare(`${a.visitDate} ${a.visitTime}`));
+const prospects = data.clients.filter(c => c.status === "prospect" || c.status === "active");
+const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
+
+const saveVisit = () => {
+if (!form.clientId || !form.visitDate) { showToast("Select client and date", "error"); return; }
+const client = data.clients.find(c => c.id === form.clientId);
+const payload = { ...form, id: makeId(), createdAt: new Date().toISOString(), address: form.address || client?.address || "" };
+updateData("prospectVisits", prev => [payload, ...(prev || [])]);
+setForm({ clientId: "", visitDate: getToday(), visitTime: "10:00", address: "", notes: "", status: "planned" });
+showToast("Visit added");
+};
+
+const markStatus = (id, status) => updateData("prospectVisits", prev => (prev || []).map(v => v.id === id ? { ...v, status, updatedAt: new Date().toISOString() } : v));
+const removeVisit = (id) => updateData("prospectVisits", prev => (prev || []).filter(v => v.id !== id));
+
+return (
+<div>
+<h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold, marginBottom: 16 }}>Visitation Schedule</h1>
+<div style={{ ...cardSt, marginBottom: 14 }}>
+  <div className="form-grid">
+    <Field label="Prospect / Client"><SelectInput value={form.clientId} onChange={ev => { const id = ev.target.value; const c = data.clients.find(x => x.id === id); setForm(v => ({ ...v, clientId: id, address: c?.address || "" })); }}><option value="">Select...</option>{prospects.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</SelectInput></Field>
+    <Field label="Address"><TextInput value={form.address} onChange={ev => set("address", ev.target.value)} placeholder="Visit address" /></Field>
+    <Field label="Visit date"><TextInput type="date" value={form.visitDate} onChange={ev => set("visitDate", ev.target.value)} /></Field>
+    <Field label="Visit time"><TextInput type="time" value={form.visitTime} onChange={ev => set("visitTime", ev.target.value)} /></Field>
+  </div>
+  <Field label="Notes"><TextArea value={form.notes} onChange={ev => set("notes", ev.target.value)} placeholder="Scope, apartment access, expectations..." /></Field>
+  <button style={btnPri} onClick={saveVisit}>{ICN.plus} Add Visit</button>
+</div>
+
+<div style={cardSt} className="tbl-wrap">
+<table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+<thead><tr><th style={thSt}>Date</th><th style={thSt}>Client</th><th style={thSt}>Address</th><th style={thSt}>Notes</th><th style={thSt}>Status</th><th style={thSt}>Actions</th></tr></thead>
+<tbody>
+{visits.map(v => { const client = data.clients.find(c => c.id === v.clientId); return <tr key={v.id}><td style={tdSt}>{fmtDate(v.visitDate)} {v.visitTime || ""}</td><td style={tdSt}>{client?.name || "-"}</td><td style={tdSt}><a href={mapsUrl(v.address || client?.address || "") } target="_blank" rel="noreferrer" style={{ color: CL.blue, textDecoration: "underline" }}>{v.address || client?.address || "-"}</a></td><td style={tdSt}>{v.notes || "-"}</td><td style={tdSt}><Badge color={v.status === "done" ? CL.green : v.status === "cancelled" ? CL.red : CL.orange}>{v.status}</Badge></td><td style={tdSt}><div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}><button style={{ ...btnSec, ...btnSm }} onClick={() => markStatus(v.id, "done")}>Done</button><button style={{ ...btnSec, ...btnSm }} onClick={() => { setDevisSeed?.({ clientId: v.clientId, description: `Quote after visit on ${v.visitDate}` }); setSection?.("devis"); }}>Create Devis</button><button style={{ ...btnSec, ...btnSm, color: CL.red }} onClick={() => removeVisit(v.id)}>Delete</button></div></td></tr>; })}
+{visits.length === 0 && <tr><td colSpan={6} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>No visits scheduled yet</td></tr>}
+</tbody>
+</table>
+</div>
+</div>
+);
+}
+
+function HistoryPage({ data, updateData }) {
+const [clientFilter, setClientFilter] = useState("");
+const uploads = (data.photoUploads || []).slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+const jobs = (data.schedules || []).slice().sort((a, b) => `${b.date} ${b.startTime}`.localeCompare(`${a.date} ${a.startTime}`));
+const filteredUploads = uploads.filter(u => !clientFilter || u.clientId === clientFilter);
+const filteredJobs = jobs.filter(j => !clientFilter || j.clientId === clientFilter);
+
+const markAllSeen = () => updateData("photoUploads", prev => (prev || []).map(u => ({ ...u, seenByOwner: true })));
+
+return (
+<div>
+<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 8 }}>
+  <h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold }}>History & Images</h1>
+  <div style={{ display: "flex", gap: 8 }}>
+    <SelectInput value={clientFilter} onChange={ev => setClientFilter(ev.target.value)} style={{ width: 220 }}><option value="">All clients</option>{data.clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</SelectInput>
+    <button style={btnSec} onClick={markAllSeen}>Mark images seen</button>
+  </div>
+</div>
+<div className="grid-2">
+  <div style={cardSt}>
+    <h3 style={{ marginBottom: 10, color: CL.gold }}>Job history</h3>
+    {filteredJobs.slice(0, 120).map(j => { const c = data.clients.find(x => x.id === j.clientId); const e = data.employees.find(x => x.id === j.employeeId); return <div key={j.id} style={{ borderBottom: `1px solid ${CL.bd}`, padding: "8px 0" }}><div style={{ fontWeight: 600 }}>{fmtDate(j.date)} · {j.startTime}-{j.endTime}</div><div style={{ fontSize: 12, color: CL.muted }}>{c?.name || "-"} · {e?.name || "-"}</div><Badge color={scheduleStatusColor(j.status)}>{j.status}</Badge></div>; })}
+    {filteredJobs.length === 0 && <div style={{ color: CL.muted }}>No jobs</div>}
+  </div>
+  <div style={cardSt}>
+    <h3 style={{ marginBottom: 10, color: CL.gold }}>Image history</h3>
+    {filteredUploads.slice(0, 120).map(u => { const c = data.clients.find(x => x.id === u.clientId); const e = data.employees.find(x => x.id === u.employeeId); return <div key={u.id} style={{ borderBottom: `1px solid ${CL.bd}`, padding: "8px 0" }}><div style={{ fontWeight: 600 }}>{c?.name || "Unknown client"} · {u.type || "issue"}</div><div style={{ fontSize: 12, color: CL.muted }}>{fmtBoth(u.createdAt)} · {e?.name || "-"}</div>{u.imageData && <img src={u.imageData} alt={u.fileName} style={{ width: "100%", maxWidth: 260, marginTop: 6, borderRadius: 8, border: `1px solid ${CL.bd}` }} />}</div>; })}
+    {filteredUploads.length === 0 && <div style={{ color: CL.muted }}>No images</div>}
+  </div>
+</div>
+</div>
+);
+}
+
 function LeaveManagementPage({ data, updateData, showToast }) {
 const [employeeFilter, setEmployeeFilter] = useState("");
 const [yearFilter, setYearFilter] = useState(getToday().slice(0, 4));
@@ -2900,7 +3036,7 @@ return (
 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
 <thead><tr><th style={thSt}>Cleaner</th><th style={thSt}>Allowance</th><th style={thSt}>Approved</th><th style={thSt}>Pending</th><th style={thSt}>Remaining</th></tr></thead>
 <tbody>
-{summaryRows.map(row => <tr key={row.emp.id}><td style={tdSt}>{row.emp.name}</td><td style={tdSt}>{row.allowance}d</td><td style={tdSt}>{row.approvedDays}d</td><td style={tdSt}>{row.pendingDays}d</td><td style={{ ...tdSt, fontWeight: 700, color: row.remaining > 5 ? CL.green : CL.orange }}>{row.remaining}d</td></tr>)}
+{summaryRows.map(row => <tr key={row.emp.id}><td style={tdSt}>{row.emp.name}</td><td style={tdSt}><TextInput type="number" min={0} value={row.emp.leaveAllowance ?? 26} onChange={ev => updateData("employees", prev => prev.map(e => e.id === row.emp.id ? { ...e, leaveAllowance: Math.max(0, parseInt(ev.target.value || "0", 10) || 0) } : e))} style={{ width: 90 }} /></td><td style={tdSt}>{row.approvedDays}d</td><td style={tdSt}>{row.pendingDays}d</td><td style={{ ...tdSt, fontWeight: 700, color: row.remaining > 5 ? CL.green : CL.orange }}>{row.remaining}d</td></tr>)}
 {summaryRows.length === 0 && <tr><td colSpan={5} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>No active cleaners</td></tr>}
 </tbody>
 </table>
@@ -2917,7 +3053,7 @@ return (
 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
 <div>
 <div style={{ fontWeight: 600 }}>{employee?.name || "Unknown"} · {fmtDate(req.startDate)} - {fmtDate(req.endDate)} ({days}d)</div>
-<div style={{ fontSize: 12, color: CL.muted }}>{req.reason || "No reason"}</div>
+<div style={{ fontSize: 12, color: CL.muted }}>{req.leaveType === "maladie" ? "Maladie" : "Congé"}{req.reason ? ` · ${req.reason}` : ""}</div>
 <div style={{ fontSize: 11, color: CL.dim }}>Requested {fmtBoth(req.createdAt)}</div>
 {req.reviewedAt && <div style={{ fontSize: 11, color: CL.dim }}>Reviewed {fmtBoth(req.reviewedAt)} {req.reviewNote ? `· ${req.reviewNote}` : ""}</div>}
 </div>
@@ -3244,11 +3380,12 @@ return (
 function SettingsPage({ data, updateData, setData, showToast }) {
 const [form, setForm] = useState(data.settings);
 const [pin, setPin] = useState(data.ownerPin);
+const [managerPin, setManagerPin] = useState(data.managerPin || "4321");
 const set = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
 
 const handleSave = () => {
 updateData("settings", form);
-setData(prev => ({ ...prev, ownerPin: pin }));
+setData(prev => ({ ...prev, ownerPin: pin, managerPin }));
 showToast("Saved");
 };
 
@@ -3268,8 +3405,11 @@ return (
 <Field label="Address"><TextInput value={form.companyAddress} onChange={ev => set("companyAddress", ev.target.value)} /></Field>
 </div>
 <div style={{ ...cardSt, marginTop: 14 }}>
-<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: CL.gold }}>Owner PIN</h3>
-<Field label="PIN (4-6 digits)"><TextInput maxLength={6} value={pin} onChange={ev => setPin(ev.target.value.replace(/\D/g, ""))} style={{ width: 180 }} /></Field>
+<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: CL.gold }}>Access PINs</h3>
+<div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
+<Field label="Owner PIN (4-6 digits)"><TextInput maxLength={6} value={pin} onChange={ev => setPin(ev.target.value.replace(/\D/g, ""))} style={{ width: 180 }} /></Field>
+<Field label="Manager PIN (4-6 digits)"><TextInput maxLength={6} value={managerPin} onChange={ev => setManagerPin(ev.target.value.replace(/\D/g, ""))} style={{ width: 180 }} /></Field>
+</div>
 </div>
 <div style={{ marginTop: 14 }}><button style={btnPri} onClick={handleSave}>{ICN.check} Save All</button></div>
 <div style={{ ...cardSt, marginTop: 14 }}>

@@ -24,7 +24,7 @@ dashboard: "Tableau de bord", employees: "Employés", clients: "Clients", schedu
 newQuote: "Nouveau devis", editQuote: "Modifier devis", newInvoice: "Nouvelle facture", editInvoice: "Modifier facture", save: "Enregistrer", cancel: "Annuler", actions: "Actions", status: "Statut", client: "Client", date: "Date", amount: "Montant", view: "Voir", sendEmail: "Envoyer email", draft: "Brouillon", sent: "Envoyée", paid: "Payée", overdue: "En retard", auto: "Auto", select: "Sélectionner...", prestationDate: "Date de prestation",
 invoice: "Facture", quote: "Devis", dueDate: "Date échéance", notes: "Notes", total: "Total", subtotal: "Sous-total", vat: "TVA", item: "Ligne", qty: "Qté", unitPrice: "Prix unitaire", description: "Description",
 managementSystem: "Système de gestion", ownerAccess: "Accès propriétaire", ownerAccessDesc: "Tableau de gestion complet", cleanerAccess: "Accès agent", cleanerAccessDesc: "Planning, heures, pointage et congés",
-back: "Retour", ownerLogin: "Connexion propriétaire", cleanerLogin: "Connexion agent", yourName: "Votre nom", choose: "Choisir...", logout: "Déconnexion", visitation: "Visites", history: "Historique", downloadApp: "Télécharger l'application", ownerPortal: "Portail propriétaire", managerPortal: "Portail manager", visitationSchedule: "Planning des visites", historyImages: "Historique & images", installIntro: "Choisissez votre téléphone puis appuyez sur installer.", installOnIphone: "Installer sur iPhone", installOnAndroid: "Installer sur Android",
+back: "Retour", ownerLogin: "Connexion propriétaire", cleanerLogin: "Connexion agent", yourName: "Votre nom", choose: "Choisir...", logout: "Déconnexion", visitation: "Visites", history: "Historique", downloadApp: "Télécharger l'application", ownerPortal: "Portail propriétaire", managerPortal: "Portail manager", visitationSchedule: "Planning des visites", historyImages: "Historique & images", installIntro: "Installez cette app directement depuis votre navigateur (sans App Store / Play Store).", installOnIphone: "Installer sur iPhone", installOnAndroid: "Installer sur Android", installAndroidFallback: "Si rien ne se passe: menu ⋮ du navigateur > Installer l'application / Ajouter à l'écran d'accueil.", installIosHint: "Sur iPhone: bouton Partager (□↑) > Sur l'écran d'accueil.",
 mySchedule: "Mon planning", clockInOut: "Pointage entrée/sortie", photoUploads: "Photos", products: "Produits", upcomingJobs: "Interventions à venir", noUpcomingJobs: "Aucune intervention à venir"
 },
 en: {
@@ -33,7 +33,7 @@ dashboard: "Dashboard", employees: "Employees", clients: "Clients", schedule: "S
 newQuote: "New quote", editQuote: "Edit quote", newInvoice: "New invoice", editInvoice: "Edit invoice", save: "Save", cancel: "Cancel", actions: "Actions", status: "Status", client: "Client", date: "Date", amount: "Amount", view: "View", sendEmail: "Send email", draft: "Draft", sent: "Sent", paid: "Paid", overdue: "Overdue", auto: "Auto", select: "Select...", prestationDate: "Service date",
 invoice: "Invoice", quote: "Quote", dueDate: "Due date", notes: "Notes", total: "Total", subtotal: "Subtotal", vat: "VAT", item: "Item", qty: "Qty", unitPrice: "Unit price", description: "Description",
 managementSystem: "Management System", ownerAccess: "Owner Access", ownerAccessDesc: "Full management dashboard", cleanerAccess: "Cleaner Access", cleanerAccessDesc: "Schedule, hours, clock & time-off",
-back: "Back", ownerLogin: "Owner Login", cleanerLogin: "Cleaner Login", yourName: "Your Name", choose: "Choose...", logout: "Logout", visitation: "Visitation", history: "History", downloadApp: "Download App", ownerPortal: "Owner Portal", managerPortal: "Manager Portal", visitationSchedule: "Visitation Schedule", historyImages: "History & Images", installIntro: "Choose your phone, then tap install.", installOnIphone: "Install on iPhone", installOnAndroid: "Install on Android",
+back: "Back", ownerLogin: "Owner Login", cleanerLogin: "Cleaner Login", yourName: "Your Name", choose: "Choose...", logout: "Logout", visitation: "Visitation", history: "History", downloadApp: "Download App", ownerPortal: "Owner Portal", managerPortal: "Manager Portal", visitationSchedule: "Visitation Schedule", historyImages: "History & Images", installIntro: "Install this app directly from your browser (no App Store / Play Store needed).", installOnIphone: "Install on iPhone", installOnAndroid: "Install on Android", installAndroidFallback: "If nothing happens: browser menu ⋮ > Install app / Add to Home screen.", installIosHint: "On iPhone: Share button (□↑) > Add to Home Screen.",
 mySchedule: "My Schedule", clockInOut: "Clock In/Out", photoUploads: "Photo Uploads", products: "Products", upcomingJobs: "Upcoming Jobs", noUpcomingJobs: "No upcoming jobs"
 }
 };
@@ -42,6 +42,125 @@ const useI18n = () => useContext(LanguageContext);
 const tr = (lang, key, fallback = key) => I18N[lang]?.[key] || I18N.fr?.[key] || fallback;
 const localeForLang = (lang) => lang === "en" ? "en-GB" : "fr-FR";
 let CURRENT_LANG = "fr";
+
+
+const UI_FR = {
+"Username or email": "Nom d'utilisateur ou email",
+"Password": "Mot de passe",
+"Clock-in note (optional)": "Note de pointage (optionnelle)",
+"Photo type": "Type de photo",
+"Upload cleaning photo": "Télécharger une photo de nettoyage",
+"Optional note": "Note optionnelle",
+"Product": "Produit",
+"Select...": "Sélectionner...",
+"Quantity": "Quantité",
+"Delivery Date & Time": "Date et heure de livraison",
+"Note": "Note",
+"Start Date": "Date de début",
+"End Date": "Date de fin",
+"Type": "Type",
+"Reason": "Raison",
+"Name": "Nom",
+"Role": "Rôle",
+"Rate": "Taux",
+"Contact": "Contact",
+"Status": "Statut",
+"Actions": "Actions",
+"Delete": "Supprimer",
+"Full Name *": "Nom complet *",
+"Email": "Email",
+"Phone": "Téléphone",
+"Mobile": "Mobile",
+"Login Username": "Identifiant de connexion",
+"Login Password": "Mot de passe de connexion",
+"Address": "Adresse",
+"Postal Code": "Code postal",
+"City": "Ville",
+"Country": "Pays",
+"Date of Birth": "Date de naissance",
+"Nationality": "Nationalité",
+"Languages": "Langues",
+"Social Security No.": "N° de sécurité sociale",
+"Transport": "Transport",
+"Hourly Rate (€)": "Taux horaire (€)",
+"Vacation allowance (days/year)": "Allocation de congé (jours/an)",
+"Contract Type": "Type de contrat",
+"Monthly": "Mensuel",
+"Weekly": "Hebdomadaire",
+"Campaign subject": "Sujet de campagne",
+"Campaign content": "Contenu de campagne",
+"Settings": "Paramètres",
+"Company Info": "Informations entreprise",
+"Company Name": "Nom de l'entreprise",
+"VAT Number": "N° TVA",
+"Default VAT %": "TVA par défaut %",
+"Bank IBAN": "IBAN bancaire",
+"Access Credentials": "Identifiants d'accès",
+"Owner Username": "Identifiant propriétaire",
+"Owner Password": "Mot de passe propriétaire",
+"Manager Username": "Identifiant manager",
+"Manager Password": "Mot de passe manager",
+"Save All": "Tout enregistrer",
+"Danger Zone": "Zone dangereuse",
+"Reset Everything": "Tout réinitialiser",
+"DELETE ALL DATA?": "SUPPRIMER TOUTES LES DONNÉES ?",
+"Visit address": "Adresse de visite",
+"Visit date": "Date de visite",
+"Visit time": "Heure de visite",
+"Prospect / Client": "Prospect / Client",
+"Done": "Terminé",
+"Create Devis": "Créer devis",
+"Pending": "En attente",
+"Approved": "Approuvé",
+"Rejected": "Rejeté",
+"Cleaner": "Agent",
+"Allowance": "Allocation",
+"Remaining": "Restant",
+"Employee": "Employé",
+"Hours": "Heures",
+"Cost": "Coût",
+"Revenue": "Revenu",
+"Invoiced": "Facturé",
+"Payroll access is restricted.": "L'accès à la paie est restreint.",
+"Email Marketing Campaigns": "Campagnes marketing par email",
+"Frequency": "Fréquence",
+"Channel": "Canal",
+"8 sheets: Employees, Clients, Schedule, Time Clock, Invoices, Payslips, Settings, Summary": "8 feuilles : Employés, Clients, Planning, Pointage, Factures, Fiches de paie, Paramètres, Résumé",
+"Use Share > Add to Home Screen": "Utilisez Partager > Sur l'écran d'accueil",
+"Use browser menu > Install app": "Utilisez le menu du navigateur > Installer l'application",
+"Install prompt opened": "Invite d'installation ouverte",
+"Reports": "Rapports",
+"Labour": "Main-d'œuvre",
+"Profit": "Profit",
+"Employee Hours": "Heures employés",
+"Client Revenue": "Revenus clients",
+"Excel Database": "Base de données Excel",
+"Full backup/restore with structured 8-sheet Excel file.": "Sauvegarde/restauration complète avec fichier Excel structuré de 8 feuilles.",
+"Export Database": "Exporter la base",
+"Import Database": "Importer la base",
+"Exporting...": "Export en cours...",
+"Export .xlsx": "Exporter .xlsx",
+"Upload a previously exported Excel file to restore all data.": "Téléversez un fichier Excel exporté précédemment pour restaurer toutes les données.",
+"Import .xlsx": "Importer .xlsx",
+"No reminders ready for this filter.": "Aucun rappel prêt pour ce filtre.",
+"No contact": "Aucun contact",
+"Send via": "Envoyer via",
+"Send Campaign to Selected Clients": "Envoyer la campagne aux clients sélectionnés",
+"Email template": "Modèle d'email",
+"Standard": "Standard",
+"Friendly reminder": "Rappel amical",
+"Ready reminders:": "Rappels prêts :",
+"Saved": "Enregistré",
+"Exported!": "Exporté !",
+"Failed": "Échec",
+};
+
+const uiText = (text) => {
+if (CURRENT_LANG !== "fr") return text;
+if (typeof text !== "string") return text;
+return UI_FR[text] || text;
+};
+
 
 const DEFAULTS = {
 employees: [], clients: [], schedules: [], clockEntries: [], quotes: [], invoices: [], payslips: [],
@@ -163,7 +282,7 @@ const ModalBox = ({ title, onClose, children, wide }) => (
   <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "30px" }} onClick={onClose}>
     <div className={wide ? "modal-wide" : "modal-normal"} style={{ ...cardSt, overflow: "auto" }} onClick={ev => ev.stopPropagation()}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24, position: "sticky", top: 0, background: CL.sf, paddingBottom: 14, zIndex: 1 }}>
-        <h2 style={{ margin: 0, fontSize: 20, color: CL.gold, fontFamily: "'Cormorant Garamond', serif" }}>{title}</h2>
+        <h2 style={{ margin: 0, fontSize: 20, color: CL.gold, fontFamily: "'Cormorant Garamond', serif" }}>{uiText(title)}</h2>
         <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: CL.muted, padding: 8 }}>{ICN.close}</button>
       </div>
       {children}
@@ -174,20 +293,20 @@ const ModalBox = ({ title, onClose, children, wide }) => (
 const Field = ({ label, children }) => (
 
   <div style={{ marginBottom: 14 }}>
-    <label style={{ display: "block", marginBottom: 5, fontSize: 13, color: CL.muted, fontWeight: 500 }}>{label}</label>
+    <label style={{ display: "block", marginBottom: 5, fontSize: 13, color: CL.muted, fontWeight: 500 }}>{uiText(label)}</label>
     {children}
   </div>
 );
 
-const TextInput = (props) => <input {...props} style={{ ...inputSt, ...(props.style || {}) }} />;
+const TextInput = (props) => <input {...props} placeholder={uiText(props.placeholder)} style={{ ...inputSt, ...(props.style || {}) }} />;
 const SelectInput = ({ children, ...props }) => <select {...props} style={{ ...inputSt, appearance: "auto", color: CL.text, colorScheme: "dark", ...(props.style || {}) }}>{children}</select>;
-const TextArea = (props) => <textarea {...props} style={{ ...inputSt, minHeight: 80, resize: "vertical", ...(props.style || {}) }} />;
-const Badge = ({ children, color = CL.gold }) => <span style={{ display: "inline-block", padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 600, background: color + "20", color }}>{children}</span>;
+const TextArea = (props) => <textarea {...props} placeholder={uiText(props.placeholder)} style={{ ...inputSt, minHeight: 80, resize: "vertical", ...(props.style || {}) }} />;
+const Badge = ({ children, color = CL.gold }) => <span style={{ display: "inline-block", padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 600, background: color + "20", color }}>{uiText(children)}</span>;
 const StatCard = ({ label, value, icon, color = CL.gold }) => (
 
   <div style={{ ...cardSt, display: "flex", alignItems: "center", gap: 14, flex: 1, minWidth: 160 }}>
     <div style={{ width: 42, height: 42, borderRadius: 12, background: color + "15", display: "flex", alignItems: "center", justifyContent: "center", color, flexShrink: 0 }}>{icon}</div>
-    <div><div style={{ fontSize: 12, color: CL.muted, marginBottom: 2 }}>{label}</div><div style={{ fontSize: 20, fontWeight: 700, fontFamily: "'Cormorant Garamond', serif" }}>{value}</div></div>
+    <div><div style={{ fontSize: 12, color: CL.muted, marginBottom: 2 }}>{uiText(label)}</div><div style={{ fontSize: 20, fontWeight: 700, fontFamily: "'Cormorant Garamond', serif" }}>{value}</div></div>
   </div>
 );
 const ToastMsg = ({ message, type }) => (
@@ -223,14 +342,14 @@ addSheet("Schedule", data.schedules.map(sc => { const cl = data.clients.find(c =
 ["ID","Date","Client","CliID","Employee","EmpID","Start","End","Status","Notes"]);
 
 addSheet("TimeClock", data.clockEntries.map(ce => { const em = data.employees.find(e => e.id === ce.employeeId); const cl = data.clients.find(c => c.id === ce.clientId); const h = calcHrs(ce.clockIn, ce.clockOut); return { ID: ce.id, Employee: em?.name || "", EmpID: ce.employeeId, Client: cl?.name || "", CliID: ce.clientId, In: ce.clockIn || "", Out: ce.clockOut || "", Hours: ce.clockOut ? h : "Active", Late: ce.isLate ? "yes" : "no", LateMins: ce.lateMinutes || 0, Note: ce.notes || "", Rate: em?.hourlyRate || 0, Cost: ce.clockOut ? Math.round(h * (em?.hourlyRate || 0) * 100) / 100 : "" }; }),
-["ID","Employee","EmpID","Client","CliID","In","Out","Hours","Rate","Cost"]);
+["ID","Employee","EmpID","Client","CliID","In","Out",uiText("Hours"),"Rate","Cost"]);
 
 const invRows = [];
 data.invoices.forEach(inv => { const cl = data.clients.find(c => c.id === inv.clientId); (inv.items || [{}]).forEach((item, idx) => { invRows.push({ "Inv": inv.invoiceNumber, Date: inv.date, Due: inv.dueDate || "", Client: cl?.name || "", CliID: inv.clientId, Status: inv.status, Item: item.description || "", Qty: item.quantity || "", Price: item.unitPrice || "", LineTotal: item.total || "", Sub: idx === 0 ? inv.subtotal : "", "VAT%": idx === 0 ? inv.vatRate : "", VAT: idx === 0 ? inv.vatAmount : "", Total: idx === 0 ? inv.total : "", Notes: idx === 0 ? (inv.notes || "") : "" }); }); });
 addSheet("Invoices", invRows, ["Inv","Date","Due","Client","CliID","Status","Item","Qty","Price","LineTotal","Sub","VAT%","VAT","Total","Notes"]);
 
 addSheet("Payslips", data.payslips.map(ps => { const em = data.employees.find(e => e.id === ps.employeeId); return { Num: ps.payslipNumber, Employee: em?.name || "", EmpID: ps.employeeId, Month: ps.month, Hours: ps.totalHours, Rate: ps.hourlyRate, Gross: ps.grossPay, Social: ps.socialCharges, Tax: ps.taxEstimate, Net: ps.netPay, Status: ps.status }; }),
-["Num","Employee","EmpID","Month","Hours","Rate","Gross","Social","Tax","Net","Status"]);
+["Num","Employee","EmpID","Month",uiText("Hours"),"Rate","Gross","Social","Tax","Net","Status"]);
 
 addSheet("Settings", [
 { Key: "Company Name", Val: data.settings.companyName }, { Key: "Address", Val: data.settings.companyAddress },
@@ -248,7 +367,7 @@ const totalH = ents.reduce((sum, ce) => sum + calcHrs(ce.clockIn, ce.clockOut), 
 const laborCost = ents.reduce((sum, ce) => { const em = data.employees.find(x => x.id === ce.employeeId); return sum + calcHrs(ce.clockIn, ce.clockOut) * (em?.hourlyRate || 0); }, 0);
 const revenue = data.invoices.filter(inv => inv.date?.startsWith(mo)).reduce((sum, inv) => sum + (inv.total || 0), 0);
 return { Month: mo, Hours: Math.round(totalH * 100) / 100, Labor: Math.round(laborCost * 100) / 100, Revenue: Math.round(revenue * 100) / 100, Profit: Math.round((revenue - laborCost) * 100) / 100 };
-}), ["Month", "Hours", "Labor", "Revenue", "Profit"]);
+}), ["Month", uiText("Hours"), "Labor", uiText("Revenue"), uiText("Profit")]);
 
 const buffer = await wb.xlsx.writeBuffer();
 const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
@@ -471,18 +590,21 @@ setSection("download-app");
 };
 
 const installForPlatform = async (platform) => {
-const iosLink = data.settings?.iosAppUrl || "https://apps.apple.com";
-const androidLink = data.settings?.androidAppUrl || "https://play.google.com/store";
 if (platform === "android" && installPromptRef.current) {
   try {
     await installPromptRef.current.prompt();
     await installPromptRef.current.userChoice;
     installPromptRef.current = null;
+    showToast(uiText("Install prompt opened"));
     return;
   } catch {
   }
 }
-window.location.href = platform === "ios" ? iosLink : androidLink;
+if (platform === "ios") {
+  showToast(uiText("Use Share > Add to Home Screen"), "info");
+  return;
+}
+showToast(uiText("Use browser menu > Install app"), "info");
 };
 
 const renderSection = () => {
@@ -503,7 +625,7 @@ case "history": return <HistoryPage {...props} />;
 case "reminders": return <RemindersPage data={data} showToast={showToast} />;
 case "reports": return <ReportsPage data={data} />;
 case "database": return <ExcelDBPage data={data} setData={setData} showToast={showToast} />;
-case "download-app": return <DownloadAppPage data={data} onInstallApp={installForPlatform} />;
+case "download-app": return <DownloadAppPage onInstallApp={installForPlatform} />;
 case "settings": return <SettingsPage {...props} />;
 default: return <DashboardPage data={data} auth={auth} />;
 }
@@ -859,7 +981,7 @@ return (
           <TextInput type="month" value={monthFilter} onChange={ev => setMonthFilter(ev.target.value)} style={{ width: 160 }} />
         </div>
         <div className="stat-row" style={{ marginBottom: 18 }}>
-          <StatCard label="Hours" value={`${monthHours.toFixed(1)}h`} icon={ICN.clock} color={CL.blue} />
+          <StatCard label={uiText("Hours")} value={`${monthHours.toFixed(1)}h`} icon={ICN.clock} color={CL.blue} />
           <StatCard label="Days" value={monthClocks.length} icon={ICN.cal} color={CL.green} />
         </div>
         <div style={cardSt} className="tbl-wrap">
@@ -2469,7 +2591,7 @@ return (
 {[
 ["prestationDate", "Date"],
 ["description", "Description"],
-["hours", "Hours"],
+["hours", uiText("Hours")],
 ["quantity", "Quantity"],
 ["unitPrice", "Unit Price"],
 ["total", "Line Total"],
@@ -2802,7 +2924,7 @@ return (
 <div key={idx} style={{ display: "grid", gridTemplateColumns: "1.1fr 2fr .8fr .8fr .9fr .9fr auto", gap: 5, marginBottom: 5, alignItems: "center" }}>
 <TextInput type="date" placeholder="Prestation date" value={item.prestationDate || ""} onChange={ev => updateItem(idx, "prestationDate", ev.target.value)} />
 <TextInput placeholder="Description" value={item.description || ""} onChange={ev => updateItem(idx, "description", ev.target.value)} />
-<TextInput type="number" step="0.25" placeholder="Hours" value={item.hours ?? ""} onChange={ev => { const h = ev.target.value; updateItem(idx, "hours", h === "" ? "" : parseFloat(h) || 0); updateItem(idx, "quantity", h === "" ? 1 : parseFloat(h) || 0); }} />
+<TextInput type="number" step="0.25" placeholder={uiText("Hours")} value={item.hours ?? ""} onChange={ev => { const h = ev.target.value; updateItem(idx, "hours", h === "" ? "" : parseFloat(h) || 0); updateItem(idx, "quantity", h === "" ? 1 : parseFloat(h) || 0); }} />
 <TextInput type="number" step="0.25" placeholder="Qty" value={item.quantity ?? 0} onChange={ev => updateItem(idx, "quantity", parseFloat(ev.target.value) || 0)} />
 <TextInput type="number" step="0.01" placeholder="Unit" value={item.unitPrice} onChange={ev => updateItem(idx, "unitPrice", parseFloat(ev.target.value) || 0)} />
 <div style={{ textAlign: "right", fontWeight: 600 }}>€{Number(item.total || 0).toFixed(2)}</div>
@@ -2815,7 +2937,7 @@ return (
 
 <div className="form-grid" style={{ marginTop: 12 }}>
 <Field label="Sender email (optional)"><TextInput value={form.zohoEmail || ""} onChange={ev => set("zohoEmail", ev.target.value)} placeholder="name@yourcompany.com" /></Field>
-<Field label="Email template"><SelectInput value={form.emailTemplate || "standard"} onChange={ev => set("emailTemplate", ev.target.value)}><option value="standard">Standard</option><option value="friendly">Friendly reminder</option></SelectInput></Field>
+<Field label={uiText("Email template")}><SelectInput value={form.emailTemplate || "standard"} onChange={ev => set("emailTemplate", ev.target.value)}><option value="standard">{uiText("Standard")}</option><option value="friendly">{uiText("Friendly reminder")}</option></SelectInput></Field>
 </div>
 
 <Field label="Terms"><TextInput value={form.paymentTerms || ""} onChange={ev => set("paymentTerms", ev.target.value)} /></Field>
@@ -2881,7 +3003,7 @@ function PayslipsPage({ data, updateData, showToast, auth }) {
 const [preview, setPreview] = useState(null);
 const [month, setMonth] = useState(getToday().slice(0, 7));
 
-if (auth?.role !== "owner") return <div style={cardSt}>Payroll access is restricted.</div>;
+if (auth?.role !== "owner") return <div style={cardSt}>{t("Payroll access is restricted.")}</div>;
 
 const generatePayslips = () => {
 const payslips = data.employees.filter(emp => emp.status === "active").map(emp => {
@@ -3032,7 +3154,6 @@ return (
 }
 
 function HistoryPage({ data, updateData }) {
-  const { t } = useI18n();
 const [clientFilter, setClientFilter] = useState("");
 const uploads = (data.photoUploads || []).slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 const jobs = (data.schedules || []).slice().sort((a, b) => `${b.date} ${b.startTime}`.localeCompare(`${a.date} ${a.startTime}`));
@@ -3305,15 +3426,15 @@ return (
 <option value="whatsapp">WhatsApp</option>
 <option value="zoho">Zoho</option>
 </SelectInput>
-<div style={{ fontSize: 12, color: CL.muted }}>Ready reminders: {filtered.length}</div>
+<div style={{ fontSize: 12, color: CL.muted }}>{uiText("Ready reminders:")} {filtered.length}</div>
 </div>
 
-{filtered.length === 0 ? <div style={{ ...cardSt, textAlign: "center", padding: 26, color: CL.muted }}>No reminders ready for this filter.</div> : (
-<div>{filtered.map(rem => <div key={rem.id} style={{ ...cardSt, marginBottom: 8 }}><div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 8 }}><div><div style={{ fontWeight: 600, fontSize: 15 }}>{rem.title}</div><div style={{ fontSize: 12, color: CL.muted, marginTop: 3 }}>{rem.details}</div><div style={{ fontSize: 12, color: CL.dim, marginTop: 2 }}>{rem.client.email || rem.client.phone || rem.client.phoneMobile || "No contact"}</div></div><button style={btnPri} onClick={() => sendReminder(rem)}>{ICN.mail} Send via {channel}</button></div></div>)}</div>
+{filtered.length === 0 ? <div style={{ ...cardSt, textAlign: "center", padding: 26, color: CL.muted }}>{uiText("No reminders ready for this filter.")}</div> : (
+<div>{filtered.map(rem => <div key={rem.id} style={{ ...cardSt, marginBottom: 8 }}><div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 8 }}><div><div style={{ fontWeight: 600, fontSize: 15 }}>{rem.title}</div><div style={{ fontSize: 12, color: CL.muted, marginTop: 3 }}>{rem.details}</div><div style={{ fontSize: 12, color: CL.dim, marginTop: 2 }}>{rem.client.email || rem.client.phone || rem.client.phoneMobile || uiText("No contact")}</div></div><button style={btnPri} onClick={() => sendReminder(rem)}>{ICN.mail} {uiText("Send via")} {channel}</button></div></div>)}</div>
 )}
 
 <div style={{ ...cardSt, marginTop: 12 }}>
-<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>Email Marketing Campaigns</h3>
+<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>{t("Email Marketing Campaigns")}</h3>
 <div className="form-grid">
 <Field label="Frequency"><SelectInput value={campaignFrequency} onChange={ev => setCampaignFrequency(ev.target.value)}><option value="weekly">Weekly</option><option value="monthly">Monthly</option></SelectInput></Field>
 <Field label="Channel"><SelectInput value={campaignChannel} onChange={ev => setCampaignChannel(ev.target.value)}><option value="email">Email</option><option value="whatsapp">WhatsApp</option><option value="zoho">Zoho</option></SelectInput></Field>
@@ -3355,18 +3476,18 @@ const profit = totalRevenue - totalCost;
 return (
 <div>
 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
-<h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold }}>Reports</h1>
+<h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold }}>{uiText("Reports")}</h1>
 <TextInput type="month" value={month} onChange={ev => setMonth(ev.target.value)} style={{ width: 160 }} />
 </div>
 <div className="stat-row" style={{ marginBottom: 22 }}>
-<StatCard label="Hours" value={`${totalHours.toFixed(1)}h`} icon={ICN.clock} color={CL.blue} />
-<StatCard label="Revenue" value={`€${totalRevenue.toFixed(2)}`} icon={ICN.chart} color={CL.green} />
-<StatCard label="Labour" value={`€${totalCost.toFixed(2)}`} icon={ICN.team} color={CL.red} />
-<StatCard label="Profit" value={`€${profit.toFixed(2)}`} icon={ICN.check} color={profit >= 0 ? CL.green : CL.red} />
+<StatCard label={uiText("Hours")} value={`${totalHours.toFixed(1)}h`} icon={ICN.clock} color={CL.blue} />
+<StatCard label={uiText("Revenue")} value={`€${totalRevenue.toFixed(2)}`} icon={ICN.chart} color={CL.green} />
+<StatCard label={uiText("Labour")} value={`€${totalCost.toFixed(2)}`} icon={ICN.team} color={CL.red} />
+<StatCard label={uiText("Profit")} value={`€${profit.toFixed(2)}`} icon={ICN.check} color={profit >= 0 ? CL.green : CL.red} />
 </div>
 <div className="grid-2">
 <div style={cardSt}>
-<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>Employee Hours</h3>
+<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>{uiText("Employee Hours")}</h3>
 <div className="tbl-wrap">
 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
 <thead><tr><th style={thSt}>Employee</th><th style={thSt}>Hours</th><th style={thSt}>Rate</th><th style={thSt}>Cost</th></tr></thead>
@@ -3378,7 +3499,7 @@ return (
 </div>
 </div>
 <div style={cardSt}>
-<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>Client Revenue</h3>
+<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>{uiText("Client Revenue")}</h3>
 <div className="tbl-wrap">
 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
 <thead><tr><th style={thSt}>Client</th><th style={thSt}>Hours</th><th style={thSt}>Revenue</th><th style={thSt}>Invoiced</th></tr></thead>
@@ -3403,8 +3524,8 @@ const [exporting, setExporting] = useState(false);
 
 const doExport = async () => {
 setExporting(true);
-try { await exportExcel(data); showToast("Exported!"); }
-catch (err) { console.error(err); showToast("Failed", "error"); }
+try { await exportExcel(data); showToast(uiText("Exported!")); }
+catch (err) { console.error(err); showToast(uiText("Failed"), "error"); }
 setExporting(false);
 };
 
@@ -3417,21 +3538,21 @@ ev.target.value = "";
 
 return (
 <div>
-<h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold, marginBottom: 5 }}>Excel Database</h1>
-<p style={{ color: CL.muted, marginBottom: 20 }}>Full backup/restore with structured 8-sheet Excel file.</p>
+<h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold, marginBottom: 5 }}>{uiText("Excel Database")}</h1>
+<p style={{ color: CL.muted, marginBottom: 20 }}>{uiText("Full backup/restore with structured 8-sheet Excel file.")}</p>
 <div className="grid-2" style={{ marginBottom: 20 }}>
 <div style={{ ...cardSt, textAlign: "center", padding: 28 }}>
 <div style={{ width: 56, height: 56, borderRadius: 16, background: CL.green + "15", display: "flex", alignItems: "center", justifyContent: "center", color: CL.green, margin: "0 auto 12px" }}>{ICN.download}</div>
-<h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 18, color: CL.green, marginBottom: 6 }}>Export Database</h3>
+<h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 18, color: CL.green, marginBottom: 6 }}>{uiText("Export Database")}</h3>
 <p style={{ color: CL.muted, fontSize: 12, marginBottom: 14 }}>8 sheets: Employees, Clients, Schedule, Time Clock, Invoices, Payslips, Settings, Summary</p>
-<button style={{ ...btnPri, background: CL.green, justifyContent: "center", width: "100%" }} onClick={doExport}>{exporting ? "Exporting..." : "Export .xlsx"}</button>
+<button style={{ ...btnPri, background: CL.green, justifyContent: "center", width: "100%" }} onClick={doExport}>{exporting ? uiText("Exporting...") : uiText("Export .xlsx")}</button>
 </div>
 <div style={{ ...cardSt, textAlign: "center", padding: 28 }}>
 <div style={{ width: 56, height: 56, borderRadius: 16, background: CL.blue + "15", display: "flex", alignItems: "center", justifyContent: "center", color: CL.blue, margin: "0 auto 12px" }}>{ICN.excel}</div>
-<h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 18, color: CL.blue, marginBottom: 6 }}>Import Database</h3>
-<p style={{ color: CL.muted, fontSize: 12, marginBottom: 14 }}>Upload a previously exported Excel file to restore all data.</p>
+<h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 18, color: CL.blue, marginBottom: 6 }}>{uiText("Import Database")}</h3>
+<p style={{ color: CL.muted, fontSize: 12, marginBottom: 14 }}>{uiText("Upload a previously exported Excel file to restore all data.")}</p>
 <input type="file" accept=".xlsx,.xls" ref={fileRef} onChange={doImport} style={{ display: "none" }} />
-<button style={{ ...btnPri, background: CL.blue, justifyContent: "center", width: "100%" }} onClick={() => fileRef.current?.click()}>Import .xlsx</button>
+<button style={{ ...btnPri, background: CL.blue, justifyContent: "center", width: "100%" }} onClick={() => fileRef.current?.click()}>{uiText("Import .xlsx")}</button>
 </div>
 </div>
 <div style={cardSt}>
@@ -3470,14 +3591,14 @@ const set = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
 const handleSave = () => {
 updateData("settings", form);
 setData(prev => ({ ...prev, ownerUsername: ownerUsername.trim().toLowerCase(), ownerPin: pin, managerUsername: managerUsername.trim().toLowerCase(), managerPin }));
-showToast("Saved");
+showToast(uiText("Saved"));
 };
 
 return (
 <div>
-<h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold, marginBottom: 16 }}>Settings</h1>
+<h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold, marginBottom: 16 }}>{uiText("Settings")}</h1>
 <div style={cardSt}>
-<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: CL.gold }}>Company Info</h3>
+<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: CL.gold }}>{uiText("Company Info")}</h3>
 <div className="form-grid">
 <Field label="Company Name"><TextInput value={form.companyName} onChange={ev => set("companyName", ev.target.value)} /></Field>
 <Field label="Email"><TextInput value={form.companyEmail} onChange={ev => set("companyEmail", ev.target.value)} /></Field>
@@ -3489,7 +3610,7 @@ return (
 <Field label="Address"><TextInput value={form.companyAddress} onChange={ev => set("companyAddress", ev.target.value)} /></Field>
 </div>
 <div style={{ ...cardSt, marginTop: 14 }}>
-<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: CL.gold }}>Access Credentials</h3>
+<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: CL.gold }}>{uiText("Access Credentials")}</h3>
 <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
 <Field label="Owner Username"><TextInput value={ownerUsername} onChange={ev => setOwnerUsername(ev.target.value)} style={{ width: 260 }} /></Field>
 <Field label="Owner Password"><TextInput maxLength={24} value={pin} onChange={ev => setPin(ev.target.value)} style={{ width: 180 }} /></Field>
@@ -3497,10 +3618,10 @@ return (
 <Field label="Manager Password"><TextInput maxLength={24} value={managerPin} onChange={ev => setManagerPin(ev.target.value)} style={{ width: 180 }} /></Field>
 </div>
 </div>
-<div style={{ marginTop: 14 }}><button style={btnPri} onClick={handleSave}>{ICN.check} Save All</button></div>
+<div style={{ marginTop: 14 }}><button style={btnPri} onClick={handleSave}>{ICN.check} {uiText("Save All")}</button></div>
 <div style={{ ...cardSt, marginTop: 14 }}>
-<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: CL.red }}>Danger Zone</h3>
-<button style={btnDng} onClick={() => { if (confirm("DELETE ALL DATA?")) { saveStore(DEFAULTS); window.location.reload(); } }}>Reset Everything</button>
+<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: CL.red }}>{uiText("Danger Zone")}</h3>
+<button style={btnDng} onClick={() => { if (confirm(uiText("DELETE ALL DATA?"))) { saveStore(DEFAULTS); window.location.reload(); } }}>{uiText("Reset Everything")}</button>
 </div>
 </div>
 );
@@ -3509,7 +3630,7 @@ return (
 // ==============================================
 // DOWNLOAD APP PAGE
 // ==============================================
-function DownloadAppPage({ data, onInstallApp }) {
+function DownloadAppPage({ onInstallApp }) {
   const { t } = useI18n();
   return (
     <div>
@@ -3518,6 +3639,10 @@ function DownloadAppPage({ data, onInstallApp }) {
       <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
         <button style={{ ...btnPri, background: CL.gold }} onClick={() => onInstallApp("ios")}>{ICN.download} {t("installOnIphone")}</button>
         <button style={{ ...btnPri, background: CL.green }} onClick={() => onInstallApp("android")}>{ICN.download} {t("installOnAndroid")}</button>
+      </div>
+      <div style={{ ...cardSt, maxWidth: 760 }}>
+        <p style={{ margin: "0 0 8px", color: CL.text }}>{t("installAndroidFallback")}</p>
+        <p style={{ margin: 0, color: CL.text }}>{t("installIosHint")}</p>
       </div>
     </div>
   );

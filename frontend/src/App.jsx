@@ -233,8 +233,21 @@ if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start)
 return Math.floor((end - start) / 86400000) + 1;
 };
 
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
-const apiUrl = (path) => `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
+const DEFAULT_API_BASES = [
+"https://luxangelsyamyam-api.onrender.com",
+"http://localhost:5000",
+];
+const normalizeBaseUrl = (url) => String(url || "").trim().replace(/\/$/, "");
+const envApiBase = normalizeBaseUrl(import.meta.env.VITE_API_BASE_URL);
+const browserApiBase = typeof window !== "undefined"
+? normalizeBaseUrl(`${window.location.protocol}//${window.location.hostname}:5000`)
+: "";
+const API_BASE_CANDIDATES = Array.from(new Set([
+envApiBase,
+browserApiBase,
+...DEFAULT_API_BASES,
+].filter(Boolean)));
+const apiUrl = (path, base = API_BASE_CANDIDATES[0] || "") => `${base}${path.startsWith("/") ? path : `/${path}`}`;
 
 const getLeaveSummary = (data, employeeId, year = getToday().slice(0, 4)) => {
 const allowance = data.employees.find(e => e.id === employeeId)?.leaveAllowance ?? 26;
@@ -724,7 +737,7 @@ const [error, setError] = useState("");
 const norm = (v) => String(v || "").trim().toLowerCase();
 
 const loginWithServer = async ({ user, pass }) => {
-  if (!API_BASE) return false;
+  if (!API_BASE_CANDIDATES.length) return false;
 
   const attempts = [
     { role: "owner" },
@@ -732,26 +745,33 @@ const loginWithServer = async ({ user, pass }) => {
     { role: "cleaner", employeeId: user },
   ];
 
-  for (const payload of attempts) {
-    const res = await fetch(apiUrl("/api/auth/pin-login"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...payload, pin: pass }),
-    });
+  for (const baseUrl of API_BASE_CANDIDATES) {
+    for (const payload of attempts) {
+      let res;
+      try {
+        res = await fetch(apiUrl("/api/auth/pin-login", baseUrl), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...payload, pin: pass }),
+        });
+      } catch {
+        continue;
+      }
 
-    if (!res.ok) continue;
-    const body = await res.json();
-    if (body?.success && body?.role === "owner") {
-      onAuth({ role: "owner" });
-      return true;
-    }
-    if (body?.success && body?.role === "manager") {
-      onAuth({ role: "manager" });
-      return true;
-    }
-    if (body?.success && body?.role === "cleaner" && body?.employeeId) {
-      onAuth({ role: "cleaner", employeeId: body.employeeId });
-      return true;
+      if (!res.ok) continue;
+      const body = await res.json();
+      if (body?.success && body?.role === "owner") {
+        onAuth({ role: "owner" });
+        return true;
+      }
+      if (body?.success && body?.role === "manager") {
+        onAuth({ role: "manager" });
+        return true;
+      }
+      if (body?.success && body?.role === "cleaner" && body?.employeeId) {
+        onAuth({ role: "cleaner", employeeId: body.employeeId });
+        return true;
+      }
     }
   }
 

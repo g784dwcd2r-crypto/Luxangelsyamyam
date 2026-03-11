@@ -232,6 +232,10 @@ const end = new Date(`${endDate}T00:00:00`);
 if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) return 0;
 return Math.floor((end - start) / 86400000) + 1;
 };
+
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || "").trim().replace(/\/$/, "");
+const apiUrl = (path) => `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
+
 const getLeaveSummary = (data, employeeId, year = getToday().slice(0, 4)) => {
 const allowance = data.employees.find(e => e.id === employeeId)?.leaveAllowance ?? 26;
 const requests = (data.timeOffRequests || []).filter(r => r.employeeId === employeeId && (r.startDate || "").startsWith(year));
@@ -719,10 +723,51 @@ const [error, setError] = useState("");
 
 const norm = (v) => String(v || "").trim().toLowerCase();
 
-const doLogin = () => {
-const user = norm(username);
+const loginWithServer = async ({ user, pass }) => {
+  const attempts = [
+    { role: "owner" },
+    { role: "manager", employeeId: user },
+    { role: "cleaner", employeeId: user },
+  ];
+
+  for (const payload of attempts) {
+    const res = await fetch(apiUrl("/api/auth/pin-login"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...payload, pin: pass }),
+    });
+
+    if (!res.ok) continue;
+    const body = await res.json();
+    if (body?.success && body?.role === "owner") {
+      onAuth({ role: "owner" });
+      return true;
+    }
+    if (body?.success && body?.role === "manager") {
+      onAuth({ role: "manager" });
+      return true;
+    }
+    if (body?.success && body?.role === "cleaner" && body?.employeeId) {
+      onAuth({ role: "cleaner", employeeId: body.employeeId });
+      return true;
+    }
+  }
+
+  return false;
+};
+
+const doLogin = async () => {
+const rawUser = String(username || "").trim();
+const user = norm(rawUser);
 const pass = String(password || "").trim();
-if (!user || !pass) { setError(lang === "en" ? "Enter username/email and password" : "Saisissez identifiant/email et mot de passe"); return; }
+if (!rawUser || !pass) { setError(lang === "en" ? "Enter username/email and password" : "Saisissez identifiant/email et mot de passe"); return; }
+
+try {
+  const authenticatedByServer = await loginWithServer({ user: rawUser, pass });
+  if (authenticatedByServer) return;
+} catch {
+  // fall back to local login when API is unreachable
+}
 
 const ownerAliases = [
 norm(data.ownerUsername || "info@luxangelscleaning.lu"),
@@ -774,7 +819,7 @@ return (
   </Field>
 
   {error && <div style={{ color: CL.red, fontSize: 13, marginBottom: 10, textAlign: "center" }}>{error}</div>}
-  <button onClick={doLogin} style={{ ...btnPri, width: "100%", justifyContent: "center", background: CL.gold }}>{t("loginBtn")}</button>
+  <button onClick={() => void doLogin()} style={{ ...btnPri, width: "100%", justifyContent: "center", background: CL.gold }}>{t("loginBtn")}</button>
   <p style={{ marginTop: 10, fontSize: 11, color: CL.dim, textAlign: "center" }}>Use your assigned credentials only.</p>
 </div>
 </div>

@@ -42,21 +42,56 @@ const missing = (obj, fields) => fields.filter(f => obj[f] == null || obj[f] ===
 app.post('/api/auth/pin-login', async (req, res) => {
   try {
     const { role, pin, employeeId } = req.body;
-    if (!role || !pin) return res.status(400).json({ error: 'role and pin are required' });
+    const requestedRole = String(role || '').trim().toLowerCase();
+    const submittedPin = String(pin || '').trim();
+    const accountIdentifier = [
+      employeeId,
+      req.body.employee_id,
+      req.body.employeeID,
+      req.body.userId,
+      req.body.username,
+      req.body.email,
+    ]
+      .map(v => (v == null ? '' : String(v).trim()))
+      .find(Boolean);
 
-    if (role === 'owner') {
+    if (!requestedRole || !submittedPin) return res.status(400).json({ error: 'role and pin are required' });
+
+    if (requestedRole === 'owner') {
       const result = await pool.query("SELECT value FROM settings WHERE key = 'ownerPin'");
       const ownerPin = result.rows[0]?.value || '1234';
-      if (pin !== ownerPin) return res.status(401).json({ error: 'Invalid PIN' });
+      if (submittedPin !== String(ownerPin).trim()) return res.status(401).json({ error: 'Invalid PIN' });
       return res.json({ success: true, role: 'owner' });
     }
 
-    if (role === 'cleaner') {
-      if (!employeeId) return res.status(400).json({ error: 'employeeId is required for cleaner login' });
-      const result = await pool.query('SELECT id, pin FROM employees WHERE id = $1 AND status = $2', [employeeId, 'active']);
+    if (requestedRole === 'manager') {
+      const settingsResult = await pool.query(
+        "SELECT key, value FROM settings WHERE key IN ('managerPin', 'managerUsername', 'companyEmail')"
+      );
+      const settings = Object.fromEntries(settingsResult.rows.map(r => [r.key, String(r.value || '').trim()]));
+      const managerPin = settings.managerPin || '4321';
+      const managerUsername = (settings.managerUsername || 'manager').toLowerCase();
+      const managerAliases = [managerUsername, (settings.companyEmail || '').toLowerCase()].filter(Boolean);
+      if (accountIdentifier && !managerAliases.includes(accountIdentifier.toLowerCase())) {
+        return res.status(401).json({ error: 'Manager not found' });
+      }
+      if (submittedPin !== managerPin) return res.status(401).json({ error: 'Invalid PIN' });
+      return res.json({ success: true, role: 'manager' });
+    }
+
+    if (requestedRole === 'cleaner' || requestedRole === 'employee') {
+      if (!accountIdentifier) return res.status(400).json({ error: 'employeeId is required for cleaner login' });
+      const result = await pool.query(
+        `SELECT id, pin
+         FROM employees
+         WHERE status = $2
+           AND (id = $1 OR LOWER(email) = LOWER($1) OR phone = $1 OR phone_mobile = $1)
+         LIMIT 1`,
+        [accountIdentifier, 'active']
+      );
       if (!result.rows.length) return res.status(401).json({ error: 'Employee not found' });
-      if (pin !== result.rows[0].pin) return res.status(401).json({ error: 'Invalid PIN' });
-      return res.json({ success: true, role: 'cleaner', employeeId });
+      if (submittedPin !== String(result.rows[0].pin).trim()) return res.status(401).json({ error: 'Invalid PIN' });
+      return res.json({ success: true, role: 'cleaner', employeeId: result.rows[0].id });
     }
 
     return res.status(400).json({ error: 'Invalid role' });

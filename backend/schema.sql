@@ -132,5 +132,7 @@ INSERT INTO settings (key, value) VALUES
   ('vatNumber',      'LU12345678'),
   ('bankIban',       'LU12 3456 7890 1234 5678'),
   ('defaultVatRate', '17'),
-  ('ownerPin',       '1234')
+  ('ownerPin',       '1234'),
+  ('managerUsername','manager'),
+  ('managerPin',     '4321')
 ON CONFLICT (key) DO NOTHING;

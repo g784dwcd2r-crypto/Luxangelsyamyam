@@ -153,6 +153,30 @@ const UI_FR = {
 "Saved": "Enregistré",
 "Exported!": "Exporté !",
 "Failed": "Échec",
+"Today": "Aujourd'hui",
+"Tomorrow": "Demain",
+"Next Week": "Semaine prochaine",
+"Next 7 Days": "7 prochains jours",
+"No jobs in this period.": "Aucune intervention sur cette période.",
+"Assigned to:": "Assigné à :",
+"Unassigned": "Non assigné",
+"Details:": "Détails :",
+"Client email missing": "Email client manquant",
+"Client phone missing": "Téléphone client manquant",
+"Reminder opened via": "Rappel ouvert via",
+"Select at least one client for campaign": "Sélectionnez au moins un client pour la campagne",
+"Campaign opened for": "Campagne ouverte pour",
+"client(s)": "client(s)",
+"Operational reminders + business follow-up + marketing communication workflows.": "Rappels opérationnels + suivi commercial + workflows de communication marketing.",
+"Recipient Selection": "Sélection des destinataires",
+"Select all": "Tout sélectionner",
+"Clear": "Effacer",
+"Restrict reminders to selected clients only": "Limiter les rappels aux clients sélectionnés uniquement",
+"All workflows": "Tous les workflows",
+"Work reminders / upcoming shifts": "Rappels d'interventions / prestations à venir",
+"Business follow-up": "Suivi commercial",
+"WhatsApp": "WhatsApp",
+"Zoho": "Zoho",
 };
 
 const uiText = (text) => {
@@ -1132,6 +1156,8 @@ return (
 // ==============================================
 function DashboardPage({ data, auth }) {
 const todayStr = getToday();
+const tomorrowStr = new Date(Date.now() + 864e5).toISOString().slice(0, 10);
+const nextWeekStr = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
 const todayScheds = data.schedules.filter(s => s.date === todayStr);
 const activeClocks = data.clockEntries.filter(c => !c.clockOut);
 const monthRev = data.invoices.filter(inv => inv.date?.startsWith(todayStr.slice(0, 7))).reduce((sum, inv) => sum + (inv.total || 0), 0);
@@ -1628,6 +1654,7 @@ return (
 // SCHEDULE PAGE - Monthly Calendar
 // ==============================================
 function SchedulePage({ data, updateData, showToast }) {
+const [focusWindow, setFocusWindow] = useState("today");
 const [modal, setModal] = useState(null);
 const [selectedDate, setSelectedDate] = useState(null);
 const [filterEmp, setFilterEmp] = useState("");
@@ -1644,6 +1671,8 @@ const firstDayOfWeek = (new Date(viewYear, viewMonth, 1).getDay() + 6) % 7;
 const monthStr = `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}`;
 const monthLabel = new Date(viewYear, viewMonth).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
 const todayStr = getToday();
+const tomorrowStr = new Date(Date.now() + 864e5).toISOString().slice(0, 10);
+const nextWeekStr = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
 
 const prevMonth = () => {
 if (viewMonth === 0) { setViewYear(viewYear - 1); setViewMonth(11); }
@@ -1653,7 +1682,7 @@ const nextMonth = () => {
 if (viewMonth === 11) { setViewYear(viewYear + 1); setViewMonth(0); }
 else setViewMonth(viewMonth + 1);
 };
-const goToday = () => { setViewYear(now.getFullYear()); setViewMonth(now.getMonth()); };
+const goToday = () => { setViewYear(now.getFullYear()); setViewMonth(now.getMonth()); setSelectedDate(now.getDate()); setFocusWindow("today"); };
 const jumpToDate = (dateObj) => {
 setViewYear(dateObj.getFullYear());
 setViewMonth(dateObj.getMonth());
@@ -1662,11 +1691,13 @@ setSelectedDate(dateObj.getDate());
 const goTomorrow = () => {
 const tomorrow = new Date();
 tomorrow.setDate(tomorrow.getDate() + 1);
+setFocusWindow("tomorrow");
 jumpToDate(tomorrow);
 };
 const goNextWeek = () => {
 const nextWeek = new Date();
 nextWeek.setDate(nextWeek.getDate() + 7);
+setFocusWindow("nextweek");
 jumpToDate(nextWeek);
 };
 
@@ -1688,6 +1719,16 @@ while (calendarCells.length < 42) calendarCells.push(null);
 
 const selectedDateStr = selectedDate ? `${monthStr}-${String(selectedDate).padStart(2, "0")}` : null;
 const selectedDateScheds = selectedDateStr ? orderedMonthSchedules.filter(s => s.date === selectedDateStr) : [];
+
+const focusMeta = {
+  today: { label: uiText("Today"), from: todayStr, to: todayStr },
+  tomorrow: { label: uiText("Tomorrow"), from: tomorrowStr, to: tomorrowStr },
+  nextweek: { label: uiText("Next 7 Days"), from: todayStr, to: nextWeekStr },
+};
+const focused = focusMeta[focusWindow];
+const focusedJobs = (data.schedules || [])
+  .filter(s => s.date && s.date >= focused.from && s.date <= focused.to && (!filterEmp || s.employeeId === filterEmp))
+  .sort((a, b) => `${a.date} ${a.startTime}`.localeCompare(`${b.date} ${b.startTime}`));
 
 const handleSave = (schedData) => {
 if (schedData.id) {
@@ -1747,9 +1788,9 @@ return (
 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
 <button onClick={prevMonth} style={{ ...btnSec, ...btnSm, padding: "8px 14px", fontSize: 16 }}>‹</button>
-<button onClick={goToday} style={{ ...btnSec, ...btnSm }}>Today</button>
-<button onClick={goTomorrow} style={{ ...btnSec, ...btnSm }}>Tomorrow</button>
-<button onClick={goNextWeek} style={{ ...btnSec, ...btnSm }}>Next Week</button>
+<button onClick={goToday} style={{ ...btnSec, ...btnSm }}>{uiText("Today")}</button>
+<button onClick={goTomorrow} style={{ ...btnSec, ...btnSm }}>{uiText("Tomorrow")}</button>
+<button onClick={goNextWeek} style={{ ...btnSec, ...btnSm }}>{uiText("Next Week")}</button>
 <button onClick={nextMonth} style={{ ...btnSec, ...btnSm, padding: "8px 14px", fontSize: 16 }}>›</button>
 <h2 style={{ margin: 0, fontSize: 20, fontFamily: "'Cormorant Garamond', serif", color: CL.text, marginLeft: 8 }}>{monthLabel}</h2>
 </div>
@@ -1769,6 +1810,30 @@ return (
 <StatCard label="This Month" value={`${monthSchedules.length} jobs`} icon={ICN.cal} color={CL.blue} />
 <StatCard label="In Progress" value={monthSchedules.filter(s => s.status === "in-progress").length} icon={ICN.clock} color={CL.orange} />
 <StatCard label="Completed" value={monthSchedules.filter(s => s.status === "completed").length} icon={ICN.check} color={CL.green} />
+</div>
+
+<div style={{ ...cardSt, marginBottom: 16 }}>
+  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
+    <h3 style={{ margin: 0, fontSize: 16, color: CL.gold }}>{focused.label} - Close-up ({focusedJobs.length})</h3>
+    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+      <button style={{ ...btnSec, ...btnSm, background: focusWindow === "today" ? CL.blue : "transparent", color: focusWindow === "today" ? CL.white : CL.muted }} onClick={() => { setFocusWindow("today"); goToday(); }}>{uiText("Today")}</button>
+      <button style={{ ...btnSec, ...btnSm, background: focusWindow === "tomorrow" ? CL.blue : "transparent", color: focusWindow === "tomorrow" ? CL.white : CL.muted }} onClick={() => { setFocusWindow("tomorrow"); goTomorrow(); }}>{uiText("Tomorrow")}</button>
+      <button style={{ ...btnSec, ...btnSm, background: focusWindow === "nextweek" ? CL.blue : "transparent", color: focusWindow === "nextweek" ? CL.white : CL.muted }} onClick={() => { setFocusWindow("nextweek"); goNextWeek(); }}>{uiText("Next Week")}</button>
+    </div>
+  </div>
+  {focusedJobs.length === 0 ? <p style={{ color: CL.muted, margin: 0 }}>{uiText("No jobs in this period.")}</p> : focusedJobs.slice(0, 20).map(job => {
+    const client = data.clients.find(c => c.id === job.clientId);
+    const employee = data.employees.find(e => e.id === job.employeeId);
+    return <div key={job.id} onClick={() => setModal({ ...job })} style={{ border: `1px solid ${CL.bd}`, borderRadius: 8, padding: 10, marginBottom: 8, cursor: "pointer", background: CL.s2 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
+        <div style={{ fontWeight: 600 }}>{fmtDate(job.date)} · {job.startTime}-{job.endTime}</div>
+        <Badge color={scheduleStatusColor(job.status)}>{job.status}</Badge>
+      </div>
+      <div style={{ fontSize: 12, color: CL.text }}>{client?.name || "Unknown client"}</div>
+      <div style={{ fontSize: 12, color: CL.muted }}>{uiText("Assigned to:")} {employee?.name || uiText("Unassigned")}</div>
+      {job.notes ? <div style={{ fontSize: 11, color: CL.dim, marginTop: 3 }}>{uiText("Details:")} {job.notes}</div> : null}
+    </div>;
+  })}
 </div>
 
 {viewMode === "calendar" ? (
@@ -3154,6 +3219,7 @@ return (
 }
 
 function HistoryPage({ data, updateData }) {
+const { t } = useI18n();
 const [clientFilter, setClientFilter] = useState("");
 const uploads = (data.photoUploads || []).slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 const jobs = (data.schedules || []).slice().sort((a, b) => `${b.date} ${b.startTime}`.localeCompare(`${a.date} ${a.startTime}`));
@@ -3282,6 +3348,7 @@ return (
 // REMINDERS PAGE
 // ==============================================
 function RemindersPage({ data, showToast }) {
+const { t } = useI18n();
 const [channel, setChannel] = useState("email");
 const [workflowType, setWorkflowType] = useState("all");
 const [selectedOnly, setSelectedOnly] = useState(false);
@@ -3296,16 +3363,16 @@ const clients = data.clients.filter(c => c.status === "active");
 const toggleClient = (id) => setSelectedClientIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
 const openEmail = ({ to, subject, body }) => {
-if (!to) { showToast("Client email missing", "error"); return; }
+if (!to) { showToast(uiText("Client email missing"), "error"); return; }
 window.open(`mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
 };
 const openWhatsApp = ({ phone, message }) => {
-if (!phone) { showToast("Client phone missing", "error"); return; }
+if (!phone) { showToast(uiText("Client phone missing"), "error"); return; }
 const cleaned = String(phone).replace(/[^\d+]/g, "").replace(/^00/, "+");
 window.open(`https://wa.me/${cleaned.replace("+", "")}?text=${encodeURIComponent(message)}`, "_blank");
 };
 const openZohoDraft = ({ to, subject, body }) => {
-if (!to) { showToast("Client email missing", "error"); return; }
+if (!to) { showToast(uiText("Client email missing"), "error"); return; }
 const zohoEmail = data.settings.companyEmail;
 window.open(`mailto:${to}?subject=${encodeURIComponent(`[ZOHO] ${subject}`)}&body=${encodeURIComponent(`${body}\n\nFrom (Zoho configured): ${zohoEmail}`)}`);
 };
@@ -3381,12 +3448,12 @@ const filtered = workflows.filter(w => (workflowType === "all" || w.kind === wor
 const sendReminder = (rem) => {
 const payload = rem.buildPayload();
 dispatch(channel, payload, rem.client);
-showToast(`Reminder opened via ${channel}`);
+showToast(`${uiText("Reminder opened via")} ${channel}`);
 };
 
 const sendCampaign = () => {
 const recipients = clients.filter(c => selectedClientIds.includes(c.id));
-if (!recipients.length) { showToast("Select at least one client for campaign", "error"); return; }
+if (!recipients.length) { showToast(uiText("Select at least one client for campaign"), "error"); return; }
 recipients.forEach((client, idx) => {
 const payload = {
 to: client.email,
@@ -3395,20 +3462,20 @@ body: `Dear ${client.contactPerson || client.name},\n\n${campaignBody}\n\nRegard
 };
 setTimeout(() => dispatch(campaignChannel, payload, client), idx * 200);
 });
-showToast(`Campaign opened for ${recipients.length} client(s)`);
+showToast(`${uiText("Campaign opened for")} ${recipients.length} ${uiText("client(s)")}`);
 };
 
 return (
 <div>
-<h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold, marginBottom: 5 }}>Reminders</h1>
-<p style={{ color: CL.muted, marginBottom: 16 }}>Operational reminders + business follow-up + marketing communication workflows.</p>
+<h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold, marginBottom: 5 }}>{t("reminders")}</h1>
+<p style={{ color: CL.muted, marginBottom: 16 }}>{uiText("Operational reminders + business follow-up + marketing communication workflows.")}</p>
 
 <div style={{ ...cardSt, marginBottom: 12 }}>
-<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, color: CL.gold }}>Recipient Selection</h3>
+<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, color: CL.gold }}>{uiText("Recipient Selection")}</h3>
 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
-<button style={{ ...btnSec, ...btnSm }} onClick={() => setSelectedClientIds(clients.map(c => c.id))}>Select all</button>
-<button style={{ ...btnSec, ...btnSm }} onClick={() => setSelectedClientIds([])}>Clear</button>
-<label style={{ fontSize: 12, color: CL.muted, display: "flex", alignItems: "center", gap: 6 }}><input type="checkbox" checked={selectedOnly} onChange={ev => setSelectedOnly(ev.target.checked)} /> Restrict reminders to selected clients only</label>
+<button style={{ ...btnSec, ...btnSm }} onClick={() => setSelectedClientIds(clients.map(c => c.id))}>{uiText("Select all")}</button>
+<button style={{ ...btnSec, ...btnSm }} onClick={() => setSelectedClientIds([])}>{uiText("Clear")}</button>
+<label style={{ fontSize: 12, color: CL.muted, display: "flex", alignItems: "center", gap: 6 }}><input type="checkbox" checked={selectedOnly} onChange={ev => setSelectedOnly(ev.target.checked)} /> {uiText("Restrict reminders to selected clients only")}</label>
 </div>
 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 6 }}>
 {clients.map(c => <label key={c.id} style={{ fontSize: 12, color: CL.text, display: "flex", gap: 6, alignItems: "center" }}><input type="checkbox" checked={selectedClientIds.includes(c.id)} onChange={() => toggleClient(c.id)} /> {c.name}</label>)}
@@ -3417,14 +3484,14 @@ return (
 
 <div style={{ ...cardSt, marginBottom: 12, padding: 12, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
 <SelectInput value={workflowType} onChange={ev => setWorkflowType(ev.target.value)} style={{ width: 220 }}>
-<option value="all">All workflows</option>
-<option value="work">Work reminders / upcoming shifts</option>
-<option value="followup">Business follow-up</option>
+<option value="all">{uiText("All workflows")}</option>
+<option value="work">{uiText("Work reminders / upcoming shifts")}</option>
+<option value="followup">{uiText("Business follow-up")}</option>
 </SelectInput>
 <SelectInput value={channel} onChange={ev => setChannel(ev.target.value)} style={{ width: 170 }}>
-<option value="email">Email</option>
-<option value="whatsapp">WhatsApp</option>
-<option value="zoho">Zoho</option>
+<option value="email">{uiText("Email")}</option>
+<option value="whatsapp">{uiText("WhatsApp")}</option>
+<option value="zoho">{uiText("Zoho")}</option>
 </SelectInput>
 <div style={{ fontSize: 12, color: CL.muted }}>{uiText("Ready reminders:")} {filtered.length}</div>
 </div>
@@ -3436,12 +3503,12 @@ return (
 <div style={{ ...cardSt, marginTop: 12 }}>
 <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>{t("Email Marketing Campaigns")}</h3>
 <div className="form-grid">
-<Field label="Frequency"><SelectInput value={campaignFrequency} onChange={ev => setCampaignFrequency(ev.target.value)}><option value="weekly">Weekly</option><option value="monthly">Monthly</option></SelectInput></Field>
-<Field label="Channel"><SelectInput value={campaignChannel} onChange={ev => setCampaignChannel(ev.target.value)}><option value="email">Email</option><option value="whatsapp">WhatsApp</option><option value="zoho">Zoho</option></SelectInput></Field>
+<Field label={uiText("Frequency")}><SelectInput value={campaignFrequency} onChange={ev => setCampaignFrequency(ev.target.value)}><option value="weekly">{uiText("Weekly")}</option><option value="monthly">{uiText("Monthly")}</option></SelectInput></Field>
+<Field label={uiText("Channel")}><SelectInput value={campaignChannel} onChange={ev => setCampaignChannel(ev.target.value)}><option value="email">{uiText("Email")}</option><option value="whatsapp">{uiText("WhatsApp")}</option><option value="zoho">{uiText("Zoho")}</option></SelectInput></Field>
 </div>
-<Field label="Campaign subject"><TextInput value={campaignSubject} onChange={ev => setCampaignSubject(ev.target.value)} /></Field>
-<Field label="Campaign content"><TextArea value={campaignBody} onChange={ev => setCampaignBody(ev.target.value)} /></Field>
-<div style={{ display: "flex", justifyContent: "flex-end" }}><button style={btnPri} onClick={sendCampaign}>{ICN.mail} Send Campaign to Selected Clients</button></div>
+<Field label={uiText("Campaign subject")}><TextInput value={campaignSubject} onChange={ev => setCampaignSubject(ev.target.value)} /></Field>
+<Field label={uiText("Campaign content")}><TextArea value={campaignBody} onChange={ev => setCampaignBody(ev.target.value)} /></Field>
+<div style={{ display: "flex", justifyContent: "flex-end" }}><button style={btnPri} onClick={sendCampaign}>{ICN.mail} {uiText("Send Campaign to Selected Clients")}</button></div>
 </div>
 </div>
 );
@@ -3580,7 +3647,7 @@ return (
 // ==============================================
 // SETTINGS PAGE
 // ==============================================
-function SettingsPage({ data, updateData, setData, showToast }) {
+function SettingsPage({ data, updateData, setData, showToast, auth }) {
 const [form, setForm] = useState(data.settings);
 const [ownerUsername, setOwnerUsername] = useState(data.ownerUsername || "info@luxangelscleaning.lu");
 const [pin, setPin] = useState(data.ownerPin);
@@ -3619,10 +3686,10 @@ return (
 </div>
 </div>
 <div style={{ marginTop: 14 }}><button style={btnPri} onClick={handleSave}>{ICN.check} {uiText("Save All")}</button></div>
-<div style={{ ...cardSt, marginTop: 14 }}>
+{auth?.role === "owner" && <div style={{ ...cardSt, marginTop: 14 }}>
 <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: CL.red }}>{uiText("Danger Zone")}</h3>
 <button style={btnDng} onClick={() => { if (confirm(uiText("DELETE ALL DATA?"))) { saveStore(DEFAULTS); window.location.reload(); } }}>{uiText("Reset Everything")}</button>
-</div>
+</div>}
 </div>
 );
 }

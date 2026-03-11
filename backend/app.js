@@ -31,6 +31,16 @@ const apiLimiter = rateLimit({
 app.use('/api/auth', authLimiter);
 app.use('/api', apiLimiter);
 
+app.get('/api/health/db', async (_req, res) => {
+  try {
+    const result = await pool.query('SELECT NOW() AS now');
+    res.json({ success: true, db: 'connected', now: result.rows[0].now });
+  } catch (err) {
+    console.error('DB health check failed:', err);
+    res.status(500).json({ success: false, db: 'disconnected' });
+  }
+});
+
 // ---------------------------------------------------------------------------
 // Helper
 // ---------------------------------------------------------------------------

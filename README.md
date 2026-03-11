@@ -45,10 +45,11 @@ Luxangelsyamyam/
 
 ## Default PIN Credentials
 
-| Role   | Default PIN |
-|--------|-------------|
-| Owner  | `1234`      |
-| Cleaner| `0000`      |
+| Role   | Username | Default PIN |
+|--------|----------|-------------|
+| Owner  | `Yamina` | `1234`      |
+| Manager| `manager`| `4321`      |
+| Cleaner| *(employee ID/email/phone/name)* | `0000`      |
 
 These can be changed from the Settings page (owner) or by the owner via the employee PIN management screen.
 
@@ -79,7 +80,7 @@ These can be changed from the Settings page (owner) or by the owner via the empl
 
    You can override credentials at runtime:
    ```bash
-   RESET_OWNER_PIN=9999 RESET_MANAGER_USERNAME=owner RESET_MANAGER_PIN=1111 npm run reset:db
+   RESET_OWNER_PIN=9999 RESET_OWNER_USERNAME=Yamina RESET_MANAGER_USERNAME=manager RESET_MANAGER_PIN=1111 npm run reset:db
    ```
 
 ---
@@ -130,7 +131,7 @@ npm run dev
 | Method | Path                        | Description                  |
 |--------|-----------------------------|------------------------------|
 | GET    | `/api/health/db`            | DB connectivity health check  |
-| POST   | `/api/auth/pin-login`       | PIN login (owner or cleaner) |
+| POST   | `/api/auth/pin-login`       | PIN login (owner/manager/cleaner) |
 | GET    | `/api/employees`            | List all employees           |
 | POST   | `/api/employees`            | Create employee              |
 | PUT    | `/api/employees/:id`        | Update employee              |

@@ -4,6 +4,7 @@ const path = require('path');
 const pool = require('../db');
 
 const ownerPin = process.env.RESET_OWNER_PIN || '1234';
+const ownerUsername = process.env.RESET_OWNER_USERNAME || 'Yamina';
 const managerPin = process.env.RESET_MANAGER_PIN || '4321';
 const managerUsername = process.env.RESET_MANAGER_USERNAME || 'manager';
 
@@ -26,12 +27,13 @@ async function resetDatabase() {
       `UPDATE settings
        SET value = CASE
          WHEN key = 'ownerPin' THEN $1
-         WHEN key = 'managerPin' THEN $2
-         WHEN key = 'managerUsername' THEN $3
+         WHEN key = 'ownerUsername' THEN $2
+         WHEN key = 'managerPin' THEN $3
+         WHEN key = 'managerUsername' THEN $4
          ELSE value
        END
-       WHERE key IN ('ownerPin', 'managerPin', 'managerUsername')`,
-      [ownerPin, managerPin, managerUsername]
+       WHERE key IN ('ownerPin', 'ownerUsername', 'managerPin', 'managerUsername')`,
+      [ownerPin, ownerUsername, managerPin, managerUsername]
     );
 
     await client.query(
@@ -41,7 +43,7 @@ async function resetDatabase() {
 
     await client.query('COMMIT');
     console.log('Database reset completed successfully.');
-    console.log(`Owner login -> role: owner, pin: ${ownerPin}`);
+    console.log(`Owner login -> role: owner, username: ${ownerUsername}, pin: ${ownerPin}`);
     console.log(`Manager login -> role: manager, employeeId: ${managerUsername}, pin: ${managerPin}`);
   } catch (err) {
     await client.query('ROLLBACK');

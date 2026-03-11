@@ -81,13 +81,22 @@ app.post('/api/auth/pin-login', async (req, res) => {
 
     if (requestedRole === 'cleaner' || requestedRole === 'employee') {
       if (!accountIdentifier) return res.status(400).json({ error: 'employeeId is required for cleaner login' });
+      const normalizedIdentifier = accountIdentifier.toLowerCase();
+      const compactIdentifier = normalizedIdentifier.replace(/\s+/g, '');
       const result = await pool.query(
         `SELECT id, pin
          FROM employees
          WHERE status = $2
-           AND (id = $1 OR LOWER(email) = LOWER($1) OR phone = $1 OR phone_mobile = $1)
+           AND (
+             id = $1
+             OR LOWER(email) = $3
+             OR phone = $1
+             OR phone_mobile = $1
+             OR LOWER(name) = $3
+             OR REPLACE(LOWER(name), ' ', '') = $4
+           )
          LIMIT 1`,
-        [accountIdentifier, 'active']
+        [accountIdentifier, 'active', normalizedIdentifier, compactIdentifier]
       );
       if (!result.rows.length) return res.status(401).json({ error: 'Employee not found' });
       if (submittedPin !== String(result.rows[0].pin).trim()) return res.status(401).json({ error: 'Invalid PIN' });

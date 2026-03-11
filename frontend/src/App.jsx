@@ -573,7 +573,7 @@ return (
 // CLEANER PORTAL
 // ==============================================
 function CleanerPortal({ data, updateData, auth, onLogout, showToast, toast }) {
-const { lang } = useI18n();
+const { lang, t } = useI18n();
 const [tab, setTab] = useState("schedule");
 const emp = data.employees.find(e => e.id === auth.employeeId);
 const [monthFilter, setMonthFilter] = useState(getToday().slice(0, 7));

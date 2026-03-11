@@ -832,16 +832,23 @@ const loginWithServer = async ({ user, pass }) => {
   };
 
   for (const baseUrl of API_BASE_CANDIDATES) {
-    for (const payload of attempts) {
-      let res = await tryFetch(baseUrl, payload);
-      // If server didn't respond (cold start), wait and retry once
-      if (!res) {
-        await new Promise(r => setTimeout(r, 3000));
-        res = await tryFetch(baseUrl, payload);
-      }
-      if (!res) continue;
+    // Try owner first to check if server is reachable at all
+    const ownerPayload = attempts[0];
+    let firstRes = await tryFetch(baseUrl, ownerPayload);
+    if (!firstRes) {
+      // One retry for cold start
+      await new Promise(r => setTimeout(r, 3000));
+      firstRes = await tryFetch(baseUrl, ownerPayload);
+    }
+    // Server unreachable on this base URL — skip remaining roles, try next base URL
+    if (!firstRes) continue;
 
-      reachedServer = true;
+    reachedServer = true;
+
+    // Now check all role attempts (server is up)
+    for (const payload of attempts) {
+      const res = payload === ownerPayload ? firstRes : await tryFetch(baseUrl, payload);
+      if (!res) continue;
       if (!res.ok) continue;
       let body = null;
       try { body = await res.json(); } catch { continue; }

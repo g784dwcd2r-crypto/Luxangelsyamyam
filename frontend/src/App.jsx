@@ -20,11 +20,11 @@ const saveLang = (lang) => { try { localStorage.setItem(LANG_KEY, lang); } catch
 const I18N = {
 fr: {
 language: "Langue", french: "Français", english: "Anglais", login: "Connexion", welcome: "Bienvenue", selectRole: "Rôle", pin: "Code PIN", loginBtn: "Se connecter",
-dashboard: "Tableau de bord", employees: "Employés", clients: "Clients", schedule: "Planning", timeclock: "Pointage", inventory: "Stock", devis: "Devis", invoices: "Factures", payslips: "Fiches de paie", conges: "Congés", reminders: "Rappels", reports: "Rapports", database: "Excel DB", settings: "Paramètres",
+dashboard: "Tableau de bord", employees: "Employés", clients: "Clients", schedule: "Planning", timeclock: "Pointage", inventory: "Stock", devis: "Devis", invoices: "Factures", payslips: "Fiches de paie", conges: "Congés", reminders: "Rappels", reports: "Rapports", database: "Base Excel", settings: "Paramètres",
 newQuote: "Nouveau devis", editQuote: "Modifier devis", newInvoice: "Nouvelle facture", editInvoice: "Modifier facture", save: "Enregistrer", cancel: "Annuler", actions: "Actions", status: "Statut", client: "Client", date: "Date", amount: "Montant", view: "Voir", sendEmail: "Envoyer email", draft: "Brouillon", sent: "Envoyée", paid: "Payée", overdue: "En retard", auto: "Auto", select: "Sélectionner...", prestationDate: "Date de prestation",
 invoice: "Facture", quote: "Devis", dueDate: "Date échéance", notes: "Notes", total: "Total", subtotal: "Sous-total", vat: "TVA", item: "Ligne", qty: "Qté", unitPrice: "Prix unitaire", description: "Description",
 managementSystem: "Système de gestion", ownerAccess: "Accès propriétaire", ownerAccessDesc: "Tableau de gestion complet", cleanerAccess: "Accès agent", cleanerAccessDesc: "Planning, heures, pointage et congés",
-back: "Retour", ownerLogin: "Connexion propriétaire", cleanerLogin: "Connexion agent", yourName: "Votre nom", choose: "Choisir...", logout: "Déconnexion",
+back: "Retour", ownerLogin: "Connexion propriétaire", cleanerLogin: "Connexion agent", yourName: "Votre nom", choose: "Choisir...", logout: "Déconnexion", visitation: "Visites", history: "Historique", downloadApp: "Télécharger l'application", ownerPortal: "Portail propriétaire", managerPortal: "Portail manager", visitationSchedule: "Planning des visites", historyImages: "Historique & images", installIntro: "Choisissez votre téléphone puis appuyez sur installer.", installOnIphone: "Installer sur iPhone", installOnAndroid: "Installer sur Android",
 mySchedule: "Mon planning", clockInOut: "Pointage entrée/sortie", photoUploads: "Photos", products: "Produits", upcomingJobs: "Interventions à venir", noUpcomingJobs: "Aucune intervention à venir"
 },
 en: {
@@ -33,7 +33,7 @@ dashboard: "Dashboard", employees: "Employees", clients: "Clients", schedule: "S
 newQuote: "New quote", editQuote: "Edit quote", newInvoice: "New invoice", editInvoice: "Edit invoice", save: "Save", cancel: "Cancel", actions: "Actions", status: "Status", client: "Client", date: "Date", amount: "Amount", view: "View", sendEmail: "Send email", draft: "Draft", sent: "Sent", paid: "Paid", overdue: "Overdue", auto: "Auto", select: "Select...", prestationDate: "Service date",
 invoice: "Invoice", quote: "Quote", dueDate: "Due date", notes: "Notes", total: "Total", subtotal: "Subtotal", vat: "VAT", item: "Item", qty: "Qty", unitPrice: "Unit price", description: "Description",
 managementSystem: "Management System", ownerAccess: "Owner Access", ownerAccessDesc: "Full management dashboard", cleanerAccess: "Cleaner Access", cleanerAccessDesc: "Schedule, hours, clock & time-off",
-back: "Back", ownerLogin: "Owner Login", cleanerLogin: "Cleaner Login", yourName: "Your Name", choose: "Choose...", logout: "Logout",
+back: "Back", ownerLogin: "Owner Login", cleanerLogin: "Cleaner Login", yourName: "Your Name", choose: "Choose...", logout: "Logout", visitation: "Visitation", history: "History", downloadApp: "Download App", ownerPortal: "Owner Portal", managerPortal: "Manager Portal", visitationSchedule: "Visitation Schedule", historyImages: "History & Images", installIntro: "Choose your phone, then tap install.", installOnIphone: "Install on iPhone", installOnAndroid: "Install on Android",
 mySchedule: "My Schedule", clockInOut: "Clock In/Out", photoUploads: "Photo Uploads", products: "Products", upcomingJobs: "Upcoming Jobs", noUpcomingJobs: "No upcoming jobs"
 }
 };
@@ -46,7 +46,9 @@ let CURRENT_LANG = "fr";
 const DEFAULTS = {
 employees: [], clients: [], schedules: [], clockEntries: [], quotes: [], invoices: [], payslips: [],
 photoUploads: [], timeOffRequests: [], inventoryProducts: [], productRequests: [], cleanerProductHoldings: [], prospectVisits: [],
-ownerPin: "1234", managerPin: "4321", employeePins: {},
+ownerUsername: "info@luxangelscleaning.lu", ownerPin: "0000",
+managerUsername: "manager", managerPin: "4321",
+employeePins: {}, employeeUsernames: {},
 settings: {
 companyName: "LAC Lux angels cleaning",
 companyAddress: "12 Rue de la Liberté, L-1930 Luxembourg",
@@ -211,8 +213,8 @@ ws.columns = cols.map(c => ({ header: c, key: c, width: Math.max(c.length + 4, 1
 ws.addRows(rows.length ? rows : [Object.fromEntries(cols.map(c => [c, ""]))]);
 };
 
-addSheet("Employees", data.employees.map(emp => ({ ID: emp.id, Name: emp.name, Email: emp.email, Phone: emp.phone, Mobile: emp.phoneMobile || "", Role: emp.role, "Rate": emp.hourlyRate, Address: emp.address, City: emp.city || "", Zip: emp.postalCode || "", Country: emp.country || "", "Start": emp.startDate, Status: emp.status, Contract: emp.contractType || "", IBAN: emp.bankIban || "", SSN: emp.socialSecNumber || "", DOB: emp.dateOfBirth || "", Nationality: emp.nationality || "", Languages: emp.languages || "", Transport: emp.transport || "", "WorkPermit": emp.workPermit || "", "EmergName": emp.emergencyName || "", "EmergPhone": emp.emergencyPhone || "", PIN: data.employeePins?.[emp.id] || "0000", LeaveAllowance: emp.leaveAllowance ?? 26, Notes: emp.notes || "" })),
-["ID","Name","Email","Phone","Mobile","Role","Rate","Address","City","Zip","Country","Start","Status","Contract","IBAN","SSN","DOB","Nationality","Languages","Transport","WorkPermit","EmergName","EmergPhone","PIN","LeaveAllowance","Notes"]);
+addSheet("Employees", data.employees.map(emp => ({ ID: emp.id, Name: emp.name, Username: data.employeeUsernames?.[emp.id] || "", Email: emp.email, Phone: emp.phone, Mobile: emp.phoneMobile || "", Role: emp.role, "Rate": emp.hourlyRate, Address: emp.address, City: emp.city || "", Zip: emp.postalCode || "", Country: emp.country || "", "Start": emp.startDate, Status: emp.status, Contract: emp.contractType || "", IBAN: emp.bankIban || "", SSN: emp.socialSecNumber || "", DOB: emp.dateOfBirth || "", Nationality: emp.nationality || "", Languages: emp.languages || "", Transport: emp.transport || "", "WorkPermit": emp.workPermit || "", "EmergName": emp.emergencyName || "", "EmergPhone": emp.emergencyPhone || "", Password: data.employeePins?.[emp.id] || "0000", LeaveAllowance: emp.leaveAllowance ?? 26, Notes: emp.notes || "" })),
+["ID","Name","Username","Email","Phone","Mobile","Role","Rate","Address","City","Zip","Country","Start","Status","Contract","IBAN","SSN","DOB","Nationality","Languages","Transport","WorkPermit","EmergName","EmergPhone","Password","LeaveAllowance","Notes"]);
 
 addSheet("Clients", data.clients.map(cl => ({ ID: cl.id, Name: cl.name, Contact: cl.contactPerson || "", Email: cl.email, Phone: cl.phone, Mobile: cl.phoneMobile || "", Address: cl.address, "Apt": cl.apartmentFloor || "", City: cl.city || "", Zip: cl.postalCode || "", Country: cl.country || "", Type: cl.type, Freq: cl.cleaningFrequency, Billing: cl.billingType, "Hourly": cl.pricePerHour || 0, "Fixed": cl.priceFixed || 0, Status: cl.status, Lang: cl.language || "", "Code": cl.accessCode || "", "KeyLoc": cl.keyLocation || "", Parking: cl.parkingInfo || "", Pets: cl.petInfo || "", "PrefDay": cl.preferredDay || "", "PrefTime": cl.preferredTime || "", "ContStart": cl.contractStart || "", "ContEnd": cl.contractEnd || "", "SqM": cl.squareMeters || "", "TaxID": cl.taxId || "", "Instructions": cl.specialInstructions || "", Notes: cl.notes || "" })),
 ["ID","Name","Contact","Email","Phone","Mobile","Address","Apt","City","Zip","Country","Type","Freq","Billing","Hourly","Fixed","Status","Lang","Code","KeyLoc","Parking","Pets","PrefDay","PrefTime","ContStart","ContEnd","SqM","TaxID","Instructions","Notes"]);
@@ -234,7 +236,9 @@ addSheet("Settings", [
 { Key: "Company Name", Val: data.settings.companyName }, { Key: "Address", Val: data.settings.companyAddress },
 { Key: "Email", Val: data.settings.companyEmail }, { Key: "Phone", Val: data.settings.companyPhone },
 { Key: "VAT Number", Val: data.settings.vatNumber }, { Key: "Bank IBAN", Val: data.settings.bankIban },
-{ Key: "VAT Rate", Val: data.settings.defaultVatRate }, { Key: "Owner PIN", Val: data.ownerPin }, { Key: "Manager PIN", Val: data.managerPin || "4321" },
+{ Key: "VAT Rate", Val: data.settings.defaultVatRate },
+{ Key: "Owner Username", Val: data.ownerUsername || "info@luxangelscleaning.lu" }, { Key: "Owner Password", Val: data.ownerPin || "0000" },
+{ Key: "Manager Username", Val: data.managerUsername || "manager" }, { Key: "Manager Password", Val: data.managerPin || "4321" },
 ], ["Key", "Val"]);
 
 const months = [...new Set(data.clockEntries.filter(c => c.clockOut && c.clockIn).map(c => c.clockIn.slice(0, 7)))].sort();
@@ -280,7 +284,8 @@ const sheet = (name) => {
 };
 
   const emps = sheet("Employees").filter(r => r.ID && r.Name).map(r => ({ id: r.ID, name: r.Name, email: r.Email || "", phone: r.Phone || "", phoneMobile: r.Mobile || "", role: r.Role || "Cleaner", hourlyRate: parseFloat(r.Rate) || 15, address: r.Address || "", city: r.City || "", postalCode: r.Zip || "", country: r.Country || "Luxembourg", startDate: r.Start || getToday(), status: r.Status || "active", contractType: r.Contract || "CDI", bankIban: r.IBAN || "", socialSecNumber: r.SSN || "", dateOfBirth: r.DOB || "", nationality: r.Nationality || "", languages: r.Languages || "", transport: r.Transport || "", workPermit: r.WorkPermit || "", emergencyName: r.EmergName || "", emergencyPhone: r.EmergPhone || "", leaveAllowance: parseInt(r.LeaveAllowance || "26", 10) || 26, notes: r.Notes || "" }));
-  const pins = {}; sheet("Employees").filter(r => r.ID && r.PIN).forEach(r => { pins[r.ID] = String(r.PIN); });
+  const pins = {}; sheet("Employees").filter(r => r.ID).forEach(r => { pins[r.ID] = String(r.Password || r.PIN || "0000"); });
+  const employeeUsernames = {}; sheet("Employees").filter(r => r.ID && r.Username).forEach(r => { employeeUsernames[r.ID] = String(r.Username); });
 
   const clients = sheet("Clients").filter(r => r.ID && r.Name).map(r => ({ id: r.ID, name: r.Name, contactPerson: r.Contact || "", email: r.Email || "", phone: r.Phone || "", phoneMobile: r.Mobile || "", address: r.Address || "", apartmentFloor: r.Apt || "", city: r.City || "", postalCode: r.Zip || "", country: r.Country || "Luxembourg", type: r.Type || "Residential", cleaningFrequency: r.Freq || "Weekly", billingType: r.Billing || "hourly", pricePerHour: parseFloat(r.Hourly) || 35, priceFixed: parseFloat(r.Fixed) || 0, status: r.Status || "active", language: r.Lang || "FR", accessCode: r.Code || "", keyLocation: r.KeyLoc || "", parkingInfo: r.Parking || "", petInfo: r.Pets || "", preferredDay: r.PrefDay || "", preferredTime: r.PrefTime || "", contractStart: r.ContStart || "", contractEnd: r.ContEnd || "", squareMeters: r.SqM || "", taxId: r.TaxID || "", specialInstructions: r.Instructions || "", notes: r.Notes || "" }));
 
@@ -301,13 +306,16 @@ const sheet = (name) => {
     ...prev,
     employees: emps.length ? emps : prev.employees,
     employeePins: Object.keys(pins).length ? pins : prev.employeePins,
+    employeeUsernames: Object.keys(employeeUsernames).length ? employeeUsernames : prev.employeeUsernames,
     clients: clients.length ? clients : prev.clients,
     schedules: scheds.length ? scheds : prev.schedules,
     clockEntries: clocks.length ? clocks : prev.clockEntries,
     invoices: Object.values(invMap).length ? Object.values(invMap) : prev.invoices,
     payslips: payslips.length ? payslips : prev.payslips,
-    ownerPin: sett["Owner PIN"] || prev.ownerPin,
-    managerPin: sett["Manager PIN"] || prev.managerPin || "4321",
+    ownerUsername: sett["Owner Username"] || prev.ownerUsername || "info@luxangelscleaning.lu",
+    ownerPin: sett["Owner Password"] || sett["Owner PIN"] || prev.ownerPin || "0000",
+    managerUsername: sett["Manager Username"] || prev.managerUsername || "manager",
+    managerPin: sett["Manager Password"] || sett["Manager PIN"] || prev.managerPin || "4321",
     settings: { ...prev.settings, companyName: sett["Company Name"] || prev.settings.companyName, companyAddress: sett["Address"] || prev.settings.companyAddress, companyEmail: sett["Email"] || prev.settings.companyEmail, companyPhone: sett["Phone"] || prev.settings.companyPhone, vatNumber: sett["VAT Number"] || prev.settings.vatNumber, bankIban: sett["Bank IBAN"] || prev.settings.bankIban, defaultVatRate: parseFloat(sett["VAT Rate"]) || prev.settings.defaultVatRate },
   }));
   showToast("Excel imported!", "success");
@@ -394,6 +402,21 @@ const [toast, setToast] = useState(null);
 const [section, setSection] = useState("dashboard");
 const [devisSeed, setDevisSeed] = useState(null);
 const [sideOpen, setSideOpen] = useState(true);
+const installPromptRef = useRef(null);
+
+useEffect(() => {
+const onBeforeInstallPrompt = (ev) => {
+  ev.preventDefault();
+  installPromptRef.current = ev;
+};
+const onInstalled = () => { installPromptRef.current = null; };
+window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
+window.addEventListener("appinstalled", onInstalled);
+return () => {
+  window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
+  window.removeEventListener("appinstalled", onInstalled);
+};
+}, []);
 
 useEffect(() => { saveStore(data); }, [data]);
 useEffect(() => { saveLang(lang); CURRENT_LANG = lang; }, [lang]);
@@ -428,19 +451,39 @@ const navItems = [
 { id: "employees", label: t("employees"), icon: ICN.team },
 { id: "clients", label: t("clients"), icon: ICN.user },
 { id: "schedule", label: t("schedule"), icon: ICN.cal },
-{ id: "visits", label: "Visitation", icon: ICN.cal },
+{ id: "visits", label: t("visitation"), icon: ICN.cal },
 { id: "timeclock", label: t("timeclock"), icon: ICN.clock },
 { id: "inventory", label: t("inventory"), icon: ICN.doc, hasAlert: pendingProductRequests > 0 },
 { id: "devis", label: t("devis"), icon: ICN.doc },
 { id: "invoices", label: t("invoices"), icon: ICN.doc },
 { id: "payslips", label: t("payslips"), icon: ICN.pay },
 { id: "conges", label: t("conges"), icon: ICN.cal, hasAlert: pendingTimeOffRequests > 0 },
-{ id: "history", label: "History", icon: ICN.doc, hasAlert: unseenUploads > 0 },
+{ id: "history", label: t("history"), icon: ICN.doc, hasAlert: unseenUploads > 0 },
 { id: "reminders", label: t("reminders"), icon: ICN.mail },
 { id: "reports", label: t("reports"), icon: ICN.chart },
-{ id: "database", label: "Excel DB", icon: ICN.excel },
+{ id: "database", label: t("database"), icon: ICN.excel },
+{ id: "download-app", label: t("downloadApp"), icon: ICN.download },
 { id: "settings", label: t("settings"), icon: ICN.gear },
 ];
+
+const openDownloadApp = () => {
+setSection("download-app");
+};
+
+const installForPlatform = async (platform) => {
+const iosLink = data.settings?.iosAppUrl || "https://apps.apple.com";
+const androidLink = data.settings?.androidAppUrl || "https://play.google.com/store";
+if (platform === "android" && installPromptRef.current) {
+  try {
+    await installPromptRef.current.prompt();
+    await installPromptRef.current.userChoice;
+    installPromptRef.current = null;
+    return;
+  } catch {
+  }
+}
+window.location.href = platform === "ios" ? iosLink : androidLink;
+};
 
 const renderSection = () => {
 const props = { data, updateData, showToast, setData, auth, setSection, setDevisSeed, devisSeed };
@@ -460,6 +503,7 @@ case "history": return <HistoryPage {...props} />;
 case "reminders": return <RemindersPage data={data} showToast={showToast} />;
 case "reports": return <ReportsPage data={data} />;
 case "database": return <ExcelDBPage data={data} setData={setData} showToast={showToast} />;
+case "download-app": return <DownloadAppPage data={data} onInstallApp={installForPlatform} />;
 case "settings": return <SettingsPage {...props} />;
 default: return <DashboardPage data={data} auth={auth} />;
 }
@@ -475,11 +519,11 @@ return (
   <div className="no-print desk-sidebar" style={{ width: sideOpen ? 215 : 54, background: CL.sf, borderRight: `1px solid ${CL.bd}`, flexDirection: "column", transition: "width .2s", overflow: "hidden", flexShrink: 0 }}>
     <div style={{ padding: sideOpen ? "16px 12px" : "16px 8px", borderBottom: `1px solid ${CL.bd}`, display: "flex", alignItems: "center", gap: 9, cursor: "pointer" }} onClick={() => setSideOpen(!sideOpen)}>
       <div style={{ width: 30, height: 30, borderRadius: 8, background: `linear-gradient(135deg, ${CL.gold}, ${CL.goldDark})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: CL.bg, flexShrink: 0 }}>LAC</div>
-      {sideOpen && <div><div style={{ fontSize: 13, fontWeight: 700, color: CL.gold, fontFamily: "'Cormorant Garamond', serif", whiteSpace: "nowrap" }}>Lux Angels Cleaning</div><div style={{ fontSize: 10, color: CL.muted }}>{auth.role === "manager" ? "Manager Portal" : "Owner Portal"}</div></div>}
+      {sideOpen && <div><div style={{ fontSize: 13, fontWeight: 700, color: CL.gold, fontFamily: "'Cormorant Garamond', serif", whiteSpace: "nowrap" }}>Lux Angels Cleaning</div><div style={{ fontSize: 10, color: CL.muted }}>{auth.role === "manager" ? t("managerPortal") : t("ownerPortal")}</div></div>}
     </div>
     <nav style={{ flex: 1, padding: "6px 4px", overflowY: "auto" }}>
       {navItems.map(nav => (
-        <button key={nav.id} onClick={() => setSection(nav.id)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: sideOpen ? "7px 10px" : "7px 11px", background: section === nav.id ? CL.gold + "15" : "transparent", border: "none", borderRadius: 7, cursor: "pointer", color: section === nav.id ? CL.gold : CL.muted, fontSize: 13, fontWeight: section === nav.id ? 600 : 400, marginBottom: 1, textAlign: "left", whiteSpace: "nowrap" }}>
+        <button key={nav.id} onClick={() => nav.id === "download-app" ? openDownloadApp() : setSection(nav.id)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: sideOpen ? "7px 10px" : "7px 11px", background: section === nav.id ? CL.gold + "15" : "transparent", border: "none", borderRadius: 7, cursor: "pointer", color: section === nav.id ? CL.gold : CL.muted, fontSize: 13, fontWeight: section === nav.id ? 600 : 400, marginBottom: 1, textAlign: "left", whiteSpace: "nowrap" }}>
           <span style={{ flexShrink: 0 }}>{nav.icon}</span>
           {sideOpen && <span>{nav.label}{nav.hasAlert ? <span style={{ color: CL.red, marginLeft: 6, fontWeight: 700 }}>!</span> : null}</span>}
         </button>
@@ -487,7 +531,7 @@ return (
     </nav>
     <div style={{ padding: "8px 4px", borderTop: `1px solid ${CL.bd}` }}>
       <button onClick={() => setAuth(null)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", background: "transparent", border: "none", borderRadius: 7, cursor: "pointer", color: CL.red, fontSize: 13 }}>
-        <span>{ICN.logout}</span>{sideOpen && "Logout"}
+        <span>{ICN.logout}</span>{sideOpen && t("logout")}
       </button>
     </div>
   </div>
@@ -495,12 +539,12 @@ return (
   {/* Mobile Bottom Nav */}
   <div className="mob-nav">
     {navItems.map(nav => (
-      <button key={nav.id} onClick={() => setSection(nav.id)} style={{ color: section === nav.id ? CL.gold : CL.muted, fontWeight: section === nav.id ? 600 : 400 }}>
+      <button key={nav.id} onClick={() => nav.id === "download-app" ? openDownloadApp() : setSection(nav.id)} style={{ color: section === nav.id ? CL.gold : CL.muted, fontWeight: section === nav.id ? 600 : 400 }}>
         <span>{nav.icon}</span><span>{nav.label}</span>
       </button>
     ))}
     <button onClick={() => setAuth(null)} style={{ color: CL.red }}>
-      <span>{ICN.logout}</span><span>Logout</span>
+      <span>{ICN.logout}</span><span>{t("logout")}</span>
     </button>
   </div>
 
@@ -522,7 +566,7 @@ return (
 // LOGIN SCREEN
 // ==============================================
 function LoginScreen({ data, onAuth }) {
-const { lang } = useI18n();
+const { lang, t } = useI18n();
 const [username, setUsername] = useState("");
 const [password, setPassword] = useState("");
 const [error, setError] = useState("");
@@ -530,24 +574,38 @@ const [error, setError] = useState("");
 const norm = (v) => String(v || "").trim().toLowerCase();
 
 const doLogin = () => {
-if (mode === "owner") {
-if (pin === data.ownerPin) onAuth({ role: "owner" });
-else setError(lang === "en" ? "Wrong PIN" : "PIN incorrect");
-} else if (mode === "manager") {
-if (pin === (data.managerPin || "4321")) onAuth({ role: "manager" });
-else setError(lang === "en" ? "Wrong PIN" : "PIN incorrect");
-} else {
-if (!selEmp) { setError(lang === "en" ? "Select your name" : "Sélectionnez votre nom"); return; }
-const correctPin = data.employeePins?.[selEmp] || "0000";
-if (pin === correctPin) onAuth({ role: "cleaner", employeeId: selEmp });
-else setError(lang === "en" ? "Wrong PIN" : "PIN incorrect");
+const user = norm(username);
+const pass = String(password || "").trim();
+if (!user || !pass) { setError(lang === "en" ? "Enter username/email and password" : "Saisissez identifiant/email et mot de passe"); return; }
+
+const ownerAliases = [
+norm(data.ownerUsername || "info@luxangelscleaning.lu"),
+norm(data.settings?.companyEmail),
+].filter(Boolean);
+if (ownerAliases.includes(user)) {
+if (pass === String(data.ownerPin || "1234")) { onAuth({ role: "owner" }); return; }
+setError(lang === "en" ? "Wrong password" : "Mot de passe incorrect");
+return;
 }
 
-const employee = data.employees.find(emp => emp.status === "active" && (norm(emp.email) === user || norm(emp.name) === user));
+if (user === norm(data.managerUsername || "manager")) {
+if (pass === String(data.managerPin || "4321")) { onAuth({ role: "manager" }); return; }
+setError(lang === "en" ? "Wrong password" : "Mot de passe incorrect");
+return;
+}
+
+const employee = (data.employees || []).find(emp => {
+if (emp.status !== "active") return false;
+const empEmail = norm(emp.email);
+const empName = norm(emp.name);
+const empNameUser = empName.replace(/\s+/g, "");
+const empCustomUser = norm(data.employeeUsernames?.[emp.id]);
+return user === empEmail || user === empName || user === empNameUser || (empCustomUser && user === empCustomUser);
+});
 if (!employee) { setError(lang === "en" ? "User not found" : "Utilisateur introuvable"); return; }
-const correctPin = data.employeePins?.[employee.id] || "0000";
-if (pass === String(correctPin)) onAuth({ role: "cleaner", employeeId: employee.id });
-else setError(lang === "en" ? "Wrong password" : "Mot de passe incorrect");
+const cleanerPassword = String(data.employeePins?.[employee.id] || "0000");
+if (pass === cleanerPassword) { onAuth({ role: "cleaner", employeeId: employee.id }); return; }
+setError(lang === "en" ? "Wrong password" : "Mot de passe incorrect");
 };
 
 return (
@@ -557,47 +615,12 @@ return (
 <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}><LanguageSwitcher /></div>
 <div style={{ width: 80, height: 80, borderRadius: 24, background: `linear-gradient(135deg, ${CL.gold}, ${CL.goldDark})`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 32, fontWeight: 700, color: CL.bg, fontFamily: "'Cormorant Garamond', serif" }}>LAC</div>
 <h1 style={{ fontSize: 30, fontWeight: 700, color: CL.gold, fontFamily: "'Cormorant Garamond', serif", marginBottom: 4 }}>{data.settings?.companyName || "Lux Angels Cleaning"}</h1>
-<p style={{ color: CL.muted, marginBottom: 30 }}>{t("managementSystem")}</p>
+<p style={{ color: CL.muted, marginBottom: 20 }}>{t("managementSystem")}</p>
 
-    {!mode ? (
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        <button onClick={() => setMode("owner")} style={{ ...cardSt, padding: "16px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 13, border: `1px solid ${CL.bd}`, textAlign: "left" }}>
-          <div style={{ width: 44, height: 44, borderRadius: 12, background: CL.gold + "15", display: "flex", alignItems: "center", justifyContent: "center", color: CL.gold, flexShrink: 0 }}>{ICN.shield}</div>
-          <div><div style={{ fontWeight: 600, color: CL.text, fontSize: 15 }}>{t("ownerAccess")}</div><div style={{ fontSize: 12, color: CL.muted }}>{t("ownerAccessDesc")}</div></div>
-        </button>
-        <button onClick={() => setMode("manager")} style={{ ...cardSt, padding: "16px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 13, border: `1px solid ${CL.bd}`, textAlign: "left" }}>
-          <div style={{ width: 44, height: 44, borderRadius: 12, background: CL.green + "15", display: "flex", alignItems: "center", justifyContent: "center", color: CL.green, flexShrink: 0 }}>{ICN.shield}</div>
-          <div><div style={{ fontWeight: 600, color: CL.text, fontSize: 15 }}>Manager Access</div><div style={{ fontSize: 12, color: CL.muted }}>All sections except revenue KPI</div></div>
-        </button>
-        <button onClick={() => setMode("cleaner")} style={{ ...cardSt, padding: "16px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 13, border: `1px solid ${CL.bd}`, textAlign: "left" }}>
-          <div style={{ width: 44, height: 44, borderRadius: 12, background: CL.blue + "15", display: "flex", alignItems: "center", justifyContent: "center", color: CL.blue, flexShrink: 0 }}>{ICN.user}</div>
-          <div><div style={{ fontWeight: 600, color: CL.text, fontSize: 15 }}>{t("cleanerAccess")}</div><div style={{ fontSize: 12, color: CL.muted }}>{t("cleanerAccessDesc")}</div></div>
-        </button>
-      </div>
-    ) : (
-      <div style={{ ...cardSt, textAlign: "left" }}>
-        <button onClick={() => { setMode(null); setPin(""); setError(""); setSelEmp(""); }} style={{ background: "none", border: "none", color: CL.muted, cursor: "pointer", fontSize: 13, marginBottom: 12 }}>← {t("back")}</button>
-        <h3 style={{ fontFamily: "'Cormorant Garamond', serif", color: mode === "owner" ? CL.gold : mode === "manager" ? CL.green : CL.blue, fontSize: 20, marginBottom: 16 }}>{mode === "owner" ? t("ownerLogin") : mode === "manager" ? "Manager Login" : t("cleanerLogin")}</h3>
-        {mode === "cleaner" && (
-          <Field label={t("yourName")}>
-            <SelectInput value={selEmp} onChange={ev => setSelEmp(ev.target.value)}>
-              <option value="">{t("choose")}</option>
-              {data.employees.filter(emp => emp.status === "active").map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
-            </SelectInput>
-          </Field>
-        )}
-        <Field label="PIN">
-          <TextInput type="password" maxLength={6} placeholder="****" value={pin} onChange={ev => { setPin(ev.target.value); setError(""); }} onKeyDown={ev => ev.key === "Enter" && doLogin()} style={{ fontSize: 22, textAlign: "center", letterSpacing: 10 }} />
-        </Field>
-        {error && <div style={{ color: CL.red, fontSize: 13, marginBottom: 10, textAlign: "center" }}>{error}</div>}
-        <button onClick={doLogin} style={{ ...btnPri, width: "100%", justifyContent: "center", background: mode === "owner" ? CL.gold : mode === "manager" ? CL.green : CL.blue }}>{t("loginBtn")}</button>
-        <p style={{ color: CL.dim, fontSize: 11, textAlign: "center", marginTop: 12 }}>{mode === "owner" ? "Default PIN: 1234" : mode === "manager" ? "Default PIN: 4321" : "Default PIN: 0000"}</p>
-      </div>
-    )}
-  </div>
-
+<div style={{ ...cardSt, textAlign: "left", padding: 24 }}>
+  <h3 style={{ fontFamily: "'Cormorant Garamond', serif", color: CL.gold, fontSize: 22, marginBottom: 14 }}>Secure Sign-In</h3>
   <Field label="Username or email">
-    <TextInput value={username} onChange={ev => { setUsername(ev.target.value); setError(""); }} placeholder="owner email / manager / cleaner username" onKeyDown={ev => ev.key === "Enter" && doLogin()} />
+    <TextInput value={username} onChange={ev => { setUsername(ev.target.value); setError(""); }} placeholder="username or email" onKeyDown={ev => ev.key === "Enter" && doLogin()} />
   </Field>
 
   <Field label="Password">
@@ -605,7 +628,7 @@ return (
   </Field>
 
   {error && <div style={{ color: CL.red, fontSize: 13, marginBottom: 10, textAlign: "center" }}>{error}</div>}
-  <button onClick={doLogin} style={{ ...btnPri, width: "100%", justifyContent: "center", background: CL.gold }}>Sign in securely</button>
+  <button onClick={doLogin} style={{ ...btnPri, width: "100%", justifyContent: "center", background: CL.gold }}>{t("loginBtn")}</button>
   <p style={{ marginTop: 10, fontSize: 11, color: CL.dim, textAlign: "center" }}>Use your assigned credentials only.</p>
 </div>
 </div>
@@ -1085,20 +1108,23 @@ const emptyEmployee = {
 name: "", email: "", phone: "", phoneMobile: "", address: "", city: "Luxembourg", postalCode: "", country: "Luxembourg",
 role: "Cleaner", hourlyRate: 15, startDate: getToday(), status: "active", notes: "", bankIban: "", socialSecNumber: "",
 pin: "0000", dateOfBirth: "", nationality: "", contractType: "CDI", workPermit: "", emergencyName: "", emergencyPhone: "",
+username: "",
 languages: "", transport: "", leaveAllowance: 26,
 };
 
 const handleSave = (empData) => {
-const { pin: empPin, ...empFields } = empData;
+const { pin: empPin, username: empUsername, ...empFields } = empData;
 const pinValue = empPin || "0000";
 if (empData.id) {
 updateData("employees", prev => prev.map(e => e.id === empData.id ? empFields : e));
 updateData("employeePins", prev => ({ ...prev, [empData.id]: pinValue }));
+updateData("employeeUsernames", prev => ({ ...prev, [empData.id]: String(empUsername || "").trim().toLowerCase() }));
 showToast("Employee updated");
 } else {
 const newId = makeId();
 updateData("employees", prev => [...prev, { ...empFields, id: newId }]);
 updateData("employeePins", prev => ({ ...prev, [newId]: pinValue }));
+updateData("employeeUsernames", prev => ({ ...prev, [newId]: String(empUsername || "").trim().toLowerCase() }));
 showToast("Employee added");
 }
 setModal(null);
@@ -1106,6 +1132,16 @@ setModal(null);
 
 const handleDelete = (id) => {
 updateData("employees", prev => prev.filter(e => e.id !== id));
+updateData("employeePins", prev => {
+  const next = { ...(prev || {}) };
+  delete next[id];
+  return next;
+});
+updateData("employeeUsernames", prev => {
+  const next = { ...(prev || {}) };
+  delete next[id];
+  return next;
+});
 showToast("Deleted", "error");
 setDeleteId(null);
 };
@@ -1125,7 +1161,7 @@ return (
 <div style={cardSt} className="tbl-wrap">
 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
 <thead>
-<tr><th style={thSt}>Name</th><th style={thSt}>Role</th><th style={thSt}>Rate</th><th style={thSt}>Contact</th><th style={thSt}>Contract</th><th style={thSt}>PIN</th><th style={thSt}>Status</th><th style={thSt}>Actions</th></tr>
+<tr><th style={thSt}>Name</th><th style={thSt}>Role</th><th style={thSt}>Rate</th><th style={thSt}>Contact</th><th style={thSt}>Username</th><th style={thSt}>Password</th><th style={thSt}>Status</th><th style={thSt}>Actions</th></tr>
 </thead>
 <tbody>
 {filtered.map(emp => (
@@ -1134,12 +1170,12 @@ return (
 <td style={tdSt}>{emp.role}</td>
 <td style={tdSt}>€{Number(emp.hourlyRate).toFixed(2)}/hr</td>
 <td style={tdSt}><div style={{ fontSize: 12 }}>{emp.phone}</div><div style={{ fontSize: 11, color: CL.muted }}>{emp.email}</div></td>
-<td style={tdSt}><div style={{ fontSize: 12 }}>{emp.contractType || "CDI"}</div><div style={{ fontSize: 11, color: CL.muted }}>{emp.transport || ""}</div></td>
+<td style={tdSt}><code style={{ background: CL.s2, padding: "2px 5px", borderRadius: 4, fontSize: 12 }}>{data.employeeUsernames?.[emp.id] || "(email/full name)"}</code></td>
 <td style={tdSt}><code style={{ background: CL.s2, padding: "2px 5px", borderRadius: 4, fontSize: 12 }}>{data.employeePins?.[emp.id] || "0000"}</code></td>
 <td style={tdSt}><Badge color={emp.status === "active" ? CL.green : CL.red}>{emp.status}</Badge></td>
 <td style={tdSt}>
 <div style={{ display: "flex", gap: 4 }}>
-<button style={{ ...btnSec, ...btnSm }} onClick={() => setModal({ ...emp, pin: data.employeePins?.[emp.id] || "0000" })}>{ICN.edit}</button>
+<button style={{ ...btnSec, ...btnSm }} onClick={() => setModal({ ...emp, pin: data.employeePins?.[emp.id] || "0000", username: data.employeeUsernames?.[emp.id] || "" })}>{ICN.edit}</button>
 <button style={{ ...btnSec, ...btnSm, color: CL.red }} onClick={() => setDeleteId(emp.id)}>{ICN.trash}</button>
 </div>
 </td>
@@ -1198,7 +1234,8 @@ return (
       <Field label="Email"><TextInput type="email" value={form.email} onChange={ev => set("email", ev.target.value)} /></Field>
       <Field label="Phone"><TextInput value={form.phone} onChange={ev => set("phone", ev.target.value)} placeholder="+352 ..." /></Field>
       <Field label="Mobile"><TextInput value={form.phoneMobile || ""} onChange={ev => set("phoneMobile", ev.target.value)} placeholder="+352 ..." /></Field>
-      <Field label="Login PIN"><TextInput maxLength={6} value={form.pin || "0000"} onChange={ev => set("pin", ev.target.value.replace(/\D/g, ""))} /></Field>
+      <Field label="Login Username"><TextInput value={form.username || ""} onChange={ev => set("username", ev.target.value.toLowerCase())} placeholder="optional custom username" /></Field>
+      <Field label="Login Password"><TextInput maxLength={24} value={form.pin || "0000"} onChange={ev => set("pin", ev.target.value)} /></Field>
       <div style={{ gridColumn: "1/-1" }}><Field label="Address"><TextInput value={form.address} onChange={ev => set("address", ev.target.value)} placeholder="Street & house number" /></Field></div>
       <Field label="Postal Code"><TextInput value={form.postalCode || ""} onChange={ev => set("postalCode", ev.target.value)} placeholder="L-1234" /></Field>
       <Field label="City"><TextInput value={form.city || ""} onChange={ev => set("city", ev.target.value)} /></Field>
@@ -2170,6 +2207,9 @@ function DevisPage({ data, updateData, showToast, devisSeed, setDevisSeed }) {
 const { t, lang } = useI18n();
 const [modal, setModal] = useState(null);
 const [preview, setPreview] = useState(null);
+const [quoteForPdf, setQuoteForPdf] = useState(null);
+const previewRef = useRef(null);
+const hiddenQuoteRef = useRef(null);
 
 const defaultQuoteColumns = { prestationDate: true, description: true, hours: true, quantity: false, unitPrice: true, total: true, tva: true };
 
@@ -2189,49 +2229,44 @@ const nums = (data.quotes || []).map(q => String(q.quoteNumber || "")).filter(n 
 return `${prefix}${String(nums.length ? Math.max(...nums) + 1 : 1).padStart(4, "0")}`;
 };
 
-const buildQuotePdfBlob = (q) => {
-const client = data.clients.find(c => c.id === q.clientId);
-const cols = { ...defaultQuoteColumns, ...(q.visibleColumns || {}) };
-const lines = [
-`${data.settings.companyName} - QUOTE`,
-`Quote #: ${q.quoteNumber || "-"}`,
-`Client: ${client?.name || "-"}`,
-`Date: ${fmtDate(q.date)}   Valid until: ${q.validUntil ? fmtDate(q.validUntil) : "-"}`,
-"",
-[cols.prestationDate ? "Date" : null, cols.description ? "Description" : null, cols.hours ? "Hours" : null, cols.quantity ? "Qty" : null, cols.unitPrice ? "Unit €" : null, cols.total ? "Total €" : null].filter(Boolean).join(" | "),
-...(q.items || []).map(it => [
-cols.prestationDate ? (it.prestationDate ? fmtDate(it.prestationDate) : "-") : null,
-cols.description ? (it.description || "") : null,
-cols.hours ? (it.hours === "" || it.hours == null ? "" : Number(it.hours).toFixed(2)) : null,
-cols.quantity ? Number(it.quantity || 0).toFixed(2) : null,
-cols.unitPrice ? Number(it.unitPrice || 0).toFixed(2) : null,
-cols.total ? Number(it.total || 0).toFixed(2) : null,
-].filter(v => v !== null).join(" | ")),
-"",
-`Subtotal: €${Number(q.subtotal || 0).toFixed(2)}`,
-...(cols.tva !== false ? [`TVA (${Number(q.vatRate || 0)}%): €${Number(q.vatAmount || 0).toFixed(2)}`] : []),
-`TOTAL: €${Number(q.total || 0).toFixed(2)}`,
-];
+const ensureLib = (src, check) => new Promise((resolve, reject) => {
+if (check()) return resolve();
+const existing = document.querySelector(`script[src="${src}"]`);
+if (existing) { existing.addEventListener("load", () => resolve()); return; }
+const script = document.createElement("script");
+script.src = src;
+script.async = true;
+script.onload = () => resolve();
+script.onerror = reject;
+document.body.appendChild(script);
+});
 
-const esc = (txt) => String(txt || "").replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
-const textOps = lines.map((line, i) => `BT /F1 10 Tf 40 ${790 - i * 14} Td (${esc(line)}) Tj ET`).join("\n");
-const stream = `${textOps}\n`;
-const objects = [
-"1 0 obj<< /Type /Catalog /Pages 2 0 R >>endobj\n",
-"2 0 obj<< /Type /Pages /Kids [3 0 R] /Count 1 >>endobj\n",
-"3 0 obj<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>endobj\n",
-"4 0 obj<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>endobj\n",
-`5 0 obj<< /Length ${stream.length} >>stream\n${stream}endstream\nendobj\n`,
-];
-let pdf = "%PDF-1.4\n";
-const offsets = [0];
-for (const obj of objects) { offsets.push(pdf.length); pdf += obj; }
-const xrefStart = pdf.length;
-pdf += `xref\n0 ${objects.length + 1}\n`;
-pdf += "0000000000 65535 f \n";
-for (let i = 1; i <= objects.length; i++) pdf += `${String(offsets[i]).padStart(10, "0")} 00000 n \n`;
-pdf += `trailer<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF`;
-return new Blob([pdf], { type: "application/pdf" });
+const toQuotePreviewShape = (q) => ({ ...q, invoiceNumber: q.quoteNumber, dueDate: q.validUntil });
+const waitForPaint = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+const buildPdfFromElement = async (element, fileName, shouldDownload = false) => {
+await ensureLib("https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js", () => Boolean(window.html2canvas));
+await ensureLib("https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js", () => Boolean(window.jspdf));
+const canvas = await window.html2canvas(element, { backgroundColor: "#ffffff", scale: 2, useCORS: true });
+const { jsPDF } = window.jspdf;
+const pdf = new jsPDF("p", "mm", "a4");
+const pageWidth = pdf.internal.pageSize.getWidth();
+const pageHeight = pdf.internal.pageSize.getHeight();
+const imgData = canvas.toDataURL("image/png");
+const imgWidth = pageWidth;
+const imgHeight = (canvas.height * imgWidth) / canvas.width;
+if (imgHeight <= pageHeight) {
+pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
+} else {
+let y = 0;
+while (y < imgHeight) {
+pdf.addImage(imgData, "PNG", 0, -y, imgWidth, imgHeight);
+y += pageHeight;
+if (y < imgHeight) pdf.addPage();
+}
+}
+if (shouldDownload) pdf.save(fileName);
+return pdf.output("blob");
 };
 
 const triggerPdfDownload = (blob, fileName) => {
@@ -2243,16 +2278,32 @@ a.click();
 setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
 
-const downloadQuotePdf = (q) => {
-const pdfBlob = buildQuotePdfBlob(q);
-triggerPdfDownload(pdfBlob, `${q.quoteNumber || "quote"}.pdf`);
+const downloadQuotePdf = async (q) => {
+const fileName = `${q.quoteNumber || "quote"}.pdf`;
+const currentPreview = preview?.id === q.id ? preview : null;
+if (!currentPreview) {
+setQuoteForPdf(toQuotePreviewShape(q));
+await waitForPaint();
+}
+const target = currentPreview ? previewRef.current : hiddenQuoteRef.current;
+if (!target) { showToast("Quote preview unavailable", "error"); return; }
+await buildPdfFromElement(target, fileName, true);
+if (!currentPreview) setQuoteForPdf(null);
 showToast("Quote PDF downloaded");
 };
 
 const sendQuote = async (q) => {
 const client = data.clients.find(c => c.id === q.clientId);
 if (!client?.email) { showToast("Client email missing", "error"); return; }
-const pdfBlob = buildQuotePdfBlob(q);
+const currentPreview = preview?.id === q.id ? preview : null;
+if (!currentPreview) {
+setQuoteForPdf(toQuotePreviewShape(q));
+await waitForPaint();
+}
+const target = currentPreview ? previewRef.current : hiddenQuoteRef.current;
+if (!target) { showToast("Quote preview unavailable", "error"); return; }
+const pdfBlob = await buildPdfFromElement(target, `${q.quoteNumber || "quote"}.pdf`, false);
+if (!currentPreview) setQuoteForPdf(null);
 const pdfFile = new File([pdfBlob], `${q.quoteNumber || "quote"}.pdf`, { type: "application/pdf" });
 const bodyText = `Dear ${client.contactPerson || client.name},
 
@@ -2341,8 +2392,9 @@ return (
 </table>
 </div>
 
-{preview && <ModalBox title={lang === "en" ? "Quote Preview" : "Aperçu devis"} onClose={() => setPreview(null)} wide><InvoicePreviewContent invoice={preview} data={data} /><div className="no-print" style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 12, flexWrap: "wrap" }}><button style={btnSec} onClick={() => setPreview(null)}>{lang === "en" ? "Close" : "Fermer"}</button><button style={btnPri} onClick={() => downloadQuotePdf(preview)}>{ICN.download} PDF</button><button style={{ ...btnSec, color: CL.blue }} onClick={() => sendQuote(preview)}>{ICN.mail} {t("sendEmail")}</button></div></ModalBox>}
+{preview && <ModalBox title={lang === "en" ? "Quote Preview" : "Aperçu devis"} onClose={() => setPreview(null)} wide><div ref={previewRef}><InvoicePreviewContent invoice={preview} data={data} /></div><div className="no-print" style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 12, flexWrap: "wrap" }}><button style={btnSec} onClick={() => setPreview(null)}>{lang === "en" ? "Close" : "Fermer"}</button><button style={btnPri} onClick={() => downloadQuotePdf(preview)}>{ICN.download} PDF</button><button style={{ ...btnSec, color: CL.blue }} onClick={() => sendQuote(preview)}>{ICN.mail} {t("sendEmail")}</button></div></ModalBox>}
 {modal && <ModalBox title={modal.id ? t("editQuote") : t("newQuote")} onClose={() => setModal(null)} wide><QuoteForm quote={{ pricingMode: "hours", visibleColumns: { ...defaultQuoteColumns }, ...modal }} data={data} onSave={saveQuote} onCancel={() => setModal(null)} /></ModalBox>}
+{quoteForPdf && <div style={{ position: "fixed", left: -10000, top: 0, width: 1200, background: "#fff", zIndex: -1 }}><div ref={hiddenQuoteRef}><InvoicePreviewContent invoice={quoteForPdf} data={data} /></div></div>}
 </div>
 );
 }
@@ -2934,6 +2986,7 @@ return (
 // LEAVE MANAGEMENT (CONGÉS) - OWNER
 // ==============================================
 function VisitationPage({ data, updateData, showToast, setSection, setDevisSeed }) {
+const { t } = useI18n();
 const [form, setForm] = useState({ clientId: "", visitDate: getToday(), visitTime: "10:00", address: "", notes: "", status: "planned" });
 const visits = (data.prospectVisits || []).slice().sort((a, b) => `${b.visitDate} ${b.visitTime}`.localeCompare(`${a.visitDate} ${a.visitTime}`));
 const prospects = data.clients.filter(c => c.status === "prospect" || c.status === "active");
@@ -2953,7 +3006,7 @@ const removeVisit = (id) => updateData("prospectVisits", prev => (prev || []).fi
 
 return (
 <div>
-<h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold, marginBottom: 16 }}>Visitation Schedule</h1>
+<h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold, marginBottom: 16 }}>{t("visitationSchedule")}</h1>
 <div style={{ ...cardSt, marginBottom: 14 }}>
   <div className="form-grid">
     <Field label="Prospect / Client"><SelectInput value={form.clientId} onChange={ev => { const id = ev.target.value; const c = data.clients.find(x => x.id === id); setForm(v => ({ ...v, clientId: id, address: c?.address || "" })); }}><option value="">Select...</option>{prospects.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</SelectInput></Field>
@@ -2979,6 +3032,7 @@ return (
 }
 
 function HistoryPage({ data, updateData }) {
+  const { t } = useI18n();
 const [clientFilter, setClientFilter] = useState("");
 const uploads = (data.photoUploads || []).slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 const jobs = (data.schedules || []).slice().sort((a, b) => `${b.date} ${b.startTime}`.localeCompare(`${a.date} ${a.startTime}`));
@@ -2990,7 +3044,7 @@ const markAllSeen = () => updateData("photoUploads", prev => (prev || []).map(u 
 return (
 <div>
 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 8 }}>
-  <h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold }}>History & Images</h1>
+  <h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold }}>{t("historyImages")}</h1>
   <div style={{ display: "flex", gap: 8 }}>
     <SelectInput value={clientFilter} onChange={ev => setClientFilter(ev.target.value)} style={{ width: 220 }}><option value="">All clients</option>{data.clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</SelectInput>
     <button style={btnSec} onClick={markAllSeen}>Mark images seen</button>
@@ -3407,13 +3461,15 @@ return (
 // ==============================================
 function SettingsPage({ data, updateData, setData, showToast }) {
 const [form, setForm] = useState(data.settings);
+const [ownerUsername, setOwnerUsername] = useState(data.ownerUsername || "info@luxangelscleaning.lu");
 const [pin, setPin] = useState(data.ownerPin);
+const [managerUsername, setManagerUsername] = useState(data.managerUsername || "manager");
 const [managerPin, setManagerPin] = useState(data.managerPin || "4321");
 const set = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
 
 const handleSave = () => {
 updateData("settings", form);
-setData(prev => ({ ...prev, ownerPin: pin, managerPin }));
+setData(prev => ({ ...prev, ownerUsername: ownerUsername.trim().toLowerCase(), ownerPin: pin, managerUsername: managerUsername.trim().toLowerCase(), managerPin }));
 showToast("Saved");
 };
 
@@ -3433,10 +3489,12 @@ return (
 <Field label="Address"><TextInput value={form.companyAddress} onChange={ev => set("companyAddress", ev.target.value)} /></Field>
 </div>
 <div style={{ ...cardSt, marginTop: 14 }}>
-<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: CL.gold }}>Access PINs</h3>
+<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: CL.gold }}>Access Credentials</h3>
 <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
-<Field label="Owner PIN (4-6 digits)"><TextInput maxLength={6} value={pin} onChange={ev => setPin(ev.target.value.replace(/\D/g, ""))} style={{ width: 180 }} /></Field>
-<Field label="Manager PIN (4-6 digits)"><TextInput maxLength={6} value={managerPin} onChange={ev => setManagerPin(ev.target.value.replace(/\D/g, ""))} style={{ width: 180 }} /></Field>
+<Field label="Owner Username"><TextInput value={ownerUsername} onChange={ev => setOwnerUsername(ev.target.value)} style={{ width: 260 }} /></Field>
+<Field label="Owner Password"><TextInput maxLength={24} value={pin} onChange={ev => setPin(ev.target.value)} style={{ width: 180 }} /></Field>
+<Field label="Manager Username"><TextInput value={managerUsername} onChange={ev => setManagerUsername(ev.target.value)} style={{ width: 220 }} /></Field>
+<Field label="Manager Password"><TextInput maxLength={24} value={managerPin} onChange={ev => setManagerPin(ev.target.value)} style={{ width: 180 }} /></Field>
 </div>
 </div>
 <div style={{ marginTop: 14 }}><button style={btnPri} onClick={handleSave}>{ICN.check} Save All</button></div>
@@ -3446,4 +3504,21 @@ return (
 </div>
 </div>
 );
+}
+
+// ==============================================
+// DOWNLOAD APP PAGE
+// ==============================================
+function DownloadAppPage({ data, onInstallApp }) {
+  const { t } = useI18n();
+  return (
+    <div>
+      <h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold, marginBottom: 8 }}>{t("downloadApp")}</h1>
+      <p style={{ color: CL.muted, marginBottom: 12 }}>{t("installIntro")}</p>
+      <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
+        <button style={{ ...btnPri, background: CL.gold }} onClick={() => onInstallApp("ios")}>{ICN.download} {t("installOnIphone")}</button>
+        <button style={{ ...btnPri, background: CL.green }} onClick={() => onInstallApp("android")}>{ICN.download} {t("installOnAndroid")}</button>
+      </div>
+    </div>
+  );
 }

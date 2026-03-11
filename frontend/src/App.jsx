@@ -235,16 +235,11 @@ return Math.floor((end - start) / 86400000) + 1;
 
 const DEFAULT_API_BASES = [
 "https://luxangelsyamyam-api.onrender.com",
-"http://localhost:5000",
 ];
 const normalizeBaseUrl = (url) => String(url || "").trim().replace(/\/$/, "");
 const envApiBase = normalizeBaseUrl(import.meta.env.VITE_API_BASE_URL);
-const browserApiBase = typeof window !== "undefined"
-? normalizeBaseUrl(`${window.location.protocol}//${window.location.hostname}:5000`)
-: "";
 const API_BASE_CANDIDATES = Array.from(new Set([
 envApiBase,
-browserApiBase,
 ...DEFAULT_API_BASES,
 ].filter(Boolean)));
 const apiUrl = (path, base = API_BASE_CANDIDATES[0] || "") => `${base}${path.startsWith("/") ? path : `/${path}`}`;
@@ -734,12 +729,13 @@ const [username, setUsername] = useState("");
 const [password, setPassword] = useState("");
 const [error, setError] = useState("");
 const [isSubmitting, setIsSubmitting] = useState(false);
+const invalidCredsMsg = lang === "en" ? "User not found or wrong password" : "Utilisateur introuvable ou mot de passe incorrect";
 
-const norm = (v) => String(v || "").trim().toLowerCase();
 
 const loginWithServer = async ({ user, pass }) => {
-  if (!API_BASE_CANDIDATES.length) return false;
+  if (!API_BASE_CANDIDATES.length) return { status: "unreachable" };
   const REQUEST_TIMEOUT_MS = 2500;
+  let reachedServer = false;
 
   const attempts = [
     { role: "owner" },
@@ -765,6 +761,7 @@ const loginWithServer = async ({ user, pass }) => {
       }
       clearTimeout(timeoutId);
 
+      reachedServer = true;
       if (!res.ok) continue;
       let body = null;
       try {
@@ -774,66 +771,46 @@ const loginWithServer = async ({ user, pass }) => {
       }
       if (body?.success && body?.role === "owner") {
         onAuth({ role: "owner" });
-        return true;
+        return { status: "success" };
       }
       if (body?.success && body?.role === "manager") {
         onAuth({ role: "manager" });
-        return true;
+        return { status: "success" };
       }
       if (body?.success && body?.role === "cleaner" && body?.employeeId) {
         onAuth({ role: "cleaner", employeeId: body.employeeId });
-        return true;
+        return { status: "success" };
       }
     }
   }
 
-  return false;
+  return { status: reachedServer ? "invalid" : "unreachable" };
 };
 
 const doLogin = async () => {
 const rawUser = String(username || "").trim();
-const user = norm(rawUser);
 const pass = String(password || "").trim();
 if (!rawUser || !pass) { setError(lang === "en" ? "Enter username/email and password" : "Saisissez identifiant/email et mot de passe"); return; }
 setIsSubmitting(true);
 
 try {
-  const authenticatedByServer = await loginWithServer({ user: rawUser, pass });
-  if (authenticatedByServer) return;
+  const serverLogin = await loginWithServer({ user: rawUser, pass });
+  if (serverLogin.status === "success") return;
+
+  if (serverLogin.status === "unreachable") {
+    setError(invalidCredsMsg);
+    return;
+  }
+
+  if (serverLogin.status === "invalid") {
+    setError(invalidCredsMsg);
+    return;
+  }
 } catch {
-  // fall back to local login when API is unreachable
+  setError(invalidCredsMsg);
 } finally {
   setIsSubmitting(false);
 }
-
-const ownerAliases = [
-norm(data.ownerUsername || "info@luxangelscleaning.lu"),
-norm(data.settings?.companyEmail),
-].filter(Boolean);
-if (ownerAliases.includes(user)) {
-if (pass === String(data.ownerPin || "1234")) { onAuth({ role: "owner" }); return; }
-setError(lang === "en" ? "Wrong password" : "Mot de passe incorrect");
-return;
-}
-
-if (user === norm(data.managerUsername || "manager")) {
-if (pass === String(data.managerPin || "4321")) { onAuth({ role: "manager" }); return; }
-setError(lang === "en" ? "Wrong password" : "Mot de passe incorrect");
-return;
-}
-
-const employee = (data.employees || []).find(emp => {
-if (emp.status !== "active") return false;
-const empEmail = norm(emp.email);
-const empName = norm(emp.name);
-const empNameUser = empName.replace(/\s+/g, "");
-const empCustomUser = norm(data.employeeUsernames?.[emp.id]);
-return user === empEmail || user === empName || user === empNameUser || (empCustomUser && user === empCustomUser);
-});
-if (!employee) { setError(lang === "en" ? "User not found" : "Utilisateur introuvable"); return; }
-const cleanerPassword = String(data.employeePins?.[employee.id] || "0000");
-if (pass === cleanerPassword) { onAuth({ role: "cleaner", employeeId: employee.id }); return; }
-setError(lang === "en" ? "Wrong password" : "Mot de passe incorrect");
 };
 
 return (

@@ -66,6 +66,22 @@ These can be changed from the Settings page (owner) or by the owner via the empl
    psql -d luxangels -f backend/schema.sql
    ```
 
+3. (Optional) Verify DB/API connectivity:
+   ```bash
+   curl http://localhost:5000/api/health/db
+   ```
+
+4. To fully reset database schema + users (owner/manager credentials), run:
+   ```bash
+   cd backend
+   npm run reset:db
+   ```
+
+   You can override credentials at runtime:
+   ```bash
+   RESET_OWNER_PIN=9999 RESET_MANAGER_USERNAME=owner RESET_MANAGER_PIN=1111 npm run reset:db
+   ```
+
 ---
 
 ## Installation
@@ -113,6 +129,7 @@ npm run dev
 
 | Method | Path                        | Description                  |
 |--------|-----------------------------|------------------------------|
+| GET    | `/api/health/db`            | DB connectivity health check  |
 | POST   | `/api/auth/pin-login`       | PIN login (owner or cleaner) |
 | GET    | `/api/employees`            | List all employees           |
 | POST   | `/api/employees`            | Create employee              |

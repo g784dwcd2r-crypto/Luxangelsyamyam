@@ -2524,7 +2524,7 @@ return (
 <div>
 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
 <h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold }}>{t("invoices")}</h1>
-<button style={btnPri} onClick={() => setModal({ clientId: "", date: getToday(), dueDate: "", invoiceNumber: nextInvoiceNum(), items: [{ prestationDate: getToday(), description: "Cleaning services", hours: "", quantity: 1, unitPrice: 0, total: 0 }], visibleColumns: { prestationDate: true, description: true, hours: true, quantity: false, unitPrice: true, total: true, tva: true }, subtotal: 0, vatRate: data.settings.defaultVatRate, vatAmount: 0, total: 0, status: "draft", notes: "", paymentTerms: "Payment due within 30 days.", emailTemplate: "standard", zohoEmail: "" })}>{ICN.plus} {t("newInvoice")}</button>
+<button style={btnPri} onClick={() => setModal({ clientId: "", date: getToday(), dueDate: "", invoiceNumber: nextInvoiceNum(), items: [{ prestationDate: getToday(), description: "", hours: "", quantity: 1, unitPrice: 0, total: 0 }], visibleColumns: { prestationDate: true, description: true, hours: true, quantity: false, unitPrice: true, total: true, tva: true }, subtotal: 0, vatRate: data.settings.defaultVatRate, vatAmount: 0, total: 0, status: "draft", notes: "", paymentTerms: "Payment due within 30 days.", emailTemplate: "standard", zohoEmail: "" })}>{ICN.plus} {t("newInvoice")}</button>
 </div>
 <div style={cardSt} className="tbl-wrap">
 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
@@ -2562,6 +2562,7 @@ return (
 function InvoiceFormContent({ invoice, data, onSave, nextInvoiceNum, buildPrestationOptions, onCancel }) {
 const { t } = useI18n();
 const [form, setForm] = useState({ visibleColumns: { prestationDate: true, description: true, hours: true, quantity: false, unitPrice: true, total: true, tva: true }, billingStart: "", billingEnd: "", ...invoice });
+const [globalDescription, setGlobalDescription] = useState("");
 const [scheduleLoadMessage, setScheduleLoadMessage] = useState("");
 const set = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
 
@@ -2581,7 +2582,7 @@ return { ...prev, items };
 const addPrestation = (p) => setForm(prev => {
 const unitPrice = Number(defaultUnitPrice || 0);
 const quantity = p.hours && p.hours > 0 ? Math.round(p.hours * 100) / 100 : 1;
-const row = { prestationDate: p.prestationDate, description: p.description, hours: p.hours ? Math.round(p.hours * 100) / 100 : "", quantity, unitPrice, total: Math.round(quantity * unitPrice * 100) / 100 };
+const row = { prestationDate: p.prestationDate, description: "", hours: p.hours ? Math.round(p.hours * 100) / 100 : "", quantity, unitPrice, total: Math.round(quantity * unitPrice * 100) / 100 };
 return { ...prev, items: [...(prev.items || []), row] };
 });
 
@@ -2593,7 +2594,7 @@ return;
 const unitPrice = Number(defaultUnitPrice || 0);
 const nextItems = prestations.map(p => {
 const quantity = p.hours && p.hours > 0 ? Math.round(p.hours * 100) / 100 : 1;
-return { prestationDate: p.prestationDate, description: p.description, hours: p.hours ? Math.round(p.hours * 100) / 100 : "", quantity, unitPrice, total: Math.round(quantity * unitPrice * 100) / 100 };
+return { prestationDate: p.prestationDate, description: "", hours: p.hours ? Math.round(p.hours * 100) / 100 : "", quantity, unitPrice, total: Math.round(quantity * unitPrice * 100) / 100 };
 });
 setForm(prev => ({ ...prev, items: nextItems }));
 setScheduleLoadMessage(nextItems.length ? "Prestations loaded from the latest client schedule." : "No prestations found in this billing period.");
@@ -2609,10 +2610,15 @@ const onClientChange = (clientId) => {
 const cl = data.clients.find(c => c.id === clientId);
 const unit = cl ? (cl.billingType === "fixed" ? (cl.priceFixed || cl.pricePerHour || 0) : (cl.pricePerHour || cl.priceFixed || 0)) : 0;
 setForm(prev => {
-const nextItems = (prev.items || []).length ? prev.items.map(it => ({ ...it, unitPrice: unit, total: Math.round((Number(it.quantity)||0) * unit * 100) / 100 })) : [{ prestationDate: prev.date, description: "Cleaning services", hours: "", quantity: 1, unitPrice: unit, total: unit }];
+const nextItems = (prev.items || []).length ? prev.items.map(it => ({ ...it, unitPrice: unit, total: Math.round((Number(it.quantity)||0) * unit * 100) / 100 })) : [{ prestationDate: prev.date, description: "", hours: "", quantity: 1, unitPrice: unit, total: unit }];
 return { ...prev, clientId, items: nextItems };
 });
 };
+
+const applyDescriptionToAll = () => setForm(prev => ({
+...prev,
+items: (prev.items || []).map(it => ({ ...it, description: globalDescription })),
+}));
 
 const subtotal = (form.items || []).reduce((sum, it) => sum + (Number(it.total) || 0), 0);
 const vatAmount = Math.round(subtotal * (Number(form.vatRate) || 0) / 100 * 100) / 100;
@@ -2650,6 +2656,10 @@ return (
 {["prestationDate","description","hours","quantity","unitPrice","total","tva"].map(col => <label key={col} style={{ fontSize: 12, color: CL.muted }}><input type="checkbox" checked={form.visibleColumns?.[col] !== false} onChange={ev => setForm(prev => ({ ...prev, visibleColumns: { ...(prev.visibleColumns || {}), [col]: ev.target.checked } }))} /> {col}</label>)}
 <button style={{ ...btnSec, ...btnSm }} onClick={() => setForm(prev => ({ ...prev, items: [...(prev.items || []), { prestationDate: prev.date, description: "", hours: "", quantity: 1, unitPrice: defaultUnitPrice || 0, total: defaultUnitPrice || 0 }] }))}>+ Add row</button>
 </div>
+</div>
+<div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8, marginBottom: 8 }}>
+<TextInput placeholder="Désignation globale (optionnel)" value={globalDescription} onChange={ev => setGlobalDescription(ev.target.value)} />
+<button style={{ ...btnSec, ...btnSm }} onClick={applyDescriptionToAll}>Appliquer à toutes les lignes</button>
 </div>
 {(form.items || []).map((item, idx) => (
 <div key={idx} style={{ display: "grid", gridTemplateColumns: "1.1fr 2fr .8fr .8fr .9fr .9fr auto", gap: 5, marginBottom: 5, alignItems: "center" }}>

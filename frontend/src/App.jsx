@@ -10,12 +10,15 @@ LUX ANGELS CLEANING - Management System v3 (Bug-free)
 // -- Persistence --
 const STORE_KEY = "lux-angels-v3";
 const LANG_KEY = "lux-angels-lang";
+const THEME_KEY = "lux-angels-theme";
 const loadStore = () => { try { return JSON.parse(localStorage.getItem(STORE_KEY)); } catch { return null; } };
 const saveStore = (d) => { try { localStorage.setItem(STORE_KEY, JSON.stringify(d)); } catch {} };
 const loadLang = () => {
 try { return localStorage.getItem(LANG_KEY) || "fr"; } catch { return "fr"; }
 };
 const saveLang = (lang) => { try { localStorage.setItem(LANG_KEY, lang); } catch {} };
+const loadTheme = () => { try { return localStorage.getItem(THEME_KEY) || "dark"; } catch { return "dark"; } };
+const saveTheme = (t) => { try { localStorage.setItem(THEME_KEY, t); } catch {} };
 
 const I18N = {
 fr: {
@@ -540,7 +543,7 @@ ownerUsername: "LuxAdmin", ownerPin: "LuxAngels@2025",
 managerUsername: "manager", managerPin: "Manager@2025",
 employeePins: {}, employeeUsernames: {},
 settings: {
-companyName: "LAC Lux angels cleaning",
+companyName: "Lux Angels Cleaning",
 companyAddress: "12 Rue de la Liberté, L-1930 Luxembourg",
 companyEmail: "info@luxangels.lu",
 companyPhone: "+352 123 456",
@@ -701,12 +704,22 @@ return sched.status === nextStatus ? sched : { ...sched, status: nextStatus };
 });
 
 // -- Theme --
-const CL = {
-bg: "#0C0F16", sf: "#151922", s2: "#1C2130", bd: "#2C3348",
-gold: "#D4A843", goldDark: "#B08C2F", goldLight: "#F0D78C",
-blue: "#4A9FD9", green: "#3EC47E", red: "#D95454", orange: "#E89840",
-text: "#E4E6ED", muted: "#838AA3", dim: "#525976", white: "#FFF",
+const THEMES = {
+dark: {
+  bg: "#0C0F16", sf: "#151922", s2: "#1C2130", bd: "#2C3348",
+  gold: "#D4A843", goldDark: "#B08C2F", goldLight: "#F0D78C",
+  blue: "#4A9FD9", green: "#3EC47E", red: "#D95454", orange: "#E89840",
+  text: "#E4E6ED", muted: "#838AA3", dim: "#525976", white: "#FFF",
+},
+light: {
+  bg: "#F4F1EA", sf: "#FFFFFF", s2: "#EDE9DF", bd: "#D4C9B0",
+  gold: "#B8860B", goldDark: "#8B6914", goldLight: "#D4A843",
+  blue: "#1565C0", green: "#2E7D32", red: "#C62828", orange: "#E65100",
+  text: "#1A1A1A", muted: "#5C5C5C", dim: "#888888", white: "#FFF",
+},
 };
+const INIT_THEME = loadTheme();
+const CL = { ...THEMES[INIT_THEME] || THEMES.dark };
 
 // -- Base Styles --
 const inputSt = { width: "100%", padding: "0 16px", height: 46, background: CL.sf, border: `1px solid ${CL.bd}`, borderRadius: 10, color: CL.text, fontSize: 14, outline: "none", boxSizing: "border-box" };
@@ -783,6 +796,91 @@ const StatCard = ({ label, value, icon, color = CL.gold }) => (
 const ToastMsg = ({ message, type }) => (
   <div style={{ position: "fixed", top: 20, right: 20, zIndex: 2000, padding: "12px 22px", borderRadius: 10, background: type === "success" ? CL.green : type === "error" ? CL.red : CL.blue, color: CL.white, fontWeight: 600, fontSize: 14, boxShadow: "0 8px 32px rgba(0,0,0,.4)", animation: "slideIn .3s ease" }}>{message}</div>
 );
+
+// -- Date Picker Component --
+const MONTHS_FR = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+const MONTHS_EN = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const DAYS_FR = ["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"];
+const DAYS_EN = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+
+function DatePicker({ value, onChange, placeholder, style }) {
+const { lang } = useI18n();
+const [open, setOpen] = useState(false);
+const [viewDate, setViewDate] = useState(() => {
+  if (value) { const d = new Date(value + "T00:00:00"); return { year: d.getFullYear(), month: d.getMonth() }; }
+  const now = new Date(); return { year: now.getFullYear(), month: now.getMonth() };
+});
+const ref = useRef(null);
+const MONTHS = lang === "en" ? MONTHS_EN : MONTHS_FR;
+const DAYS = lang === "en" ? DAYS_EN : DAYS_FR;
+
+useEffect(() => {
+  const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+  document.addEventListener("mousedown", handler);
+  return () => document.removeEventListener("mousedown", handler);
+}, []);
+
+const prevMonth = () => setViewDate(v => { const d = new Date(v.year, v.month - 1, 1); return { year: d.getFullYear(), month: d.getMonth() }; });
+const nextMonth = () => setViewDate(v => { const d = new Date(v.year, v.month + 1, 1); return { year: d.getFullYear(), month: d.getMonth() }; });
+
+const firstDay = new Date(viewDate.year, viewDate.month, 1);
+const startDow = (firstDay.getDay() + 6) % 7; // Monday=0
+const daysInMonth = new Date(viewDate.year, viewDate.month + 1, 0).getDate();
+const todayStr = getToday();
+const cells = [];
+for (let i = 0; i < startDow; i++) cells.push(null);
+for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+const select = (day) => {
+  const y = String(viewDate.year);
+  const m = String(viewDate.month + 1).padStart(2, "0");
+  const d = String(day).padStart(2, "0");
+  onChange({ target: { value: `${y}-${m}-${d}` } });
+  setOpen(false);
+};
+
+const displayValue = value ? (() => { const d = new Date(value + "T00:00:00"); return `${String(d.getDate()).padStart(2,"0")} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`; })() : "";
+
+return (
+<div ref={ref} style={{ position: "relative", ...style }}>
+  <div
+    onClick={() => { setOpen(o => !o); if (value) { const d = new Date(value + "T00:00:00"); setViewDate({ year: d.getFullYear(), month: d.getMonth() }); } }}
+    style={{ ...inputSt, display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", userSelect: "none" }}
+  >
+    <span style={{ color: displayValue ? CL.text : CL.dim }}>{displayValue || (placeholder || (lang === "en" ? "Pick a date..." : "Choisir une date..."))}</span>
+    <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={CL.muted} strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+  </div>
+  {open && (
+    <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, zIndex: 3000, background: CL.sf, border: `1px solid ${CL.bd}`, borderRadius: 12, padding: 12, width: 280, boxShadow: "0 8px 32px rgba(0,0,0,.35)" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+        <button onClick={prevMonth} style={{ background: "none", border: "none", color: CL.text, cursor: "pointer", padding: "4px 8px", borderRadius: 6, fontSize: 18 }}>‹</button>
+        <div style={{ fontWeight: 600, fontSize: 14, color: CL.gold }}>{MONTHS[viewDate.month]} {viewDate.year}</div>
+        <button onClick={nextMonth} style={{ background: "none", border: "none", color: CL.text, cursor: "pointer", padding: "4px 8px", borderRadius: 6, fontSize: 18 }}>›</button>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, marginBottom: 4 }}>
+        {DAYS.map(d => <div key={d} style={{ textAlign: "center", fontSize: 10, color: CL.muted, fontWeight: 600, padding: "2px 0" }}>{d}</div>)}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2 }}>
+        {cells.map((day, i) => {
+          if (!day) return <div key={`e${i}`} />;
+          const dateStr = `${viewDate.year}-${String(viewDate.month + 1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+          const isSelected = dateStr === value;
+          const isToday = dateStr === todayStr;
+          return (
+            <button key={day} onClick={() => select(day)} style={{ padding: "5px 2px", border: "none", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: isSelected ? 700 : 400, background: isSelected ? CL.gold : isToday ? CL.gold + "25" : "transparent", color: isSelected ? CL.bg : isToday ? CL.gold : CL.text, textAlign: "center" }}>{day}</button>
+          );
+        })}
+      </div>
+      {value && (
+        <button onClick={() => { onChange({ target: { value: "" } }); setOpen(false); }} style={{ marginTop: 8, width: "100%", padding: "6px", background: "none", border: `1px solid ${CL.bd}`, borderRadius: 6, color: CL.muted, fontSize: 12, cursor: "pointer" }}>
+          {lang === "en" ? "Clear" : "Effacer"}
+        </button>
+      )}
+    </div>
+  )}
+</div>
+);
+}
 
 // Tab bar for forms
 const FormTabs = ({ tabs, active, onChange }) => (
@@ -925,11 +1023,11 @@ const globalCSS = `
   @keyframes slideIn { from { transform: translateX(60px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
   @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
   input:focus, select:focus, textarea:focus { border-color: ${CL.gold} !important; }
-  input[type="date"], input[type="time"], input[type="month"], input[type="datetime-local"] { color-scheme: dark; }
+  input[type="date"], input[type="time"], input[type="month"], input[type="datetime-local"] { color-scheme: ${INIT_THEME === "dark" ? "dark" : "light"}; }
   input[type="date"]::-webkit-calendar-picker-indicator,
   input[type="time"]::-webkit-calendar-picker-indicator,
   input[type="month"]::-webkit-calendar-picker-indicator,
-  input[type="datetime-local"]::-webkit-calendar-picker-indicator { filter: invert(0.95); cursor: pointer; }
+  input[type="datetime-local"]::-webkit-calendar-picker-indicator { filter: ${INIT_THEME === "dark" ? "invert(0.95)" : "none"}; cursor: pointer; }
   input[type="date"], input[type="time"], input[type="month"], input[type="datetime-local"], input[type="number"], input[type="text"], input[type="email"], input[type="password"], input[type="tel"], select { height: 46px !important; padding: 0 16px !important; line-height: 46px; }
   textarea { padding: 12px 16px !important; height: auto !important; min-height: 80px; }
   @media print { .no-print { display: none !important; } }
@@ -982,6 +1080,23 @@ return (
 <button style={{ ...btnSec, ...btnSm, background: lang === "fr" ? CL.gold + "20" : CL.s2, color: lang === "fr" ? CL.gold : CL.text }} onClick={() => setLang("fr")}>{t("french")}</button>
 <button style={{ ...btnSec, ...btnSm, background: lang === "en" ? CL.gold + "20" : CL.s2, color: lang === "en" ? CL.gold : CL.text }} onClick={() => setLang("en")}>{t("english")}</button>
 </div>
+);
+}
+
+function ThemeToggle() {
+const isDark = INIT_THEME === "dark";
+const toggle = () => { saveTheme(isDark ? "light" : "dark"); window.location.reload(); };
+return (
+<button
+  onClick={toggle}
+  title={isDark ? "Switch to light theme" : "Switch to dark theme"}
+  style={{ ...btnSec, ...btnSm, padding: "6px 10px", display: "inline-flex", alignItems: "center", gap: 6 }}
+>
+  {isDark
+    ? <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+    : <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+  }
+</button>
 );
 }
 
@@ -1154,7 +1269,7 @@ return (
 
   {/* Main Content */}
   <div className="main-content" style={{ flex: 1, overflow: "auto" }}>
-    <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}><LanguageSwitcher compact /></div>
+    <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 8, marginBottom: 10 }}><ThemeToggle /><LanguageSwitcher compact /></div>
     <div style={{ maxWidth: 1200, margin: "0 auto", animation: "fadeIn .3s ease" }}>
       {renderSection()}
     </div>
@@ -1650,8 +1765,8 @@ return (
         <div style={{ ...cardSt, marginBottom: 14 }}>
           <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.blue }}>{uiText("New Leave Request")}</h3>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 10 }}>
-            <Field label={uiText("Start Date")}><TextInput type="date" value={timeOffForm.startDate} onChange={ev => setTimeOffForm(v => ({ ...v, startDate: ev.target.value }))} /></Field>
-            <Field label={uiText("End Date")}><TextInput type="date" value={timeOffForm.endDate} onChange={ev => setTimeOffForm(v => ({ ...v, endDate: ev.target.value }))} /></Field>
+            <Field label={uiText("Start Date")}><DatePicker value={timeOffForm.startDate} onChange={ev => setTimeOffForm(v => ({ ...v, startDate: ev.target.value }))} /></Field>
+            <Field label={uiText("End Date")}><DatePicker value={timeOffForm.endDate} onChange={ev => setTimeOffForm(v => ({ ...v, endDate: ev.target.value }))} /></Field>
           </div>
           <Field label={uiText("Type")}><SelectInput value={timeOffForm.leaveType} onChange={ev => setTimeOffForm(v => ({ ...v, leaveType: ev.target.value }))}><option value="conge">{uiText("Leave")}</option><option value="maladie">{uiText("Sick Leave")}</option></SelectInput></Field>
           <Field label={uiText("Reason")}><TextArea value={timeOffForm.reason} onChange={ev => setTimeOffForm(v => ({ ...v, reason: ev.target.value }))} placeholder={uiText("Vacation, personal, medical, etc.")} /></Field>
@@ -2004,7 +2119,7 @@ return (
 
   {activeTab === "personal" && (
     <div className="form-grid">
-      <Field label="Date of Birth"><TextInput type="date" value={form.dateOfBirth || ""} onChange={ev => set("dateOfBirth", ev.target.value)} /></Field>
+      <Field label="Date of Birth"><DatePicker value={form.dateOfBirth || ""} onChange={ev => set("dateOfBirth", ev.target.value)} /></Field>
       <Field label="Nationality"><TextInput value={form.nationality || ""} onChange={ev => set("nationality", ev.target.value)} placeholder="e.g. Portuguese" /></Field>
       <Field label="Languages"><TextInput value={form.languages || ""} onChange={ev => set("languages", ev.target.value)} placeholder="FR, DE, PT, EN..." /></Field>
       <Field label="Social Security No."><TextInput value={form.socialSecNumber || ""} onChange={ev => set("socialSecNumber", ev.target.value)} /></Field>
@@ -2025,7 +2140,7 @@ return (
           <option value="CDI">CDI</option><option value="CDD">CDD</option><option value="Mini-job">{uiText("Mini-job")}</option><option value="Freelance">{uiText("Freelance")}</option><option value="Student">{uiText("Student")}</option>
         </SelectInput>
       </Field>
-      <Field label="Start Date"><TextInput type="date" value={form.startDate} onChange={ev => set("startDate", ev.target.value)} /></Field>
+      <Field label="Start Date"><DatePicker value={form.startDate} onChange={ev => set("startDate", ev.target.value)} /></Field>
       <Field label="Work Permit #"><TextInput value={form.workPermit || ""} onChange={ev => set("workPermit", ev.target.value)} placeholder="If applicable" /></Field>
       <Field label="Bank IBAN"><TextInput value={form.bankIban || ""} onChange={ev => set("bankIban", ev.target.value)} placeholder="LU..." /></Field>
       <Field label="Status">
@@ -2077,9 +2192,11 @@ const [deleteId, setDeleteId] = useState(null);
 const [search, setSearch] = useState("");
 const [statusFilter, setStatusFilter] = useState("all");
 const [typeFilter, setTypeFilter] = useState("all");
+const [regionFilter, setRegionFilter] = useState("all");
 
 const emptyClient = {
 name: "", email: "", phone: "", phoneMobile: "", address: "", apartmentFloor: "", city: "Luxembourg", postalCode: "", country: "Luxembourg",
+region: "",
 type: "Residential", cleaningFrequency: "Weekly", pricePerHour: 35, priceFixed: 0, billingType: "hourly", notes: "", contactPerson: "",
 status: "active", accessCode: "", keyLocation: "", parkingInfo: "", petInfo: "", specialInstructions: "", preferredDay: "", preferredTime: "",
 contractStart: "", contractEnd: "", squareMeters: "", taxId: "", language: "FR", preferredCleanerIds: [],
@@ -2103,11 +2220,13 @@ setDeleteId(null);
 };
 
 const q = search.toLowerCase();
+const allRegions = [...new Set((data.clients || []).map(c => (c.region || "").trim()).filter(Boolean))].sort();
 const filtered = data.clients.filter(c => {
   const matchesSearch = !q || c.name.toLowerCase().includes(q) || (c.contactPerson || "").toLowerCase().includes(q) || (c.email || "").toLowerCase().includes(q) || (c.phone || "").includes(q) || (c.city || "").toLowerCase().includes(q);
   const matchesStatus = statusFilter === "all" || c.status === statusFilter;
   const matchesType = typeFilter === "all" || (c.type || "") === typeFilter;
-  return matchesSearch && matchesStatus && matchesType;
+  const matchesRegion = regionFilter === "all" || (c.region || "") === regionFilter;
+  return matchesSearch && matchesStatus && matchesType && matchesRegion;
 });
 
 return (
@@ -2131,6 +2250,10 @@ return (
   <option value="all">{uiText("All Types")}</option>
   <option value="Residential">{uiText("Residential")}</option>
   <option value="Commercial">{uiText("Commercial")}</option>
+</SelectInput>
+<SelectInput value={regionFilter} onChange={ev => setRegionFilter(ev.target.value)} style={{ width: 160 }}>
+  <option value="all">{uiText("All Regions")}</option>
+  {allRegions.map(r => <option key={r} value={r}>{r}</option>)}
 </SelectInput>
 </div>
 <div style={cardSt} className="tbl-wrap">
@@ -2236,6 +2359,7 @@ return (
       <Field label="Apt / Floor / Unit"><TextInput value={form.apartmentFloor || ""} onChange={ev => set("apartmentFloor", ev.target.value)} placeholder="e.g. 3rd floor, Apt 12B" /></Field>
       <Field label="Postal Code"><TextInput value={form.postalCode || ""} onChange={ev => set("postalCode", ev.target.value)} placeholder="L-1234" /></Field>
       <Field label="City"><TextInput value={form.city || ""} onChange={ev => set("city", ev.target.value)} /></Field>
+      <Field label="Region / District"><TextInput value={form.region || ""} onChange={ev => set("region", ev.target.value)} placeholder="e.g. Kirchberg, Esch, Centre-Ville" /></Field>
       <Field label="Country"><TextInput value={form.country || ""} onChange={ev => set("country", ev.target.value)} /></Field>
       <div style={{ gridColumn: "1/-1", borderTop: `1px solid ${CL.bd}`, paddingTop: 12, marginTop: 4 }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: CL.gold, marginBottom: 10 }}>{uiText("Access Information")}</div>
@@ -2271,8 +2395,8 @@ return (
         ? <Field label="Price per Hour (€)"><TextInput type="number" step=".5" value={form.pricePerHour} onChange={ev => set("pricePerHour", parseFloat(ev.target.value) || 0)} /></Field>
         : <Field label="Fixed Price (€)"><TextInput type="number" value={form.priceFixed} onChange={ev => set("priceFixed", parseFloat(ev.target.value) || 0)} /></Field>
       }
-      <Field label="Contract Start"><TextInput type="date" value={form.contractStart || ""} onChange={ev => set("contractStart", ev.target.value)} /></Field>
-      <Field label="Contract End"><TextInput type="date" value={form.contractEnd || ""} onChange={ev => set("contractEnd", ev.target.value)} /></Field>
+      <Field label="Contract Start"><DatePicker value={form.contractStart || ""} onChange={ev => set("contractStart", ev.target.value)} /></Field>
+      <Field label="Contract End"><DatePicker value={form.contractEnd || ""} onChange={ev => set("contractEnd", ev.target.value)} /></Field>
     </div>
   )}
 
@@ -2602,7 +2726,7 @@ return (
 {suggestedCleaner && form.employeeId !== suggestedCleaner.id && <button type="button" style={{ ...btnSec, ...btnSm, marginTop: 6 }} onClick={() => set("employeeId", suggestedCleaner.id)} disabled={isCompletedLocked}>Use suggested cleaner</button>}
 {selectedClient && selectedEmployee && <div style={{ fontSize: 11, color: cityMatchLabel(selectedEmployee, selectedClient).startsWith("✅") ? CL.green : CL.orange, marginTop: 4 }}>{cityMatchLabel(selectedEmployee, selectedClient)}</div>}
 </Field>
-<Field label="Date"><TextInput type="date" value={form.date} onChange={ev => set("date", ev.target.value)} disabled={isCompletedLocked} /></Field>
+<Field label="Date"><DatePicker value={form.date} onChange={ev => set("date", ev.target.value)} /></Field>
 <Field label="Status">
 <SelectInput value={form.status} onChange={ev => set("status", ev.target.value)} disabled={isCompletedLocked}>
 <option value="scheduled">{uiText("Scheduled")}</option><option value="in-progress">{uiText("In Progress")}</option><option value="completed">{uiText("Completed")}</option><option value="cancelled">{uiText("Cancelled")}</option>
@@ -2827,9 +2951,9 @@ return (
           {data.clients.filter(c => c.status === "active").map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </SelectInput>
       </Field>
-      <Field label="In Date"><TextInput type="date" value={manualEntry.clockInDate} onChange={ev => setManual("clockInDate", ev.target.value)} /></Field>
+      <Field label="In Date"><DatePicker value={manualEntry.clockInDate} onChange={ev => setManual("clockInDate", ev.target.value)} /></Field>
       <Field label="In Time"><TextInput type="time" value={manualEntry.clockInTime} onChange={ev => setManual("clockInTime", ev.target.value)} /></Field>
-      <Field label="Out Date (optional)"><TextInput type="date" value={manualEntry.clockOutDate} onChange={ev => setManual("clockOutDate", ev.target.value)} /></Field>
+      <Field label="Out Date (optional)"><DatePicker value={manualEntry.clockOutDate} onChange={ev => setManual("clockOutDate", ev.target.value)} /></Field>
       <Field label="Out Time (optional)"><TextInput type="time" value={manualEntry.clockOutTime} onChange={ev => setManual("clockOutTime", ev.target.value)} /></Field>
     </div>
     <Field label="Reason / note (optional)">
@@ -2922,9 +3046,9 @@ return (
 {data.clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
 </SelectInput>
 </Field>
-<Field label="In Date"><TextInput type="date" value={form.clockInDate} onChange={ev => set("clockInDate", ev.target.value)} /></Field>
+<Field label="In Date"><DatePicker value={form.clockInDate} onChange={ev => set("clockInDate", ev.target.value)} /></Field>
 <Field label="In Time"><TextInput type="time" value={form.clockInTime} onChange={ev => set("clockInTime", ev.target.value)} /></Field>
-<Field label="Out Date"><TextInput type="date" value={form.clockOutDate} onChange={ev => set("clockOutDate", ev.target.value)} /></Field>
+<Field label="Out Date"><DatePicker value={form.clockOutDate} onChange={ev => set("clockOutDate", ev.target.value)} /></Field>
 <Field label="Out Time"><TextInput type="time" value={form.clockOutTime} onChange={ev => set("clockOutTime", ev.target.value)} /></Field>
 </div>
 <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 6 }}>
@@ -3073,13 +3197,11 @@ if (setDevisSeed) setDevisSeed(null);
 // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [devisSeed]);
 
-const quoteNumber = () => {
-const year = getToday().slice(0, 4);
-const prefix = `DEV-${year}-`;
-const quoteNums = (data.quotes || []).map(q => String(q.quoteNumber || "")).filter(n => n.startsWith(prefix)).map(n => parseInt(n.slice(prefix.length), 10)).filter(n => Number.isFinite(n));
-const invoiceNums = (data.invoices || []).map(i => String(i.invoiceNumber || "")).filter(n => n.startsWith(prefix)).map(n => parseInt(n.slice(prefix.length), 10)).filter(n => Number.isFinite(n));
-const allNums = [...quoteNums, ...invoiceNums];
-return `${prefix}${String(allNums.length ? Math.max(...allNums) + 1 : 1).padStart(4, "0")}`;
+const quoteNumber = (dateStr = getToday()) => {
+const [year, month, day] = (dateStr || getToday()).split("-");
+const prefix = `DEV-${year || new Date().getFullYear()}-${(month || "01").padStart(2, "0")}-${(day || "01").padStart(2, "0")}-`;
+const nums = (data.quotes || []).map(q => String(q.quoteNumber || "")).filter(n => n.startsWith(prefix)).map(n => parseInt(n.slice(prefix.length), 10)).filter(n => Number.isFinite(n));
+return `${prefix}${nums.length ? Math.max(...nums) + 1 : 1}`;
 };
 
 const ensureLib = (src, check) => new Promise((resolve, reject) => {
@@ -3188,7 +3310,8 @@ showToast("Email draft opened. PDF downloaded for attachment.");
 const saveQuote = (q) => {
 const subtotal = (q.items || []).reduce((sum, it) => sum + (Number(it.total) || 0), 0);
 const vatAmount = Math.round(subtotal * (Number(q.vatRate) || 0) / 100 * 100) / 100;
-const final = { ...q, subtotal, vatAmount, total: subtotal + vatAmount };
+const hasValidFormat = /^DEV-\d{4}-\d{2}-\d{2}-\d+$/.test(q.quoteNumber || "");
+const final = { ...q, quoteNumber: hasValidFormat ? q.quoteNumber : quoteNumber(q.date || getToday()), subtotal, vatAmount, total: subtotal + vatAmount };
 if (final.id) updateData("quotes", prev => (prev || []).map(x => x.id === final.id ? final : x));
 else updateData("quotes", prev => [...(prev || []), { ...final, id: makeId() }]);
 showToast(final.id ? "Quote updated" : "Quote created");
@@ -3276,9 +3399,9 @@ return (
 </table>
 </div>
 
-{preview && <ModalBox title={t("quote") + " " + uiText("Invoice Preview")} onClose={() => setPreview(null)} wide><div ref={previewRef}><InvoicePreviewContent invoice={preview} data={data} /></div><div className="no-print" style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 12, flexWrap: "wrap" }}><button style={btnSec} onClick={() => setPreview(null)}>{uiText("Close")}</button><button style={btnPri} onClick={() => downloadQuotePdf(preview)}>{ICN.download} PDF</button><button style={{ ...btnSec, color: CL.blue }} onClick={() => sendQuote(preview)}>{ICN.mail} {t("sendEmail")}</button></div></ModalBox>}
+{preview && <ModalBox title={t("quote") + " — Aperçu"} onClose={() => setPreview(null)} wide><div ref={previewRef}><InvoicePreviewContent invoice={preview} data={data} isQuote={true} /></div><div className="no-print" style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 12, flexWrap: "wrap" }}><button style={btnSec} onClick={() => setPreview(null)}>{uiText("Close")}</button><button style={btnPri} onClick={() => downloadQuotePdf(preview)}>{ICN.download} PDF</button><button style={{ ...btnSec, color: CL.blue }} onClick={() => sendQuote(preview)}>{ICN.mail} {t("sendEmail")}</button></div></ModalBox>}
 {modal && <ModalBox title={modal.id ? t("editQuote") : t("newQuote")} onClose={() => setModal(null)} wide><QuoteForm quote={{ pricingMode: "hours", visibleColumns: { ...defaultQuoteColumns }, ...modal }} data={data} onSave={saveQuote} onCancel={() => setModal(null)} generateQuoteNumber={quoteNumber} /></ModalBox>}
-{quoteForPdf && <div style={{ position: "fixed", left: -10000, top: 0, width: 1200, background: "#fff", zIndex: -1 }}><div ref={hiddenQuoteRef}><InvoicePreviewContent invoice={quoteForPdf} data={data} /></div></div>}
+{quoteForPdf && <div style={{ position: "fixed", left: -10000, top: 0, width: 1200, background: "#fff", zIndex: -1 }}><div ref={hiddenQuoteRef}><InvoicePreviewContent invoice={quoteForPdf} data={data} isQuote={true} /></div></div>}
 </div>
 );
 }
@@ -3375,8 +3498,8 @@ return (
         {data.clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
       </SelectInput>
     </Field>
-    <Field label="Date"><TextInput type="date" value={form.date} onChange={ev => set("date", ev.target.value)} /></Field>
-    <Field label="Valide jusqu'au"><TextInput type="date" value={form.validUntil || ""} onChange={ev => set("validUntil", ev.target.value)} /></Field>
+    <Field label="Date"><DatePicker value={form.date} onChange={ev => set("date", ev.target.value)} /></Field>
+    <Field label="Valide jusqu'au"><DatePicker value={form.validUntil || ""} onChange={ev => set("validUntil", ev.target.value)} /></Field>
     <Field label="TVA %"><TextInput type="number" value={form.vatRate} onChange={ev => set("vatRate", parseFloat(ev.target.value) || 0)} /></Field>
   </div>
 
@@ -3408,7 +3531,7 @@ return (
   <div style={{ background: CL.bg, border: `1px solid ${CL.bd}`, borderRadius: 12, padding: "20px 24px", marginBottom: 6 }}>
     <div className="form-grid" style={{ gap: 20, marginBottom: 16 }}>
       <Field label="Date de début du job">
-        <TextInput type="date" value={form.jobSchedule?.startDate || ""} onChange={ev => setJobSchedule("startDate", ev.target.value)} />
+        <DatePicker value={form.jobSchedule?.startDate || ""} onChange={ev => setJobSchedule("startDate", ev.target.value)} />
       </Field>
       <Field label="Fréquence">
         <SelectInput value={form.jobSchedule?.frequency || "one-time"} onChange={ev => setJobSchedule("frequency", ev.target.value)}>
@@ -3420,10 +3543,10 @@ return (
       </Field>
       {form.jobSchedule?.frequency !== "one-time" && <>
         <Field label="Période — du">
-          <TextInput type="date" value={form.jobSchedule?.dateFrom || ""} onChange={ev => setJobSchedule("dateFrom", ev.target.value)} />
+          <DatePicker value={form.jobSchedule?.dateFrom || ""} onChange={ev => setJobSchedule("dateFrom", ev.target.value)} />
         </Field>
         <Field label="Période — au">
-          <TextInput type="date" value={form.jobSchedule?.dateTo || ""} onChange={ev => setJobSchedule("dateTo", ev.target.value)} />
+          <DatePicker value={form.jobSchedule?.dateTo || ""} onChange={ev => setJobSchedule("dateTo", ev.target.value)} />
         </Field>
       </>}
       <Field label="Heure début">
@@ -3472,7 +3595,7 @@ return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 12 }}>
       {(form.items || []).map((it, idx) => (
         <div key={idx} style={{ display: "grid", gridTemplateColumns: itemColTemplate, gap: 8, alignItems: "center", padding: "4px 0", borderBottom: `1px solid ${CL.bd}` }}>
-          {form.visibleColumns?.prestationDate !== false && <TextInput type="date" value={it.prestationDate || ""} onChange={ev => updateItem(idx, "prestationDate", ev.target.value)} />}
+          {form.visibleColumns?.prestationDate !== false && <DatePicker value={it.prestationDate || ""} onChange={ev => updateItem(idx, "prestationDate", ev.target.value)} />}
           {form.visibleColumns?.description !== false && <TextInput value={it.description || ""} onChange={ev => updateItem(idx, "description", ev.target.value)} placeholder="Description" />}
           {form.visibleColumns?.hours !== false && <TextInput type="number" step="0.25" value={it.hours ?? ""} onChange={ev => updateItem(idx, "hours", ev.target.value === "" ? "" : parseFloat(ev.target.value) || 0)} placeholder="0" style={{ textAlign: "right" }} />}
           {form.visibleColumns?.quantity !== false && <TextInput type="number" step="0.25" value={it.quantity ?? 0} onChange={ev => updateItem(idx, "quantity", parseFloat(ev.target.value) || 0)} placeholder="0" style={{ textAlign: "right" }} />}
@@ -3786,13 +3909,13 @@ return (
       </SelectInput>
     </Field>
     <Field label={t("prestationDate")}>
-      <TextInput type="date" value={form.date} onChange={ev => { const v = ev.target.value; set("date", v); if (!form.invoiceNumber || /^LA-\d{4}-\d{2}-\d{2}-\d+$/.test(form.invoiceNumber)) set("invoiceNumber", nextInvoiceNum(v)); }} />
+      <DatePicker value={form.date} onChange={ev => { const v = ev.target.value; set("date", v); if (!form.invoiceNumber || /^LA-\d{4}-\d{2}-\d{2}-\d+$/.test(form.invoiceNumber)) set("invoiceNumber", nextInvoiceNum(v)); }} />
     </Field>
     <Field label="TVA %">
       <TextInput type="number" value={form.vatRate} onChange={ev => set("vatRate", parseFloat(ev.target.value) || 0)} />
     </Field>
     <Field label="Due">
-      <TextInput type="date" value={form.dueDate || ""} onChange={ev => set("dueDate", ev.target.value)} />
+      <DatePicker value={form.dueDate || ""} onChange={ev => set("dueDate", ev.target.value)} />
     </Field>
   </div>
 
@@ -3800,8 +3923,8 @@ return (
   <SectionHeader label="Période de facturation" />
   <div style={{ background: CL.bg, border: `1px solid ${CL.bd}`, borderRadius: 12, padding: "20px 24px", marginBottom: 6 }}>
     <div className="form-grid" style={{ gap: 20, marginBottom: 16 }}>
-      <Field label="Date de début"><TextInput type="date" value={form.billingStart || ""} onChange={ev => set("billingStart", ev.target.value)} /></Field>
-      <Field label="Date de fin"><TextInput type="date" value={form.billingEnd || ""} onChange={ev => set("billingEnd", ev.target.value)} /></Field>
+      <Field label="Date de début"><DatePicker value={form.billingStart || ""} onChange={ev => set("billingStart", ev.target.value)} /></Field>
+      <Field label="Date de fin"><DatePicker value={form.billingEnd || ""} onChange={ev => set("billingEnd", ev.target.value)} /></Field>
     </div>
     <button style={{ ...btnPri, width: "100%", justifyContent: "center", marginBottom: 14 }} onClick={loadPrestationsFromRange} disabled={!form.clientId}>
       Générer les prestations depuis le planning
@@ -3853,7 +3976,7 @@ return (
   <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 10 }}>
     {(form.items || []).map((item, idx) => (
       <div key={idx} style={{ display: "grid", gridTemplateColumns: `${form.visibleColumns?.prestationDate !== false ? "1.2fr " : ""}${form.visibleColumns?.description !== false ? "2.2fr " : ""}${form.visibleColumns?.hours !== false ? ".8fr " : ""}${form.visibleColumns?.quantity !== false ? ".8fr " : ""}${form.visibleColumns?.unitPrice !== false ? "1fr " : ""}${form.visibleColumns?.total !== false ? "1fr " : ""}28px`, gap: 8, alignItems: "center" }}>
-        {form.visibleColumns?.prestationDate !== false && <TextInput type="date" value={item.prestationDate || ""} onChange={ev => updateItem(idx, "prestationDate", ev.target.value)} />}
+        {form.visibleColumns?.prestationDate !== false && <DatePicker value={item.prestationDate || ""} onChange={ev => updateItem(idx, "prestationDate", ev.target.value)} />}
         {form.visibleColumns?.description !== false && <TextInput placeholder="Description" value={item.description || ""} onChange={ev => updateItem(idx, "description", ev.target.value)} />}
         {form.visibleColumns?.hours !== false && <TextInput type="number" step="0.25" placeholder="0" value={item.hours ?? ""} onChange={ev => { const h = ev.target.value; updateItem(idx, "hours", h === "" ? "" : parseFloat(h) || 0); updateItem(idx, "quantity", h === "" ? 1 : parseFloat(h) || 0); }} style={{ textAlign: "right" }} />}
         {form.visibleColumns?.quantity !== false && <TextInput type="number" step="0.25" placeholder="0" value={item.quantity ?? 0} onChange={ev => updateItem(idx, "quantity", parseFloat(ev.target.value) || 0)} style={{ textAlign: "right" }} />}
@@ -3889,48 +4012,102 @@ return (
 );
 }
 
-function InvoicePreviewContent({ invoice, data }) {
+function InvoicePreviewContent({ invoice, data, isQuote = false }) {
 const client = data.clients.find(c => c.id === invoice.clientId);
 const settings = data.settings;
 const cols = { prestationDate: true, description: true, hours: true, quantity: false, unitPrice: true, total: true, tva: true, ...(invoice.visibleColumns || {}) };
+// Always display "Lux Angels Cleaning" as the company name in PDFs
+const companyDisplay = "Lux Angels Cleaning";
+const docLabel = isQuote ? "DEVIS" : "FACTURE";
 return (
-<div style={{ background: "#fff", color: "#1a1a1a", padding: 28, borderRadius: 8 }}>
-<div style={{ display: "flex", justifyContent: "space-between", marginBottom: 24, flexWrap: "wrap", gap: 16 }}>
-<div><h1 style={{ fontSize: 24, fontWeight: 700, color: "#C9A84C", fontFamily: "'Cormorant Garamond', serif", margin: 0 }}>{settings.companyName}</h1><div style={{ fontSize: 11, color: "#666", marginTop: 3, lineHeight: 1.6 }}>{settings.companyAddress}<br />{settings.companyEmail}<br />{settings.companyPhone}<br />TVA: {settings.vatNumber}</div></div>
-<div style={{ textAlign: "right" }}><h2 style={{ fontSize: 20, color: "#333", margin: 0 }}>FACTURE</h2><div style={{ fontSize: 12, color: "#666", marginTop: 5 }}><strong>{invoice.invoiceNumber}</strong><br />Date: {fmtDate(invoice.date)}{invoice.dueDate && <><br />Échéance: {fmtDate(invoice.dueDate)}</>}</div></div>
+<div style={{ background: "#fff", color: "#1a1a1a", padding: 36, borderRadius: 8, fontFamily: "'Outfit', sans-serif" }}>
+{/* Header */}
+<div style={{ display: "flex", justifyContent: "space-between", marginBottom: 28, flexWrap: "wrap", gap: 16, alignItems: "flex-start" }}>
+  <div>
+    <h1 style={{ fontSize: 26, fontWeight: 700, color: "#C9A84C", fontFamily: "'Cormorant Garamond', serif", margin: 0, letterSpacing: "0.01em" }}>{companyDisplay}</h1>
+    <div style={{ fontSize: 11, color: "#666", marginTop: 4, lineHeight: 1.7 }}>
+      {settings.companyAddress}<br />
+      {settings.companyEmail}<br />
+      {settings.companyPhone}<br />
+      TVA: {settings.vatNumber}
+    </div>
+  </div>
+  <div style={{ textAlign: "right" }}>
+    <h2 style={{ fontSize: 22, color: "#333", margin: 0, fontWeight: 700, letterSpacing: "0.05em" }}>{docLabel}</h2>
+    <div style={{ fontSize: 12, color: "#666", marginTop: 6, lineHeight: 1.7 }}>
+      <strong>{invoice.invoiceNumber}</strong><br />
+      Date: {fmtDate(invoice.date)}
+      {invoice.dueDate && <><br />Échéance: {fmtDate(invoice.dueDate)}</>}
+    </div>
+  </div>
 </div>
 
-<div style={{ marginBottom: 18, padding: 12, background: "#f8f8f8", borderRadius: 8 }}>
-<div style={{ fontSize: 10, color: "#999", textTransform: "uppercase", marginBottom: 2 }}>Client</div>
-<div style={{ fontWeight: 600 }}>{client?.name}</div>
-{client?.address && <div style={{ fontSize: 12, color: "#666" }}>{client.address}{client?.apartmentFloor ? `, ${client.apartmentFloor}` : ""}</div>}
-{(client?.postalCode || client?.city || client?.country) && <div style={{ fontSize: 12, color: "#666" }}>{client?.postalCode ? `${client.postalCode} ` : ""}{client?.city || ""}{client?.country ? `, ${client.country}` : ""}</div>}
-{client?.email && <div style={{ fontSize: 12, color: "#666" }}>{client.email}</div>}
+{/* Client block */}
+<div style={{ marginBottom: 20, padding: 14, background: "#f8f8f8", borderRadius: 8 }}>
+  <div style={{ fontSize: 10, color: "#999", textTransform: "uppercase", marginBottom: 4, fontWeight: 600, letterSpacing: "0.08em" }}>Client</div>
+  <div style={{ fontWeight: 600, fontSize: 14 }}>{client?.name}</div>
+  {client?.address && <div style={{ fontSize: 12, color: "#666", marginTop: 2 }}>{client.address}{client?.apartmentFloor ? `, ${client.apartmentFloor}` : ""}</div>}
+  {(client?.postalCode || client?.city || client?.country) && <div style={{ fontSize: 12, color: "#666" }}>{client?.postalCode ? `${client.postalCode} ` : ""}{client?.city || ""}{client?.country ? `, ${client.country}` : ""}</div>}
+  {client?.email && <div style={{ fontSize: 12, color: "#666" }}>{client.email}</div>}
 </div>
 
-<div style={{ marginBottom: 8, fontWeight: 600, color: "#35526b" }}>Description des prestations</div>
+{/* Items table */}
+<div style={{ marginBottom: 8, fontWeight: 600, color: "#35526b", fontSize: 12, textTransform: "uppercase", letterSpacing: "0.06em" }}>Description des prestations</div>
 <div style={{ overflowX: "auto" }}>
-<table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 18 }}>
-<thead><tr style={{ borderBottom: "2px solid #C9A84C" }}><th style={{ textAlign: "left", padding: "5px 0", fontSize: 10, color: "#999" }}>Ref</th>{cols.prestationDate && <th style={{ textAlign: "left", padding: "5px 0", fontSize: 10, color: "#999" }}>Date</th>}{cols.description && <th style={{ textAlign: "left", padding: "5px 0", fontSize: 10, color: "#999" }}>Désignation</th>}{cols.quantity && <th style={{ textAlign: "right", padding: "5px 0", fontSize: 10, color: "#999" }}>Quantité</th>}{cols.hours && <th style={{ textAlign: "right", padding: "5px 0", fontSize: 10, color: "#999" }}>Heures</th>}{cols.unitPrice && <th style={{ textAlign: "right", padding: "5px 0", fontSize: 10, color: "#999" }}>PU</th>}{cols.total && <th style={{ textAlign: "right", padding: "5px 0", fontSize: 10, color: "#999" }}>Montant HT</th>}</tr></thead>
-<tbody>{(invoice.items || []).map((item, idx) => <tr key={idx} style={{ borderBottom: "1px solid #eee" }}><td style={{ padding: "8px 0" }}>{idx + 1}</td>{cols.prestationDate && <td style={{ padding: "8px 0" }}>{fmtDate(item.prestationDate)}</td>}{cols.description && <td style={{ padding: "8px 0" }}>{item.description}</td>}{cols.quantity && <td style={{ padding: "8px 0", textAlign: "right" }}>{Number(item.quantity || 0).toFixed(2)}</td>}{cols.hours && <td style={{ padding: "8px 0", textAlign: "right" }}>{item.hours === "" || item.hours == null ? "" : Number(item.hours).toFixed(2)}</td>}{cols.unitPrice && <td style={{ padding: "8px 0", textAlign: "right" }}>€{Number(item.unitPrice || 0).toFixed(2)}</td>}{cols.total && <td style={{ padding: "8px 0", textAlign: "right" }}>€{Number(item.total || 0).toFixed(2)}</td>}</tr>)}</tbody>
-</table>
+  <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 18 }}>
+    <thead>
+      <tr style={{ borderBottom: "2px solid #C9A84C" }}>
+        <th style={{ textAlign: "left", padding: "6px 4px 6px 0", fontSize: 10, color: "#999", fontWeight: 600 }}>Ref</th>
+        {cols.prestationDate && <th style={{ textAlign: "left", padding: "6px 4px", fontSize: 10, color: "#999", fontWeight: 600 }}>Date</th>}
+        {cols.description && <th style={{ textAlign: "left", padding: "6px 4px", fontSize: 10, color: "#999", fontWeight: 600 }}>Désignation</th>}
+        {cols.quantity && <th style={{ textAlign: "right", padding: "6px 4px", fontSize: 10, color: "#999", fontWeight: 600 }}>Quantité</th>}
+        {cols.hours && <th style={{ textAlign: "right", padding: "6px 4px", fontSize: 10, color: "#999", fontWeight: 600 }}>Heures</th>}
+        {cols.unitPrice && <th style={{ textAlign: "right", padding: "6px 4px", fontSize: 10, color: "#999", fontWeight: 600 }}>PU (€)</th>}
+        {cols.total && <th style={{ textAlign: "right", padding: "6px 0 6px 4px", fontSize: 10, color: "#999", fontWeight: 600 }}>Montant HT</th>}
+      </tr>
+    </thead>
+    <tbody>
+      {(invoice.items || []).map((item, idx) => (
+        <tr key={idx} style={{ borderBottom: "1px solid #eee" }}>
+          <td style={{ padding: "8px 4px 8px 0", fontSize: 12, color: "#555" }}>{idx + 1}</td>
+          {cols.prestationDate && <td style={{ padding: "8px 4px", fontSize: 12 }}>{fmtDate(item.prestationDate)}</td>}
+          {cols.description && <td style={{ padding: "8px 4px", fontSize: 12 }}>{item.description}</td>}
+          {cols.quantity && <td style={{ padding: "8px 4px", textAlign: "right", fontSize: 12 }}>{Number(item.quantity || 0).toFixed(2)}</td>}
+          {cols.hours && <td style={{ padding: "8px 4px", textAlign: "right", fontSize: 12 }}>{item.hours === "" || item.hours == null ? "" : Number(item.hours).toFixed(2)}</td>}
+          {cols.unitPrice && <td style={{ padding: "8px 4px", textAlign: "right", fontSize: 12 }}>€{Number(item.unitPrice || 0).toFixed(2)}</td>}
+          {cols.total && <td style={{ padding: "8px 0 8px 4px", textAlign: "right", fontSize: 12, fontWeight: 600 }}>€{Number(item.total || 0).toFixed(2)}</td>}
+        </tr>
+      ))}
+    </tbody>
+  </table>
 </div>
 
-<div style={{ textAlign: "right", marginBottom: 18 }}>
-<div style={{ fontSize: 12, color: "#666" }}>TOTAL HT: €{(invoice.subtotal || 0).toFixed(2)}</div>
-{cols.tva !== false && <div style={{ fontSize: 12, color: "#666" }}>TVA ({invoice.vatRate}%): €{(invoice.vatAmount || 0).toFixed(2)}</div>}
-{cols.tva !== false && <div style={{ fontSize: 12, color: "#666" }}>TOTAL TVA: €{(invoice.vatAmount || 0).toFixed(2)}</div>}
-<div style={{ fontSize: 24, fontWeight: 700, color: "#C9A84C", marginTop: 5 }}>TOTAL TTC A PAYER: €{(invoice.total || 0).toFixed(2)}</div>
+{/* Totals */}
+<div style={{ textAlign: "right", marginBottom: 20, borderTop: "1px solid #eee", paddingTop: 12 }}>
+  <div style={{ fontSize: 12, color: "#666", marginBottom: 3 }}>TOTAL HT: <strong>€{(invoice.subtotal || 0).toFixed(2)}</strong></div>
+  {cols.tva !== false && <div style={{ fontSize: 12, color: "#666", marginBottom: 3 }}>TVA ({invoice.vatRate}%): <strong>€{(invoice.vatAmount || 0).toFixed(2)}</strong></div>}
+  <div style={{ fontSize: 22, fontWeight: 700, color: "#C9A84C", marginTop: 8, fontFamily: "'Cormorant Garamond', serif" }}>TOTAL TTC: €{(invoice.total || 0).toFixed(2)}</div>
 </div>
 
-<div style={{ padding: 12, background: "#f8f8f8", borderRadius: 8, fontSize: 11, color: "#666", marginBottom: 20 }}>
-<div><strong>Conditions de paiement :</strong> {invoice.paymentTerms || "Paiement comptant."}</div>
-<div><strong>IBAN:</strong> {settings.bankIban}</div>
+{/* Payment terms + IBAN (only on invoices) */}
+<div style={{ padding: 14, background: "#f8f8f8", borderRadius: 8, fontSize: 11, color: "#666", marginBottom: 28 }}>
+  <div style={{ marginBottom: isQuote ? 0 : 4 }}><strong>Conditions de paiement :</strong> {invoice.paymentTerms || (isQuote ? "Devis valable 30 jours." : "Paiement comptant.")}</div>
+  {!isQuote && <div><strong>IBAN:</strong> {settings.bankIban}</div>}
 </div>
 
-<div style={{ marginTop: 40 }}>
-<div style={{ fontSize: 12, color: "#333", marginBottom: 24 }}>Bon pour Accord</div>
-<div style={{ borderTop: "1px solid #333", width: 260, paddingTop: 4, fontSize: 12, color: "#333" }}>Signature Client</div>
+{/* Signatures */}
+<div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: 16, gap: 24, flexWrap: "wrap" }}>
+  {/* Client signature */}
+  <div style={{ flex: 1, minWidth: 200 }}>
+    <div style={{ fontSize: 11, color: "#555", marginBottom: 32 }}>Bon pour Accord — Signature client :</div>
+    <div style={{ borderTop: "1px solid #aaa", paddingTop: 4, fontSize: 11, color: "#666", width: 220 }}>Nom & Signature du client</div>
+  </div>
+  {/* Company signature */}
+  <div style={{ flex: 1, minWidth: 200, textAlign: "right" }}>
+    <div style={{ fontSize: 11, color: "#555", marginBottom: 6 }}>Signature autorisée :</div>
+    <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 22, color: "#C9A84C", fontWeight: 700, fontStyle: "italic", marginBottom: 2 }}>Lux Angels Cleaning</div>
+    <div style={{ borderTop: "1px solid #C9A84C", paddingTop: 4, fontSize: 10, color: "#999", display: "inline-block", marginTop: 4 }}>Direction — Lux Angels Cleaning S.à r.l.</div>
+  </div>
 </div>
 </div>
 );
@@ -4009,26 +4186,40 @@ return (
         const employee = data.employees.find(e => e.id === preview.employeeId);
         const settings = data.settings;
         return (
-          <div style={{ background: "#fff", color: "#1a1a1a", padding: 28, borderRadius: 8 }}>
+          <div style={{ background: "#fff", color: "#1a1a1a", padding: 28, borderRadius: 8, fontFamily: "'Outfit', sans-serif" }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 18, flexWrap: "wrap", gap: 12 }}>
-              <div><h1 style={{ fontSize: 22, fontWeight: 700, color: "#C9A84C", fontFamily: "'Cormorant Garamond', serif", margin: 0 }}>{settings.companyName}</h1><div style={{ fontSize: 10, color: "#666" }}>{settings.companyAddress}</div></div>
-              <div style={{ textAlign: "right" }}><h2 style={{ fontSize: 18, color: "#333", margin: 0 }}>PAYSLIP</h2><div style={{ fontSize: 11, color: "#666" }}>{preview.payslipNumber}<br />{preview.month}</div></div>
+              <div>
+                <h1 style={{ fontSize: 22, fontWeight: 700, color: "#C9A84C", fontFamily: "'Cormorant Garamond', serif", margin: 0 }}>Lux Angels Cleaning</h1>
+                <div style={{ fontSize: 10, color: "#666", marginTop: 2 }}>{settings.companyAddress}</div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <h2 style={{ fontSize: 18, color: "#333", margin: 0, fontWeight: 700, letterSpacing: "0.05em" }}>FICHE DE PAIE</h2>
+                <div style={{ fontSize: 11, color: "#666", marginTop: 3 }}>{preview.payslipNumber}<br />{preview.month}</div>
+              </div>
             </div>
             <div style={{ padding: 12, background: "#f8f8f8", borderRadius: 8, marginBottom: 18 }}>
-              <div style={{ fontSize: 10, color: "#999", textTransform: "uppercase" }}>Employee</div>
+              <div style={{ fontSize: 10, color: "#999", textTransform: "uppercase", fontWeight: 600, marginBottom: 2 }}>Employé</div>
               <div style={{ fontWeight: 600 }}>{employee?.name}</div>
-              <div style={{ fontSize: 11, color: "#666" }}>{employee?.role} · SSN: {employee?.socialSecNumber || "N/A"}</div>
+              <div style={{ fontSize: 11, color: "#666" }}>{employee?.role} · N° SS: {employee?.socialSecNumber || "N/A"}</div>
               {employee?.bankIban && <div style={{ fontSize: 11, color: "#666" }}>IBAN: {employee.bankIban}</div>}
             </div>
             <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 18 }}>
               <tbody>
-                <tr style={{ borderBottom: "1px solid #eee" }}><td style={{ padding: "7px 0", color: "#666" }}>Hours</td><td style={{ padding: "7px 0", textAlign: "right", fontWeight: 600 }}>{preview.totalHours}h</td></tr>
-                <tr style={{ borderBottom: "1px solid #eee" }}><td style={{ padding: "7px 0", color: "#666" }}>Rate</td><td style={{ padding: "7px 0", textAlign: "right" }}>€{preview.hourlyRate?.toFixed(2)}</td></tr>
-                <tr style={{ borderBottom: "2px solid #C9A84C" }}><td style={{ padding: "7px 0", fontWeight: 600 }}>Gross</td><td style={{ padding: "7px 0", textAlign: "right", fontWeight: 600 }}>€{preview.grossPay?.toFixed(2)}</td></tr>
-                <tr><td style={{ padding: "10px 0", fontSize: 18, fontWeight: 700, color: "#C9A84C" }}>Gross Amount</td><td style={{ padding: "10px 0", textAlign: "right", fontSize: 18, fontWeight: 700, color: "#C9A84C" }}>€{preview.grossPay?.toFixed(2)}</td></tr>
+                <tr style={{ borderBottom: "1px solid #eee" }}><td style={{ padding: "7px 0", color: "#666", fontSize: 13 }}>Heures travaillées</td><td style={{ padding: "7px 0", textAlign: "right", fontWeight: 600 }}>{preview.totalHours}h</td></tr>
+                <tr style={{ borderBottom: "1px solid #eee" }}><td style={{ padding: "7px 0", color: "#666", fontSize: 13 }}>Taux horaire</td><td style={{ padding: "7px 0", textAlign: "right" }}>€{preview.hourlyRate?.toFixed(2)}/h</td></tr>
+                <tr style={{ borderBottom: "2px solid #C9A84C" }}><td style={{ padding: "7px 0", fontWeight: 600, fontSize: 13 }}>Salaire brut</td><td style={{ padding: "7px 0", textAlign: "right", fontWeight: 600 }}>€{preview.grossPay?.toFixed(2)}</td></tr>
+                <tr><td style={{ padding: "10px 0", fontSize: 18, fontWeight: 700, color: "#C9A84C", fontFamily: "'Cormorant Garamond', serif" }}>TOTAL BRUT</td><td style={{ padding: "10px 0", textAlign: "right", fontSize: 18, fontWeight: 700, color: "#C9A84C" }}>€{preview.grossPay?.toFixed(2)}</td></tr>
               </tbody>
             </table>
-            <div style={{ fontSize: 9, color: "#999", textAlign: "center" }}>Gross-only payroll view.</div>
+            <div style={{ fontSize: 9, color: "#999", textAlign: "center", marginBottom: 24 }}>Document à titre indicatif — brut uniquement.</div>
+            {/* Signature */}
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: 11, color: "#555", marginBottom: 6 }}>Signature de l'employeur :</div>
+                <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 20, color: "#C9A84C", fontWeight: 700, fontStyle: "italic", marginBottom: 2 }}>Lux Angels Cleaning</div>
+                <div style={{ borderTop: "1px solid #C9A84C", paddingTop: 4, fontSize: 10, color: "#999", display: "inline-block" }}>Direction — Lux Angels Cleaning S.à r.l.</div>
+              </div>
+            </div>
           </div>
         );
       })()}
@@ -4073,7 +4264,7 @@ return (
   <div className="form-grid">
     <Field label="Prospect / Client"><SelectInput value={form.clientId} onChange={ev => { const id = ev.target.value; const c = data.clients.find(x => x.id === id); setForm(v => ({ ...v, clientId: id, address: c?.address || "" })); }}><option value="">Select...</option>{prospects.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</SelectInput></Field>
     <Field label="Address"><TextInput value={form.address} onChange={ev => set("address", ev.target.value)} placeholder="Visit address" /></Field>
-    <Field label="Visit date"><TextInput type="date" value={form.visitDate} onChange={ev => set("visitDate", ev.target.value)} /></Field>
+    <Field label="Visit date"><DatePicker value={form.visitDate} onChange={ev => set("visitDate", ev.target.value)} /></Field>
     <Field label="Visit time"><TextInput type="time" value={form.visitTime} onChange={ev => set("visitTime", ev.target.value)} /></Field>
   </div>
   <Field label="Notes"><TextArea value={form.notes} onChange={ev => set("notes", ev.target.value)} placeholder="Scope, apartment access, expectations..." /></Field>
@@ -4145,11 +4336,11 @@ return (
     </div>
     <div>
       <div style={{ fontSize: 11, color: CL.muted, marginBottom: 4 }}>{uiText("From")}</div>
-      <TextInput type="date" value={dateFrom} onChange={ev => setDateFrom(ev.target.value)} style={{ width: 150 }} />
+      <DatePicker value={dateFrom} onChange={ev => setDateFrom(ev.target.value)} style={{ width: 180 }} />
     </div>
     <div>
       <div style={{ fontSize: 11, color: CL.muted, marginBottom: 4 }}>{uiText("To")}</div>
-      <TextInput type="date" value={dateTo} onChange={ev => setDateTo(ev.target.value)} style={{ width: 150 }} />
+      <DatePicker value={dateTo} onChange={ev => setDateTo(ev.target.value)} style={{ width: 180 }} />
     </div>
     <div>
       <div style={{ fontSize: 11, color: CL.muted, marginBottom: 4 }}>{uiText("Prestation")}</div>
@@ -5201,7 +5392,7 @@ function MarkPaidModal({ expense, viewMonth, onSave, onClose }) {
 
         <div className="form-grid">
           <Field label="Payment Date *">
-            <TextInput type="date" value={paidDate} onChange={e => setPaidDate(e.target.value)} />
+            <DatePicker value={paidDate} onChange={e => setPaidDate(e.target.value)} />
           </Field>
           <Field label="Amount Paid (€) *">
             <TextInput type="number" value={amount} onChange={e => setAmount(e.target.value)} min="0.01" step="0.01" />

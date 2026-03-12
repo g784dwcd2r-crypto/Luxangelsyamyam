@@ -501,6 +501,16 @@ const UI_FR = {
 "Manager Username": "Identifiant manager",
 "Manager Password": "Mot de passe manager",
 "Save All": "Tout enregistrer",
+"Public Holidays": "Jours Fériés",
+"Select public holidays that apply": "Sélectionnez les jours fériés applicables",
+// Client service
+"Hours per Session": "Heures par séance",
+"Forfait / Subscription": "Forfait / Abonnement",
+"Forfait Name": "Nom du forfait",
+"Forfait Price (€)": "Prix du forfait (€)",
+"Billing Period": "Période de facturation",
+"Included Hours / Period": "Heures incluses / période",
+"e.g. Forfait Mensuel Premium": "ex. Forfait Mensuel Premium",
 // General
 "Unassigned": "Non assigné",
 "Unknown client": "Client inconnu",
@@ -536,6 +546,20 @@ return UI_FR[text] || text;
 };
 
 
+const LU_PUBLIC_HOLIDAYS = [
+  "1 Janvier — Jour de l'An",
+  "Lundi de Pâques",
+  "1 Mai — Fête du Travail",
+  "9 Mai — Journée de l'Europe",
+  "Jeudi de l'Ascension",
+  "Lundi de Pentecôte",
+  "23 Juin — Fête Nationale",
+  "15 Août — Assomption",
+  "1 Novembre — Toussaint",
+  "25 Décembre — Noël",
+  "26 Décembre — 2ème jour de Noël",
+];
+
 const DEFAULTS = {
 employees: [], clients: [], schedules: [], clockEntries: [], quotes: [], invoices: [], payslips: [],
 photoUploads: [], timeOffRequests: [], inventoryProducts: [], productRequests: [], cleanerProductHoldings: [], prospectVisits: [], expenses: [],
@@ -550,6 +574,7 @@ companyPhone: "+352 123 456",
 vatNumber: "LU12345678",
 bankIban: "LU12 3456 7890 1234 5678",
 defaultVatRate: 17,
+publicHolidays: [],
 },
 };
 
@@ -2197,7 +2222,9 @@ const [regionFilter, setRegionFilter] = useState("all");
 const emptyClient = {
 name: "", email: "", phone: "", phoneMobile: "", address: "", apartmentFloor: "", city: "Luxembourg", postalCode: "", country: "Luxembourg",
 region: "",
-type: "Residential", cleaningFrequency: "Weekly", pricePerHour: 35, priceFixed: 0, billingType: "hourly", notes: "", contactPerson: "",
+type: "Residential", cleaningFrequency: "Weekly", pricePerHour: 35, priceFixed: 0, billingType: "hourly",
+hoursPerSession: 0, forfaitLabel: "", forfaitPrice: 0, forfaitPeriod: "monthly",
+notes: "", contactPerson: "",
 status: "active", accessCode: "", keyLocation: "", parkingInfo: "", petInfo: "", specialInstructions: "", preferredDay: "", preferredTime: "",
 contractStart: "", contractEnd: "", squareMeters: "", taxId: "", language: "FR", preferredCleanerIds: [],
 };
@@ -2276,7 +2303,14 @@ return (
 </td>
 <td style={tdSt}>{uiText(client.type)}</td>
 <td style={tdSt}>{uiText(client.cleaningFrequency)}</td>
-<td style={tdSt}>{client.billingType === "fixed" ? `€${Number(client.priceFixed).toFixed(2)}` : `€${Number(client.pricePerHour).toFixed(2)}/hr`}</td>
+<td style={tdSt}>
+{client.billingType === "forfait"
+  ? <span title={client.forfaitLabel || ""}>{uiText("Forfait / Subscription")} €{Number(client.forfaitPrice || 0).toFixed(2)}{client.forfaitPeriod === "weekly" ? "/sem" : "/mois"}</span>
+  : client.billingType === "fixed"
+  ? `€${Number(client.priceFixed).toFixed(2)}`
+  : `€${Number(client.pricePerHour).toFixed(2)}/hr`}
+{client.hoursPerSession ? <div style={{ fontSize: 11, color: CL.muted }}>{client.hoursPerSession}h/séance</div> : null}
+</td>
 <td style={tdSt}><Badge color={client.status === "active" ? CL.green : client.status === "prospect" ? CL.orange : CL.red}>{uiText(client.status)}</Badge></td>
 <td style={tdSt}>
 <div style={{ display: "flex", gap: 4 }}>
@@ -2380,6 +2414,9 @@ return (
           <option value="One-time">{uiText("One-time")}</option><option value="Weekly">{uiText("Weekly")}</option><option value="Bi-weekly">{uiText("Bi-weekly")}</option><option value="Monthly">{uiText("Monthly")}</option><option value="2x per week">{uiText("2x per week")}</option><option value="3x per week">{uiText("3x per week")}</option><option value="Daily">{uiText("Daily")}</option><option value="Custom">{uiText("Custom")}</option>
         </SelectInput>
       </Field>
+      <Field label={uiText("Hours per Session")}>
+        <TextInput type="number" step=".5" min="0" value={form.hoursPerSession || ""} onChange={ev => set("hoursPerSession", parseFloat(ev.target.value) || 0)} placeholder="ex: 3" />
+      </Field>
       <Field label="Preferred Day">
         <SelectInput value={form.preferredDay || ""} onChange={ev => set("preferredDay", ev.target.value)}>
           <option value="">{uiText("No preference")}</option><option value="Monday">{uiText("Monday")}</option><option value="Tuesday">{uiText("Tuesday")}</option><option value="Wednesday">{uiText("Wednesday")}</option><option value="Thursday">{uiText("Thursday")}</option><option value="Friday">{uiText("Friday")}</option><option value="Saturday">{uiText("Saturday")}</option>
@@ -2388,13 +2425,29 @@ return (
       <Field label="Preferred Time"><TextInput value={form.preferredTime || ""} onChange={ev => set("preferredTime", ev.target.value)} placeholder="e.g. 09:00-12:00" /></Field>
       <Field label="Billing Type">
         <SelectInput value={form.billingType} onChange={ev => set("billingType", ev.target.value)}>
-          <option value="hourly">{uiText("Hourly")}</option><option value="fixed">{uiText("Fixed Price")}</option>
+          <option value="hourly">{uiText("Hourly")}</option>
+          <option value="fixed">{uiText("Fixed Price")}</option>
+          <option value="forfait">{uiText("Forfait / Subscription")}</option>
         </SelectInput>
       </Field>
-      {form.billingType === "hourly"
-        ? <Field label="Price per Hour (€)"><TextInput type="number" step=".5" value={form.pricePerHour} onChange={ev => set("pricePerHour", parseFloat(ev.target.value) || 0)} /></Field>
-        : <Field label="Fixed Price (€)"><TextInput type="number" value={form.priceFixed} onChange={ev => set("priceFixed", parseFloat(ev.target.value) || 0)} /></Field>
-      }
+      {form.billingType === "hourly" && (
+        <Field label="Price per Hour (€)"><TextInput type="number" step=".5" value={form.pricePerHour} onChange={ev => set("pricePerHour", parseFloat(ev.target.value) || 0)} /></Field>
+      )}
+      {form.billingType === "fixed" && (
+        <Field label="Fixed Price (€)"><TextInput type="number" value={form.priceFixed} onChange={ev => set("priceFixed", parseFloat(ev.target.value) || 0)} /></Field>
+      )}
+      {form.billingType === "forfait" && (<>
+        <Field label={uiText("Forfait Name")}><TextInput value={form.forfaitLabel || ""} onChange={ev => set("forfaitLabel", ev.target.value)} placeholder={uiText("e.g. Forfait Mensuel Premium")} /></Field>
+        <Field label={uiText("Forfait Price (€)")}><TextInput type="number" step=".5" min="0" value={form.forfaitPrice || ""} onChange={ev => set("forfaitPrice", parseFloat(ev.target.value) || 0)} /></Field>
+        <Field label={uiText("Billing Period")}>
+          <SelectInput value={form.forfaitPeriod || "monthly"} onChange={ev => set("forfaitPeriod", ev.target.value)}>
+            <option value="weekly">{uiText("Weekly")}</option>
+            <option value="biweekly">{uiText("Bi-weekly")}</option>
+            <option value="monthly">{uiText("Monthly")}</option>
+          </SelectInput>
+        </Field>
+        <Field label={uiText("Included Hours / Period")}><TextInput type="number" step=".5" min="0" value={form.forfaitIncludedHours || ""} onChange={ev => set("forfaitIncludedHours", parseFloat(ev.target.value) || 0)} placeholder="ex: 8" /></Field>
+      </>)}
       <Field label="Contract Start"><DatePicker value={form.contractStart || ""} onChange={ev => set("contractStart", ev.target.value)} /></Field>
       <Field label="Contract End"><DatePicker value={form.contractEnd || ""} onChange={ev => set("contractEnd", ev.target.value)} /></Field>
     </div>
@@ -4852,6 +4905,30 @@ return (
 <Field label="Manager Username"><TextInput value={managerUsername} onChange={ev => setManagerUsername(ev.target.value)} style={{ width: 220 }} /></Field>
 <Field label="Manager Password"><TextInput maxLength={24} value={managerPin} onChange={ev => setManagerPin(ev.target.value)} style={{ width: 180 }} /></Field>
 </div>
+</div>
+<div style={{ ...cardSt, marginTop: 14 }}>
+<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 4, color: CL.gold }}>{uiText("Public Holidays")}</h3>
+<p style={{ fontSize: 12, color: CL.muted, marginBottom: 12 }}>{uiText("Select public holidays that apply")}</p>
+<div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 8 }}>
+{LU_PUBLIC_HOLIDAYS.map(h => {
+  const checked = (form.publicHolidays || []).includes(h);
+  return (
+    <label key={h} style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, color: CL.text, cursor: "pointer", padding: "6px 10px", borderRadius: 8, background: checked ? CL.gold + "18" : CL.s2, border: `1px solid ${checked ? CL.gold + "55" : CL.bd}`, transition: "background .15s" }}>
+      <input type="checkbox" checked={checked} onChange={ev => {
+        const prev = form.publicHolidays || [];
+        const next = ev.target.checked ? [...prev, h] : prev.filter(x => x !== h);
+        set("publicHolidays", next);
+      }} style={{ accentColor: CL.gold, width: 15, height: 15 }} />
+      {h}
+    </label>
+  );
+})}
+</div>
+{(form.publicHolidays || []).length > 0 && (
+  <div style={{ marginTop: 10, fontSize: 12, color: CL.muted }}>
+    {(form.publicHolidays || []).length} jour(s) férie(s) sélectionné(s)
+  </div>
+)}
 </div>
 <div style={{ marginTop: 14 }}><button style={btnPri} onClick={handleSave}>{ICN.check} {uiText("Save All")}</button></div>
 {auth?.role === "owner" && <div style={{ ...cardSt, marginTop: 14 }}>

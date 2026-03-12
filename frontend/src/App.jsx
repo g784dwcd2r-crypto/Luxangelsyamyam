@@ -682,12 +682,21 @@ const toApiEmployee = (emp, pin, username) => ({
 const syncEmployeeToApi = async (emp, pin, username) => {
   try {
     const payload = toApiEmployee(emp, pin, username);
-    await fetch(apiUrl(`/api/employees/${emp.id}`), {
+    const updateRes = await fetch(apiUrl(`/api/employees/${emp.id}`), {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    // If PUT returns 404 the employee doesn't exist in the DB yet — create it
+
+    // If PUT fails because the employee does not exist in the API DB yet,
+    // create it so cleaner login can still work from any device/browser.
+    if (updateRes.status === 404) {
+      await fetch(apiUrl("/api/employees"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    }
   } catch { /* non-fatal */ }
 };
 

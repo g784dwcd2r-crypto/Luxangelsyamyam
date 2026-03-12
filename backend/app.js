@@ -649,5 +649,31 @@ const PORT = process.env.PORT || 5000;
 initDb().then(() => {
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
+    startKeepAlive();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Keep-alive — prevents Render free tier from spinning down after inactivity.
+// Pings our own health endpoint every 10 minutes so the server stays awake 24/7.
+// ---------------------------------------------------------------------------
+function startKeepAlive() {
+  const https = require('https');
+  const http = require('http');
+  const SELF_URL = (process.env.RENDER_EXTERNAL_URL || 'https://luxangelsyamyam-api.onrender.com').replace(/\/$/, '');
+  const PING_URL = `${SELF_URL}/api/health/db`;
+  const INTERVAL_MS = 10 * 60 * 1000; // every 10 minutes
+
+  function ping() {
+    const lib = PING_URL.startsWith('https') ? https : http;
+    lib.get(PING_URL, (res) => {
+      console.log(`[keep-alive] ${new Date().toISOString()} → ${res.statusCode}`);
+      res.resume(); // drain response body
+    }).on('error', (err) => {
+      console.warn(`[keep-alive] ping failed: ${err.message}`);
+    });
+  }
+
+  setInterval(ping, INTERVAL_MS);
+  console.log(`[keep-alive] Self-ping every 10 min → ${PING_URL}`);
+}

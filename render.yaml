@@ -13,6 +13,7 @@ services:
     buildCommand: npm install
     startCommand: node app.js
     autoDeploy: true
+    healthCheckPath: /api/health/db
     envVars:
       - key: DATABASE_URL
         value: postgresql://test_bb89_user:JPy2LBdWAruo4SmfuNYvoiWicsB5Rl1A@dpg-d6ovgfpr0fns73e0us30-a/test_bb89

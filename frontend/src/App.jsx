@@ -2965,7 +2965,7 @@ const hiddenQuoteRef = useRef(null);
 
 const defaultQuoteColumns = { prestationDate: true, description: true, hours: true, quantity: false, unitPrice: true, total: true, tva: true };
 
-const newQuoteDraft = (clientId = "", presetDescription = "Cleaning service") => ({ quoteNumber: quoteNumber(), clientId, date: getToday(), validUntil: "", items: [{ prestationDate: getToday(), description: presetDescription, hours: "", quantity: 1, unitPrice: 0, total: 0 }], pricingMode: "hours", visibleColumns: { ...defaultQuoteColumns }, vatRate: data.settings.defaultVatRate, subtotal: 0, vatAmount: 0, total: 0, status: "draft", notes: "", paymentTerms: "Quote valid for 30 days." });
+const newQuoteDraft = (clientId = "", presetDescription = "Cleaning service") => ({ quoteNumber: quoteNumber(), clientId, date: getToday(), validUntil: "", items: [{ prestationDate: getToday(), description: presetDescription, hours: "", quantity: 1, unitPrice: 0, total: 0 }], pricingMode: "hours", visibleColumns: { ...defaultQuoteColumns }, vatRate: data.settings.defaultVatRate, subtotal: 0, vatAmount: 0, total: 0, status: "draft", notes: "", paymentTerms: "Quote valid for 30 days.", jobSchedule: { dateFrom: "", dateTo: "", frequency: "one-time", startDate: getToday(), employeeId: "", startTime: "08:00", endTime: "12:00" } });
 
 useEffect(() => {
 if (!devisSeed) return;
@@ -2977,8 +2977,10 @@ if (setDevisSeed) setDevisSeed(null);
 const quoteNumber = () => {
 const year = getToday().slice(0, 4);
 const prefix = `DEV-${year}-`;
-const nums = (data.quotes || []).map(q => String(q.quoteNumber || "")).filter(n => n.startsWith(prefix)).map(n => parseInt(n.slice(prefix.length), 10)).filter(n => Number.isFinite(n));
-return `${prefix}${String(nums.length ? Math.max(...nums) + 1 : 1).padStart(4, "0")}`;
+const quoteNums = (data.quotes || []).map(q => String(q.quoteNumber || "")).filter(n => n.startsWith(prefix)).map(n => parseInt(n.slice(prefix.length), 10)).filter(n => Number.isFinite(n));
+const invoiceNums = (data.invoices || []).map(i => String(i.invoiceNumber || "")).filter(n => n.startsWith(prefix)).map(n => parseInt(n.slice(prefix.length), 10)).filter(n => Number.isFinite(n));
+const allNums = [...quoteNums, ...invoiceNums];
+return `${prefix}${String(allNums.length ? Math.max(...allNums) + 1 : 1).padStart(4, "0")}`;
 };
 
 const ensureLib = (src, check) => new Promise((resolve, reject) => {
@@ -3103,6 +3105,28 @@ const nums = (data.invoices || []).map(i => String(i.invoiceNumber || "")).filte
 return `${prefix}${nums.length ? Math.max(...nums) + 1 : 500}`;
 };
 
+const generateScheduleEntries = (clientId, js) => {
+const { startDate, dateFrom, dateTo, frequency, employeeId, startTime, endTime } = js || {};
+if (!startDate || !employeeId) return [];
+const entries = [];
+const endDateStr = dateTo || dateFrom || startDate;
+const toDate = d => new Date(d + "T00:00:00");
+const toISO = d => d.toISOString().slice(0, 10);
+const addEntry = (d) => entries.push({ id: makeId(), date: toISO(d), clientId, employeeId, startTime: startTime || "08:00", endTime: endTime || "12:00", status: "scheduled", notes: "Généré depuis devis", recurrence: frequency === "one-time" ? "none" : frequency });
+if (frequency === "one-time") {
+  addEntry(toDate(startDate));
+} else {
+  let cur = toDate(startDate);
+  const end = toDate(endDateStr);
+  while (cur <= end) {
+    addEntry(new Date(cur));
+    if (frequency === "monthly") { cur.setMonth(cur.getMonth() + 1); }
+    else { cur.setDate(cur.getDate() + (frequency === "biweekly" ? 14 : 7)); }
+  }
+}
+return entries;
+};
+
 const convertToInvoice = (q) => {
 const invoice = {
 id: makeId(),
@@ -3123,7 +3147,16 @@ paymentTerms: q.paymentTerms || "Payment due within 30 days.",
 };
 updateData("invoices", prev => [...prev, invoice]);
 updateData("quotes", prev => (prev || []).map(x => x.id === q.id ? { ...x, status: "converted", convertedInvoiceId: invoice.id } : x));
-showToast("Quote converted to invoice");
+const js = q.jobSchedule;
+if (js && js.employeeId && js.startDate) {
+  const newSchedules = generateScheduleEntries(q.clientId, js);
+  if (newSchedules.length > 0) {
+    updateData("schedules", prev => [...(prev || []), ...newSchedules]);
+    showToast(`Devis converti en facture · ${newSchedules.length} entrée(s) ajoutée(s) au planning`);
+    return;
+  }
+}
+showToast("Devis converti en facture");
 };
 
 return (
@@ -3145,16 +3178,29 @@ return (
 </div>
 
 {preview && <ModalBox title={t("quote") + " " + uiText("Invoice Preview")} onClose={() => setPreview(null)} wide><div ref={previewRef}><InvoicePreviewContent invoice={preview} data={data} /></div><div className="no-print" style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 12, flexWrap: "wrap" }}><button style={btnSec} onClick={() => setPreview(null)}>{uiText("Close")}</button><button style={btnPri} onClick={() => downloadQuotePdf(preview)}>{ICN.download} PDF</button><button style={{ ...btnSec, color: CL.blue }} onClick={() => sendQuote(preview)}>{ICN.mail} {t("sendEmail")}</button></div></ModalBox>}
-{modal && <ModalBox title={modal.id ? t("editQuote") : t("newQuote")} onClose={() => setModal(null)} wide><QuoteForm quote={{ pricingMode: "hours", visibleColumns: { ...defaultQuoteColumns }, ...modal }} data={data} onSave={saveQuote} onCancel={() => setModal(null)} /></ModalBox>}
+{modal && <ModalBox title={modal.id ? t("editQuote") : t("newQuote")} onClose={() => setModal(null)} wide><QuoteForm quote={{ pricingMode: "hours", visibleColumns: { ...defaultQuoteColumns }, ...modal }} data={data} onSave={saveQuote} onCancel={() => setModal(null)} generateQuoteNumber={quoteNumber} /></ModalBox>}
 {quoteForPdf && <div style={{ position: "fixed", left: -10000, top: 0, width: 1200, background: "#fff", zIndex: -1 }}><div ref={hiddenQuoteRef}><InvoicePreviewContent invoice={quoteForPdf} data={data} /></div></div>}
 </div>
 );
 }
 
-function QuoteForm({ quote, data, onSave, onCancel }) {
+function QuoteForm({ quote, data, onSave, onCancel, generateQuoteNumber }) {
 const defaultColumns = { prestationDate: true, description: true, hours: true, quantity: false, unitPrice: true, total: true, tva: true };
-const [form, setForm] = useState({ pricingMode: "hours", ...quote, visibleColumns: { ...defaultColumns, ...(quote.visibleColumns || {}) } });
+const defaultJobSchedule = { dateFrom: "", dateTo: "", frequency: "one-time", startDate: "", employeeId: "", startTime: "08:00", endTime: "12:00" };
+const [form, setForm] = useState({ pricingMode: "hours", jobSchedule: { ...defaultJobSchedule }, ...quote, visibleColumns: { ...defaultColumns, ...(quote.visibleColumns || {}) } });
+const [globalDescription, setGlobalDescription] = useState("");
 const set = (k,v) => setForm(prev => ({ ...prev, [k]: v }));
+const setJobSchedule = (k, v) => setForm(prev => ({ ...prev, jobSchedule: { ...(prev.jobSchedule || defaultJobSchedule), [k]: v } }));
+
+const applyDescriptionToAll = () => setForm(prev => ({
+  ...prev,
+  items: (prev.items || []).map(it => ({ ...it, description: globalDescription })),
+}));
+
+const autoQuoteNumber = () => {
+  if (!generateQuoteNumber) return;
+  set("quoteNumber", generateQuoteNumber());
+};
 
 const recalcRow = (row, pricingMode = form.pricingMode) => {
 const qty = pricingMode === "hours" ? Number(row.hours || 0) : Number(row.quantity || 0);
@@ -3209,7 +3255,12 @@ return (
   {/* ── Section 1: Core info ── */}
   <QSectionHeader label="Devis — Informations" />
   <div className="form-grid" style={{ gap: 20 }}>
-    <Field label="Quote #"><TextInput value={form.quoteNumber} onChange={ev => set("quoteNumber", ev.target.value)} /></Field>
+    <Field label="Quote #">
+      <div style={{ display: "flex", gap: 8 }}>
+        <TextInput value={form.quoteNumber} onChange={ev => set("quoteNumber", ev.target.value)} style={{ flex: 1 }} />
+        <button style={{ ...btnSec, padding: "0 14px", whiteSpace: "nowrap" }} onClick={autoQuoteNumber}>Auto</button>
+      </div>
+    </Field>
     <Field label="Statut">
       <SelectInput value={form.status || "draft"} onChange={ev => set("status", ev.target.value)}>
         <option value="draft">Brouillon</option>
@@ -3253,35 +3304,87 @@ return (
     </div>
   </div>
 
+  {/* ── Section 2b: Job Schedule ── */}
+  <QSectionHeader label="Informations du poste / Planning" />
+  <div style={{ background: CL.bg, border: `1px solid ${CL.bd}`, borderRadius: 12, padding: "20px 24px", marginBottom: 6 }}>
+    <div className="form-grid" style={{ gap: 20, marginBottom: 16 }}>
+      <Field label="Date de début du job">
+        <TextInput type="date" value={form.jobSchedule?.startDate || ""} onChange={ev => setJobSchedule("startDate", ev.target.value)} />
+      </Field>
+      <Field label="Fréquence">
+        <SelectInput value={form.jobSchedule?.frequency || "one-time"} onChange={ev => setJobSchedule("frequency", ev.target.value)}>
+          <option value="one-time">Une seule fois</option>
+          <option value="weekly">Chaque semaine</option>
+          <option value="biweekly">Toutes les 2 semaines</option>
+          <option value="monthly">Chaque mois</option>
+        </SelectInput>
+      </Field>
+      {form.jobSchedule?.frequency !== "one-time" && <>
+        <Field label="Période — du">
+          <TextInput type="date" value={form.jobSchedule?.dateFrom || ""} onChange={ev => setJobSchedule("dateFrom", ev.target.value)} />
+        </Field>
+        <Field label="Période — au">
+          <TextInput type="date" value={form.jobSchedule?.dateTo || ""} onChange={ev => setJobSchedule("dateTo", ev.target.value)} />
+        </Field>
+      </>}
+      <Field label="Heure début">
+        <TextInput type="time" value={form.jobSchedule?.startTime || "08:00"} onChange={ev => setJobSchedule("startTime", ev.target.value)} />
+      </Field>
+      <Field label="Heure fin">
+        <TextInput type="time" value={form.jobSchedule?.endTime || "12:00"} onChange={ev => setJobSchedule("endTime", ev.target.value)} />
+      </Field>
+      <Field label="Agent(e) assigné(e)">
+        <SelectInput value={form.jobSchedule?.employeeId || ""} onChange={ev => setJobSchedule("employeeId", ev.target.value)}>
+          <option value="">— Sélectionner —</option>
+          {(data.employees || []).map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+        </SelectInput>
+      </Field>
+    </div>
+    {form.jobSchedule?.employeeId && form.jobSchedule?.startDate && (
+      <div style={{ fontSize: 12, color: CL.blue, padding: "8px 12px", background: CL.blue + "14", borderRadius: 8 }}>
+        Lors de la conversion en facture, {form.jobSchedule.frequency === "one-time" ? "1 entrée sera" : "les entrées seront"} automatiquement ajoutée(s) au planning.
+      </div>
+    )}
+  </div>
+
   {/* ── Section 3: Lines ── */}
   <QSectionHeader label="Lignes du devis" />
 
-  {/* Column headers */}
-  <div style={{ display: "grid", gridTemplateColumns: itemColTemplate, gap: 8, marginBottom: 8, fontSize: 11, color: CL.dim, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "0 4px" }}>
-    {form.visibleColumns?.prestationDate !== false && <div>Date</div>}
-    {form.visibleColumns?.description !== false && <div>Description</div>}
-    {form.visibleColumns?.hours !== false && <div style={{ textAlign: "right" }}>Heures</div>}
-    {form.visibleColumns?.quantity !== false && <div style={{ textAlign: "right" }}>Qté</div>}
-    {form.visibleColumns?.unitPrice !== false && <div style={{ textAlign: "right" }}>Prix unit.</div>}
-    {form.visibleColumns?.total !== false && <div style={{ textAlign: "right" }}>Total</div>}
-    <div />
+  {/* Global description bar */}
+  <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
+    <TextInput placeholder="Désignation globale (optionnel)" value={globalDescription} onChange={ev => setGlobalDescription(ev.target.value)} style={{ flex: 1 }} />
+    <button style={{ ...btnSec, whiteSpace: "nowrap", padding: "0 16px" }} onClick={applyDescriptionToAll}>Appliquer à toutes les lignes</button>
   </div>
 
-  {/* Line items */}
-  <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 10 }}>
-    {(form.items || []).map((it, idx) => (
-      <div key={idx} style={{ display: "grid", gridTemplateColumns: itemColTemplate, gap: 8, alignItems: "center" }}>
-        {form.visibleColumns?.prestationDate !== false && <TextInput type="date" value={it.prestationDate || ""} onChange={ev => updateItem(idx, "prestationDate", ev.target.value)} />}
-        {form.visibleColumns?.description !== false && <TextInput value={it.description || ""} onChange={ev => updateItem(idx, "description", ev.target.value)} placeholder="Description" />}
-        {form.visibleColumns?.hours !== false && <TextInput type="number" step="0.25" value={it.hours ?? ""} onChange={ev => updateItem(idx, "hours", ev.target.value === "" ? "" : parseFloat(ev.target.value) || 0)} placeholder="0" style={{ textAlign: "right" }} />}
-        {form.visibleColumns?.quantity !== false && <TextInput type="number" step="0.25" value={it.quantity ?? 0} onChange={ev => updateItem(idx, "quantity", parseFloat(ev.target.value) || 0)} placeholder="0" style={{ textAlign: "right" }} />}
-        {form.visibleColumns?.unitPrice !== false && <TextInput type="number" step="0.01" value={it.unitPrice} onChange={ev => updateItem(idx, "unitPrice", parseFloat(ev.target.value) || 0)} placeholder="0.00" style={{ textAlign: "right" }} />}
-        {form.visibleColumns?.total !== false && <div style={{ textAlign: "right", fontWeight: 600, fontSize: 15, color: CL.text }}>€{Number(it.total || 0).toFixed(2)}</div>}
-        <button style={{ background: "none", border: "none", color: CL.red, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 2 }} onClick={() => setForm(prev => ({ ...prev, items: (prev.items || []).filter((_, j) => j !== idx) }))}>{ICN.close}</button>
-      </div>
-    ))}
+  {/* Lines container */}
+  <div style={{ background: CL.bg, border: `1px solid ${CL.bd}`, borderRadius: 12, padding: "16px 20px", marginBottom: 6 }}>
+    {/* Column headers */}
+    <div style={{ display: "grid", gridTemplateColumns: itemColTemplate, gap: 8, marginBottom: 10, fontSize: 11, color: CL.dim, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "0 4px" }}>
+      {form.visibleColumns?.prestationDate !== false && <div>Date</div>}
+      {form.visibleColumns?.description !== false && <div>Description</div>}
+      {form.visibleColumns?.hours !== false && <div style={{ textAlign: "right" }}>Heures</div>}
+      {form.visibleColumns?.quantity !== false && <div style={{ textAlign: "right" }}>Qté</div>}
+      {form.visibleColumns?.unitPrice !== false && <div style={{ textAlign: "right" }}>Prix unit.</div>}
+      {form.visibleColumns?.total !== false && <div style={{ textAlign: "right" }}>Total</div>}
+      <div />
+    </div>
+
+    {/* Line items */}
+    <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 12 }}>
+      {(form.items || []).map((it, idx) => (
+        <div key={idx} style={{ display: "grid", gridTemplateColumns: itemColTemplate, gap: 8, alignItems: "center", padding: "4px 0", borderBottom: `1px solid ${CL.bd}` }}>
+          {form.visibleColumns?.prestationDate !== false && <TextInput type="date" value={it.prestationDate || ""} onChange={ev => updateItem(idx, "prestationDate", ev.target.value)} />}
+          {form.visibleColumns?.description !== false && <TextInput value={it.description || ""} onChange={ev => updateItem(idx, "description", ev.target.value)} placeholder="Description" />}
+          {form.visibleColumns?.hours !== false && <TextInput type="number" step="0.25" value={it.hours ?? ""} onChange={ev => updateItem(idx, "hours", ev.target.value === "" ? "" : parseFloat(ev.target.value) || 0)} placeholder="0" style={{ textAlign: "right" }} />}
+          {form.visibleColumns?.quantity !== false && <TextInput type="number" step="0.25" value={it.quantity ?? 0} onChange={ev => updateItem(idx, "quantity", parseFloat(ev.target.value) || 0)} placeholder="0" style={{ textAlign: "right" }} />}
+          {form.visibleColumns?.unitPrice !== false && <TextInput type="number" step="0.01" value={it.unitPrice} onChange={ev => updateItem(idx, "unitPrice", parseFloat(ev.target.value) || 0)} placeholder="0.00" style={{ textAlign: "right" }} />}
+          {form.visibleColumns?.total !== false && <div style={{ textAlign: "right", fontWeight: 600, fontSize: 15, color: CL.text }}>€{Number(it.total || 0).toFixed(2)}</div>}
+          <button style={{ background: "none", border: "none", color: CL.red, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 2 }} onClick={() => setForm(prev => ({ ...prev, items: (prev.items || []).filter((_, j) => j !== idx) }))}>{ICN.close}</button>
+        </div>
+      ))}
+    </div>
+    <button style={{ ...btnSec, width: "100%", justifyContent: "center" }} onClick={() => setForm(prev => ({ ...prev, items: [...(prev.items || []), recalcRow({ prestationDate: prev.date, description: globalDescription || "", hours: "", quantity: prev.pricingMode === "hours" ? 0 : 1, unitPrice: 0, total: 0 }, prev.pricingMode)] }))}>+ Ajouter une ligne</button>
   </div>
-  <button style={{ ...btnSec, width: "100%", justifyContent: "center", marginBottom: 4 }} onClick={() => setForm(prev => ({ ...prev, items: [...(prev.items || []), recalcRow({ prestationDate: prev.date, description: "", hours: "", quantity: prev.pricingMode === "hours" ? 0 : 1, unitPrice: 0, total: 0 }, prev.pricingMode)] }))}>+ Ajouter une ligne</button>
 
   {/* Totals */}
   <div style={{ background: CL.bg, border: `1px solid ${CL.bd}`, borderRadius: 12, padding: "16px 20px", marginTop: 16, textAlign: "right" }}>

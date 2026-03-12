@@ -6,6 +6,8 @@ const rateLimit = require('express-rate-limit');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const https = require('https');
+const http = require('http');
 const pool = require('./db');
 
 const app = express();
@@ -126,6 +128,47 @@ const hashToken = (token) => crypto.createHash('sha256').update(String(token)).d
 const makeToken = () => crypto.randomBytes(32).toString('hex');
 const makeEmployeeId = () => `EMP${Date.now().toString(36).toUpperCase()}${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
 
+const postJson = (urlString, { headers = {}, body = {} } = {}) =>
+  new Promise((resolve, reject) => {
+    try {
+      const url = new URL(urlString);
+      const transport = url.protocol === 'http:' ? http : https;
+      const payload = JSON.stringify(body);
+      const req = transport.request(
+        {
+          method: 'POST',
+          hostname: url.hostname,
+          port: url.port || undefined,
+          path: `${url.pathname}${url.search}`,
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(payload),
+            ...headers,
+          },
+        },
+        (res) => {
+          let responseBody = '';
+          res.setEncoding('utf8');
+          res.on('data', chunk => {
+            responseBody += chunk;
+          });
+          res.on('end', () => {
+            resolve({
+              ok: res.statusCode >= 200 && res.statusCode < 300,
+              status: res.statusCode,
+              body: responseBody,
+            });
+          });
+        }
+      );
+      req.on('error', reject);
+      req.write(payload);
+      req.end();
+    } catch (err) {
+      reject(err);
+    }
+  });
+
 async function sendEmail({ to, subject, body, html, from }) {
   const gateway = getEmailGateway();
   if (!gateway?.token) return { ok: false, status: 503, error: 'Email provider is not configured' };
@@ -139,41 +182,43 @@ async function sendEmail({ to, subject, body, html, from }) {
   if (!senderEmail) return { ok: false, status: 400, error: 'Sender email is missing' };
 
   if (gateway.provider === 'zeptomail') {
-    const response = await fetch(gateway.url, {
-      method: 'POST',
+    const response = await postJson(gateway.url, {
       headers: {
-        'Content-Type': 'application/json',
         Authorization: `Zoho-enczapikey ${gateway.token}`,
       },
-      body: JSON.stringify({
+      body: {
         from: { address: senderEmail, name: senderName },
         to: [{ email_address: { address: to } }],
         subject,
         textbody: body || undefined,
         htmlbody: html || undefined,
         reply_to: [{ address: senderEmail }],
-      }),
+      },
     });
-    if (!response.ok) return { ok: false, status: 502, error: 'Email provider rejected the request' };
+    if (!response.ok) {
+      console.error('ZeptoMail rejected request:', response.status, response.body);
+      return { ok: false, status: 502, error: 'Email provider rejected the request' };
+    }
     return { ok: true, provider: 'zeptomail' };
   }
 
-  const response = await fetch(gateway.url, {
-    method: 'POST',
+  const response = await postJson(gateway.url, {
     headers: {
-      'Content-Type': 'application/json',
       Authorization: `Bearer ${gateway.token}`,
     },
-    body: JSON.stringify({
+    body: {
       from: `${senderName} <${senderEmail}>`,
       to,
       subject,
       text: body || undefined,
       html: html || undefined,
       reply_to: senderEmail,
-    }),
+    },
   });
-  if (!response.ok) return { ok: false, status: 502, error: 'Email provider rejected the request' };
+  if (!response.ok) {
+    console.error('Resend rejected request:', response.status, response.body);
+    return { ok: false, status: 502, error: 'Email provider rejected the request' };
+  }
   return { ok: true, provider: 'resend' };
 }
 

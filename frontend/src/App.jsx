@@ -649,7 +649,7 @@ envApiBase,
 const apiUrl = (path, base = API_BASE_CANDIDATES[0] || "") => `${base}${path.startsWith("/") ? path : `/${path}`}`;
 
 // Convert frontend camelCase employee to snake_case for backend API
-const toApiEmployee = (emp, pin) => ({
+const toApiEmployee = (emp, pin, username) => ({
   id: emp.id,
   name: emp.name,
   email: emp.email || "",
@@ -674,13 +674,14 @@ const toApiEmployee = (emp, pin) => ({
   emergency_name: emp.emergencyName || "",
   emergency_phone: emp.emergencyPhone || "",
   notes: emp.notes || "",
+  username: (username !== undefined ? username : emp.username) || "",
   ...(pin !== undefined ? { pin } : {}),
 });
 
 // Fire-and-forget API sync — errors are non-fatal (localStorage is primary store)
-const syncEmployeeToApi = async (emp, pin) => {
+const syncEmployeeToApi = async (emp, pin, username) => {
   try {
-    const payload = toApiEmployee(emp, pin);
+    const payload = toApiEmployee(emp, pin, username);
     await fetch(apiUrl(`/api/employees/${emp.id}`), {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -690,9 +691,9 @@ const syncEmployeeToApi = async (emp, pin) => {
   } catch { /* non-fatal */ }
 };
 
-const createEmployeeInApi = async (emp, pin) => {
+const createEmployeeInApi = async (emp, pin, username) => {
   try {
-    const payload = toApiEmployee(emp, pin);
+    const payload = toApiEmployee(emp, pin, username);
     await fetch(apiUrl("/api/employees"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1994,7 +1995,7 @@ updateData("employees", prev => prev.map(e => e.id === empData.id ? empFields : 
 updateData("employeePins", prev => ({ ...prev, [empData.id]: pinValue }));
 updateData("employeeUsernames", prev => ({ ...prev, [empData.id]: String(empUsername || "").trim().toLowerCase() }));
 // Sync to backend so cleaner login works on all browsers/devices
-syncEmployeeToApi(empFields, pinValue);
+syncEmployeeToApi(empFields, pinValue, String(empUsername || "").trim().toLowerCase());
 syncEmployeePinToApi(empData.id, pinValue);
 showToast("Employee updated");
 } else {
@@ -2004,7 +2005,7 @@ updateData("employees", prev => [...prev, newEmp]);
 updateData("employeePins", prev => ({ ...prev, [newId]: pinValue }));
 updateData("employeeUsernames", prev => ({ ...prev, [newId]: String(empUsername || "").trim().toLowerCase() }));
 // Create in backend so cleaner login works on all browsers/devices
-createEmployeeInApi(newEmp, pinValue);
+createEmployeeInApi(newEmp, pinValue, String(empUsername || "").trim().toLowerCase());
 showToast("Employee added");
 }
 setModal(null);

@@ -141,6 +141,7 @@ app.post('/api/auth/pin-login', async (req, res) => {
              OR phone_mobile = $1
              OR LOWER(name) = $3
              OR REPLACE(LOWER(name), ' ', '') = $4
+             OR (username != '' AND LOWER(username) = $3)
            )
          LIMIT 1`,
         [accountIdentifier, 'active', normalizedIdentifier, compactIdentifier]
@@ -180,15 +181,15 @@ app.post('/api/employees', async (req, res) => {
       `INSERT INTO employees (id, name, email, phone, phone_mobile, role, hourly_rate, address, city,
         postal_code, country, start_date, status, contract_type, bank_iban, social_sec_number,
         date_of_birth, nationality, languages, transport, work_permit, emergency_name, emergency_phone,
-        pin, notes)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)
+        pin, notes, username)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26)
        RETURNING *`,
       [b.id, b.name, b.email||'', b.phone||'', b.phone_mobile||'', b.role||'Cleaner',
        b.hourly_rate||15, b.address||'', b.city||'', b.postal_code||'', b.country||'Luxembourg',
        b.start_date||null, b.status||'active', b.contract_type||'CDI', b.bank_iban||'',
        b.social_sec_number||'', b.date_of_birth||null, b.nationality||'', b.languages||'',
        b.transport||'', b.work_permit||'', b.emergency_name||'', b.emergency_phone||'',
-       b.pin||'0000', b.notes||'']
+       b.pin||'0000', b.notes||'', (b.username||'').toLowerCase()]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -205,14 +206,14 @@ app.put('/api/employees/:id', async (req, res) => {
         address=$7, city=$8, postal_code=$9, country=$10, start_date=$11, status=$12,
         contract_type=$13, bank_iban=$14, social_sec_number=$15, date_of_birth=$16,
         nationality=$17, languages=$18, transport=$19, work_permit=$20, emergency_name=$21,
-        emergency_phone=$22, notes=$23
-       WHERE id=$24 RETURNING *`,
+        emergency_phone=$22, notes=$23, username=$24
+       WHERE id=$25 RETURNING *`,
       [b.name, b.email||'', b.phone||'', b.phone_mobile||'', b.role||'Cleaner',
        b.hourly_rate||15, b.address||'', b.city||'', b.postal_code||'', b.country||'Luxembourg',
        b.start_date||null, b.status||'active', b.contract_type||'CDI', b.bank_iban||'',
        b.social_sec_number||'', b.date_of_birth||null, b.nationality||'', b.languages||'',
        b.transport||'', b.work_permit||'', b.emergency_name||'', b.emergency_phone||'',
-       b.notes||'', req.params.id]
+       b.notes||'', (b.username||'').toLowerCase(), req.params.id]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Employee not found' });
     res.json(result.rows[0]);
@@ -640,6 +641,10 @@ async function initDb() {
       await pool.query(schema);
       console.log('Schema initialized successfully.');
     }
+    // Migrate: add username column to employees if missing (for existing DBs)
+    await pool.query(
+      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS username TEXT DEFAULT ''"
+    );
   } catch (err) {
     console.error('Schema initialization failed:', err.message);
   }

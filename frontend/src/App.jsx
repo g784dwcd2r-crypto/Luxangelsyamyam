@@ -1296,28 +1296,47 @@ return (
 // ==============================================
 function DashboardPage({ data, auth }) {
 const todayStr = getToday();
+const next7Days = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
+const todayScheds = data.schedules.filter(s => s.date === todayStr && s.status !== "cancelled");
 const tomorrowStr = new Date(Date.now() + 864e5).toISOString().slice(0, 10);
-const nextWeekStr = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
-const todayScheds = data.schedules.filter(s => s.date === todayStr);
+const tomorrowScheds = data.schedules.filter(s => s.date === tomorrowStr && s.status !== "cancelled");
 const activeClocks = data.clockEntries.filter(c => !c.clockOut);
-const monthRev = data.invoices.filter(inv => inv.date?.startsWith(todayStr.slice(0, 7))).reduce((sum, inv) => sum + (inv.total || 0), 0);
-const tomorrow = new Date(Date.now() + 864e5).toISOString().slice(0, 10);
-const tomorrowScheds = data.schedules.filter(s => s.date === tomorrow);
+const activeEmployees = data.employees.filter(e => e.status === "active").length;
+const monthStr = todayStr.slice(0, 7);
+const monthRev = data.invoices.filter(inv => inv.date?.startsWith(monthStr)).reduce((sum, inv) => sum + (inv.total || 0), 0);
+const unpaidTotal = data.invoices.filter(inv => inv.status === "sent" || inv.status === "overdue").reduce((sum, inv) => sum + (inv.total || 0), 0);
+const overdueInvoices = data.invoices.filter(inv => inv.status === "overdue");
+const pendingLeave = (data.timeOffRequests || []).filter(r => r.status === "pending").length;
+const pendingProducts = (data.productRequests || []).filter(r => r.status === "pending").length;
+const unseenUploads = (data.photoUploads || []).filter(u => !u.seenByOwner).length;
+const next7Scheds = data.schedules.filter(s => s.date > todayStr && s.date <= next7Days && s.status !== "cancelled").sort((a, b) => a.date.localeCompare(b.date));
 
 return (
 <div>
 <h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold, marginBottom: 5 }}>Dashboard</h1>
 <p style={{ color: CL.muted, marginBottom: 18 }}>{new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p>
+
+{/* Pending alerts */}
+{(pendingLeave > 0 || pendingProducts > 0 || unseenUploads > 0 || overdueInvoices.length > 0) && (
+  <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+    {pendingLeave > 0 && <div style={{ background: CL.orange + "20", border: `1px solid ${CL.orange}40`, borderRadius: 8, padding: "6px 12px", fontSize: 12, color: CL.orange, fontWeight: 600 }}>⏳ {pendingLeave} leave request{pendingLeave > 1 ? "s" : ""} pending</div>}
+    {pendingProducts > 0 && <div style={{ background: CL.blue + "20", border: `1px solid ${CL.blue}40`, borderRadius: 8, padding: "6px 12px", fontSize: 12, color: CL.blue, fontWeight: 600 }}>📦 {pendingProducts} product request{pendingProducts > 1 ? "s" : ""} pending</div>}
+    {unseenUploads > 0 && <div style={{ background: CL.gold + "20", border: `1px solid ${CL.gold}40`, borderRadius: 8, padding: "6px 12px", fontSize: 12, color: CL.gold, fontWeight: 600 }}>📷 {unseenUploads} new photo{unseenUploads > 1 ? "s" : ""} uploaded</div>}
+    {overdueInvoices.length > 0 && <div style={{ background: CL.red + "20", border: `1px solid ${CL.red}40`, borderRadius: 8, padding: "6px 12px", fontSize: 12, color: CL.red, fontWeight: 600 }}>⚠️ {overdueInvoices.length} overdue invoice{overdueInvoices.length > 1 ? "s" : ""}</div>}
+  </div>
+)}
+
 <div className="stat-row" style={{ marginBottom: 22 }}>
 <StatCard label="Today's Jobs" value={todayScheds.length} icon={ICN.cal} color={CL.blue} />
 <StatCard label="Clocked In" value={activeClocks.length} icon={ICN.clock} color={CL.green} />
-<StatCard label="Clients" value={data.clients.length} icon={ICN.user} color={CL.gold} />
+<StatCard label="Active Staff" value={`${activeEmployees}/${data.employees.length}`} icon={ICN.team} color={CL.gold} />
 {auth?.role !== "manager" && <StatCard label="Month Rev" value={`€${monthRev.toFixed(0)}`} icon={ICN.chart} color={CL.goldLight} />}
+{auth?.role !== "manager" && unpaidTotal > 0 && <StatCard label="Unpaid" value={`€${unpaidTotal.toFixed(0)}`} icon={ICN.pay} color={CL.red} />}
 </div>
 <div className="grid-2">
 <div style={cardSt}>
-<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>Today's Schedule</h3>
-{todayScheds.length === 0 ? <p style={{ color: CL.muted, fontSize: 13 }}>No jobs</p> :
+<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>Today's Schedule ({todayScheds.length})</h3>
+{todayScheds.length === 0 ? <p style={{ color: CL.muted, fontSize: 13 }}>No jobs scheduled today</p> :
 todayScheds.map(sched => {
 const client = data.clients.find(c => c.id === sched.clientId);
 const employee = data.employees.find(e => e.id === sched.employeeId);
@@ -1325,8 +1344,8 @@ const clockInfo = data.clockEntries.find(c => c.employeeId === sched.employeeId 
 return (
 <div key={sched.id} style={{ padding: "7px 0", borderBottom: `1px solid ${CL.bd}`, display: "flex", justifyContent: "space-between", gap: 8 }}>
 <div>
-<div style={{ fontWeight: 600, fontSize: 13 }}>{client?.name || "?"}</div>
-<div style={{ fontSize: 11, color: CL.muted }}>{employee?.name || "-"} · {sched.startTime}-{sched.endTime}</div>
+<div style={{ fontWeight: 600, fontSize: 13 }}>{client?.name || "Unassigned"}</div>
+<div style={{ fontSize: 11, color: CL.muted }}>{employee?.name || "—"} · {sched.startTime}–{sched.endTime}</div>
 {clockInfo?.isLate && <div style={{ fontSize: 11, color: CL.orange, fontWeight: 600 }}>Late by {clockInfo.lateMinutes || 0} min</div>}
 </div>
 <Badge color={scheduleStatusColor(sched.status)}>{sched.status}</Badge>
@@ -1337,48 +1356,66 @@ return (
 </div>
 <div style={cardSt}>
 <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>Tomorrow ({tomorrowScheds.length})</h3>
-{tomorrowScheds.length === 0 ? <p style={{ color: CL.muted, fontSize: 13 }}>Nothing</p> :
+{tomorrowScheds.length === 0 ? <p style={{ color: CL.muted, fontSize: 13 }}>Nothing scheduled</p> :
 tomorrowScheds.map(sched => {
 const client = data.clients.find(c => c.id === sched.clientId);
 const employee = data.employees.find(e => e.id === sched.employeeId);
 return (
 <div key={sched.id} style={{ padding: "7px 0", borderBottom: `1px solid ${CL.bd}` }}>
-<div style={{ fontWeight: 600, fontSize: 13 }}>{client?.name || "?"}</div>
-<div style={{ fontSize: 11, color: CL.muted }}>{employee?.name || "-"} · {sched.startTime}-{sched.endTime}</div>
-{client?.email && <div style={{ fontSize: 10, color: CL.blue }}>Reminder → {client.email}</div>}
+<div style={{ fontWeight: 600, fontSize: 13 }}>{client?.name || "Unassigned"}</div>
+<div style={{ fontSize: 11, color: CL.muted }}>{employee?.name || "—"} · {sched.startTime}–{sched.endTime}</div>
 </div>
 );
 })
 }
 </div>
 <div style={cardSt}>
-<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.green }}>Active Clocks</h3>
-{activeClocks.length === 0 ? <p style={{ color: CL.muted, fontSize: 13 }}>None</p> :
+<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.green }}>Active Clocks ({activeClocks.length})</h3>
+{activeClocks.length === 0 ? <p style={{ color: CL.muted, fontSize: 13 }}>No one clocked in right now</p> :
 activeClocks.map(clk => {
 const employee = data.employees.find(e => e.id === clk.employeeId);
 const client = data.clients.find(c => c.id === clk.clientId);
+const elapsed = Math.round((Date.now() - new Date(clk.clockIn)) / 60000);
 return (
 <div key={clk.id} style={{ padding: "7px 0", borderBottom: `1px solid ${CL.bd}` }}>
 <div style={{ fontWeight: 600, fontSize: 13 }}>{employee?.name || "?"}</div>
-<div style={{ fontSize: 11, color: CL.muted }}>At {client?.name || "?"} · {fmtTime(clk.clockIn)}</div>
+<div style={{ fontSize: 11, color: CL.muted }}>At {client?.name || "?"} · since {fmtTime(clk.clockIn)}</div>
+<div style={{ fontSize: 11, color: CL.green }}>{elapsed}m elapsed</div>
 </div>
 );
 })
 }
 </div>
 <div style={cardSt}>
+<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>Next 7 Days ({next7Scheds.length} jobs)</h3>
+{next7Scheds.length === 0 ? <p style={{ color: CL.muted, fontSize: 13 }}>Nothing upcoming</p> :
+next7Scheds.slice(0, 6).map(sched => {
+const client = data.clients.find(c => c.id === sched.clientId);
+const employee = data.employees.find(e => e.id === sched.employeeId);
+return (
+<div key={sched.id} style={{ padding: "6px 0", borderBottom: `1px solid ${CL.bd}` }}>
+<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+<div><div style={{ fontWeight: 600, fontSize: 13 }}>{client?.name || "Unassigned"}</div><div style={{ fontSize: 11, color: CL.muted }}>{employee?.name || "—"} · {sched.startTime}–{sched.endTime}</div></div>
+<div style={{ fontSize: 11, color: CL.muted, textAlign: "right" }}>{fmtDate(sched.date)}</div>
+</div>
+</div>
+);
+})
+}
+{next7Scheds.length > 6 && <p style={{ fontSize: 11, color: CL.muted, marginTop: 6 }}>+{next7Scheds.length - 6} more</p>}
+</div>
+{auth?.role !== "manager" && <div style={cardSt}>
 <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>Recent Invoices</h3>
-{data.invoices.slice(-5).reverse().map(inv => {
+{data.invoices.length === 0 ? <p style={{ color: CL.muted, fontSize: 13 }}>No invoices yet</p> : data.invoices.slice(-5).reverse().map(inv => {
 const client = data.clients.find(c => c.id === inv.clientId);
 return (
 <div key={inv.id} style={{ padding: "7px 0", borderBottom: `1px solid ${CL.bd}`, display: "flex", justifyContent: "space-between" }}>
 <div><div style={{ fontWeight: 600, fontSize: 13 }}>{inv.invoiceNumber}</div><div style={{ fontSize: 11, color: CL.muted }}>{client?.name}</div></div>
-<div style={{ textAlign: "right" }}><div style={{ fontWeight: 600 }}>€{(inv.total || 0).toFixed(2)}</div><Badge color={inv.status === "paid" ? CL.green : CL.muted}>{inv.status}</Badge></div>
+<div style={{ textAlign: "right" }}><div style={{ fontWeight: 600 }}>€{(inv.total || 0).toFixed(2)}</div><Badge color={inv.status === "paid" ? CL.green : inv.status === "overdue" ? CL.red : CL.muted}>{inv.status}</Badge></div>
 </div>
 );
 })}
-{data.invoices.length === 0 && <p style={{ color: CL.muted, fontSize: 13 }}>No invoices</p>}
-</div>
+</div>}
 </div>
 </div>
 );
@@ -1391,6 +1428,7 @@ function EmployeesPage({ data, updateData, showToast }) {
 const [modal, setModal] = useState(null);
 const [deleteId, setDeleteId] = useState(null);
 const [search, setSearch] = useState("");
+const [statusFilter, setStatusFilter] = useState("all");
 
 const emptyEmployee = {
 name: "", email: "", phone: "", phoneMobile: "", address: "", city: "Luxembourg", postalCode: "", country: "Luxembourg",
@@ -1442,17 +1480,29 @@ showToast("Deleted", "error");
 setDeleteId(null);
 };
 
-const filtered = data.employees.filter(e => e.name.toLowerCase().includes(search.toLowerCase()));
+const q = search.toLowerCase();
+const filtered = data.employees.filter(e => {
+  const matchesSearch = !q || e.name.toLowerCase().includes(q) || (e.role || "").toLowerCase().includes(q) || (e.email || "").toLowerCase().includes(q) || (e.phone || "").includes(q) || (e.phoneMobile || "").includes(q);
+  const matchesStatus = statusFilter === "all" || e.status === statusFilter;
+  return matchesSearch && matchesStatus;
+});
 
 return (
 <div>
 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
-<h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold }}>Employees</h1>
+<h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold }}>Employees <span style={{ fontSize: 14, color: CL.muted, fontFamily: "'Outfit', sans-serif", fontWeight: 400 }}>({filtered.length}/{data.employees.length})</span></h1>
 <button style={btnPri} onClick={() => setModal({ ...emptyEmployee })}>{ICN.plus} Add</button>
 </div>
-<div style={{ marginBottom: 12, position: "relative" }}>
-<TextInput placeholder="Search..." value={search} onChange={ev => setSearch(ev.target.value)} style={{ paddingLeft: 34 }} />
-<span style={{ position: "absolute", left: 10, top: 10, color: CL.muted }}>{ICN.search}</span>
+<div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+<div style={{ flex: 1, minWidth: 200, position: "relative" }}>
+  <TextInput placeholder="Search by name, role, email, phone..." value={search} onChange={ev => setSearch(ev.target.value)} style={{ paddingLeft: 34 }} />
+  <span style={{ position: "absolute", left: 10, top: 10, color: CL.muted }}>{ICN.search}</span>
+</div>
+<SelectInput value={statusFilter} onChange={ev => setStatusFilter(ev.target.value)} style={{ width: 140 }}>
+  <option value="all">All Statuses</option>
+  <option value="active">Active</option>
+  <option value="inactive">Inactive</option>
+</SelectInput>
 </div>
 <div style={cardSt} className="tbl-wrap">
 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
@@ -1477,7 +1527,7 @@ return (
 </td>
 </tr>
 ))}
-{filtered.length === 0 && <tr><td colSpan={7} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>No employees</td></tr>}
+{filtered.length === 0 && <tr><td colSpan={8} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>No employees</td></tr>}
 </tbody>
 </table>
 </div>
@@ -1599,6 +1649,8 @@ function ClientsPage({ data, updateData, showToast }) {
 const [modal, setModal] = useState(null);
 const [deleteId, setDeleteId] = useState(null);
 const [search, setSearch] = useState("");
+const [statusFilter, setStatusFilter] = useState("all");
+const [typeFilter, setTypeFilter] = useState("all");
 
 const emptyClient = {
 name: "", email: "", phone: "", phoneMobile: "", address: "", apartmentFloor: "", city: "Luxembourg", postalCode: "", country: "Luxembourg",
@@ -1624,17 +1676,36 @@ showToast("Deleted", "error");
 setDeleteId(null);
 };
 
-const filtered = data.clients.filter(c => c.name.toLowerCase().includes(search.toLowerCase()));
+const q = search.toLowerCase();
+const filtered = data.clients.filter(c => {
+  const matchesSearch = !q || c.name.toLowerCase().includes(q) || (c.contactPerson || "").toLowerCase().includes(q) || (c.email || "").toLowerCase().includes(q) || (c.phone || "").includes(q) || (c.city || "").toLowerCase().includes(q);
+  const matchesStatus = statusFilter === "all" || c.status === statusFilter;
+  const matchesType = typeFilter === "all" || (c.type || "") === typeFilter;
+  return matchesSearch && matchesStatus && matchesType;
+});
 
 return (
 <div>
 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
-<h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold }}>Clients</h1>
+<h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold }}>Clients <span style={{ fontSize: 14, color: CL.muted, fontFamily: "'Outfit', sans-serif", fontWeight: 400 }}>({filtered.length}/{data.clients.length})</span></h1>
 <button style={btnPri} onClick={() => setModal({ ...emptyClient })}>{ICN.plus} Add</button>
 </div>
-<div style={{ marginBottom: 12, position: "relative" }}>
-<TextInput placeholder="Search..." value={search} onChange={ev => setSearch(ev.target.value)} style={{ paddingLeft: 34 }} />
-<span style={{ position: "absolute", left: 10, top: 10, color: CL.muted }}>{ICN.search}</span>
+<div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+<div style={{ flex: 1, minWidth: 200, position: "relative" }}>
+  <TextInput placeholder="Search by name, contact, email, phone, city..." value={search} onChange={ev => setSearch(ev.target.value)} style={{ paddingLeft: 34 }} />
+  <span style={{ position: "absolute", left: 10, top: 10, color: CL.muted }}>{ICN.search}</span>
+</div>
+<SelectInput value={statusFilter} onChange={ev => setStatusFilter(ev.target.value)} style={{ width: 150 }}>
+  <option value="all">All Statuses</option>
+  <option value="active">Active</option>
+  <option value="inactive">Inactive</option>
+  <option value="prospect">Prospect</option>
+</SelectInput>
+<SelectInput value={typeFilter} onChange={ev => setTypeFilter(ev.target.value)} style={{ width: 150 }}>
+  <option value="all">All Types</option>
+  <option value="Residential">Residential</option>
+  <option value="Commercial">Commercial</option>
+</SelectInput>
 </div>
 <div style={cardSt} className="tbl-wrap">
 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
@@ -3673,32 +3744,37 @@ const empSummary = data.employees.filter(emp => emp.status === "active").map(emp
 const entries = monthEntries.filter(c => c.employeeId === emp.id);
 const totalH = entries.reduce((sum, ce) => sum + calcHrs(ce.clockIn, ce.clockOut), 0);
 return { ...emp, totalH: Math.round(totalH * 100) / 100, cost: Math.round(totalH * emp.hourlyRate * 100) / 100 };
-});
+}).filter(e => e.totalH > 0);
 
 const clientSummary = data.clients.filter(c => c.status === "active").map(client => {
 const entries = monthEntries.filter(c => c.clientId === client.id);
 const totalH = entries.reduce((sum, ce) => sum + calcHrs(ce.clockIn, ce.clockOut), 0);
-const revenue = client.billingType === "fixed" ? client.priceFixed : totalH * client.pricePerHour;
+const revenue = client.billingType === "fixed" ? Number(client.priceFixed) : totalH * Number(client.pricePerHour);
 const invoiced = data.invoices.filter(inv => inv.clientId === client.id && inv.date?.startsWith(month)).reduce((sum, inv) => sum + (inv.total || 0), 0);
 return { ...client, totalH: Math.round(totalH * 100) / 100, revenue: Math.round(revenue * 100) / 100, invoiced: Math.round(invoiced * 100) / 100 };
-});
+}).filter(c => c.totalH > 0 || c.invoiced > 0);
 
 const totalRevenue = clientSummary.reduce((sum, c) => sum + c.revenue, 0);
 const totalCost = empSummary.reduce((sum, e) => sum + e.cost, 0);
 const totalHours = empSummary.reduce((sum, e) => sum + e.totalH, 0);
 const profit = totalRevenue - totalCost;
+const margin = totalRevenue > 0 ? (profit / totalRevenue * 100) : 0;
 
 return (
 <div>
 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
 <h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold }}>{uiText("Reports")}</h1>
-<TextInput type="month" value={month} onChange={ev => setMonth(ev.target.value)} style={{ width: 160 }} />
+<div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+  <TextInput type="month" value={month} onChange={ev => setMonth(ev.target.value)} style={{ width: 160 }} />
+  <button className="no-print" style={{ ...btnSec, ...btnSm }} onClick={() => window.print()} title="Print report">{ICN.download} Print</button>
+</div>
 </div>
 <div className="stat-row" style={{ marginBottom: 22 }}>
 <StatCard label={uiText("Hours")} value={`${totalHours.toFixed(1)}h`} icon={ICN.clock} color={CL.blue} />
 <StatCard label={uiText("Revenue")} value={`€${totalRevenue.toFixed(2)}`} icon={ICN.chart} color={CL.green} />
 <StatCard label={uiText("Labour")} value={`€${totalCost.toFixed(2)}`} icon={ICN.team} color={CL.red} />
 <StatCard label={uiText("Profit")} value={`€${profit.toFixed(2)}`} icon={ICN.check} color={profit >= 0 ? CL.green : CL.red} />
+<StatCard label="Margin" value={`${margin.toFixed(1)}%`} icon={ICN.chart} color={margin >= 30 ? CL.green : margin >= 0 ? CL.orange : CL.red} />
 </div>
 <div className="grid-2">
 <div style={cardSt}>
@@ -3707,8 +3783,11 @@ return (
 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
 <thead><tr><th style={thSt}>Employee</th><th style={thSt}>Hours</th><th style={thSt}>Rate</th><th style={thSt}>Cost</th></tr></thead>
 <tbody>
-{empSummary.map(emp => <tr key={emp.id}><td style={tdSt}>{emp.name}</td><td style={tdSt}>{emp.totalH}h</td><td style={tdSt}>€{emp.hourlyRate}/hr</td><td style={{ ...tdSt, fontWeight: 600 }}>€{emp.cost.toFixed(2)}</td></tr>)}
-{empSummary.length === 0 && <tr><td colSpan={4} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>-</td></tr>}
+{empSummary.length === 0
+  ? <tr><td colSpan={4} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>No clock entries for this month</td></tr>
+  : empSummary.sort((a, b) => b.totalH - a.totalH).map(emp => <tr key={emp.id}><td style={tdSt}>{emp.name}</td><td style={tdSt}>{emp.totalH}h</td><td style={tdSt}>€{Number(emp.hourlyRate).toFixed(2)}/hr</td><td style={{ ...tdSt, fontWeight: 600 }}>€{emp.cost.toFixed(2)}</td></tr>)
+}
+{empSummary.length > 0 && <tr><td style={{ ...tdSt, fontWeight: 700, color: CL.gold }}>Total</td><td style={{ ...tdSt, fontWeight: 700 }}>{totalHours.toFixed(2)}h</td><td style={tdSt}></td><td style={{ ...tdSt, fontWeight: 700, color: CL.red }}>€{totalCost.toFixed(2)}</td></tr>}
 </tbody>
 </table>
 </div>
@@ -3717,10 +3796,13 @@ return (
 <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>{uiText("Client Revenue")}</h3>
 <div className="tbl-wrap">
 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-<thead><tr><th style={thSt}>Client</th><th style={thSt}>Hours</th><th style={thSt}>Revenue</th><th style={thSt}>Invoiced</th></tr></thead>
+<thead><tr><th style={thSt}>Client</th><th style={thSt}>Hours</th><th style={thSt}>Est. Revenue</th><th style={thSt}>Invoiced</th></tr></thead>
 <tbody>
-{clientSummary.map(cl => <tr key={cl.id}><td style={tdSt}>{cl.name}</td><td style={tdSt}>{cl.totalH}h</td><td style={tdSt}>€{cl.revenue.toFixed(2)}</td><td style={{ ...tdSt, color: cl.invoiced >= cl.revenue ? CL.green : CL.red }}>€{cl.invoiced.toFixed(2)}</td></tr>)}
-{clientSummary.length === 0 && <tr><td colSpan={4} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>-</td></tr>}
+{clientSummary.length === 0
+  ? <tr><td colSpan={4} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>No activity for this month</td></tr>
+  : clientSummary.sort((a, b) => b.revenue - a.revenue).map(cl => <tr key={cl.id}><td style={tdSt}>{cl.name}</td><td style={tdSt}>{cl.totalH}h</td><td style={tdSt}>€{cl.revenue.toFixed(2)}</td><td style={{ ...tdSt, color: cl.invoiced >= cl.revenue ? CL.green : CL.orange, fontWeight: 600 }}>€{cl.invoiced.toFixed(2)}</td></tr>)
+}
+{clientSummary.length > 0 && <tr><td style={{ ...tdSt, fontWeight: 700, color: CL.gold }}>Total</td><td style={tdSt}></td><td style={{ ...tdSt, fontWeight: 700, color: CL.green }}>€{totalRevenue.toFixed(2)}</td><td style={{ ...tdSt, fontWeight: 700 }}>€{clientSummary.reduce((s, c) => s + c.invoiced, 0).toFixed(2)}</td></tr>}
 </tbody>
 </table>
 </div>

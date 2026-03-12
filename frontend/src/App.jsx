@@ -1225,8 +1225,7 @@ return (
 <style>{globalCSS}</style>
 <div style={{ animation: "fadeIn .5s ease", width: 420, maxWidth: "95vw", padding: "0 16px" }}>
 <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}><LanguageSwitcher /></div>
-<div style={{ width: 80, height: 80, borderRadius: 24, background: `linear-gradient(135deg, ${CL.gold}, ${CL.goldDark})`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 32, fontWeight: 700, color: CL.bg, fontFamily: "'Cormorant Garamond', serif" }}>LAC</div>
-<h1 style={{ fontSize: 30, fontWeight: 700, color: CL.gold, fontFamily: "'Cormorant Garamond', serif", marginBottom: 4 }}>{data.settings?.companyName || "Lux Angels Cleaning"}</h1>
+<div style={{ width: 80, height: 80, borderRadius: 24, background: `linear-gradient(135deg, ${CL.gold}, ${CL.goldDark})`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", fontSize: 32, fontWeight: 700, color: CL.bg, fontFamily: "'Cormorant Garamond', serif" }}>LAC</div>
 <p style={{ color: CL.muted, marginBottom: 20 }}>{t("managementSystem")}</p>
 
 <div style={{ ...cardSt, textAlign: "left", padding: 24 }}>
@@ -3767,10 +3766,34 @@ return (
 function HistoryPage({ data, updateData }) {
 const { t } = useI18n();
 const [clientFilter, setClientFilter] = useState("");
+const [dateFrom, setDateFrom] = useState("");
+const [dateTo, setDateTo] = useState("");
+const [prestationFilter, setPrestationFilter] = useState("");
+const [searched, setSearched] = useState(false);
+
+const allStatuses = [...new Set((data.schedules || []).map(j => j.status).filter(Boolean))];
+
+const applyFilters = () => setSearched(true);
+const resetFilters = () => { setClientFilter(""); setDateFrom(""); setDateTo(""); setPrestationFilter(""); setSearched(false); };
+
 const uploads = (data.photoUploads || []).slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 const jobs = (data.schedules || []).slice().sort((a, b) => `${b.date} ${b.startTime}`.localeCompare(`${a.date} ${a.startTime}`));
-const filteredUploads = uploads.filter(u => !clientFilter || u.clientId === clientFilter);
-const filteredJobs = jobs.filter(j => !clientFilter || j.clientId === clientFilter);
+
+const filteredJobs = !searched ? [] : jobs.filter(j => {
+  if (clientFilter && j.clientId !== clientFilter) return false;
+  if (dateFrom && j.date < dateFrom) return false;
+  if (dateTo && j.date > dateTo) return false;
+  if (prestationFilter && j.status !== prestationFilter) return false;
+  return true;
+});
+
+const filteredUploads = !searched ? [] : uploads.filter(u => {
+  const uploadDate = (u.createdAt || "").slice(0, 10);
+  if (clientFilter && u.clientId !== clientFilter) return false;
+  if (dateFrom && uploadDate < dateFrom) return false;
+  if (dateTo && uploadDate > dateTo) return false;
+  return true;
+});
 
 const markAllSeen = () => updateData("photoUploads", prev => (prev || []).map(u => ({ ...u, seenByOwner: true })));
 
@@ -3778,23 +3801,62 @@ return (
 <div>
 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 8 }}>
   <h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold }}>{t("historyImages")}</h1>
-  <div style={{ display: "flex", gap: 8 }}>
-    <SelectInput value={clientFilter} onChange={ev => setClientFilter(ev.target.value)} style={{ width: 220 }}><option value="">{uiText("All clients")}</option>{data.clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</SelectInput>
-    <button style={btnSec} onClick={markAllSeen}>{uiText("Mark images seen")}</button>
+  <button style={btnSec} onClick={markAllSeen}>{uiText("Mark images seen")}</button>
+</div>
+
+<div style={{ ...cardSt, marginBottom: 16, padding: 16 }}>
+  <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
+    <div>
+      <div style={{ fontSize: 11, color: CL.muted, marginBottom: 4 }}>{uiText("Client")}</div>
+      <SelectInput value={clientFilter} onChange={ev => setClientFilter(ev.target.value)} style={{ width: 200 }}>
+        <option value="">{uiText("All clients")}</option>
+        {data.clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+      </SelectInput>
+    </div>
+    <div>
+      <div style={{ fontSize: 11, color: CL.muted, marginBottom: 4 }}>{uiText("From")}</div>
+      <TextInput type="date" value={dateFrom} onChange={ev => setDateFrom(ev.target.value)} style={{ width: 150 }} />
+    </div>
+    <div>
+      <div style={{ fontSize: 11, color: CL.muted, marginBottom: 4 }}>{uiText("To")}</div>
+      <TextInput type="date" value={dateTo} onChange={ev => setDateTo(ev.target.value)} style={{ width: 150 }} />
+    </div>
+    <div>
+      <div style={{ fontSize: 11, color: CL.muted, marginBottom: 4 }}>{uiText("Prestation")}</div>
+      <SelectInput value={prestationFilter} onChange={ev => setPrestationFilter(ev.target.value)} style={{ width: 160 }}>
+        <option value="">{uiText("All")}</option>
+        {allStatuses.map(s => <option key={s} value={s}>{s}</option>)}
+      </SelectInput>
+    </div>
+    <div style={{ display: "flex", gap: 6 }}>
+      <button style={{ ...btnPri, background: CL.gold }} onClick={applyFilters}>{uiText("Search")}</button>
+      {searched && <button style={btnSec} onClick={resetFilters}>{uiText("Reset")}</button>}
+    </div>
   </div>
 </div>
+
+{!searched && (
+  <div style={{ ...cardSt, textAlign: "center", padding: 40, color: CL.muted }}>
+    {uiText("Use the filters above and click Search to load history.")}
+  </div>
+)}
+
+{searched && (
 <div className="grid-2">
   <div style={cardSt}>
-    <h3 style={{ marginBottom: 10, color: CL.gold }}>{uiText("Job history")}</h3>
-    {filteredJobs.slice(0, 120).map(j => { const c = data.clients.find(x => x.id === j.clientId); const e = data.employees.find(x => x.id === j.employeeId); return <div key={j.id} style={{ borderBottom: `1px solid ${CL.bd}`, padding: "8px 0" }}><div style={{ fontWeight: 600 }}>{fmtDate(j.date)} · {j.startTime}-{j.endTime}</div><div style={{ fontSize: 12, color: CL.muted }}>{c?.name || "-"} · {e?.name || "-"}</div><Badge color={scheduleStatusColor(j.status)}>{j.status}</Badge></div>; })}
+    <h3 style={{ marginBottom: 10, color: CL.gold }}>{uiText("Job history")} {filteredJobs.length > 0 && <span style={{ fontSize: 13, fontWeight: 400, color: CL.muted }}>({filteredJobs.length})</span>}</h3>
+    {filteredJobs.slice(0, 200).map(j => { const c = data.clients.find(x => x.id === j.clientId); const e = data.employees.find(x => x.id === j.employeeId); return <div key={j.id} style={{ borderBottom: `1px solid ${CL.bd}`, padding: "8px 0" }}><div style={{ fontWeight: 600 }}>{fmtDate(j.date)} · {j.startTime}-{j.endTime}</div><div style={{ fontSize: 12, color: CL.muted }}>{c?.name || "-"} · {e?.name || "-"}</div><Badge color={scheduleStatusColor(j.status)}>{j.status}</Badge></div>; })}
     {filteredJobs.length === 0 && <div style={{ color: CL.muted }}>{uiText("No jobs")}</div>}
+    {filteredJobs.length > 200 && <div style={{ fontSize: 12, color: CL.muted, marginTop: 8 }}>{uiText("Showing first 200 results. Refine your filters to narrow down.")}</div>}
   </div>
   <div style={cardSt}>
-    <h3 style={{ marginBottom: 10, color: CL.gold }}>{uiText("Image history")}</h3>
-    {filteredUploads.slice(0, 120).map(u => { const c = data.clients.find(x => x.id === u.clientId); const e = data.employees.find(x => x.id === u.employeeId); return <div key={u.id} style={{ borderBottom: `1px solid ${CL.bd}`, padding: "8px 0" }}><div style={{ fontWeight: 600 }}>{c?.name || uiText("Unknown client")} · {uiText(u.type || "issue")}</div><div style={{ fontSize: 12, color: CL.muted }}>{fmtBoth(u.createdAt)} · {e?.name || "-"}</div>{u.imageData && <img src={u.imageData} alt={u.fileName} style={{ width: "100%", maxWidth: 260, marginTop: 6, borderRadius: 8, border: `1px solid ${CL.bd}` }} />}</div>; })}
+    <h3 style={{ marginBottom: 10, color: CL.gold }}>{uiText("Image history")} {filteredUploads.length > 0 && <span style={{ fontSize: 13, fontWeight: 400, color: CL.muted }}>({filteredUploads.length})</span>}</h3>
+    {filteredUploads.slice(0, 200).map(u => { const c = data.clients.find(x => x.id === u.clientId); const e = data.employees.find(x => x.id === u.employeeId); return <div key={u.id} style={{ borderBottom: `1px solid ${CL.bd}`, padding: "8px 0" }}><div style={{ fontWeight: 600 }}>{c?.name || uiText("Unknown client")} · {uiText(u.type || "issue")}</div><div style={{ fontSize: 12, color: CL.muted }}>{fmtBoth(u.createdAt)} · {e?.name || "-"}</div>{u.imageData && <img src={u.imageData} alt={u.fileName} style={{ width: "100%", maxWidth: 260, marginTop: 6, borderRadius: 8, border: `1px solid ${CL.bd}` }} />}</div>; })}
     {filteredUploads.length === 0 && <div style={{ color: CL.muted }}>{uiText("No images")}</div>}
+    {filteredUploads.length > 200 && <div style={{ fontSize: 12, color: CL.muted, marginTop: 8 }}>{uiText("Showing first 200 results. Refine your filters to narrow down.")}</div>}
   </div>
 </div>
+)}
 </div>
 );
 }

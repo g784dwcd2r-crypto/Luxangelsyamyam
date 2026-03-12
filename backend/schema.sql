@@ -26,8 +26,26 @@ CREATE TABLE IF NOT EXISTS employees (
   emergency_phone  TEXT,
   pin              TEXT NOT NULL DEFAULT '0000',
   username         TEXT DEFAULT '',
+  password_hash    TEXT,
+  email_verified   BOOLEAN NOT NULL DEFAULT FALSE,
+  account_status   TEXT NOT NULL DEFAULT 'approved',
   notes            TEXT,
   created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+
+CREATE TABLE IF NOT EXISTS account_requests (
+  id                       TEXT PRIMARY KEY,
+  name                     TEXT NOT NULL,
+  email                    TEXT NOT NULL UNIQUE,
+  password_hash            TEXT NOT NULL,
+  verification_token_hash  TEXT NOT NULL,
+  verification_expires_at  TIMESTAMPTZ NOT NULL,
+  email_verified           BOOLEAN NOT NULL DEFAULT FALSE,
+  approval_status          TEXT NOT NULL DEFAULT 'pending_verification',
+  rejection_reason         TEXT,
+  decided_at               TIMESTAMPTZ,
+  created_at               TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS clients (
@@ -137,6 +155,8 @@ CREATE INDEX IF NOT EXISTS idx_payslips_employee_id   ON payslips(employee_id);
 CREATE INDEX IF NOT EXISTS idx_employees_status       ON employees(status);
 CREATE INDEX IF NOT EXISTS idx_employees_email        ON employees(LOWER(email));
 CREATE INDEX IF NOT EXISTS idx_employees_name         ON employees(LOWER(name));
+CREATE UNIQUE INDEX IF NOT EXISTS idx_employees_email_unique ON employees(LOWER(email));
+CREATE INDEX IF NOT EXISTS idx_account_requests_status ON account_requests(approval_status, created_at DESC);
 
 -- Seed default settings
 INSERT INTO settings (key, value) VALUES
@@ -148,6 +168,7 @@ INSERT INTO settings (key, value) VALUES
   ('bankIban',       'LU12 3456 7890 1234 5678'),
   ('defaultVatRate', '17'),
   ('ownerUsername',  'LuxAdmin'),
+  ('ownerEmail',     'owner@luxangels.lu'),
   ('ownerPin',       'LuxAngels@2025'),
   ('managerUsername','manager'),
   ('managerPin',     'Manager@2025')

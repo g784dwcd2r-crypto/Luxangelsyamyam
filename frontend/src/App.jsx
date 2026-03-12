@@ -3844,11 +3844,11 @@ if (y < imgHeight) pdf.addPage();
 pdf.save(`${inv.invoiceNumber || "invoice"}.pdf`);
 };
 
-const emailInvoice = (inv) => {
+const emailInvoice = async (inv) => {
 const client = data.clients.find(c => c.id === inv.clientId);
 if (!client?.email) { showToast("Client email missing", "error"); return; }
 const template = inv.emailTemplate || "standard";
-const subject = encodeURIComponent(`Invoice ${inv.invoiceNumber}`);
+const subject = `Invoice ${inv.invoiceNumber}`;
 const bodyPlain = template === "friendly"
 ? `Hello ${client.contactPerson || client.name},
 
@@ -3865,13 +3865,28 @@ Total: €${(inv.total || 0).toFixed(2)}
 
 Regards,
 ${data.settings.companyName}`;
-const fromInfo = inv.zohoEmail ? `
+const senderEmail = inv.zohoEmail || data.settings.companyEmail;
 
-Sender (Zoho configured): ${inv.zohoEmail}` : `
-
-Sender: ${data.settings.companyEmail}`;
-window.open(`mailto:${client.email}?subject=${subject}&body=${encodeURIComponent(bodyPlain + fromInfo)}`);
-showToast("Email draft opened");
+try {
+const response = await fetch(apiUrl('/api/notifications/email'), {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({
+to: client.email,
+subject,
+body: bodyPlain,
+from: senderEmail,
+}),
+});
+if (!response.ok) {
+const errPayload = await response.json().catch(() => ({}));
+throw new Error(errPayload.error || 'Unable to send email');
+}
+showToast("Email sent from platform");
+} catch (err) {
+console.error(err);
+showToast(err.message || "Unable to send email", "error");
+}
 };
 
 return (
@@ -4583,25 +4598,36 @@ const clients = data.clients.filter(c => c.status === "active");
 
 const toggleClient = (id) => setSelectedClientIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
-const openEmail = ({ to, subject, body }) => {
-if (!to) { showToast(uiText("Client email missing"), "error"); return; }
-window.open(`mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
+const sendPlatformEmail = async ({ to, subject, body, from }) => {
+if (!to) { showToast(uiText("Client email missing"), "error"); return false; }
+try {
+const response = await fetch(apiUrl('/api/notifications/email'), {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ to, subject, body, from }),
+});
+if (!response.ok) {
+const errPayload = await response.json().catch(() => ({}));
+throw new Error(errPayload.error || 'Unable to send email');
+}
+return true;
+} catch (err) {
+console.error(err);
+showToast(err.message || "Unable to send email", "error");
+return false;
+}
 };
 const openWhatsApp = ({ phone, message }) => {
-if (!phone) { showToast(uiText("Client phone missing"), "error"); return; }
+if (!phone) { showToast(uiText("Client phone missing"), "error"); return false; }
 const cleaned = String(phone).replace(/[^\d+]/g, "").replace(/^00/, "+");
 window.open(`https://wa.me/${cleaned.replace("+", "")}?text=${encodeURIComponent(message)}`, "_blank");
-};
-const openZohoDraft = ({ to, subject, body }) => {
-if (!to) { showToast(uiText("Client email missing"), "error"); return; }
-const zohoEmail = data.settings.companyEmail;
-window.open(`mailto:${to}?subject=${encodeURIComponent(`[ZOHO] ${subject}`)}&body=${encodeURIComponent(`${body}\n\nFrom (Zoho configured): ${zohoEmail}`)}`);
+return true;
 };
 
-const dispatch = (mode, payload, client) => {
+const dispatch = async (mode, payload, client) => {
 if (mode === "whatsapp") return openWhatsApp({ phone: client.phoneMobile || client.phone, message: payload.body });
-if (mode === "zoho") return openZohoDraft(payload);
-return openEmail(payload);
+if (mode === "zoho") return sendPlatformEmail({ ...payload, subject: `[ZOHO] ${payload.subject}`, from: data.settings.companyEmail });
+return sendPlatformEmail(payload);
 };
 
 const tomorrow = new Date(Date.now() + 864e5).toISOString().slice(0, 10);
@@ -4666,24 +4692,26 @@ body: `Dear ${client.contactPerson || client.name},\n\nThis is a friendly follow
 const workflows = [...upcomingShiftReminders, ...invoiceSentReminders, ...paymentFollowUpReminders];
 const filtered = workflows.filter(w => (workflowType === "all" || w.kind === workflowType) && (!selectedOnly || selectedClientIds.includes(w.client.id)));
 
-const sendReminder = (rem) => {
+const sendReminder = async (rem) => {
 const payload = rem.buildPayload();
-dispatch(channel, payload, rem.client);
-showToast(`${uiText("Reminder opened via")} ${channel}`);
+const ok = await dispatch(channel, payload, rem.client);
+if (ok) showToast(`${uiText("Reminder opened via")} ${channel}`);
 };
 
-const sendCampaign = () => {
+const sendCampaign = async () => {
 const recipients = clients.filter(c => selectedClientIds.includes(c.id));
 if (!recipients.length) { showToast(uiText("Select at least one client for campaign"), "error"); return; }
-recipients.forEach((client, idx) => {
+let sentCount = 0;
+for (const client of recipients) {
 const payload = {
 to: client.email,
 subject: `[${campaignFrequency.toUpperCase()}] ${campaignSubject}`,
 body: `Dear ${client.contactPerson || client.name},\n\n${campaignBody}\n\nRegards,\n${data.settings.companyName}`,
 };
-setTimeout(() => dispatch(campaignChannel, payload, client), idx * 200);
-});
-showToast(`${uiText("Campaign opened for")} ${recipients.length} ${uiText("client(s)")}`);
+const ok = await dispatch(campaignChannel, payload, client);
+if (ok) sentCount += 1;
+}
+showToast(`${uiText("Campaign opened for")} ${sentCount} ${uiText("client(s)")}`);
 };
 
 return (

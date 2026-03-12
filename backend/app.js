@@ -78,6 +78,30 @@ app.get('/api/health/db', async (_req, res) => {
 // ---------------------------------------------------------------------------
 const missing = (obj, fields) => fields.filter(f => obj[f] == null || obj[f] === '');
 
+const getEmailGateway = () => {
+  const provider = String(process.env.EMAIL_PROVIDER || '').trim().toLowerCase();
+  const zeptoToken = String(process.env.ZEPTO_API_TOKEN || '').trim();
+  const resendKey = String(process.env.RESEND_API_KEY || '').trim();
+
+  if (provider === 'zeptomail' || (!provider && zeptoToken)) {
+    return {
+      provider: 'zeptomail',
+      url: String(process.env.ZEPTO_API_URL || 'https://api.zeptomail.eu/v1.1/email').trim(),
+      token: zeptoToken,
+    };
+  }
+
+  if (provider === 'resend' || (!provider && resendKey)) {
+    return {
+      provider: 'resend',
+      url: 'https://api.resend.com/emails',
+      token: resendKey,
+    };
+  }
+
+  return null;
+};
+
 // ---------------------------------------------------------------------------
 // AUTH
 // ---------------------------------------------------------------------------
@@ -628,6 +652,85 @@ app.put('/api/settings', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+
+app.post('/api/notifications/email', async (req, res) => {
+  try {
+    const { to, subject, body, html, from } = req.body || {};
+    if (!to || !subject || (!body && !html)) {
+      return res.status(400).json({ error: 'to, subject and body/html are required' });
+    }
+
+    const gateway = getEmailGateway();
+    if (!gateway?.token) {
+      return res.status(503).json({
+        error: 'Email provider is not configured on the platform',
+        requiredEnv: ['EMAIL_PROVIDER', 'ZEPTO_API_TOKEN or RESEND_API_KEY'],
+      });
+    }
+
+    const settingsResult = await pool.query(
+      "SELECT key, value FROM settings WHERE key IN ('companyEmail', 'companyName')"
+    );
+    const settings = Object.fromEntries(settingsResult.rows.map(r => [r.key, String(r.value || '').trim()]));
+
+    const senderEmail = String(from || settings.companyEmail || process.env.ZEPTO_FROM_ADDRESS || process.env.RESEND_FROM || '').trim();
+    const senderName = settings.companyName || 'Lux Angels';
+    if (!senderEmail) {
+      return res.status(400).json({ error: 'Sender email is missing. Configure companyEmail or provider sender env var.' });
+    }
+
+    if (gateway.provider === 'zeptomail') {
+      const response = await fetch(gateway.url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Zoho-enczapikey ${gateway.token}`,
+        },
+        body: JSON.stringify({
+          from: { address: senderEmail, name: senderName },
+          to: [{ email_address: { address: to } }],
+          subject,
+          textbody: body || undefined,
+          htmlbody: html || undefined,
+          reply_to: [{ address: senderEmail }],
+        }),
+      });
+      if (!response.ok) {
+        const payload = await response.text();
+        console.error('ZeptoMail error:', payload);
+        return res.status(502).json({ error: 'ZeptoMail rejected the request' });
+      }
+      return res.json({ success: true, provider: 'zeptomail' });
+    }
+
+    const response = await fetch(gateway.url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${gateway.token}`,
+      },
+      body: JSON.stringify({
+        from: `${senderName} <${senderEmail}>`,
+        to,
+        subject,
+        text: body || undefined,
+        html: html || undefined,
+        reply_to: senderEmail,
+      }),
+    });
+    if (!response.ok) {
+      const payload = await response.text();
+      console.error('Resend error:', payload);
+      return res.status(502).json({ error: 'Resend rejected the request' });
+    }
+
+    return res.json({ success: true, provider: 'resend' });
+  } catch (err) {
+    console.error('Email notification send failed:', err);
+    return res.status(500).json({ error: 'Unable to send email notification' });
   }
 });
 

@@ -960,7 +960,6 @@ function LanguageSwitcher({ compact = false }) {
 const { lang, setLang, t } = useI18n();
 return (
 <div style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
-{!compact && <span style={{ color: CL.muted, fontSize: 12 }}>{t("language")}</span>}
 <button style={{ ...btnSec, ...btnSm, background: lang === "fr" ? CL.gold + "20" : CL.s2, color: lang === "fr" ? CL.gold : CL.text }} onClick={() => setLang("fr")}>{t("french")}</button>
 <button style={{ ...btnSec, ...btnSm, background: lang === "en" ? CL.gold + "20" : CL.s2, color: lang === "en" ? CL.gold : CL.text }} onClick={() => setLang("en")}>{t("english")}</button>
 </div>
@@ -1246,10 +1245,9 @@ try {
 return (
 <div style={{ minHeight: "100vh", background: CL.bg, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Outfit', sans-serif" }}>
 <style>{globalCSS}</style>
+<div style={{ position: "fixed", top: 16, right: 16, zIndex: 100 }}><LanguageSwitcher /></div>
 <div style={{ animation: "fadeIn .5s ease", width: 420, maxWidth: "95vw", padding: "0 16px" }}>
-<div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}><LanguageSwitcher /></div>
 <div style={{ width: 80, height: 80, borderRadius: 24, background: `linear-gradient(135deg, ${CL.gold}, ${CL.goldDark})`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", fontSize: 32, fontWeight: 700, color: CL.bg, fontFamily: "'Cormorant Garamond', serif" }}>LAC</div>
-<p style={{ color: CL.muted, marginBottom: 20 }}>{t("managementSystem")}</p>
 
 <div style={{ ...cardSt, textAlign: "left", padding: 24 }}>
   <h3 style={{ fontFamily: "'Cormorant Garamond', serif", color: CL.gold, fontSize: 22, marginBottom: 14 }}>Secure Sign-In</h3>
@@ -1264,7 +1262,6 @@ return (
   {error && <div style={{ color: CL.red, fontSize: 13, marginBottom: 10, textAlign: "center" }}>{error}</div>}
   <button disabled={isSubmitting} onClick={() => void doLogin()} style={{ ...btnPri, width: "100%", justifyContent: "center", background: CL.gold, opacity: isSubmitting ? 0.7 : 1, cursor: isSubmitting ? "not-allowed" : "pointer" }}>{isSubmitting ? (lang === "en" ? "Connecting…" : "Connexion en cours…") : t("loginBtn")}</button>
   {isSubmitting && <p style={{ marginTop: 6, fontSize: 11, color: CL.muted, textAlign: "center" }}>{lang === "en" ? "Server may need a moment to wake up — please wait…" : "Le serveur démarre, merci de patienter…"}</p>}
-  <p style={{ marginTop: 10, fontSize: 11, color: CL.dim, textAlign: "center" }}>Use your assigned credentials only.</p>
 </div>
 </div>
 </div>

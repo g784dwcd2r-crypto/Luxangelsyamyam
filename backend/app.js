@@ -59,6 +59,10 @@ const apiLimiter = rateLimit({
 app.use('/api/auth', authLimiter);
 app.use('/api', apiLimiter);
 
+app.get('/', (_req, res) => {
+  res.json({ status: 'ok', message: 'Lux Angels API is running.' });
+});
+
 app.get('/api/health/db', async (_req, res) => {
   try {
     const result = await pool.query('SELECT NOW() AS now');

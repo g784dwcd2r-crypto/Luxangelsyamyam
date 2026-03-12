@@ -41,7 +41,7 @@ const LanguageContext = createContext({ lang: "fr", setLang: () => {}, t: (k) =>
 const useI18n = () => useContext(LanguageContext);
 const tr = (lang, key, fallback = key) => I18N[lang]?.[key] || I18N.fr?.[key] || fallback;
 const localeForLang = (lang) => lang === "en" ? "en-GB" : "fr-FR";
-let CURRENT_LANG = "fr";
+let CURRENT_LANG = loadLang();
 
 
 const UI_FR = {
@@ -177,6 +177,332 @@ const UI_FR = {
 "Business follow-up": "Suivi commercial",
 "WhatsApp": "WhatsApp",
 "Zoho": "Zoho",
+// Dashboard
+"Dashboard": "Tableau de bord",
+"Today's Jobs": "Interventions aujourd'hui",
+"Clocked In": "Pointés",
+"Active Staff": "Personnel actif",
+"Month Rev": "Rev. du mois",
+"Unpaid": "Impayé",
+"Today's Schedule": "Planning du jour",
+"No jobs scheduled today": "Aucune intervention aujourd'hui",
+"Tomorrow": "Demain",
+"Nothing scheduled": "Rien de planifié",
+"Active Clocks": "Pointages actifs",
+"No one clocked in right now": "Personne n'est pointé en ce moment",
+"Next 7 Days": "7 prochains jours",
+"Nothing upcoming": "Rien à venir",
+"Recent Invoices": "Factures récentes",
+"No invoices yet": "Aucune facture pour l'instant",
+"leave request": "demande de congé",
+"leave requests": "demandes de congé",
+"pending": "en attente",
+"product request": "demande de produit",
+"product requests": "demandes de produit",
+"new photo": "nouvelle photo",
+"new photos": "nouvelles photos",
+"uploaded": "téléversée(s)",
+"overdue invoice": "facture en retard",
+"overdue invoices": "factures en retard",
+// Employees
+"Employees": "Employés",
+"Add": "Ajouter",
+"Search by name, role, email, phone...": "Rechercher par nom, rôle, email, téléphone...",
+"All Statuses": "Tous les statuts",
+"Active": "Actif",
+"Inactive": "Inactif",
+"No employees": "Aucun employé",
+"Delete?": "Supprimer ?",
+"Remove this employee?": "Supprimer cet employé ?",
+"Cancel": "Annuler",
+"Delete": "Supprimer",
+"Edit Employee": "Modifier l'employé",
+"Add Employee": "Ajouter un employé",
+"Basic Info": "Infos de base",
+"Personal": "Personnel",
+"Work & Pay": "Travail & Paie",
+"Emergency": "Urgence",
+"Cleaner": "Agent",
+"Senior Cleaner": "Agent senior",
+"Team Lead": "Chef d'équipe",
+"Supervisor": "Superviseur",
+"optional custom username": "identifiant personnalisé (optionnel)",
+"Street & house number": "Rue et numéro",
+"e.g. Portuguese": "ex. Portugais",
+"FR, DE, PT, EN...": "FR, DE, PT, EN...",
+"Car": "Voiture",
+"Public Transport": "Transports en commun",
+"Bicycle": "Vélo",
+"Walking": "À pied",
+"CDI": "CDI",
+"CDD": "CDD",
+"Mini-job": "Mini-job",
+"Freelance": "Freelance",
+"Student": "Étudiant",
+"If applicable": "Si applicable",
+"Save Employee": "Enregistrer l'employé",
+"Work Permit #": "N° de permis de travail",
+"Emergency Contact Name": "Nom du contact d'urgence",
+"Emergency Phone": "Tél. d'urgence",
+"Any additional info...": "Toute information complémentaire...",
+// Clients
+"Clients": "Clients",
+"Search by name, contact, email, phone, city...": "Rechercher par nom, contact, email, téléphone, ville...",
+"All Types": "Tous les types",
+"Residential": "Résidentiel",
+"Commercial": "Commercial",
+"No clients": "Aucun client",
+"Remove this client?": "Supprimer ce client ?",
+"Edit Client": "Modifier le client",
+"Add Client": "Ajouter un client",
+"Client Name *": "Nom du client *",
+"Name or company": "Nom ou société",
+"Contact Person": "Personne de contact",
+"Preferred Language": "Langue préférée",
+"Client Type": "Type de client",
+"Office": "Bureau",
+"Industrial": "Industriel",
+"Airbnb": "Airbnb",
+"Prospect": "Prospect",
+"Tax / VAT ID": "N° TVA / Fiscal",
+"Address & Access": "Adresse & Accès",
+"Service & Billing": "Service & Facturation",
+"Property Details": "Détails du bien",
+"Street Address": "Adresse",
+"Street name & house number": "Nom de rue et numéro",
+"Apt / Floor / Unit": "Appt / Étage / Unité",
+"e.g. 3rd floor, Apt 12B": "ex. 3e étage, Appt 12B",
+"Access Information": "Informations d'accès",
+"Building Code / Digicode": "Code d'accès / Digicode",
+"e.g. #1234": "ex. #1234",
+"Key Location": "Emplacement des clés",
+"e.g. Under mat, with concierge": "ex. Sous le paillasson, chez le concierge",
+"Parking Info": "Informations stationnement",
+"e.g. Free street parking": "ex. Parking gratuit dans la rue",
+"Access / Entry Instructions": "Instructions d'accès",
+"Special instructions to enter...": "Instructions spéciales pour entrer...",
+"Cleaning Frequency": "Fréquence de nettoyage",
+"One-time": "Ponctuel",
+"Weekly": "Hebdomadaire",
+"Bi-weekly": "Bihebdomadaire",
+"Monthly": "Mensuel",
+"2x per week": "2x par semaine",
+"3x per week": "3x par semaine",
+"Daily": "Quotidien",
+"Custom": "Personnalisé",
+"Preferred Day": "Jour préféré",
+"No preference": "Pas de préférence",
+"Monday": "Lundi",
+"Tuesday": "Mardi",
+"Wednesday": "Mercredi",
+"Thursday": "Jeudi",
+"Friday": "Vendredi",
+"Saturday": "Samedi",
+"Preferred Time": "Heure préférée",
+"e.g. 09:00-12:00": "ex. 09:00-12:00",
+"Billing Type": "Type de facturation",
+"Hourly": "À l'heure",
+"Fixed Price": "Prix fixe",
+"Price per Hour (€)": "Prix par heure (€)",
+"Fixed Price (€)": "Prix fixe (€)",
+"Contract Start": "Début du contrat",
+"Contract End": "Fin du contrat",
+"Property Size (m²)": "Surface (m²)",
+"e.g. 120": "ex. 120",
+"Pets": "Animaux",
+"e.g. 1 cat (friendly)": "ex. 1 chat (docile)",
+"Notes & Special Requests": "Notes & demandes spéciales",
+"Allergies, products to use/avoid, rooms to skip...": "Allergies, produits à utiliser/éviter, pièces à ne pas nettoyer...",
+"Save Client": "Enregistrer le client",
+// Schedule
+"Schedule": "Planning",
+"New Job": "Nouveau travail",
+"Calendar": "Calendrier",
+"List": "Liste",
+"All Employees": "Tous les employés",
+"This Month": "Ce mois",
+"In Progress": "En cours",
+"Completed": "Terminé",
+"No jobs this day": "Aucun travail ce jour",
+"Click a date to see details": "Cliquez sur une date pour voir les détails",
+"Monthly job list by date (readable after clocking/status changes).": "Liste mensuelle des travaux par date.",
+"No jobs in this month": "Aucun travail ce mois",
+"Edit Job": "Modifier le travail",
+"Client *": "Client *",
+"Employee *": "Employé *",
+"Scheduled": "Planifié",
+"Cancelled": "Annulé",
+"Recurrence": "Récurrence",
+"Daily (weekends included)": "Quotidien (week-ends inclus)",
+"Daily (weekdays only)": "Quotidien (jours ouvrables uniquement)",
+"Weekly (12 weeks)": "Hebdomadaire (12 semaines)",
+"Bi-weekly (12x)": "Bihebdomadaire (12x)",
+"Monthly (12 months)": "Mensuel (12 mois)",
+"This job is marked as completed and can no longer be edited.": "Ce travail est marqué comme terminé et ne peut plus être modifié.",
+"Client Info": "Infos client",
+"Delete Job": "Supprimer le travail",
+"Save Job": "Enregistrer le travail",
+"Mon": "Lun",
+"Tue": "Mar",
+"Wed": "Mer",
+"Thu": "Jeu",
+"Fri": "Ven",
+"Sat": "Sam",
+"Sun": "Dim",
+// Time Clock
+"Time Clock": "Pointage",
+"Quick Clock In": "Pointage rapide",
+"Clock In": "Pointer entrée",
+"Active:": "Actif :",
+"Out": "Sortie",
+"Owner: Add missed clock-in": "Propriétaire : Ajouter un pointage manqué",
+"In Date": "Date entrée",
+"In Time": "Heure entrée",
+"Out Date (optional)": "Date sortie (optionnelle)",
+"Out Time (optional)": "Heure sortie (optionnelle)",
+"Reason / note (optional)": "Raison / note (optionnelle)",
+"Forgot to clock in, adjusted by owner...": "Oublié de pointer, ajusté par le propriétaire...",
+"Add Manual Entry": "Ajouter une entrée manuelle",
+"Late": "En retard",
+"On time": "À l'heure",
+"No entries": "Aucune entrée",
+"Edit Entry": "Modifier l'entrée",
+"Active": "Actif",
+"Clock Out Now": "Pointer la sortie",
+"Select client to clock in:": "Sélectionner un client pour pointer :",
+"Late reason, traffic, access issues...": "Raison du retard, trafic, problème d'accès...",
+"Late reason, traffic, access issue...": "Raison du retard, trafic, problème d'accès...",
+"TODAY'S CLIENTS:": "CLIENTS DU JOUR :",
+"OTHER:": "AUTRES :",
+"My Hours": "Mes heures",
+"Days": "Jours",
+"Clocked In": "Pointé",
+"Clock In →": "Pointer →",
+// Photos / CleanerPortal
+"Photo Uploads": "Photos",
+"Photo type": "Type de photo",
+"Before": "Avant",
+"After": "Après",
+"Issue / Damage Proof": "Preuve de problème / dommage",
+"Upload cleaning photo": "Téléverser une photo",
+"Optional note": "Note optionnelle",
+"Add context for this photo": "Ajouter un contexte à cette photo",
+"My Uploaded Photos": "Mes photos téléversées",
+"No photos uploaded yet": "Aucune photo téléversée",
+// Products
+"Products": "Produits",
+"Requested": "Demandé",
+"Received": "Reçu",
+"In Hand": "En main",
+"Open Requests": "Demandes ouvertes",
+"Products I Currently Have": "Produits que j'ai actuellement",
+"No products currently assigned": "Aucun produit assigné actuellement",
+"Request Products": "Demander des produits",
+"In stock": "en stock",
+"Need for upcoming jobs, preferred handover location...": "Nécessaire pour les prochains travaux, lieu de remise préféré...",
+"Submit Request": "Envoyer la demande",
+"My Product Requests": "Mes demandes de produits",
+"No product requests yet": "Aucune demande de produit",
+"pending": "en attente",
+"approved": "approuvé",
+"delivered": "livré",
+"rejected": "rejeté",
+"Unknown product": "Produit inconnu",
+"Qty": "Qté",
+"Approved": "Approuvé",
+// Leave / Congés
+"Congés": "Congés",
+"Allowance (days)": "Quota (jours)",
+"Approved (days)": "Approuvé (jours)",
+"Remaining (days)": "Restant (jours)",
+"New Leave Request": "Nouvelle demande de congé",
+"Vacation, personal, medical, etc.": "Vacances, personnel, médical, etc.",
+"Submit Request": "Envoyer la demande",
+"My Request Status": "Statut de mes demandes",
+"Maladie": "Maladie",
+"Congé": "Congé",
+"No reason provided": "Aucune raison fournie",
+"No leave requests submitted yet": "Aucune demande de congé soumise",
+// Inventory
+"Add Product": "Ajouter un produit",
+"No products added yet.": "Aucun produit ajouté.",
+"Assigned / In-Hand by Cleaner": "Assigné / En main par agent",
+"No product assignments yet": "Aucune attribution de produit",
+"Cleaner Product Requests": "Demandes de produits agents",
+"Update In Hand": "Màj en main",
+"Assigned": "Assigné",
+// History
+"Job history": "Historique des travaux",
+"No jobs": "Aucun travail",
+"Image history": "Historique des images",
+"No images": "Aucune image",
+"All clients": "Tous les clients",
+"Mark images seen": "Marquer les images comme vues",
+// Leave management (owner view)
+"All Cleaners": "Tous les agents",
+"Holiday Counter": "Compteur de congés",
+"No active cleaners": "Aucun agent actif",
+// Payslips
+"No payslips": "Aucune fiche de paie",
+"Gross Amount": "Montant brut",
+"Gross-only payroll view.": "Vue paie brut uniquement.",
+"Print": "Imprimer",
+"Close": "Fermer",
+"PAYSLIP": "FICHE DE PAIE",
+"Employee": "Employé",
+// Quotes
+"No quotes": "Aucun devis",
+"Quote Preview": "Aperçu du devis",
+"By hours": "À l'heure",
+"By subscription": "Par abonnement",
+"Quote Lines": "Lignes du devis",
+"+ Add": "+ Ajouter",
+"Save Quote": "Enregistrer le devis",
+"Accepted": "Accepté",
+"Converted": "Converti",
+// Invoices
+"No invoices": "Aucune facture",
+"Invoice Preview": "Aperçu de la facture",
+"Generate prestations from schedule": "Générer les prestations depuis le planning",
+"No prestations found in this billing period.": "Aucune prestation trouvée pour cette période.",
+"Fields (columns) and line items": "Champs et lignes",
+// Reports
+"Labour": "Main-d'œuvre",
+"Employee Hours": "Heures employés",
+"Client Revenue": "Revenus clients",
+"Data Summary": "Résumé des données",
+// Settings
+"Owner Username": "Identifiant propriétaire",
+"Owner Password": "Mot de passe propriétaire",
+"Manager Username": "Identifiant manager",
+"Manager Password": "Mot de passe manager",
+"Save All": "Tout enregistrer",
+// General
+"Unassigned": "Non assigné",
+"Unknown client": "Client inconnu",
+"Map": "Carte",
+"Save": "Enregistrer",
+"Add": "Ajouter",
+"Search": "Rechercher",
+"Prospect": "Prospect",
+"Office": "Bureau",
+"active": "actif",
+"inactive": "inactif",
+"scheduled": "planifié",
+"in-progress": "en cours",
+"completed": "terminé",
+"cancelled": "annulé",
+"Start": "Début",
+"End": "Fin",
+"Time": "Heure",
+"Cleaner": "Agent",
+"Price": "Prix",
+"Freq": "Fréq.",
+"Client": "Client",
+"Address": "Adresse",
+"Username": "Identifiant",
+"Password": "Mot de passe",
+"More": "Plus",
 };
 
 const uiText = (text) => {
@@ -643,7 +969,8 @@ return () => {
 }, []);
 
 useEffect(() => { saveStore(data); }, [data]);
-useEffect(() => { saveLang(lang); CURRENT_LANG = lang; }, [lang]);
+CURRENT_LANG = lang; // sync before any child render
+useEffect(() => { saveLang(lang); }, [lang]);
 const t = useCallback((key, fallback) => tr(lang, key, fallback), [lang]);
 
 const showToast = useCallback((msg, type = "success") => {
@@ -1042,7 +1369,7 @@ const tabItems = [
 { id: "clock", label: t("clockInOut"), icon: ICN.clock },
 { id: "photos", label: t("photoUploads"), icon: ICN.doc },
 { id: "products", label: t("products"), icon: ICN.doc, hasAlert: hasPendingProductRequest },
-{ id: "timeoff", label: "Congés", icon: ICN.cal, hasAlert: hasPendingTimeOffRequest },
+{ id: "timeoff", label: t("conges"), icon: ICN.cal, hasAlert: hasPendingTimeOffRequest },
 ];
 
 return (
@@ -1083,8 +1410,8 @@ return (
 <div style={{ fontSize: 13, color: CL.blue, marginTop: 3 }}>{fmtDate(sched.date)} · {sched.startTime}-{sched.endTime}</div>
 </div>
 <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end" }}>
-<Badge color={sched.date === getToday() ? CL.green : CL.blue}>{sched.date === getToday() ? "Today" : fmtDate(sched.date)}</Badge>
-<Badge color={scheduleStatusColor(sched.status)}>{sched.status}</Badge>
+<Badge color={sched.date === getToday() ? CL.green : CL.blue}>{sched.date === getToday() ? uiText("Today") : fmtDate(sched.date)}</Badge>
+<Badge color={scheduleStatusColor(sched.status)}>{uiText(sched.status)}</Badge>
 </div>
 </div>
 );
@@ -1095,19 +1422,19 @@ return (
 
     {tab === "clock" && (
       <div>
-        <h2 style={{ fontFamily: "'Cormorant Garamond', serif", color: CL.blue, fontSize: 22, marginBottom: 14 }}>Clock In / Out</h2>
+        <h2 style={{ fontFamily: "'Cormorant Garamond', serif", color: CL.blue, fontSize: 22, marginBottom: 14 }}>{t("clockInOut")}</h2>
         {activeClock ? (
           <div style={{ ...cardSt, borderColor: CL.green, textAlign: "center", marginBottom: 18 }}>
             <div style={{ color: CL.green, marginBottom: 4 }}>{ICN.clock}</div>
-            <div style={{ fontSize: 17, fontWeight: 600, color: CL.green }}>Clocked In</div>
+            <div style={{ fontSize: 17, fontWeight: 600, color: CL.green }}>{uiText("Clocked In")}</div>
             <div style={{ color: CL.muted }}>Since {fmtBoth(activeClock.clockIn)} at {data.clients.find(c => c.id === activeClock.clientId)?.name || "?"}</div>
-            <button onClick={doClockOut} style={{ ...btnPri, background: CL.red, marginTop: 12 }}>Clock Out Now</button>
+            <button onClick={doClockOut} style={{ ...btnPri, background: CL.red, marginTop: 12 }}>{uiText("Clock Out Now")}</button>
           </div>
         ) : (
           <div style={cardSt}>
-            <p style={{ color: CL.muted, marginBottom: 12 }}>Select client to clock in:</p>
-            <Field label="Clock-in note (optional)">
-              <TextArea value={clockInNote} onChange={ev => setClockInNote(ev.target.value)} placeholder="Late reason, traffic, access issues..." />
+            <p style={{ color: CL.muted, marginBottom: 12 }}>{uiText("Select client to clock in:")}</p>
+            <Field label={uiText("Clock-in note (optional)")}>
+              <TextArea value={clockInNote} onChange={ev => setClockInNote(ev.target.value)} placeholder={uiText("Late reason, traffic, access issues...")} />
             </Field>
             {(() => {
               const todayJobs = data.schedules.filter(sc => sc.date === getToday() && sc.employeeId === auth.employeeId && sc.status !== "cancelled");
@@ -1116,18 +1443,18 @@ return (
               const otherClients = data.clients.filter(c => c.status === "active" && !todayClientIds.includes(c.id));
               return (
                 <>
-                  {todayClients.length > 0 && <div style={{ fontSize: 11, color: CL.green, fontWeight: 600, marginBottom: 5 }}>TODAY'S CLIENTS:</div>}
+                  {todayClients.length > 0 && <div style={{ fontSize: 11, color: CL.green, fontWeight: 600, marginBottom: 5 }}>{uiText("TODAY'S CLIENTS:")}</div>}
                   {todayClients.map(client => (
                     <button key={client.id} onClick={() => doClockIn(client.id)} style={{ ...cardSt, width: "100%", padding: "12px 16px", marginBottom: 5, cursor: "pointer", textAlign: "left", display: "flex", justifyContent: "space-between", borderColor: CL.green + "60" }}>
-                      <div><div style={{ fontWeight: 600 }}>{client.name}</div><div style={{ fontSize: 11, color: CL.muted }}>{client.address} {client.address && <a href={mapsUrl(`${client.address} ${client.postalCode || ""} ${client.city || ""}`)} target="_blank" rel="noreferrer" onClick={ev => ev.stopPropagation()} style={{ color: CL.blue, marginLeft: 6, textDecoration: "underline" }}>Map</a>}</div></div>
-                      <span style={{ color: CL.green, fontWeight: 600, fontSize: 13 }}>Clock In →</span>
+                      <div><div style={{ fontWeight: 600 }}>{client.name}</div><div style={{ fontSize: 11, color: CL.muted }}>{client.address} {client.address && <a href={mapsUrl(`${client.address} ${client.postalCode || ""} ${client.city || ""}`)} target="_blank" rel="noreferrer" onClick={ev => ev.stopPropagation()} style={{ color: CL.blue, marginLeft: 6, textDecoration: "underline" }}>{uiText("Map")}</a>}</div></div>
+                      <span style={{ color: CL.green, fontWeight: 600, fontSize: 13 }}>{uiText("Clock In →")}</span>
                     </button>
                   ))}
-                  {otherClients.length > 0 && <div style={{ fontSize: 11, color: CL.muted, fontWeight: 600, margin: "10px 0 5px" }}>OTHER:</div>}
+                  {otherClients.length > 0 && <div style={{ fontSize: 11, color: CL.muted, fontWeight: 600, margin: "10px 0 5px" }}>{uiText("OTHER:")}</div>}
                   {otherClients.map(client => (
                     <button key={client.id} onClick={() => doClockIn(client.id)} style={{ ...cardSt, width: "100%", padding: "10px 16px", marginBottom: 5, cursor: "pointer", textAlign: "left", display: "flex", justifyContent: "space-between" }}>
-                      <div><div style={{ fontWeight: 600 }}>{client.name}</div><div style={{ fontSize: 11, color: CL.muted }}>{client.address} {client.address && <a href={mapsUrl(`${client.address} ${client.postalCode || ""} ${client.city || ""}`)} target="_blank" rel="noreferrer" onClick={ev => ev.stopPropagation()} style={{ color: CL.blue, marginLeft: 6, textDecoration: "underline" }}>Map</a>}</div></div>
-                      <span style={{ color: CL.blue, fontSize: 13 }}>Clock In →</span>
+                      <div><div style={{ fontWeight: 600 }}>{client.name}</div><div style={{ fontSize: 11, color: CL.muted }}>{client.address} {client.address && <a href={mapsUrl(`${client.address} ${client.postalCode || ""} ${client.city || ""}`)} target="_blank" rel="noreferrer" onClick={ev => ev.stopPropagation()} style={{ color: CL.blue, marginLeft: 6, textDecoration: "underline" }}>{uiText("Map")}</a>}</div></div>
+                      <span style={{ color: CL.blue, fontSize: 13 }}>{uiText("Clock In →")}</span>
                     </button>
                   ))}
                 </>
@@ -1141,21 +1468,21 @@ return (
     {tab === "hours" && (
       <div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 8 }}>
-          <h2 style={{ fontFamily: "'Cormorant Garamond', serif", color: CL.blue, fontSize: 22 }}>My Hours</h2>
+          <h2 style={{ fontFamily: "'Cormorant Garamond', serif", color: CL.blue, fontSize: 22 }}>{uiText("My Hours")}</h2>
           <TextInput type="month" value={monthFilter} onChange={ev => setMonthFilter(ev.target.value)} style={{ width: 160 }} />
         </div>
         <div className="stat-row" style={{ marginBottom: 18 }}>
           <StatCard label={uiText("Hours")} value={`${monthHours.toFixed(1)}h`} icon={ICN.clock} color={CL.blue} />
-          <StatCard label="Days" value={monthClocks.length} icon={ICN.cal} color={CL.green} />
+          <StatCard label={uiText("Days")} value={monthClocks.length} icon={ICN.cal} color={CL.green} />
         </div>
         <div style={cardSt} className="tbl-wrap">
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-            <thead><tr><th style={thSt}>Date</th><th style={thSt}>Client</th><th style={thSt}>In</th><th style={thSt}>Out</th><th style={thSt}>Hours</th></tr></thead>
+            <thead><tr><th style={thSt}>{uiText("Date")}</th><th style={thSt}>{uiText("Client")}</th><th style={thSt}>{uiText("In")}</th><th style={thSt}>{uiText("Out")}</th><th style={thSt}>{uiText("Hours")}</th></tr></thead>
             <tbody>
               {monthClocks.map(clk => { const client = data.clients.find(c => c.id === clk.clientId); return (
                 <tr key={clk.id}><td style={tdSt}>{fmtDate(clk.clockIn)}</td><td style={tdSt}>{client?.name || "-"}</td><td style={tdSt}>{fmtTime(clk.clockIn)}</td><td style={tdSt}>{fmtTime(clk.clockOut)}</td><td style={{ ...tdSt, fontWeight: 600 }}>{calcHrs(clk.clockIn, clk.clockOut).toFixed(2)}h</td></tr>
               ); })}
-              {monthClocks.length === 0 && <tr><td colSpan={5} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>No entries</td></tr>}
+              {monthClocks.length === 0 && <tr><td colSpan={5} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>{uiText("No entries")}</td></tr>}
             </tbody>
           </table>
         </div>
@@ -1164,124 +1491,124 @@ return (
 
     {tab === "photos" && (
       <div>
-        <h2 style={{ fontFamily: "'Cormorant Garamond', serif", color: CL.blue, fontSize: 22, marginBottom: 14 }}>Photo Uploads</h2>
+        <h2 style={{ fontFamily: "'Cormorant Garamond', serif", color: CL.blue, fontSize: 22, marginBottom: 14 }}>{t("photoUploads")}</h2>
         <div style={{ ...cardSt, marginBottom: 14 }}>
           <p style={{ fontSize: 12, color: activeClock ? CL.green : CL.orange, marginBottom: 12 }}>
             {activeClock
               ? `Clocked in at ${data.clients.find(c => c.id === activeClock.clientId)?.name || "this job"}. Photos will be saved to this active job.`
               : "You must clock in before uploading job photos."}
           </p>
-          <Field label="Photo type">
+          <Field label={uiText("Photo type")}>
             <SelectInput value={uploadType} onChange={ev => setUploadType(ev.target.value)} disabled={!activeClock}>
-              <option value="before">Before</option>
-              <option value="after">After</option>
-              <option value="issue">Issue / Damage Proof</option>
+              <option value="before">{uiText("Before")}</option>
+              <option value="after">{uiText("After")}</option>
+              <option value="issue">{uiText("Issue / Damage Proof")}</option>
             </SelectInput>
           </Field>
-          <Field label="Upload cleaning photo">
+          <Field label={uiText("Upload cleaning photo")}>
             <TextInput type="file" accept="image/*" disabled={!activeClock} onChange={ev => onUploadPhoto(ev.target.files?.[0])} />
           </Field>
-          <Field label="Optional note">
-            <TextArea value={uploadNote} onChange={ev => setUploadNote(ev.target.value)} disabled={!activeClock} placeholder="Add context for this photo" />
+          <Field label={uiText("Optional note")}>
+            <TextArea value={uploadNote} onChange={ev => setUploadNote(ev.target.value)} disabled={!activeClock} placeholder={uiText("Add context for this photo")} />
           </Field>
         </div>
         <div style={cardSt}>
-          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: CL.blue }}>My Uploaded Photos</h3>
+          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: CL.blue }}>{uiText("My Uploaded Photos")}</h3>
           {myUploads.map(up => (
             <div key={up.id} style={{ padding: "10px 0", borderBottom: `1px solid ${CL.bd}` }}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center", marginBottom: 8, flexWrap: "wrap" }}>
                 <div style={{ fontSize: 12, color: CL.muted }}>{fmtBoth(up.createdAt)} · {up.fileName}</div>
-                <Badge color={up.type === "before" ? CL.blue : up.type === "after" ? CL.green : CL.orange}>{up.type || "issue"}</Badge>
+                <Badge color={up.type === "before" ? CL.blue : up.type === "after" ? CL.green : CL.orange}>{uiText(up.type || "issue")}</Badge>
               </div>
               <div style={{ fontSize: 12, color: CL.dim, marginBottom: 8 }}>
-                Job: {data.clients.find(c => c.id === up.clientId)?.name || "Unknown client"}
+                Job: {data.clients.find(c => c.id === up.clientId)?.name || uiText("Unknown client")}
               </div>
               {up.note && <div style={{ fontSize: 12, color: CL.text, marginBottom: 8 }}>{up.note}</div>}
               {up.imageData && <img src={up.imageData} alt={up.fileName} style={{ width: "100%", maxWidth: 360, borderRadius: 8, border: `1px solid ${CL.bd}` }} />}
             </div>
           ))}
-          {myUploads.length === 0 && <p style={{ color: CL.muted, textAlign: "center" }}>No photos uploaded yet</p>}
+          {myUploads.length === 0 && <p style={{ color: CL.muted, textAlign: "center" }}>{uiText("No photos uploaded yet")}</p>}
         </div>
       </div>
     )}
 
     {tab === "products" && (
       <div>
-        <h2 style={{ fontFamily: "'Cormorant Garamond', serif", color: CL.blue, fontSize: 22, marginBottom: 14 }}>Products</h2>
+        <h2 style={{ fontFamily: "'Cormorant Garamond', serif", color: CL.blue, fontSize: 22, marginBottom: 14 }}>{t("products")}</h2>
         <div className="stat-row" style={{ marginBottom: 14 }}>
-          <StatCard label="Requested" value={`${myRequestedTotal}`} icon={ICN.doc} color={CL.blue} />
-          <StatCard label="Received" value={`${myReceivedTotal}`} icon={ICN.check} color={CL.green} />
-          <StatCard label="In Hand" value={`${myInHandTotal}`} icon={ICN.user} color={CL.green} />
-          <StatCard label="Open Requests" value={myProductRequests.filter(r => r.status === "pending").length} icon={ICN.clock} color={CL.orange} />
+          <StatCard label={uiText("Requested")} value={`${myRequestedTotal}`} icon={ICN.doc} color={CL.blue} />
+          <StatCard label={uiText("Received")} value={`${myReceivedTotal}`} icon={ICN.check} color={CL.green} />
+          <StatCard label={uiText("In Hand")} value={`${myInHandTotal}`} icon={ICN.user} color={CL.green} />
+          <StatCard label={uiText("Open Requests")} value={myProductRequests.filter(r => r.status === "pending").length} icon={ICN.clock} color={CL.orange} />
         </div>
         <div style={{ ...cardSt, marginBottom: 14 }}>
-          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.blue }}>Products I Currently Have</h3>
+          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.blue }}>{uiText("Products I Currently Have")}</h3>
           {myHoldings.map(h => {
             const prod = (data.inventoryProducts || []).find(p => p.id === h.productId);
-            return <div key={h.id} style={{ padding: "8px 0", borderBottom: `1px solid ${CL.bd}` }}><div style={{ fontWeight: 600 }}>{prod?.name || "Unknown product"}</div><div style={{ fontSize: 12, color: CL.muted }}>In hand: {h.qtyInHand} {prod?.unit || "pcs"} · Total assigned: {h.qtyAssigned || 0}</div></div>;
+            return <div key={h.id} style={{ padding: "8px 0", borderBottom: `1px solid ${CL.bd}` }}><div style={{ fontWeight: 600 }}>{prod?.name || uiText("Unknown product")}</div><div style={{ fontSize: 12, color: CL.muted }}>In hand: {h.qtyInHand} {prod?.unit || "pcs"} · Total assigned: {h.qtyAssigned || 0}</div></div>;
           })}
-          {myHoldings.length === 0 && <p style={{ color: CL.muted, textAlign: "center" }}>No products currently assigned</p>}
+          {myHoldings.length === 0 && <p style={{ color: CL.muted, textAlign: "center" }}>{uiText("No products currently assigned")}</p>}
         </div>
 
         <div style={{ ...cardSt, marginBottom: 14 }}>
-          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.blue }}>Request Products</h3>
+          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.blue }}>{uiText("Request Products")}</h3>
           <div className="form-grid">
-            <Field label="Product"><SelectInput value={productForm.productId} onChange={ev => setProductForm(v => ({ ...v, productId: ev.target.value }))}><option value="">Select...</option>{inventoryProducts.map(p => <option key={p.id} value={p.id}>{p.name} ({p.stock || 0} {p.unit || "pcs"} in stock)</option>)}</SelectInput></Field>
-            <Field label="Quantity"><TextInput type="number" min={1} value={productForm.quantity} onChange={ev => setProductForm(v => ({ ...v, quantity: ev.target.value }))} /></Field>
-            <Field label="Delivery Date & Time"><TextInput type="datetime-local" value={productForm.deliveryAt} onChange={ev => setProductForm(v => ({ ...v, deliveryAt: ev.target.value }))} /></Field>
+            <Field label={uiText("Product")}><SelectInput value={productForm.productId} onChange={ev => setProductForm(v => ({ ...v, productId: ev.target.value }))}><option value="">{uiText("Select...")}</option>{inventoryProducts.map(p => <option key={p.id} value={p.id}>{p.name} ({p.stock || 0} {p.unit || "pcs"} {uiText("in stock")})</option>)}</SelectInput></Field>
+            <Field label={uiText("Quantity")}><TextInput type="number" min={1} value={productForm.quantity} onChange={ev => setProductForm(v => ({ ...v, quantity: ev.target.value }))} /></Field>
+            <Field label={uiText("Delivery Date & Time")}><TextInput type="datetime-local" value={productForm.deliveryAt} onChange={ev => setProductForm(v => ({ ...v, deliveryAt: ev.target.value }))} /></Field>
           </div>
-          <Field label="Note"><TextArea value={productForm.note} onChange={ev => setProductForm(v => ({ ...v, note: ev.target.value }))} placeholder="Need for upcoming jobs, preferred handover location..." /></Field>
-          <button style={btnPri} onClick={submitProductRequest}>Submit Request</button>
+          <Field label={uiText("Note")}><TextArea value={productForm.note} onChange={ev => setProductForm(v => ({ ...v, note: ev.target.value }))} placeholder={uiText("Need for upcoming jobs, preferred handover location...")} /></Field>
+          <button style={btnPri} onClick={submitProductRequest}>{uiText("Submit Request")}</button>
         </div>
         <div style={cardSt}>
-          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: CL.blue }}>My Product Requests</h3>
+          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: CL.blue }}>{uiText("My Product Requests")}</h3>
           {myProductRequests.map(req => { const prod = inventoryProducts.find(p => p.id === req.productId) || (data.inventoryProducts || []).find(p => p.id === req.productId); return (
             <div key={req.id} style={{ padding: "10px 0", borderBottom: `1px solid ${CL.bd}`, display: "flex", justifyContent: "space-between", gap: 10 }}>
               <div>
-                <div style={{ fontWeight: 600 }}>{prod?.name || "Unknown product"} · Qty {req.quantity}</div>
+                <div style={{ fontWeight: 600 }}>{prod?.name || uiText("Unknown product")} · {uiText("Qty")} {req.quantity}</div>
                 <div style={{ fontSize: 12, color: CL.muted }}>Requested {fmtBoth(req.createdAt)}{req.deliveryAt ? ` · Delivery ${fmtBoth(req.deliveryAt)}` : ""}</div>
                 {req.note && <div style={{ fontSize: 12, color: CL.dim }}>{req.note}</div>}
-                <div style={{ fontSize: 12, color: CL.text }}>Approved: {req.approvedQty || 0} · Received: {req.deliveredQty || 0}</div>
+                <div style={{ fontSize: 12, color: CL.text }}>{uiText("Approved")}: {req.approvedQty || 0} · {uiText("Received")}: {req.deliveredQty || 0}</div>
               </div>
-              <Badge color={req.status === "delivered" ? CL.green : req.status === "rejected" ? CL.red : req.status === "approved" ? CL.blue : CL.orange}>{req.status}</Badge>
+              <Badge color={req.status === "delivered" ? CL.green : req.status === "rejected" ? CL.red : req.status === "approved" ? CL.blue : CL.orange}>{uiText(req.status)}</Badge>
             </div>
           ); })}
-          {myProductRequests.length === 0 && <p style={{ color: CL.muted, textAlign: "center" }}>No product requests yet</p>}
+          {myProductRequests.length === 0 && <p style={{ color: CL.muted, textAlign: "center" }}>{uiText("No product requests yet")}</p>}
         </div>
       </div>
     )}
 
     {tab === "timeoff" && (
       <div>
-        <h2 style={{ fontFamily: "'Cormorant Garamond', serif", color: CL.blue, fontSize: 22, marginBottom: 14 }}>Congés</h2>
+        <h2 style={{ fontFamily: "'Cormorant Garamond', serif", color: CL.blue, fontSize: 22, marginBottom: 14 }}>{t("conges")}</h2>
         <div className="stat-row" style={{ marginBottom: 14 }}>
-          <StatCard label="Allowance (days)" value={`${leaveSummary.allowance}d`} icon={ICN.cal} color={CL.blue} />
-          <StatCard label="Approved (days)" value={`${leaveSummary.approvedDays}d`} icon={ICN.check} color={CL.green} />
-          <StatCard label="Remaining (days)" value={`${leaveSummary.remaining}d`} icon={ICN.clock} color={CL.gold} />
+          <StatCard label={uiText("Allowance (days)")} value={`${leaveSummary.allowance}d`} icon={ICN.cal} color={CL.blue} />
+          <StatCard label={uiText("Approved (days)")} value={`${leaveSummary.approvedDays}d`} icon={ICN.check} color={CL.green} />
+          <StatCard label={uiText("Remaining (days)")} value={`${leaveSummary.remaining}d`} icon={ICN.clock} color={CL.gold} />
         </div>
         <div style={{ ...cardSt, marginBottom: 14 }}>
-          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.blue }}>New Leave Request</h3>
+          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.blue }}>{uiText("New Leave Request")}</h3>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 10 }}>
-            <Field label="Start Date"><TextInput type="date" value={timeOffForm.startDate} onChange={ev => setTimeOffForm(v => ({ ...v, startDate: ev.target.value }))} /></Field>
-            <Field label="End Date"><TextInput type="date" value={timeOffForm.endDate} onChange={ev => setTimeOffForm(v => ({ ...v, endDate: ev.target.value }))} /></Field>
+            <Field label={uiText("Start Date")}><TextInput type="date" value={timeOffForm.startDate} onChange={ev => setTimeOffForm(v => ({ ...v, startDate: ev.target.value }))} /></Field>
+            <Field label={uiText("End Date")}><TextInput type="date" value={timeOffForm.endDate} onChange={ev => setTimeOffForm(v => ({ ...v, endDate: ev.target.value }))} /></Field>
           </div>
-          <Field label="Type"><SelectInput value={timeOffForm.leaveType} onChange={ev => setTimeOffForm(v => ({ ...v, leaveType: ev.target.value }))}><option value="conge">Congé</option><option value="maladie">Maladie</option></SelectInput></Field>
-          <Field label="Reason"><TextArea value={timeOffForm.reason} onChange={ev => setTimeOffForm(v => ({ ...v, reason: ev.target.value }))} placeholder="Vacation, personal, medical, etc." /></Field>
-          <button onClick={submitTimeOff} style={btnPri}>Submit Request</button>
+          <Field label={uiText("Type")}><SelectInput value={timeOffForm.leaveType} onChange={ev => setTimeOffForm(v => ({ ...v, leaveType: ev.target.value }))}><option value="conge">Congé</option><option value="maladie">Maladie</option></SelectInput></Field>
+          <Field label={uiText("Reason")}><TextArea value={timeOffForm.reason} onChange={ev => setTimeOffForm(v => ({ ...v, reason: ev.target.value }))} placeholder={uiText("Vacation, personal, medical, etc.")} /></Field>
+          <button onClick={submitTimeOff} style={btnPri}>{uiText("Submit Request")}</button>
         </div>
         <div style={cardSt}>
-          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: CL.blue }}>My Request Status</h3>
+          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: CL.blue }}>{uiText("My Request Status")}</h3>
           {myTimeOffRequests.map(req => (
             <div key={req.id} style={{ padding: "10px 0", borderBottom: `1px solid ${CL.bd}`, display: "flex", justifyContent: "space-between", gap: 10 }}>
               <div>
                 <div style={{ fontWeight: 600 }}>{fmtDate(req.startDate)} - {fmtDate(req.endDate)} ({leaveDaysInclusive(req.startDate, req.endDate)}d)</div>
-                <div style={{ fontSize: 12, color: CL.muted }}>{req.leaveType === "maladie" ? "Maladie" : "Congé"} · {req.reason || "No reason provided"}</div>
+                <div style={{ fontSize: 12, color: CL.muted }}>{req.leaveType === "maladie" ? uiText("Maladie") : uiText("Congé")} · {req.reason || uiText("No reason provided")}</div>
                 {req.reviewedAt && <div style={{ fontSize: 11, color: CL.dim }}>Reviewed {fmtBoth(req.reviewedAt)} {req.reviewNote ? `· ${req.reviewNote}` : ""}</div>}
               </div>
-              <Badge color={req.status === "approved" ? CL.green : req.status === "rejected" ? CL.red : CL.orange}>{req.status}</Badge>
+              <Badge color={req.status === "approved" ? CL.green : req.status === "rejected" ? CL.red : CL.orange}>{uiText(req.status)}</Badge>
             </div>
           ))}
-          {myTimeOffRequests.length === 0 && <p style={{ color: CL.muted, textAlign: "center" }}>No leave requests submitted yet</p>}
+          {myTimeOffRequests.length === 0 && <p style={{ color: CL.muted, textAlign: "center" }}>{uiText("No leave requests submitted yet")}</p>}
         </div>
       </div>
     )}
@@ -1313,8 +1640,8 @@ const next7Scheds = data.schedules.filter(s => s.date > todayStr && s.date <= ne
 
 return (
 <div>
-<h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold, marginBottom: 5 }}>Dashboard</h1>
-<p style={{ color: CL.muted, marginBottom: 18 }}>{new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p>
+<h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold, marginBottom: 5 }}>{uiText("Dashboard")}</h1>
+<p style={{ color: CL.muted, marginBottom: 18 }}>{new Date().toLocaleDateString(localeForLang(CURRENT_LANG), { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p>
 
 {/* Pending alerts */}
 {(pendingLeave > 0 || pendingProducts > 0 || unseenUploads > 0 || overdueInvoices.length > 0) && (
@@ -1327,16 +1654,16 @@ return (
 )}
 
 <div className="stat-row" style={{ marginBottom: 22 }}>
-<StatCard label="Today's Jobs" value={todayScheds.length} icon={ICN.cal} color={CL.blue} />
-<StatCard label="Clocked In" value={activeClocks.length} icon={ICN.clock} color={CL.green} />
-<StatCard label="Active Staff" value={`${activeEmployees}/${data.employees.length}`} icon={ICN.team} color={CL.gold} />
-{auth?.role !== "manager" && <StatCard label="Month Rev" value={`€${monthRev.toFixed(0)}`} icon={ICN.chart} color={CL.goldLight} />}
-{auth?.role !== "manager" && unpaidTotal > 0 && <StatCard label="Unpaid" value={`€${unpaidTotal.toFixed(0)}`} icon={ICN.pay} color={CL.red} />}
+<StatCard label={uiText("Today's Jobs")} value={todayScheds.length} icon={ICN.cal} color={CL.blue} />
+<StatCard label={uiText("Clocked In")} value={activeClocks.length} icon={ICN.clock} color={CL.green} />
+<StatCard label={uiText("Active Staff")} value={`${activeEmployees}/${data.employees.length}`} icon={ICN.team} color={CL.gold} />
+{auth?.role !== "manager" && <StatCard label={uiText("Month Rev")} value={`€${monthRev.toFixed(0)}`} icon={ICN.chart} color={CL.goldLight} />}
+{auth?.role !== "manager" && unpaidTotal > 0 && <StatCard label={uiText("Unpaid")} value={`€${unpaidTotal.toFixed(0)}`} icon={ICN.pay} color={CL.red} />}
 </div>
 <div className="grid-2">
 <div style={cardSt}>
-<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>Today's Schedule ({todayScheds.length})</h3>
-{todayScheds.length === 0 ? <p style={{ color: CL.muted, fontSize: 13 }}>No jobs scheduled today</p> :
+<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>{uiText("Today's Schedule")} ({todayScheds.length})</h3>
+{todayScheds.length === 0 ? <p style={{ color: CL.muted, fontSize: 13 }}>{uiText("No jobs scheduled today")}</p> :
 todayScheds.map(sched => {
 const client = data.clients.find(c => c.id === sched.clientId);
 const employee = data.employees.find(e => e.id === sched.employeeId);
@@ -1355,8 +1682,8 @@ return (
 }
 </div>
 <div style={cardSt}>
-<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>Tomorrow ({tomorrowScheds.length})</h3>
-{tomorrowScheds.length === 0 ? <p style={{ color: CL.muted, fontSize: 13 }}>Nothing scheduled</p> :
+<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>{uiText("Tomorrow")} ({tomorrowScheds.length})</h3>
+{tomorrowScheds.length === 0 ? <p style={{ color: CL.muted, fontSize: 13 }}>{uiText("Nothing scheduled")}</p> :
 tomorrowScheds.map(sched => {
 const client = data.clients.find(c => c.id === sched.clientId);
 const employee = data.employees.find(e => e.id === sched.employeeId);
@@ -1370,8 +1697,8 @@ return (
 }
 </div>
 <div style={cardSt}>
-<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.green }}>Active Clocks ({activeClocks.length})</h3>
-{activeClocks.length === 0 ? <p style={{ color: CL.muted, fontSize: 13 }}>No one clocked in right now</p> :
+<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.green }}>{uiText("Active Clocks")} ({activeClocks.length})</h3>
+{activeClocks.length === 0 ? <p style={{ color: CL.muted, fontSize: 13 }}>{uiText("No one clocked in right now")}</p> :
 activeClocks.map(clk => {
 const employee = data.employees.find(e => e.id === clk.employeeId);
 const client = data.clients.find(c => c.id === clk.clientId);
@@ -1387,8 +1714,8 @@ return (
 }
 </div>
 <div style={cardSt}>
-<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>Next 7 Days ({next7Scheds.length} jobs)</h3>
-{next7Scheds.length === 0 ? <p style={{ color: CL.muted, fontSize: 13 }}>Nothing upcoming</p> :
+<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>{uiText("Next 7 Days")} ({next7Scheds.length})</h3>
+{next7Scheds.length === 0 ? <p style={{ color: CL.muted, fontSize: 13 }}>{uiText("Nothing upcoming")}</p> :
 next7Scheds.slice(0, 6).map(sched => {
 const client = data.clients.find(c => c.id === sched.clientId);
 const employee = data.employees.find(e => e.id === sched.employeeId);
@@ -1405,8 +1732,8 @@ return (
 {next7Scheds.length > 6 && <p style={{ fontSize: 11, color: CL.muted, marginTop: 6 }}>+{next7Scheds.length - 6} more</p>}
 </div>
 {auth?.role !== "manager" && <div style={cardSt}>
-<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>Recent Invoices</h3>
-{data.invoices.length === 0 ? <p style={{ color: CL.muted, fontSize: 13 }}>No invoices yet</p> : data.invoices.slice(-5).reverse().map(inv => {
+<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>{uiText("Recent Invoices")}</h3>
+{data.invoices.length === 0 ? <p style={{ color: CL.muted, fontSize: 13 }}>{uiText("No invoices yet")}</p> : data.invoices.slice(-5).reverse().map(inv => {
 const client = data.clients.find(c => c.id === inv.clientId);
 return (
 <div key={inv.id} style={{ padding: "7px 0", borderBottom: `1px solid ${CL.bd}`, display: "flex", justifyContent: "space-between" }}>
@@ -1490,24 +1817,24 @@ const filtered = data.employees.filter(e => {
 return (
 <div>
 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
-<h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold }}>Employees <span style={{ fontSize: 14, color: CL.muted, fontFamily: "'Outfit', sans-serif", fontWeight: 400 }}>({filtered.length}/{data.employees.length})</span></h1>
-<button style={btnPri} onClick={() => setModal({ ...emptyEmployee })}>{ICN.plus} Add</button>
+<h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold }}>{uiText("Employees")} <span style={{ fontSize: 14, color: CL.muted, fontFamily: "'Outfit', sans-serif", fontWeight: 400 }}>({filtered.length}/{data.employees.length})</span></h1>
+<button style={btnPri} onClick={() => setModal({ ...emptyEmployee })}>{ICN.plus} {uiText("Add")}</button>
 </div>
 <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
 <div style={{ flex: 1, minWidth: 200, position: "relative" }}>
-  <TextInput placeholder="Search by name, role, email, phone..." value={search} onChange={ev => setSearch(ev.target.value)} style={{ paddingLeft: 34 }} />
+  <TextInput placeholder={uiText("Search by name, role, email, phone...")} value={search} onChange={ev => setSearch(ev.target.value)} style={{ paddingLeft: 34 }} />
   <span style={{ position: "absolute", left: 10, top: 10, color: CL.muted }}>{ICN.search}</span>
 </div>
 <SelectInput value={statusFilter} onChange={ev => setStatusFilter(ev.target.value)} style={{ width: 140 }}>
-  <option value="all">All Statuses</option>
-  <option value="active">Active</option>
-  <option value="inactive">Inactive</option>
+  <option value="all">{uiText("All Statuses")}</option>
+  <option value="active">{uiText("Active")}</option>
+  <option value="inactive">{uiText("Inactive")}</option>
 </SelectInput>
 </div>
 <div style={cardSt} className="tbl-wrap">
 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
 <thead>
-<tr><th style={thSt}>Name</th><th style={thSt}>Role</th><th style={thSt}>Rate</th><th style={thSt}>Contact</th><th style={thSt}>Username</th><th style={thSt}>Password</th><th style={thSt}>Status</th><th style={thSt}>Actions</th></tr>
+<tr><th style={thSt}>{uiText("Name")}</th><th style={thSt}>{uiText("Role")}</th><th style={thSt}>{uiText("Rate")}</th><th style={thSt}>{uiText("Contact")}</th><th style={thSt}>{uiText("Username")}</th><th style={thSt}>{uiText("Password")}</th><th style={thSt}>{uiText("Status")}</th><th style={thSt}>{uiText("Actions")}</th></tr>
 </thead>
 <tbody>
 {filtered.map(emp => (
@@ -1527,23 +1854,23 @@ return (
 </td>
 </tr>
 ))}
-{filtered.length === 0 && <tr><td colSpan={8} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>No employees</td></tr>}
+{filtered.length === 0 && <tr><td colSpan={8} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>{uiText("No employees")}</td></tr>}
 </tbody>
 </table>
 </div>
 
   {deleteId && (
-    <ModalBox title="Delete?" onClose={() => setDeleteId(null)}>
-      <p style={{ marginBottom: 16 }}>Remove this employee?</p>
+    <ModalBox title={uiText("Delete?")} onClose={() => setDeleteId(null)}>
+      <p style={{ marginBottom: 16 }}>{uiText("Remove this employee?")}</p>
       <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-        <button style={btnSec} onClick={() => setDeleteId(null)}>Cancel</button>
-        <button style={btnDng} onClick={() => handleDelete(deleteId)}>Delete</button>
+        <button style={btnSec} onClick={() => setDeleteId(null)}>{uiText("Cancel")}</button>
+        <button style={btnDng} onClick={() => handleDelete(deleteId)}>{uiText("Delete")}</button>
       </div>
     </ModalBox>
   )}
 
   {modal && (
-    <ModalBox title={modal.id ? "Edit Employee" : "Add Employee"} onClose={() => setModal(null)}>
+    <ModalBox title={uiText(modal.id ? "Edit Employee" : "Add Employee")} onClose={() => setModal(null)}>
       <EmployeeForm initialData={modal} onSave={handleSave} onCancel={() => setModal(null)} />
     </ModalBox>
   )}
@@ -1559,10 +1886,10 @@ const [activeTab, setActiveTab] = useState("basic");
 const set = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
 
 const tabs = [
-{ id: "basic", label: "Basic Info" },
-{ id: "personal", label: "Personal" },
-{ id: "work", label: "Work & Pay" },
-{ id: "emergency", label: "Emergency" },
+{ id: "basic", label: uiText("Basic Info") },
+{ id: "personal", label: uiText("Personal") },
+{ id: "work", label: uiText("Work & Pay") },
+{ id: "emergency", label: uiText("Emergency") },
 ];
 
 return (
@@ -1574,7 +1901,7 @@ return (
       <Field label="Full Name *"><TextInput value={form.name} onChange={ev => set("name", ev.target.value)} /></Field>
       <Field label="Role">
         <SelectInput value={form.role} onChange={ev => set("role", ev.target.value)}>
-          <option>Cleaner</option><option>Senior Cleaner</option><option>Team Lead</option><option>Supervisor</option>
+          <option value="Cleaner">{uiText("Cleaner")}</option><option value="Senior Cleaner">{uiText("Senior Cleaner")}</option><option value="Team Lead">{uiText("Team Lead")}</option><option value="Supervisor">{uiText("Supervisor")}</option>
         </SelectInput>
       </Field>
       <Field label="Email"><TextInput type="email" value={form.email} onChange={ev => set("email", ev.target.value)} /></Field>
@@ -1597,7 +1924,7 @@ return (
       <Field label="Social Security No."><TextInput value={form.socialSecNumber || ""} onChange={ev => set("socialSecNumber", ev.target.value)} /></Field>
       <Field label="Transport">
         <SelectInput value={form.transport || ""} onChange={ev => set("transport", ev.target.value)}>
-          <option value="">Select...</option><option>Car</option><option>Public Transport</option><option>Bicycle</option><option>Walking</option>
+          <option value="">{uiText("Select...")}</option><option value="Car">{uiText("Car")}</option><option value="Public Transport">{uiText("Public Transport")}</option><option value="Bicycle">{uiText("Bicycle")}</option><option value="Walking">{uiText("Walking")}</option>
         </SelectInput>
       </Field>
     </div>
@@ -1609,7 +1936,7 @@ return (
       <Field label="Vacation allowance (days/year)"><TextInput type="number" min={0} value={form.leaveAllowance ?? 26} onChange={ev => set("leaveAllowance", Math.max(0, parseInt(ev.target.value || "0", 10) || 0))} /></Field>
       <Field label="Contract Type">
         <SelectInput value={form.contractType || "CDI"} onChange={ev => set("contractType", ev.target.value)}>
-          <option>CDI</option><option>CDD</option><option>Mini-job</option><option>Freelance</option><option>Student</option>
+          <option value="CDI">CDI</option><option value="CDD">CDD</option><option value="Mini-job">{uiText("Mini-job")}</option><option value="Freelance">{uiText("Freelance")}</option><option value="Student">{uiText("Student")}</option>
         </SelectInput>
       </Field>
       <Field label="Start Date"><TextInput type="date" value={form.startDate} onChange={ev => set("startDate", ev.target.value)} /></Field>
@@ -1617,7 +1944,7 @@ return (
       <Field label="Bank IBAN"><TextInput value={form.bankIban || ""} onChange={ev => set("bankIban", ev.target.value)} placeholder="LU..." /></Field>
       <Field label="Status">
         <SelectInput value={form.status} onChange={ev => set("status", ev.target.value)}>
-          <option value="active">Active</option><option value="inactive">Inactive</option>
+          <option value="active">{uiText("Active")}</option><option value="inactive">{uiText("Inactive")}</option>
         </SelectInput>
       </Field>
     </div>
@@ -1634,8 +1961,8 @@ return (
   )}
 
   <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 10 }}>
-    <button style={btnSec} onClick={onCancel}>Cancel</button>
-    <button style={btnPri} onClick={() => form.name && onSave(form)}>Save Employee</button>
+    <button style={btnSec} onClick={onCancel}>{uiText("Cancel")}</button>
+    <button style={btnPri} onClick={() => form.name && onSave(form)}>{uiText("Save Employee")}</button>
   </div>
 </div>
 
@@ -1687,30 +2014,30 @@ const filtered = data.clients.filter(c => {
 return (
 <div>
 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
-<h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold }}>Clients <span style={{ fontSize: 14, color: CL.muted, fontFamily: "'Outfit', sans-serif", fontWeight: 400 }}>({filtered.length}/{data.clients.length})</span></h1>
-<button style={btnPri} onClick={() => setModal({ ...emptyClient })}>{ICN.plus} Add</button>
+<h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold }}>{uiText("Clients")} <span style={{ fontSize: 14, color: CL.muted, fontFamily: "'Outfit', sans-serif", fontWeight: 400 }}>({filtered.length}/{data.clients.length})</span></h1>
+<button style={btnPri} onClick={() => setModal({ ...emptyClient })}>{ICN.plus} {uiText("Add")}</button>
 </div>
 <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
 <div style={{ flex: 1, minWidth: 200, position: "relative" }}>
-  <TextInput placeholder="Search by name, contact, email, phone, city..." value={search} onChange={ev => setSearch(ev.target.value)} style={{ paddingLeft: 34 }} />
+  <TextInput placeholder={uiText("Search by name, contact, email, phone, city...")} value={search} onChange={ev => setSearch(ev.target.value)} style={{ paddingLeft: 34 }} />
   <span style={{ position: "absolute", left: 10, top: 10, color: CL.muted }}>{ICN.search}</span>
 </div>
 <SelectInput value={statusFilter} onChange={ev => setStatusFilter(ev.target.value)} style={{ width: 150 }}>
-  <option value="all">All Statuses</option>
-  <option value="active">Active</option>
-  <option value="inactive">Inactive</option>
-  <option value="prospect">Prospect</option>
+  <option value="all">{uiText("All Statuses")}</option>
+  <option value="active">{uiText("Active")}</option>
+  <option value="inactive">{uiText("Inactive")}</option>
+  <option value="prospect">{uiText("Prospect")}</option>
 </SelectInput>
 <SelectInput value={typeFilter} onChange={ev => setTypeFilter(ev.target.value)} style={{ width: 150 }}>
-  <option value="all">All Types</option>
-  <option value="Residential">Residential</option>
-  <option value="Commercial">Commercial</option>
+  <option value="all">{uiText("All Types")}</option>
+  <option value="Residential">{uiText("Residential")}</option>
+  <option value="Commercial">{uiText("Commercial")}</option>
 </SelectInput>
 </div>
 <div style={cardSt} className="tbl-wrap">
 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
 <thead>
-<tr><th style={thSt}>Client</th><th style={thSt}>Address</th><th style={thSt}>Type</th><th style={thSt}>Freq</th><th style={thSt}>Price</th><th style={thSt}>Status</th><th style={thSt}>Actions</th></tr>
+<tr><th style={thSt}>{uiText("Client")}</th><th style={thSt}>{uiText("Address")}</th><th style={thSt}>{uiText("Type")}</th><th style={thSt}>{uiText("Freq")}</th><th style={thSt}>{uiText("Price")}</th><th style={thSt}>{uiText("Status")}</th><th style={thSt}>{uiText("Actions")}</th></tr>
 </thead>
 <tbody>
 {filtered.map(client => (
@@ -1725,10 +2052,10 @@ return (
 <div style={{ fontSize: 11, color: CL.muted }}>{client.postalCode ? `${client.postalCode} ` : ""}{client.city || ""}</div>
 {client.accessCode && <div style={{ fontSize: 10, color: CL.orange }}>Code: {client.accessCode}</div>}
 </td>
-<td style={tdSt}>{client.type}</td>
-<td style={tdSt}>{client.cleaningFrequency}</td>
+<td style={tdSt}>{uiText(client.type)}</td>
+<td style={tdSt}>{uiText(client.cleaningFrequency)}</td>
 <td style={tdSt}>{client.billingType === "fixed" ? `€${Number(client.priceFixed).toFixed(2)}` : `€${Number(client.pricePerHour).toFixed(2)}/hr`}</td>
-<td style={tdSt}><Badge color={client.status === "active" ? CL.green : client.status === "prospect" ? CL.orange : CL.red}>{client.status}</Badge></td>
+<td style={tdSt}><Badge color={client.status === "active" ? CL.green : client.status === "prospect" ? CL.orange : CL.red}>{uiText(client.status)}</Badge></td>
 <td style={tdSt}>
 <div style={{ display: "flex", gap: 4 }}>
 <button style={{ ...btnSec, ...btnSm }} onClick={() => setModal({ ...client })}>{ICN.edit}</button>
@@ -1737,23 +2064,23 @@ return (
 </td>
 </tr>
 ))}
-{filtered.length === 0 && <tr><td colSpan={7} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>No clients</td></tr>}
+{filtered.length === 0 && <tr><td colSpan={7} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>{uiText("No clients")}</td></tr>}
 </tbody>
 </table>
 </div>
 
   {deleteId && (
-    <ModalBox title="Delete?" onClose={() => setDeleteId(null)}>
-      <p style={{ marginBottom: 16 }}>Remove this client?</p>
+    <ModalBox title={uiText("Delete?")} onClose={() => setDeleteId(null)}>
+      <p style={{ marginBottom: 16 }}>{uiText("Remove this client?")}</p>
       <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-        <button style={btnSec} onClick={() => setDeleteId(null)}>Cancel</button>
-        <button style={btnDng} onClick={() => handleDelete(deleteId)}>Delete</button>
+        <button style={btnSec} onClick={() => setDeleteId(null)}>{uiText("Cancel")}</button>
+        <button style={btnDng} onClick={() => handleDelete(deleteId)}>{uiText("Delete")}</button>
       </div>
     </ModalBox>
   )}
 
   {modal && (
-    <ModalBox title={modal.id ? "Edit Client" : "Add Client"} onClose={() => setModal(null)}>
+    <ModalBox title={uiText(modal.id ? "Edit Client" : "Add Client")} onClose={() => setModal(null)}>
       <ClientForm initialData={modal} onSave={handleSave} onCancel={() => setModal(null)} />
     </ModalBox>
   )}
@@ -1768,10 +2095,10 @@ const [activeTab, setActiveTab] = useState("basic");
 const set = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
 
 const tabs = [
-{ id: "basic", label: "Basic Info" },
-{ id: "address", label: "Address & Access" },
-{ id: "service", label: "Service & Billing" },
-{ id: "details", label: "Property Details" },
+{ id: "basic", label: uiText("Basic Info") },
+{ id: "address", label: uiText("Address & Access") },
+{ id: "service", label: uiText("Service & Billing") },
+{ id: "details", label: uiText("Property Details") },
 ];
 
 return (
@@ -1792,12 +2119,12 @@ return (
       </Field>
       <Field label="Client Type">
         <SelectInput value={form.type} onChange={ev => set("type", ev.target.value)}>
-          <option>Residential</option><option>Commercial</option><option>Office</option><option>Industrial</option><option>Airbnb</option>
+          <option value="Residential">{uiText("Residential")}</option><option value="Commercial">{uiText("Commercial")}</option><option value="Office">{uiText("Office")}</option><option value="Industrial">{uiText("Industrial")}</option><option value="Airbnb">Airbnb</option>
         </SelectInput>
       </Field>
       <Field label="Status">
         <SelectInput value={form.status} onChange={ev => set("status", ev.target.value)}>
-          <option value="active">Active</option><option value="inactive">Inactive</option><option value="prospect">Prospect</option>
+          <option value="active">{uiText("Active")}</option><option value="inactive">{uiText("Inactive")}</option><option value="prospect">{uiText("Prospect")}</option>
         </SelectInput>
       </Field>
       {(form.type === "Commercial" || form.type === "Office") && <Field label="Tax / VAT ID"><TextInput value={form.taxId || ""} onChange={ev => set("taxId", ev.target.value)} placeholder="LU..." /></Field>}
@@ -1812,7 +2139,7 @@ return (
       <Field label="City"><TextInput value={form.city || ""} onChange={ev => set("city", ev.target.value)} /></Field>
       <Field label="Country"><TextInput value={form.country || ""} onChange={ev => set("country", ev.target.value)} /></Field>
       <div style={{ gridColumn: "1/-1", borderTop: `1px solid ${CL.bd}`, paddingTop: 12, marginTop: 4 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: CL.gold, marginBottom: 10 }}>Access Information</div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: CL.gold, marginBottom: 10 }}>{uiText("Access Information")}</div>
       </div>
       <Field label="Building Code / Digicode"><TextInput value={form.accessCode || ""} onChange={ev => set("accessCode", ev.target.value)} placeholder="e.g. #1234" /></Field>
       <Field label="Key Location"><TextInput value={form.keyLocation || ""} onChange={ev => set("keyLocation", ev.target.value)} placeholder="e.g. Under mat, with concierge" /></Field>
@@ -1827,18 +2154,18 @@ return (
     <div className="form-grid">
       <Field label="Cleaning Frequency">
         <SelectInput value={form.cleaningFrequency} onChange={ev => set("cleaningFrequency", ev.target.value)}>
-          <option>One-time</option><option>Weekly</option><option>Bi-weekly</option><option>Monthly</option><option>2x per week</option><option>3x per week</option><option>Daily</option><option>Custom</option>
+          <option value="One-time">{uiText("One-time")}</option><option value="Weekly">{uiText("Weekly")}</option><option value="Bi-weekly">{uiText("Bi-weekly")}</option><option value="Monthly">{uiText("Monthly")}</option><option value="2x per week">{uiText("2x per week")}</option><option value="3x per week">{uiText("3x per week")}</option><option value="Daily">{uiText("Daily")}</option><option value="Custom">{uiText("Custom")}</option>
         </SelectInput>
       </Field>
       <Field label="Preferred Day">
         <SelectInput value={form.preferredDay || ""} onChange={ev => set("preferredDay", ev.target.value)}>
-          <option value="">No preference</option><option>Monday</option><option>Tuesday</option><option>Wednesday</option><option>Thursday</option><option>Friday</option><option>Saturday</option>
+          <option value="">{uiText("No preference")}</option><option value="Monday">{uiText("Monday")}</option><option value="Tuesday">{uiText("Tuesday")}</option><option value="Wednesday">{uiText("Wednesday")}</option><option value="Thursday">{uiText("Thursday")}</option><option value="Friday">{uiText("Friday")}</option><option value="Saturday">{uiText("Saturday")}</option>
         </SelectInput>
       </Field>
       <Field label="Preferred Time"><TextInput value={form.preferredTime || ""} onChange={ev => set("preferredTime", ev.target.value)} placeholder="e.g. 09:00-12:00" /></Field>
       <Field label="Billing Type">
         <SelectInput value={form.billingType} onChange={ev => set("billingType", ev.target.value)}>
-          <option value="hourly">Hourly</option><option value="fixed">Fixed Price</option>
+          <option value="hourly">{uiText("Hourly")}</option><option value="fixed">{uiText("Fixed Price")}</option>
         </SelectInput>
       </Field>
       {form.billingType === "hourly"
@@ -1861,8 +2188,8 @@ return (
   )}
 
   <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 10 }}>
-    <button style={btnSec} onClick={onCancel}>Cancel</button>
-    <button style={btnPri} onClick={() => form.name && onSave(form)}>Save Client</button>
+    <button style={btnSec} onClick={onCancel}>{uiText("Cancel")}</button>
+    <button style={btnPri} onClick={() => form.name && onSave(form)}>{uiText("Save Client")}</button>
   </div>
 </div>
 
@@ -1883,7 +2210,7 @@ const [viewYear, setViewYear] = useState(now.getFullYear());
 const [viewMonth, setViewMonth] = useState(now.getMonth());
 
 const emptySchedule = { clientId: "", employeeId: "", date: getToday(), startTime: "08:00", endTime: "12:00", status: "scheduled", notes: "", recurrence: "none" };
-const dayHeaders = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const dayHeaders = [uiText("Mon"), uiText("Tue"), uiText("Wed"), uiText("Thu"), uiText("Fri"), uiText("Sat"), uiText("Sun")];
 
 const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
 const firstDayOfWeek = (new Date(viewYear, viewMonth, 1).getDay() + 6) % 7;
@@ -2000,8 +2327,8 @@ showToast("Removed", "error");
 return (
 <div>
 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
-<h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold }}>Schedule</h1>
-<button style={btnPri} onClick={() => setModal({ ...emptySchedule })}>{ICN.plus} New Job</button>
+<h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold }}>{uiText("Schedule")}</h1>
+<button style={btnPri} onClick={() => setModal({ ...emptySchedule })}>{ICN.plus} {uiText("New Job")}</button>
 </div>
 
 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
@@ -2015,20 +2342,20 @@ return (
 </div>
 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
 <div style={{ display: "flex", background: CL.s2, border: `1px solid ${CL.bd}`, borderRadius: 8, padding: 2 }}>
-<button style={{ ...btnSec, ...btnSm, background: viewMode === "calendar" ? CL.blue : "transparent", border: "none", color: viewMode === "calendar" ? CL.white : CL.muted }} onClick={() => setViewMode("calendar")}>Calendar</button>
-<button style={{ ...btnSec, ...btnSm, background: viewMode === "list" ? CL.blue : "transparent", border: "none", color: viewMode === "list" ? CL.white : CL.muted }} onClick={() => setViewMode("list")}>List</button>
+<button style={{ ...btnSec, ...btnSm, background: viewMode === "calendar" ? CL.blue : "transparent", border: "none", color: viewMode === "calendar" ? CL.white : CL.muted }} onClick={() => setViewMode("calendar")}>{uiText("Calendar")}</button>
+<button style={{ ...btnSec, ...btnSm, background: viewMode === "list" ? CL.blue : "transparent", border: "none", color: viewMode === "list" ? CL.white : CL.muted }} onClick={() => setViewMode("list")}>{uiText("List")}</button>
 </div>
 <SelectInput value={filterEmp} onChange={ev => setFilterEmp(ev.target.value)} style={{ width: 180 }}>
-<option value="">All Employees</option>
+<option value="">{uiText("All Employees")}</option>
 {data.employees.filter(emp => emp.status === "active").map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
 </SelectInput>
 </div>
 </div>
 
 <div className="stat-row" style={{ marginBottom: 16 }}>
-<StatCard label="This Month" value={`${monthSchedules.length} jobs`} icon={ICN.cal} color={CL.blue} />
-<StatCard label="In Progress" value={monthSchedules.filter(s => s.status === "in-progress").length} icon={ICN.clock} color={CL.orange} />
-<StatCard label="Completed" value={monthSchedules.filter(s => s.status === "completed").length} icon={ICN.check} color={CL.green} />
+<StatCard label={uiText("This Month")} value={`${monthSchedules.length}`} icon={ICN.cal} color={CL.blue} />
+<StatCard label={uiText("In Progress")} value={monthSchedules.filter(s => s.status === "in-progress").length} icon={ICN.clock} color={CL.orange} />
+<StatCard label={uiText("Completed")} value={monthSchedules.filter(s => s.status === "completed").length} icon={ICN.check} color={CL.green} />
 </div>
 
 <div style={{ ...cardSt, marginBottom: 16 }}>
@@ -2096,29 +2423,29 @@ return <div key={sched.id} onClick={ev => { ev.stopPropagation(); setModal({ ...
 <h3 style={{ fontSize: 15, fontWeight: 600, color: CL.gold, fontFamily: "'Cormorant Garamond', serif", margin: 0 }}>{fmtDate(selectedDateStr)}</h3>
 <button style={{ ...btnPri, ...btnSm, background: CL.green }} onClick={() => setModal({ ...emptySchedule, date: selectedDateStr })}>{ICN.plus} Add</button>
 </div>
-{selectedDateScheds.length === 0 ? <p style={{ color: CL.muted, fontSize: 13, textAlign: "center", padding: "20px 0" }}>No jobs this day</p> : selectedDateScheds.map(sched => {
+{selectedDateScheds.length === 0 ? <p style={{ color: CL.muted, fontSize: 13, textAlign: "center", padding: "20px 0" }}>{uiText("No jobs this day")}</p> : selectedDateScheds.map(sched => {
 const client = data.clients.find(c => c.id === sched.clientId);
 const employee = data.employees.find(emp => emp.id === sched.employeeId);
 const empColor = empColors[sched.employeeId] || CL.muted;
-return <div key={sched.id} onClick={() => setModal({ ...sched })} style={{ padding: "10px 12px", marginBottom: 8, borderRadius: 8, cursor: "pointer", background: CL.s2, borderLeft: `4px solid ${empColor}` }}><div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><div style={{ fontWeight: 600, fontSize: 14, color: CL.text }}>{client?.name || "?"}</div><Badge color={scheduleStatusColor(sched.status)}>{sched.status}</Badge></div><div style={{ fontSize: 12, color: CL.muted, marginTop: 4 }}>{sched.startTime} - {sched.endTime}</div><div style={{ fontSize: 12, color: empColor, marginTop: 2 }}>{employee?.name || "Unassigned"}</div></div>;
+return <div key={sched.id} onClick={() => setModal({ ...sched })} style={{ padding: "10px 12px", marginBottom: 8, borderRadius: 8, cursor: "pointer", background: CL.s2, borderLeft: `4px solid ${empColor}` }}><div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><div style={{ fontWeight: 600, fontSize: 14, color: CL.text }}>{client?.name || "?"}</div><Badge color={scheduleStatusColor(sched.status)}>{uiText(sched.status)}</Badge></div><div style={{ fontSize: 12, color: CL.muted, marginTop: 4 }}>{sched.startTime} - {sched.endTime}</div><div style={{ fontSize: 12, color: empColor, marginTop: 2 }}>{employee?.name || uiText("Unassigned")}</div></div>;
 })}
-</>) : <div style={{ textAlign: "center", padding: "30px 10px" }}><div style={{ color: CL.muted, marginBottom: 8 }}>{ICN.cal}</div><p style={{ color: CL.muted, fontSize: 13 }}>Click a date to see details</p></div>}
+</>) : <div style={{ textAlign: "center", padding: "30px 10px" }}><div style={{ color: CL.muted, marginBottom: 8 }}>{ICN.cal}</div><p style={{ color: CL.muted, fontSize: 13 }}>{uiText("Click a date to see details")}</p></div>}
 </div>
 </div>
 </div>
 ) : (
 <div style={cardSt}>
-<div style={{ fontSize: 12, color: CL.muted, marginBottom: 10 }}>Monthly job list by date (readable after clocking/status changes).</div>
+<div style={{ fontSize: 12, color: CL.muted, marginBottom: 10 }}>{uiText("Monthly job list by date (readable after clocking/status changes).")}</div>
 <div className="tbl-wrap">
 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-<thead><tr><th style={thSt}>Date</th><th style={thSt}>Time</th><th style={thSt}>Client</th><th style={thSt}>Cleaner</th><th style={thSt}>Status</th></tr></thead>
+<thead><tr><th style={thSt}>{uiText("Date")}</th><th style={thSt}>{uiText("Time")}</th><th style={thSt}>{uiText("Client")}</th><th style={thSt}>{uiText("Cleaner")}</th><th style={thSt}>{uiText("Status")}</th></tr></thead>
 <tbody>
 {orderedMonthSchedules.map(s => {
 const client = data.clients.find(c => c.id === s.clientId);
 const employee = data.employees.find(e => e.id === s.employeeId);
-return <tr key={s.id} onClick={() => setModal({ ...s })} style={{ cursor: "pointer" }}><td style={tdSt}>{fmtDate(s.date)}</td><td style={tdSt}>{s.startTime} - {s.endTime}</td><td style={tdSt}>{client?.name || "-"}</td><td style={tdSt}>{employee?.name || "Unassigned"}</td><td style={tdSt}><Badge color={scheduleStatusColor(s.status)}>{s.status}</Badge></td></tr>;
+return <tr key={s.id} onClick={() => setModal({ ...s })} style={{ cursor: "pointer" }}><td style={tdSt}>{fmtDate(s.date)}</td><td style={tdSt}>{s.startTime} - {s.endTime}</td><td style={tdSt}>{client?.name || "-"}</td><td style={tdSt}>{employee?.name || uiText("Unassigned")}</td><td style={tdSt}><Badge color={scheduleStatusColor(s.status)}>{uiText(s.status)}</Badge></td></tr>;
 })}
-{orderedMonthSchedules.length === 0 && <tr><td colSpan={5} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>No jobs in this month</td></tr>}
+{orderedMonthSchedules.length === 0 && <tr><td colSpan={5} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>{uiText("No jobs in this month")}</td></tr>}
 </tbody>
 </table>
 </div>
@@ -2126,7 +2453,7 @@ return <tr key={s.id} onClick={() => setModal({ ...s })} style={{ cursor: "point
 )}
 
 {modal && (
-<ModalBox title={modal.id ? "Edit Job" : "New Job"} onClose={() => setModal(null)}>
+<ModalBox title={uiText(modal.id ? "Edit Job" : "New Job")} onClose={() => setModal(null)}>
 <ScheduleForm initialData={modal} data={data} onSave={handleSave} onDelete={handleDelete} onCancel={() => setModal(null)} />
 </ModalBox>
 )}
@@ -2160,7 +2487,7 @@ return (
 <Field label="Date"><TextInput type="date" value={form.date} onChange={ev => set("date", ev.target.value)} disabled={isCompletedLocked} /></Field>
 <Field label="Status">
 <SelectInput value={form.status} onChange={ev => set("status", ev.target.value)} disabled={isCompletedLocked}>
-<option value="scheduled">Scheduled</option><option value="in-progress">In Progress</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option>
+<option value="scheduled">{uiText("Scheduled")}</option><option value="in-progress">{uiText("In Progress")}</option><option value="completed">{uiText("Completed")}</option><option value="cancelled">{uiText("Cancelled")}</option>
 </SelectInput>
 </Field>
 <Field label="Start"><TextInput type="time" value={form.startTime} onChange={ev => set("startTime", ev.target.value)} disabled={isCompletedLocked} /></Field>
@@ -2168,17 +2495,17 @@ return (
 {!form.id && (
 <Field label="Recurrence">
 <SelectInput value={form.recurrence} onChange={ev => set("recurrence", ev.target.value)} disabled={isCompletedLocked}>
-<option value="none">One-time</option><option value="daily">Daily (weekends included)</option><option value="daily-weekdays">Daily (weekdays only)</option><option value="weekly">Weekly (12 weeks)</option><option value="biweekly">Bi-weekly (12x)</option><option value="monthly">Monthly (12 months)</option>
+<option value="none">{uiText("One-time")}</option><option value="daily">{uiText("Daily (weekends included)")}</option><option value="daily-weekdays">{uiText("Daily (weekdays only)")}</option><option value="weekly">{uiText("Weekly (12 weeks)")}</option><option value="biweekly">{uiText("Bi-weekly (12x)")}</option><option value="monthly">{uiText("Monthly (12 months)")}</option>
 </SelectInput>
 </Field>
 )}
 </div>
 
   {/* Client quick info */}
-  {isCompletedLocked && <div style={{ marginBottom: 10, fontSize: 12, color: CL.green }}>This job is marked as completed and can no longer be edited.</div>}
+  {isCompletedLocked && <div style={{ marginBottom: 10, fontSize: 12, color: CL.green }}>{uiText("This job is marked as completed and can no longer be edited.")}</div>}
   {selectedClient && (
     <div style={{ padding: 10, background: CL.s2, borderRadius: 8, marginBottom: 12, fontSize: 12 }}>
-      <div style={{ fontWeight: 600, color: CL.gold, marginBottom: 4 }}>Client Info</div>
+      <div style={{ fontWeight: 600, color: CL.gold, marginBottom: 4 }}>{uiText("Client Info")}</div>
       <div style={{ color: CL.muted }}>
         {selectedClient.address}{selectedClient.apartmentFloor ? `, ${selectedClient.apartmentFloor}` : ""}
         {selectedClient.city ? ` · ${selectedClient.postalCode || ""} ${selectedClient.city}` : ""}
@@ -2192,10 +2519,10 @@ return (
 
   <Field label="Notes"><TextArea value={form.notes || ""} onChange={ev => set("notes", ev.target.value)} disabled={isCompletedLocked} /></Field>
   <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, flexWrap: "wrap", gap: 8 }}>
-    <div>{form.id && <button style={{ ...btnDng, ...btnSm }} disabled={isCompletedLocked} onClick={() => { onCancel(); onDelete(form.id); }}>Delete Job</button>}</div>
+    <div>{form.id && <button style={{ ...btnDng, ...btnSm }} disabled={isCompletedLocked} onClick={() => { onCancel(); onDelete(form.id); }}>{uiText("Delete Job")}</button>}</div>
     <div style={{ display: "flex", gap: 10 }}>
-      <button style={btnSec} onClick={onCancel}>Cancel</button>
-      <button style={btnPri} disabled={isCompletedLocked} onClick={() => form.clientId && form.employeeId && onSave(form)}>{isCompletedLocked ? "Completed" : "Save Job"}</button>
+      <button style={btnSec} onClick={onCancel}>{uiText("Cancel")}</button>
+      <button style={btnPri} disabled={isCompletedLocked} onClick={() => form.clientId && form.employeeId && onSave(form)}>{isCompletedLocked ? uiText("Completed") : uiText("Save Job")}</button>
     </div>
   </div>
 </div>
@@ -2324,42 +2651,42 @@ return true;
 
 return (
 <div>
-<h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold, marginBottom: 16 }}>Time Clock</h1>
+<h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold, marginBottom: 16 }}>{uiText("Time Clock")}</h1>
 
   <div style={{ ...cardSt, marginBottom: 16 }}>
-    <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>Quick Clock In</h3>
+    <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>{uiText("Quick Clock In")}</h3>
     <div style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
       <div style={{ flex: 1, minWidth: 160 }}>
-        <Field label="Employee">
+        <Field label={uiText("Employee")}>
           <SelectInput value={selectedEmp} onChange={ev => setSelectedEmp(ev.target.value)}>
-            <option value="">Select...</option>
+            <option value="">{uiText("Select...")}</option>
             {data.employees.filter(emp => emp.status === "active").map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
           </SelectInput>
         </Field>
       </div>
       <div style={{ flex: 1, minWidth: 160 }}>
-        <Field label="Client">
+        <Field label={uiText("Client")}>
           <SelectInput value={selectedCli} onChange={ev => setSelectedCli(ev.target.value)}>
-            <option value="">Select...</option>
+            <option value="">{uiText("Select...")}</option>
             {data.clients.filter(c => c.status === "active").map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </SelectInput>
         </Field>
       </div>
-      <button style={{ ...btnPri, marginBottom: 14, background: CL.green }} onClick={doClockIn}>Clock In</button>
+      <button style={{ ...btnPri, marginBottom: 14, background: CL.green }} onClick={doClockIn}>{uiText("Clock In")}</button>
     </div>
-    <Field label="Clock-in note (optional)">
-      <TextInput value={clockInNote} onChange={ev => setClockInNote(ev.target.value)} placeholder="Late reason, traffic, access issue..." />
+    <Field label={uiText("Clock-in note (optional)")}>
+      <TextInput value={clockInNote} onChange={ev => setClockInNote(ev.target.value)} placeholder={uiText("Late reason, traffic, access issue...")} />
     </Field>
     {activeClocks.length > 0 && (
       <div style={{ marginTop: 6 }}>
-        <div style={{ fontSize: 12, color: CL.green, fontWeight: 600, marginBottom: 4 }}>Active:</div>
+        <div style={{ fontSize: 12, color: CL.green, fontWeight: 600, marginBottom: 4 }}>{uiText("Active:")}</div>
         {activeClocks.map(clk => {
           const employee = data.employees.find(e => e.id === clk.employeeId);
           const client = data.clients.find(c => c.id === clk.clientId);
           return (
             <div key={clk.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: `1px solid ${CL.bd}` }}>
               <span><strong>{employee?.name}</strong> at {client?.name} · {fmtTime(clk.clockIn)} {clk.isLate ? `· Late ${clk.lateMinutes || 0}m` : ""}</span>
-              <button style={{ ...btnDng, ...btnSm }} onClick={() => doClockOut(clk.id)}>Out</button>
+              <button style={{ ...btnDng, ...btnSm }} onClick={() => doClockOut(clk.id)}>{uiText("Out")}</button>
             </div>
           );
         })}
@@ -2368,7 +2695,7 @@ return (
   </div>
 
   <div style={{ ...cardSt, marginBottom: 16 }}>
-    <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.blue }}>Owner: Add missed clock-in</h3>
+    <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.blue }}>{uiText("Owner: Add missed clock-in")}</h3>
     <div className="form-grid" style={{ marginBottom: 8 }}>
       <Field label="Employee">
         <SelectInput value={manualEntry.employeeId} onChange={ev => setManual("employeeId", ev.target.value)}>
@@ -2390,12 +2717,12 @@ return (
     <Field label="Reason / note (optional)">
       <TextInput value={manualEntry.notes} onChange={ev => setManual("notes", ev.target.value)} placeholder="Forgot to clock in, adjusted by owner..." />
     </Field>
-    <button style={{ ...btnPri, background: CL.blue }} onClick={addManualEntry}>Add Manual Entry</button>
+    <button style={{ ...btnPri, background: CL.blue }} onClick={addManualEntry}>{uiText("Add Manual Entry")}</button>
   </div>
 
   <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
     <SelectInput value={filters.emp} onChange={ev => setFilters(f => ({ ...f, emp: ev.target.value }))} style={{ width: 160 }}>
-      <option value="">All Employees</option>
+      <option value="">{uiText("All Employees")}</option>
       {data.employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
     </SelectInput>
     <TextInput type="month" value={filters.month} onChange={ev => setFilters(f => ({ ...f, month: ev.target.value }))} style={{ width: 160 }} />
@@ -2403,7 +2730,7 @@ return (
 
   <div style={cardSt} className="tbl-wrap">
     <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-      <thead><tr><th style={thSt}>Employee</th><th style={thSt}>Client</th><th style={thSt}>In</th><th style={thSt}>Out</th><th style={thSt}>Late</th><th style={thSt}>Notes</th><th style={thSt}>Hours</th><th style={thSt}>Actions</th></tr></thead>
+      <thead><tr><th style={thSt}>{uiText("Employee")}</th><th style={thSt}>{uiText("Client")}</th><th style={thSt}>{uiText("In")}</th><th style={thSt}>{uiText("Out")}</th><th style={thSt}>{uiText("Late")}</th><th style={thSt}>{uiText("Notes")}</th><th style={thSt}>{uiText("Hours")}</th><th style={thSt}>{uiText("Actions")}</th></tr></thead>
       <tbody>
         {filteredEntries.map(entry => {
           const employee = data.employees.find(e => e.id === entry.employeeId);
@@ -2414,8 +2741,8 @@ return (
               <td style={tdSt}>{employee?.name || "-"}</td>
               <td style={tdSt}>{client?.name || "-"}</td>
               <td style={tdSt}>{fmtBoth(entry.clockIn)}</td>
-              <td style={tdSt}>{entry.clockOut ? fmtBoth(entry.clockOut) : <Badge color={CL.green}>Active</Badge>}</td>
-              <td style={tdSt}>{entry.isLate ? <Badge color={CL.orange}>Late {entry.lateMinutes || 0}m</Badge> : <Badge color={CL.green}>On time</Badge>}</td>
+              <td style={tdSt}>{entry.clockOut ? fmtBoth(entry.clockOut) : <Badge color={CL.green}>{uiText("Active")}</Badge>}</td>
+              <td style={tdSt}>{entry.isLate ? <Badge color={CL.orange}>{uiText("Late")} {entry.lateMinutes || 0}m</Badge> : <Badge color={CL.green}>{uiText("On time")}</Badge>}</td>
               <td style={tdSt}>{entry.notes || "-"}</td>
               <td style={tdSt}>{entry.clockOut ? `${hours.toFixed(2)}h` : "-"}</td>
               <td style={tdSt}>
@@ -2427,13 +2754,13 @@ return (
             </tr>
           );
         })}
-        {filteredEntries.length === 0 && <tr><td colSpan={8} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>No entries</td></tr>}
+        {filteredEntries.length === 0 && <tr><td colSpan={8} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>{uiText("No entries")}</td></tr>}
       </tbody>
     </table>
   </div>
 
   {editEntry && (
-    <ModalBox title="Edit Entry" onClose={() => setEditEntry(null)}>
+    <ModalBox title={uiText("Edit Entry")} onClose={() => setEditEntry(null)}>
       <TimeEntryForm entry={editEntry} data={data} onSave={saveEntry} onCancel={() => setEditEntry(null)} />
     </ModalBox>
   )}
@@ -2547,12 +2874,12 @@ showToast("Products delivered");
 return (
 <div>
 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
-<h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold }}>Inventory</h1>
+<h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold }}>{uiText("Inventory")}</h1>
 </div>
 
 <div className="grid-2" style={{ marginBottom: 16 }}>
 <div style={cardSt}>
-<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>Add Product</h3>
+<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>{uiText("Add Product")}</h3>
 <div className="form-grid">
 <Field label="Name"><TextInput value={productForm.name} onChange={ev => setProductForm(v => ({ ...v, name: ev.target.value }))} /></Field>
 <Field label="Unit"><TextInput value={productForm.unit} onChange={ev => setProductForm(v => ({ ...v, unit: ev.target.value }))} /></Field>
@@ -2560,48 +2887,48 @@ return (
 <Field label="Min Stock"><TextInput type="number" value={productForm.minStock} onChange={ev => setProductForm(v => ({ ...v, minStock: ev.target.value }))} /></Field>
 </div>
 <Field label="Note"><TextArea value={productForm.note} onChange={ev => setProductForm(v => ({ ...v, note: ev.target.value }))} /></Field>
-<button style={btnPri} onClick={saveProduct}>{ICN.plus} Add Product</button>
+<button style={btnPri} onClick={saveProduct}>{ICN.plus} {uiText("Add Product")}</button>
 </div>
 <div style={cardSt}>
-<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>Usage Overview</h3>
+<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>{uiText("Usage Overview")}</h3>
 {products.map(p => {
 const reqs = requests.filter(r => r.productId === p.id);
 const requested = reqs.reduce((s, r) => s + (Number(r.quantity) || 0), 0);
 const delivered = reqs.reduce((s, r) => s + (Number(r.deliveredQty) || 0), 0);
 return <div key={p.id} style={{ padding: "8px 0", borderBottom: `1px solid ${CL.bd}` }}><div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}><div><div style={{ fontWeight: 600 }}>{p.name}</div><div style={{ fontSize: 12, color: CL.muted }}>Stock: {p.stock} {p.unit} · Requested: {requested} · Delivered: {delivered}</div></div><div style={{ display: "flex", gap: 4 }}><button style={{ ...btnSec, ...btnSm }} onClick={() => adjustStock(p.id, -1)}>-1</button><button style={{ ...btnSec, ...btnSm }} onClick={() => adjustStock(p.id, 1)}>+1</button></div></div></div>;
 })}
-{products.length === 0 && <p style={{ color: CL.muted }}>No products added yet.</p>}
+{products.length === 0 && <p style={{ color: CL.muted }}>{uiText("No products added yet.")}</p>}
 </div>
 </div>
 
 <div style={{ ...cardSt, marginBottom: 16 }}>
-<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>Assigned / In-Hand by Cleaner</h3>
+<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>{uiText("Assigned / In-Hand by Cleaner")}</h3>
 <div className="tbl-wrap">
 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-<thead><tr><th style={thSt}>Cleaner</th><th style={thSt}>Product</th><th style={thSt}>Assigned</th><th style={thSt}>In Hand</th><th style={thSt}>Update In Hand</th></tr></thead>
+<thead><tr><th style={thSt}>{uiText("Cleaner")}</th><th style={thSt}>{uiText("Product")}</th><th style={thSt}>{uiText("Assigned")}</th><th style={thSt}>{uiText("In Hand")}</th><th style={thSt}>{uiText("Update In Hand")}</th></tr></thead>
 <tbody>
 {holdings.map(h => { const emp = data.employees.find(e => e.id === h.employeeId); const prod = products.find(p => p.id === h.productId) || (data.inventoryProducts || []).find(p => p.id === h.productId); return (
 <tr key={h.id}><td style={tdSt}>{emp?.name || "-"}</td><td style={tdSt}>{prod?.name || "-"}</td><td style={tdSt}>{h.qtyAssigned || 0}</td><td style={tdSt}>{h.qtyInHand || 0}</td><td style={tdSt}><div style={{ display: "flex", gap: 4 }}><button style={{ ...btnSec, ...btnSm }} onClick={() => updateHoldingInHand(h.id, (Number(h.qtyInHand)||0) - 1)}>-1</button><button style={{ ...btnSec, ...btnSm }} onClick={() => updateHoldingInHand(h.id, (Number(h.qtyInHand)||0) + 1)}>+1</button></div></td></tr>
 ); })}
-{holdings.length === 0 && <tr><td colSpan={5} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>No product assignments yet</td></tr>}
+{holdings.length === 0 && <tr><td colSpan={5} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>{uiText("No product assignments yet")}</td></tr>}
 </tbody>
 </table>
 </div>
 </div>
 
 <div style={cardSt} className="tbl-wrap">
-<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>Cleaner Product Requests</h3>
+<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>{uiText("Cleaner Product Requests")}</h3>
 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-<thead><tr><th style={thSt}>Cleaner</th><th style={thSt}>Product</th><th style={thSt}>Qty</th><th style={thSt}>Delivery</th><th style={thSt}>Status</th><th style={thSt}>Actions</th></tr></thead>
+<thead><tr><th style={thSt}>{uiText("Cleaner")}</th><th style={thSt}>{uiText("Product")}</th><th style={thSt}>{uiText("Qty")}</th><th style={thSt}>{uiText("Delivery Date & Time")}</th><th style={thSt}>{uiText("Status")}</th><th style={thSt}>{uiText("Actions")}</th></tr></thead>
 <tbody>
 {requests.map(req => { const emp = data.employees.find(e => e.id === req.employeeId); const prod = products.find(p => p.id === req.productId) || (data.inventoryProducts || []).find(p => p.id === req.productId); return (
-<tr key={req.id}><td style={tdSt}>{emp?.name || "-"}</td><td style={tdSt}>{prod?.name || "-"}</td><td style={tdSt}>{req.quantity}</td><td style={tdSt}>{req.deliveryAt ? fmtBoth(req.deliveryAt) : "-"}</td><td style={tdSt}><Badge color={req.status === "delivered" ? CL.green : req.status === "rejected" ? CL.red : req.status === "approved" ? CL.blue : CL.orange}>{req.status}</Badge></td><td style={tdSt}><div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-{req.status === "pending" && <button style={{ ...btnSec, ...btnSm, color: CL.green }} onClick={() => approveRequest(req, req.quantity)}>{ICN.check} Approve</button>}
-{["pending", "approved"].includes(req.status) && <button style={{ ...btnSec, ...btnSm }} onClick={() => deliverRequest(req, req.approvedQty || req.quantity)}>{ICN.doc} Deliver</button>}
-{req.status !== "rejected" && req.status !== "delivered" && <button style={{ ...btnSec, ...btnSm, color: CL.red }} onClick={() => setRequestStatus(req.id, "rejected")}>{ICN.close} Reject</button>}
+<tr key={req.id}><td style={tdSt}>{emp?.name || "-"}</td><td style={tdSt}>{prod?.name || "-"}</td><td style={tdSt}>{req.quantity}</td><td style={tdSt}>{req.deliveryAt ? fmtBoth(req.deliveryAt) : "-"}</td><td style={tdSt}><Badge color={req.status === "delivered" ? CL.green : req.status === "rejected" ? CL.red : req.status === "approved" ? CL.blue : CL.orange}>{uiText(req.status)}</Badge></td><td style={tdSt}><div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+{req.status === "pending" && <button style={{ ...btnSec, ...btnSm, color: CL.green }} onClick={() => approveRequest(req, req.quantity)}>{ICN.check} {uiText("Approved")}</button>}
+{["pending", "approved"].includes(req.status) && <button style={{ ...btnSec, ...btnSm }} onClick={() => deliverRequest(req, req.approvedQty || req.quantity)}>{ICN.doc} {uiText("Deliver")}</button>}
+{req.status !== "rejected" && req.status !== "delivered" && <button style={{ ...btnSec, ...btnSm, color: CL.red }} onClick={() => setRequestStatus(req.id, "rejected")}>{ICN.close} {uiText("Reject")}</button>}
 </div></td></tr>
 ); })}
-{requests.length === 0 && <tr><td colSpan={6} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>No product requests yet</td></tr>}
+{requests.length === 0 && <tr><td colSpan={6} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>{uiText("No product requests yet")}</td></tr>}
 </tbody>
 </table>
 </div>
@@ -2793,12 +3120,12 @@ return (
 {(data.quotes || []).sort((a,b)=>(b.date||"").localeCompare(a.date||"")).map(q => { const client = data.clients.find(c => c.id === q.clientId); return (
 <tr key={q.id}><td style={tdSt}><strong>{q.quoteNumber}</strong></td><td style={tdSt}>{client?.name || "-"}</td><td style={tdSt}>{fmtDate(q.date)}</td><td style={{ ...tdSt, fontWeight: 600 }}>€{(q.total || 0).toFixed(2)}</td><td style={tdSt}><Badge color={q.status === "accepted" || q.status === "converted" ? CL.green : q.status === "rejected" ? CL.red : CL.blue}>{q.status || t("draft")}</Badge></td><td style={tdSt}><div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}><button style={{ ...btnSec, ...btnSm }} onClick={() => setPreview({ ...q, invoiceNumber: q.quoteNumber, dueDate: q.validUntil })}>{t("view")}</button><button style={{ ...btnSec, ...btnSm }} onClick={() => setModal({ ...q })}>{ICN.edit}</button><button style={{ ...btnSec, ...btnSm }} onClick={() => downloadQuotePdf(q)}>{ICN.download} PDF</button><button style={{ ...btnSec, ...btnSm }} onClick={() => sendQuote(q)}>{ICN.mail}</button>{q.status !== "converted" && <button style={{ ...btnSec, ...btnSm, color: CL.green }} onClick={() => convertToInvoice(q)}>{lang === "en" ? "To Invoice" : "Vers facture"}</button>}<button style={{ ...btnSec, ...btnSm, color: CL.red }} onClick={() => deleteQuote(q.id)}>{ICN.trash}</button></div></td></tr>
 ); })}
-{(data.quotes || []).length === 0 && <tr><td colSpan={6} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>No quotes</td></tr>}
+{(data.quotes || []).length === 0 && <tr><td colSpan={6} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>{uiText("No quotes")}</td></tr>}
 </tbody>
 </table>
 </div>
 
-{preview && <ModalBox title={lang === "en" ? "Quote Preview" : "Aperçu devis"} onClose={() => setPreview(null)} wide><div ref={previewRef}><InvoicePreviewContent invoice={preview} data={data} /></div><div className="no-print" style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 12, flexWrap: "wrap" }}><button style={btnSec} onClick={() => setPreview(null)}>{lang === "en" ? "Close" : "Fermer"}</button><button style={btnPri} onClick={() => downloadQuotePdf(preview)}>{ICN.download} PDF</button><button style={{ ...btnSec, color: CL.blue }} onClick={() => sendQuote(preview)}>{ICN.mail} {t("sendEmail")}</button></div></ModalBox>}
+{preview && <ModalBox title={t("quote") + " " + uiText("Invoice Preview")} onClose={() => setPreview(null)} wide><div ref={previewRef}><InvoicePreviewContent invoice={preview} data={data} /></div><div className="no-print" style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 12, flexWrap: "wrap" }}><button style={btnSec} onClick={() => setPreview(null)}>{uiText("Close")}</button><button style={btnPri} onClick={() => downloadQuotePdf(preview)}>{ICN.download} PDF</button><button style={{ ...btnSec, color: CL.blue }} onClick={() => sendQuote(preview)}>{ICN.mail} {t("sendEmail")}</button></div></ModalBox>}
 {modal && <ModalBox title={modal.id ? t("editQuote") : t("newQuote")} onClose={() => setModal(null)} wide><QuoteForm quote={{ pricingMode: "hours", visibleColumns: { ...defaultQuoteColumns }, ...modal }} data={data} onSave={saveQuote} onCancel={() => setModal(null)} /></ModalBox>}
 {quoteForPdf && <div style={{ position: "fixed", left: -10000, top: 0, width: 1200, background: "#fff", zIndex: -1 }}><div ref={hiddenQuoteRef}><InvoicePreviewContent invoice={quoteForPdf} data={data} /></div></div>}
 </div>
@@ -3082,7 +3409,7 @@ return (
 {data.invoices.sort((a, b) => (b.date || "").localeCompare(a.date || "")).map(inv => { const client = data.clients.find(c => c.id === inv.clientId); return (
 <tr key={inv.id}><td style={tdSt}><strong>{inv.invoiceNumber}</strong></td><td style={tdSt}>{client?.name || "-"}</td><td style={tdSt}>{fmtDate(inv.date)}</td><td style={{ ...tdSt, fontWeight: 600 }}>€{(inv.total || 0).toFixed(2)}</td><td style={tdSt}><Badge color={inv.status === "paid" ? CL.green : inv.status === "overdue" ? CL.red : inv.status === "sent" ? CL.blue : CL.muted}>{t(inv.status, inv.status)}</Badge></td><td style={tdSt}><div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}><button style={{ ...btnSec, ...btnSm }} onClick={() => setPreview(inv)}>{t("view")}</button><button style={{ ...btnSec, ...btnSm }} onClick={() => setModal({ ...inv })}>{ICN.edit}</button><button style={{ ...btnSec, ...btnSm }} onClick={() => emailInvoice(inv)}>{ICN.mail}</button><button style={{ ...btnSec, ...btnSm, color: CL.red }} onClick={() => handleDelete(inv.id)}>{ICN.trash}</button></div></td></tr>
 ); })}
-{data.invoices.length === 0 && <tr><td colSpan={6} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>No invoices</td></tr>}
+{data.invoices.length === 0 && <tr><td colSpan={6} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>{uiText("No invoices")}</td></tr>}
 </tbody>
 </table>
 </div>
@@ -3342,7 +3669,7 @@ return (
 </tr>
 );
 })}
-{data.payslips.length === 0 && <tr><td colSpan={7} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>No payslips</td></tr>}
+{data.payslips.length === 0 && <tr><td colSpan={7} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>{uiText("No payslips")}</td></tr>}
 </tbody>
 </table>
 </div>
@@ -3452,20 +3779,20 @@ return (
 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 8 }}>
   <h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold }}>{t("historyImages")}</h1>
   <div style={{ display: "flex", gap: 8 }}>
-    <SelectInput value={clientFilter} onChange={ev => setClientFilter(ev.target.value)} style={{ width: 220 }}><option value="">All clients</option>{data.clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</SelectInput>
-    <button style={btnSec} onClick={markAllSeen}>Mark images seen</button>
+    <SelectInput value={clientFilter} onChange={ev => setClientFilter(ev.target.value)} style={{ width: 220 }}><option value="">{uiText("All clients")}</option>{data.clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</SelectInput>
+    <button style={btnSec} onClick={markAllSeen}>{uiText("Mark images seen")}</button>
   </div>
 </div>
 <div className="grid-2">
   <div style={cardSt}>
-    <h3 style={{ marginBottom: 10, color: CL.gold }}>Job history</h3>
+    <h3 style={{ marginBottom: 10, color: CL.gold }}>{uiText("Job history")}</h3>
     {filteredJobs.slice(0, 120).map(j => { const c = data.clients.find(x => x.id === j.clientId); const e = data.employees.find(x => x.id === j.employeeId); return <div key={j.id} style={{ borderBottom: `1px solid ${CL.bd}`, padding: "8px 0" }}><div style={{ fontWeight: 600 }}>{fmtDate(j.date)} · {j.startTime}-{j.endTime}</div><div style={{ fontSize: 12, color: CL.muted }}>{c?.name || "-"} · {e?.name || "-"}</div><Badge color={scheduleStatusColor(j.status)}>{j.status}</Badge></div>; })}
-    {filteredJobs.length === 0 && <div style={{ color: CL.muted }}>No jobs</div>}
+    {filteredJobs.length === 0 && <div style={{ color: CL.muted }}>{uiText("No jobs")}</div>}
   </div>
   <div style={cardSt}>
-    <h3 style={{ marginBottom: 10, color: CL.gold }}>Image history</h3>
-    {filteredUploads.slice(0, 120).map(u => { const c = data.clients.find(x => x.id === u.clientId); const e = data.employees.find(x => x.id === u.employeeId); return <div key={u.id} style={{ borderBottom: `1px solid ${CL.bd}`, padding: "8px 0" }}><div style={{ fontWeight: 600 }}>{c?.name || "Unknown client"} · {u.type || "issue"}</div><div style={{ fontSize: 12, color: CL.muted }}>{fmtBoth(u.createdAt)} · {e?.name || "-"}</div>{u.imageData && <img src={u.imageData} alt={u.fileName} style={{ width: "100%", maxWidth: 260, marginTop: 6, borderRadius: 8, border: `1px solid ${CL.bd}` }} />}</div>; })}
-    {filteredUploads.length === 0 && <div style={{ color: CL.muted }}>No images</div>}
+    <h3 style={{ marginBottom: 10, color: CL.gold }}>{uiText("Image history")}</h3>
+    {filteredUploads.slice(0, 120).map(u => { const c = data.clients.find(x => x.id === u.clientId); const e = data.employees.find(x => x.id === u.employeeId); return <div key={u.id} style={{ borderBottom: `1px solid ${CL.bd}`, padding: "8px 0" }}><div style={{ fontWeight: 600 }}>{c?.name || uiText("Unknown client")} · {uiText(u.type || "issue")}</div><div style={{ fontSize: 12, color: CL.muted }}>{fmtBoth(u.createdAt)} · {e?.name || "-"}</div>{u.imageData && <img src={u.imageData} alt={u.fileName} style={{ width: "100%", maxWidth: 260, marginTop: 6, borderRadius: 8, border: `1px solid ${CL.bd}` }} />}</div>; })}
+    {filteredUploads.length === 0 && <div style={{ color: CL.muted }}>{uiText("No images")}</div>}
   </div>
 </div>
 </div>
@@ -3502,10 +3829,10 @@ const summaryRows = data.employees.filter(emp => emp.status === "active").map(em
 return (
 <div>
 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
-<h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold }}>Congés</h1>
+<h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold }}>{uiText("Congés")}</h1>
 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
 <SelectInput value={employeeFilter} onChange={ev => setEmployeeFilter(ev.target.value)} style={{ width: 180 }}>
-<option value="">All Cleaners</option>
+<option value="">{uiText("All Cleaners")}</option>
 {data.employees.filter(e => e.status === "active").map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
 </SelectInput>
 <TextInput type="number" value={yearFilter} onChange={ev => setYearFilter(ev.target.value)} style={{ width: 110 }} />
@@ -3513,19 +3840,19 @@ return (
 </div>
 
 <div className="stat-row" style={{ marginBottom: 16 }}>
-<StatCard label="Pending" value={pendingCount} icon={ICN.clock} color={CL.orange} />
-<StatCard label="Approved" value={approvedCount} icon={ICN.check} color={CL.green} />
-<StatCard label="Rejected" value={rejectedCount} icon={ICN.close} color={CL.red} />
+<StatCard label={uiText("Pending")} value={pendingCount} icon={ICN.clock} color={CL.orange} />
+<StatCard label={uiText("Approved")} value={approvedCount} icon={ICN.check} color={CL.green} />
+<StatCard label={uiText("Rejected")} value={rejectedCount} icon={ICN.close} color={CL.red} />
 </div>
 
 <div style={{ ...cardSt, marginBottom: 16 }}>
-<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>Holiday Counter</h3>
+<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>{uiText("Holiday Counter")}</h3>
 <div className="tbl-wrap">
 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-<thead><tr><th style={thSt}>Cleaner</th><th style={thSt}>Allowance</th><th style={thSt}>Approved</th><th style={thSt}>Pending</th><th style={thSt}>Remaining</th></tr></thead>
+<thead><tr><th style={thSt}>{uiText("Cleaner")}</th><th style={thSt}>{uiText("Allowance")}</th><th style={thSt}>{uiText("Approved")}</th><th style={thSt}>{uiText("Pending")}</th><th style={thSt}>{uiText("Remaining")}</th></tr></thead>
 <tbody>
 {summaryRows.map(row => <tr key={row.emp.id}><td style={tdSt}>{row.emp.name}</td><td style={tdSt}><TextInput type="number" min={0} value={row.emp.leaveAllowance ?? 26} onChange={ev => updateData("employees", prev => prev.map(e => e.id === row.emp.id ? { ...e, leaveAllowance: Math.max(0, parseInt(ev.target.value || "0", 10) || 0) } : e))} style={{ width: 90 }} /></td><td style={tdSt}>{row.approvedDays}d</td><td style={tdSt}>{row.pendingDays}d</td><td style={{ ...tdSt, fontWeight: 700, color: row.remaining > 5 ? CL.green : CL.orange }}>{row.remaining}d</td></tr>)}
-{summaryRows.length === 0 && <tr><td colSpan={5} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>No active cleaners</td></tr>}
+{summaryRows.length === 0 && <tr><td colSpan={5} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>{uiText("No active cleaners")}</td></tr>}
 </tbody>
 </table>
 </div>

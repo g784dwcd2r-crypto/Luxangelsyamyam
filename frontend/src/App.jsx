@@ -20,7 +20,7 @@ const saveLang = (lang) => { try { localStorage.setItem(LANG_KEY, lang); } catch
 const I18N = {
 fr: {
 language: "Langue", french: "Français", english: "Anglais", login: "Connexion", welcome: "Bienvenue", selectRole: "Rôle", pin: "Code PIN", loginBtn: "Se connecter",
-dashboard: "Tableau de bord", employees: "Employés", clients: "Clients", schedule: "Planning", timeclock: "Pointage", inventory: "Stock", devis: "Devis", invoices: "Factures", payslips: "Fiches de paie", conges: "Congés", reminders: "Rappels", reports: "Rapports", database: "Base Excel", settings: "Paramètres",
+dashboard: "Tableau de bord", employees: "Employés", clients: "Clients", schedule: "Planning", timeclock: "Pointage", inventory: "Stock", devis: "Devis", invoices: "Factures", payslips: "Fiches de paie", expenses: "Dépenses", conges: "Congés", reminders: "Rappels", reports: "Rapports", database: "Base Excel", settings: "Paramètres",
 newQuote: "Nouveau devis", editQuote: "Modifier devis", newInvoice: "Nouvelle facture", editInvoice: "Modifier facture", save: "Enregistrer", cancel: "Annuler", actions: "Actions", status: "Statut", client: "Client", date: "Date", amount: "Montant", view: "Voir", sendEmail: "Envoyer email", draft: "Brouillon", sent: "Envoyée", paid: "Payée", overdue: "En retard", auto: "Auto", select: "Sélectionner...", prestationDate: "Date de prestation",
 invoice: "Facture", quote: "Devis", dueDate: "Date échéance", notes: "Notes", total: "Total", subtotal: "Sous-total", vat: "TVA", item: "Ligne", qty: "Qté", unitPrice: "Prix unitaire", description: "Description",
 managementSystem: "Système de gestion", ownerAccess: "Accès propriétaire", ownerAccessDesc: "Tableau de gestion complet", cleanerAccess: "Accès agent", cleanerAccessDesc: "Planning, heures, pointage et congés",
@@ -29,7 +29,7 @@ mySchedule: "Mon planning", clockInOut: "Pointage entrée/sortie", photoUploads:
 },
 en: {
 language: "Language", french: "French", english: "English", login: "Login", welcome: "Welcome", selectRole: "Role", pin: "PIN", loginBtn: "Sign in",
-dashboard: "Dashboard", employees: "Employees", clients: "Clients", schedule: "Schedule", timeclock: "Time Clock", inventory: "Inventory", devis: "Quotes", invoices: "Invoices", payslips: "Payslips", conges: "Leave", reminders: "Reminders", reports: "Reports", database: "Excel DB", settings: "Settings",
+dashboard: "Dashboard", employees: "Employees", clients: "Clients", schedule: "Schedule", timeclock: "Time Clock", inventory: "Inventory", devis: "Quotes", invoices: "Invoices", payslips: "Payslips", expenses: "Expenses", conges: "Leave", reminders: "Reminders", reports: "Reports", database: "Excel DB", settings: "Settings",
 newQuote: "New quote", editQuote: "Edit quote", newInvoice: "New invoice", editInvoice: "Edit invoice", save: "Save", cancel: "Cancel", actions: "Actions", status: "Status", client: "Client", date: "Date", amount: "Amount", view: "View", sendEmail: "Send email", draft: "Draft", sent: "Sent", paid: "Paid", overdue: "Overdue", auto: "Auto", select: "Select...", prestationDate: "Service date",
 invoice: "Invoice", quote: "Quote", dueDate: "Due date", notes: "Notes", total: "Total", subtotal: "Subtotal", vat: "VAT", item: "Item", qty: "Qty", unitPrice: "Unit price", description: "Description",
 managementSystem: "Management System", ownerAccess: "Owner Access", ownerAccessDesc: "Full management dashboard", cleanerAccess: "Cleaner Access", cleanerAccessDesc: "Schedule, hours, clock & time-off",
@@ -535,7 +535,7 @@ return UI_FR[text] || text;
 
 const DEFAULTS = {
 employees: [], clients: [], schedules: [], clockEntries: [], quotes: [], invoices: [], payslips: [],
-photoUploads: [], timeOffRequests: [], inventoryProducts: [], productRequests: [], cleanerProductHoldings: [], prospectVisits: [],
+photoUploads: [], timeOffRequests: [], inventoryProducts: [], productRequests: [], cleanerProductHoldings: [], prospectVisits: [], expenses: [],
 ownerUsername: "LuxAdmin", ownerPin: "LuxAngels@2025",
 managerUsername: "manager", managerPin: "Manager@2025",
 employeePins: {}, employeeUsernames: {},
@@ -726,6 +726,8 @@ search: <SvgIcon paths={<><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x
 logout: <SvgIcon paths={<><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></>} />,
 excel: <SvgIcon paths={<><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></>} />,
 shield: <SvgIcon paths={<><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></>} />,
+wallet: <SvgIcon paths={<><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></>} />,
+receipt: <SvgIcon paths={<><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1V2l-2 1-2-1-2 1-2-1-2 1-2-1z"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="11" y2="17"/></>} />,
 };
 
 // -- UI Components --
@@ -1018,6 +1020,13 @@ if (auth.role === "cleaner") return <LanguageContext.Provider value={{ lang, set
 const pendingProductRequests = (data.productRequests || []).filter(r => r.status === "pending").length;
 const pendingTimeOffRequests = (data.timeOffRequests || []).filter(r => r.status === "pending").length;
 const unseenUploads = (data.photoUploads || []).filter(u => !u.seenByOwner).length;
+const _expCurrentMonth = getToday().slice(0, 7);
+const _expTodayDay = new Date().getDate();
+const dueOrOverdueExpenses = (data.expenses || []).filter(exp => {
+  if (exp.isActive === false) return false;
+  const paid = (exp.payments || []).some(p => p.month === _expCurrentMonth);
+  return !paid && exp.dueDay <= _expTodayDay;
+}).length;
 
 const navItems = [
 { id: "dashboard", label: t("dashboard"), icon: ICN.dash },
@@ -1030,6 +1039,7 @@ const navItems = [
 { id: "devis", label: t("devis"), icon: ICN.doc },
 { id: "invoices", label: t("invoices"), icon: ICN.doc },
 { id: "payslips", label: t("payslips"), icon: ICN.pay },
+{ id: "expenses", label: t("expenses"), icon: ICN.wallet, hasAlert: dueOrOverdueExpenses > 0 },
 { id: "conges", label: t("conges"), icon: ICN.cal, hasAlert: pendingTimeOffRequests > 0 },
 { id: "history", label: t("history"), icon: ICN.doc, hasAlert: unseenUploads > 0 },
 { id: "reminders", label: t("reminders"), icon: ICN.mail },
@@ -1074,6 +1084,7 @@ case "inventory": return <InventoryPage {...props} />;
 case "devis": return <DevisPage {...props} />;
 case "invoices": return <InvoicesPage {...props} />;
 case "payslips": return <PayslipsPage {...props} />;
+case "expenses": return <ExpensesPage {...props} />;
 case "conges": return <LeaveManagementPage {...props} />;
 case "history": return <HistoryPage {...props} />;
 case "reminders": return <RemindersPage data={data} showToast={showToast} />;
@@ -1656,6 +1667,10 @@ const pendingLeave = (data.timeOffRequests || []).filter(r => r.status === "pend
 const pendingProducts = (data.productRequests || []).filter(r => r.status === "pending").length;
 const unseenUploads = (data.photoUploads || []).filter(u => !u.seenByOwner).length;
 const next7Scheds = data.schedules.filter(s => s.date > todayStr && s.date <= next7Days && s.status !== "cancelled").sort((a, b) => a.date.localeCompare(b.date));
+const _dashTodayDay = new Date().getDate();
+const dashExpOverdue = (data.expenses || []).filter(exp => exp.isActive !== false && !((exp.payments || []).some(p => p.month === monthStr)) && exp.dueDay < _dashTodayDay);
+const dashExpDueToday = (data.expenses || []).filter(exp => exp.isActive !== false && !((exp.payments || []).some(p => p.month === monthStr)) && exp.dueDay === _dashTodayDay);
+const dashExpDueSoon = (data.expenses || []).filter(exp => exp.isActive !== false && !((exp.payments || []).some(p => p.month === monthStr)) && exp.dueDay > _dashTodayDay && exp.dueDay <= _dashTodayDay + 3);
 
 return (
 <div>
@@ -1663,12 +1678,15 @@ return (
 <p style={{ color: CL.muted, marginBottom: 18 }}>{new Date().toLocaleDateString(localeForLang(CURRENT_LANG), { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p>
 
 {/* Pending alerts */}
-{(pendingLeave > 0 || pendingProducts > 0 || unseenUploads > 0 || overdueInvoices.length > 0) && (
+{(pendingLeave > 0 || pendingProducts > 0 || unseenUploads > 0 || overdueInvoices.length > 0 || dashExpOverdue.length > 0 || dashExpDueToday.length > 0 || dashExpDueSoon.length > 0) && (
   <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
     {pendingLeave > 0 && <div style={{ background: CL.orange + "20", border: `1px solid ${CL.orange}40`, borderRadius: 8, padding: "6px 12px", fontSize: 12, color: CL.orange, fontWeight: 600 }}>⏳ {pendingLeave} {uiText(pendingLeave > 1 ? "leave requests" : "leave request")} {uiText("pending")}</div>}
     {pendingProducts > 0 && <div style={{ background: CL.blue + "20", border: `1px solid ${CL.blue}40`, borderRadius: 8, padding: "6px 12px", fontSize: 12, color: CL.blue, fontWeight: 600 }}>📦 {pendingProducts} {uiText(pendingProducts > 1 ? "product requests" : "product request")} {uiText("pending")}</div>}
     {unseenUploads > 0 && <div style={{ background: CL.gold + "20", border: `1px solid ${CL.gold}40`, borderRadius: 8, padding: "6px 12px", fontSize: 12, color: CL.gold, fontWeight: 600 }}>📷 {unseenUploads} {uiText(unseenUploads > 1 ? "new photos" : "new photo")} {uiText("uploaded")}</div>}
     {overdueInvoices.length > 0 && <div style={{ background: CL.red + "20", border: `1px solid ${CL.red}40`, borderRadius: 8, padding: "6px 12px", fontSize: 12, color: CL.red, fontWeight: 600 }}>⚠️ {overdueInvoices.length} {uiText(overdueInvoices.length > 1 ? "overdue invoices" : "overdue invoice")}</div>}
+    {dashExpOverdue.map(exp => <div key={exp.id} style={{ background: CL.red + "20", border: `1px solid ${CL.red}40`, borderRadius: 8, padding: "6px 12px", fontSize: 12, color: CL.red, fontWeight: 600 }}>💸 ! {exp.name} — €{(exp.amount||0).toFixed(2)} {uiText("overdue")}</div>)}
+    {dashExpDueToday.map(exp => <div key={exp.id} style={{ background: CL.orange + "20", border: `1px solid ${CL.orange}40`, borderRadius: 8, padding: "6px 12px", fontSize: 12, color: CL.orange, fontWeight: 600 }}>💳 ! {exp.name} — €{(exp.amount||0).toFixed(2)} {uiText("due today")}</div>)}
+    {dashExpDueSoon.map(exp => <div key={exp.id} style={{ background: CL.gold + "20", border: `1px solid ${CL.gold}40`, borderRadius: 8, padding: "6px 12px", fontSize: 12, color: CL.goldLight, fontWeight: 600 }}>📅 {exp.name} — €{(exp.amount||0).toFixed(2)} {uiText("due in")} {exp.dueDay - _dashTodayDay} {uiText("days")}</div>)}
   </div>
 )}
 
@@ -4487,5 +4505,563 @@ function DownloadAppPage({ onInstallApp }) {
         <p style={{ margin: 0, color: CL.text }}>{t("installIosHint")}</p>
       </div>
     </div>
+  );
+}
+
+// ==============================================
+// EXPENSES PAGE
+// ==============================================
+function ExpensesPage({ data, updateData, showToast }) {
+  const [viewMonth, setViewMonth] = useState(() => getToday().slice(0, 7));
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editExpense, setEditExpense] = useState(null);
+  const [showPayModal, setShowPayModal] = useState(null);
+  const [viewReceipt, setViewReceipt] = useState(null);
+
+  const expenses = data.expenses || [];
+  const activeExpenses = expenses.filter(e => e.isActive !== false);
+
+  const prevMonth = () => {
+    const [y, m] = viewMonth.split("-").map(Number);
+    const d = new Date(y, m - 2, 1);
+    setViewMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  };
+  const nextMonth = () => {
+    const [y, m] = viewMonth.split("-").map(Number);
+    const d = new Date(y, m, 1);
+    setViewMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  };
+
+  const todayStr = getToday();
+  const todayDay = new Date().getDate();
+  const isCurrentMonth = viewMonth === todayStr.slice(0, 7);
+
+  const getPayment = (expense) => (expense.payments || []).find(p => p.month === viewMonth);
+  const isPaid = (expense) => !!getPayment(expense);
+  const isOverdue = (expense) => isCurrentMonth && !isPaid(expense) && expense.dueDay < todayDay;
+  const isDueToday = (expense) => isCurrentMonth && !isPaid(expense) && expense.dueDay === todayDay;
+  const isDueSoon = (expense) => isCurrentMonth && !isPaid(expense) && expense.dueDay > todayDay && expense.dueDay <= todayDay + 3;
+
+  const totalMonthly = activeExpenses.reduce((s, e) => s + (e.amount || 0), 0);
+  const paidTotal = activeExpenses.filter(e => isPaid(e)).reduce((s, e) => {
+    const pay = getPayment(e);
+    return s + (pay?.amount || e.amount || 0);
+  }, 0);
+  const outstanding = totalMonthly - paidTotal;
+  const overdueCount = activeExpenses.filter(e => isOverdue(e)).length;
+  const paidCount = activeExpenses.filter(e => isPaid(e)).length;
+
+  const getStatusColor = (exp) => {
+    if (isPaid(exp)) return CL.green;
+    if (isOverdue(exp)) return CL.red;
+    if (isDueToday(exp)) return CL.orange;
+    if (isDueSoon(exp)) return CL.goldLight;
+    return CL.muted;
+  };
+  const getStatusLabel = (exp) => {
+    if (isPaid(exp)) return "Paid";
+    if (isOverdue(exp)) return "Overdue";
+    if (isDueToday(exp)) return "Due Today";
+    if (isDueSoon(exp)) return "Due Soon";
+    return "Pending";
+  };
+
+  const deleteExpense = (id) => {
+    if (!confirm(uiText("Delete this expense? All payment history will be lost."))) return;
+    updateData("expenses", prev => (prev || []).filter(e => e.id !== id));
+    showToast(uiText("Expense deleted"), "success");
+  };
+
+  const markUnpaid = (expense) => {
+    updateData("expenses", prev => (prev || []).map(e =>
+      e.id === expense.id
+        ? { ...e, payments: (e.payments || []).filter(p => p.month !== viewMonth) }
+        : e
+    ));
+    showToast(uiText("Marked as unpaid"), "success");
+  };
+
+  const fmtMonthLabel = (m) => {
+    const [y, mo] = m.split("-");
+    return new Date(Number(y), Number(mo) - 1, 1)
+      .toLocaleDateString(localeForLang(CURRENT_LANG), { month: "long", year: "numeric" });
+  };
+
+  const CATEGORIES = ["Rent", "Utilities", "Insurance", "Software / Subscriptions", "Supplies", "Salaries", "Taxes", "Marketing", "Transport", "Other"];
+  const PAYMENT_METHODS = ["Bank Transfer", "Direct Debit", "Credit Card", "Cash", "Standing Order"];
+
+  const CATEGORY_COLORS = {
+    "Rent": CL.gold, "Utilities": CL.blue, "Insurance": CL.green,
+    "Software / Subscriptions": "#9B6EF3", "Supplies": CL.orange,
+    "Salaries": "#F06292", "Taxes": CL.red, "Marketing": "#26C6DA",
+    "Transport": "#66BB6A", "Other": CL.muted,
+  };
+
+  const sortedExpenses = [...activeExpenses].sort((a, b) => {
+    const aUrgent = (isOverdue(a) || isDueToday(a)) ? 0 : isDueSoon(a) ? 1 : isPaid(a) ? 3 : 2;
+    const bUrgent = (isOverdue(b) || isDueToday(b)) ? 0 : isDueSoon(b) ? 1 : isPaid(b) ? 3 : 2;
+    return aUrgent - bUrgent || a.dueDay - b.dueDay;
+  });
+
+  return (
+    <div>
+      {/* Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12, marginBottom: 20 }}>
+        <div>
+          <h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold, marginBottom: 4, display: "flex", alignItems: "center", gap: 10 }}>
+            {ICN.wallet} {uiText("Expenses")}
+          </h1>
+          <p style={{ color: CL.muted, fontSize: 13 }}>{uiText("Track and manage your monthly business expenses")}</p>
+        </div>
+        <button style={btnPri} onClick={() => { setEditExpense(null); setShowAddModal(true); }}>
+          {ICN.plus} {uiText("Add Expense")}
+        </button>
+      </div>
+
+      {/* Month Selector */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+        <button style={{ ...btnSec, ...btnSm, padding: "7px 14px", fontSize: 18, lineHeight: 1 }} onClick={prevMonth}>‹</button>
+        <div style={{ fontSize: 16, fontWeight: 600, color: CL.text, minWidth: 180, textAlign: "center", fontFamily: "'Cormorant Garamond', serif" }}>{fmtMonthLabel(viewMonth)}</div>
+        <button style={{ ...btnSec, ...btnSm, padding: "7px 14px", fontSize: 18, lineHeight: 1 }} onClick={nextMonth}>›</button>
+        {!isCurrentMonth && (
+          <button style={{ ...btnSec, ...btnSm }} onClick={() => setViewMonth(getToday().slice(0, 7))}>
+            {uiText("Current Month")}
+          </button>
+        )}
+      </div>
+
+      {/* Stat Cards */}
+      <div className="stat-row" style={{ marginBottom: 20 }}>
+        <StatCard label={uiText("Monthly Budget")} value={`€${totalMonthly.toFixed(2)}`} icon={ICN.wallet} color={CL.gold} />
+        <StatCard label={uiText("Paid This Month")} value={`€${paidTotal.toFixed(2)}`} icon={ICN.check} color={CL.green} />
+        <StatCard label={uiText("Outstanding")} value={`€${Math.max(0, outstanding).toFixed(2)}`} icon={ICN.pay} color={outstanding > 0 ? CL.orange : CL.green} />
+        <StatCard label={uiText("Expenses")} value={`${paidCount}/${activeExpenses.length} ${uiText("paid")}`} icon={ICN.receipt} color={CL.blue} />
+      </div>
+
+      {/* Progress Bar */}
+      {totalMonthly > 0 && (
+        <div style={{ ...cardSt, marginBottom: 18, padding: "16px 22px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, fontSize: 13 }}>
+            <span style={{ color: CL.muted, fontWeight: 500 }}>{uiText("Payment Progress")} — {fmtMonthLabel(viewMonth)}</span>
+            <span style={{ color: CL.text, fontWeight: 700 }}>{paidCount}/{activeExpenses.length} {uiText("paid")} · {totalMonthly > 0 ? Math.round((paidTotal / totalMonthly) * 100) : 0}%</span>
+          </div>
+          <div style={{ height: 10, background: CL.bd, borderRadius: 5, overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${Math.min(100, totalMonthly > 0 ? (paidTotal / totalMonthly) * 100 : 0)}%`, background: paidTotal >= totalMonthly ? CL.green : CL.gold, borderRadius: 5, transition: "width .4s ease" }} />
+          </div>
+          {overdueCount > 0 && isCurrentMonth && (
+            <div style={{ marginTop: 8, fontSize: 12, color: CL.red, fontWeight: 600 }}>
+              ⚠️ {overdueCount} {uiText(overdueCount > 1 ? "expenses are overdue" : "expense is overdue")} — {uiText("action required")}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Urgent Alerts Banner */}
+      {isCurrentMonth && (overdueCount > 0 || activeExpenses.some(e => isDueToday(e)) || activeExpenses.some(e => isDueSoon(e))) && (
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+          {activeExpenses.filter(e => isOverdue(e)).map(e => (
+            <div key={e.id} style={{ background: CL.red + "20", border: `1px solid ${CL.red}50`, borderRadius: 8, padding: "8px 14px", fontSize: 12, color: CL.red, fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ fontSize: 15, fontWeight: 900 }}>!</span>
+              {e.name} · €{(e.amount || 0).toFixed(2)} · {uiText("overdue since day")} {e.dueDay}
+            </div>
+          ))}
+          {activeExpenses.filter(e => isDueToday(e)).map(e => (
+            <div key={e.id} style={{ background: CL.orange + "20", border: `1px solid ${CL.orange}50`, borderRadius: 8, padding: "8px 14px", fontSize: 12, color: CL.orange, fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ fontSize: 15, fontWeight: 900 }}>!</span>
+              {e.name} · €{(e.amount || 0).toFixed(2)} · {uiText("due today")}
+            </div>
+          ))}
+          {activeExpenses.filter(e => isDueSoon(e)).map(e => (
+            <div key={e.id} style={{ background: CL.gold + "15", border: `1px solid ${CL.gold}40`, borderRadius: 8, padding: "8px 14px", fontSize: 12, color: CL.goldLight, fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
+              📅 {e.name} · €{(e.amount || 0).toFixed(2)} · {uiText("due in")} {e.dueDay - todayDay} {uiText(e.dueDay - todayDay === 1 ? "day" : "days")}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Expenses Table */}
+      <div style={cardSt}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
+          <h3 style={{ fontSize: 15, fontWeight: 600, color: CL.gold, fontFamily: "'Cormorant Garamond', serif" }}>
+            {uiText("Expense List")} <span style={{ color: CL.muted, fontWeight: 400, fontSize: 13 }}>({activeExpenses.length})</span>
+          </h3>
+          <div style={{ fontSize: 11, color: CL.dim }}>{uiText("Sorted by urgency · overdue first")}</div>
+        </div>
+
+        {activeExpenses.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "50px 0", color: CL.muted }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>💰</div>
+            <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 6 }}>{uiText("No expenses defined yet")}</div>
+            <div style={{ fontSize: 13, marginBottom: 20 }}>{uiText("Add your monthly expenses — rent, utilities, subscriptions — to track payments.")}</div>
+            <button style={btnPri} onClick={() => setShowAddModal(true)}>{ICN.plus} {uiText("Add First Expense")}</button>
+          </div>
+        ) : (
+          <div className="tbl-wrap">
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr>
+                  <th style={thSt}>{uiText("Expense")}</th>
+                  <th style={thSt}>{uiText("Category")}</th>
+                  <th style={thSt}>{uiText("Amount")}</th>
+                  <th style={thSt}>{uiText("Due Day")}</th>
+                  <th style={thSt}>{uiText("Status")}</th>
+                  <th style={thSt}>{uiText("Receipt")}</th>
+                  <th style={thSt}>{uiText("Actions")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedExpenses.map(exp => {
+                  const payment = getPayment(exp);
+                  const paid = !!payment;
+                  const overdue = isOverdue(exp);
+                  const dueToday = isDueToday(exp);
+                  const dueSoon = isDueSoon(exp);
+                  const catColor = CATEGORY_COLORS[exp.category] || CL.muted;
+                  const rowBg = overdue ? CL.red + "08" : dueToday ? CL.orange + "08" : "transparent";
+                  return (
+                    <tr key={exp.id} style={{ background: rowBg }}>
+                      <td style={tdSt}>
+                        <div style={{ fontWeight: 600, fontSize: 14 }}>{exp.name}</div>
+                        {exp.paymentMethod && <div style={{ fontSize: 11, color: CL.muted, marginTop: 1 }}>🏦 {exp.paymentMethod}</div>}
+                        {exp.notes && <div style={{ fontSize: 11, color: CL.dim, marginTop: 1, fontStyle: "italic" }}>{exp.notes}</div>}
+                      </td>
+                      <td style={tdSt}><Badge color={catColor}>{exp.category || "Other"}</Badge></td>
+                      <td style={{ ...tdSt, fontWeight: 700, fontSize: 16, color: CL.text }}>€{(exp.amount || 0).toFixed(2)}</td>
+                      <td style={tdSt}>
+                        <div style={{ fontSize: 13, fontWeight: 500 }}>{uiText("Day")} {exp.dueDay}</div>
+                        {payment?.paidDate && <div style={{ fontSize: 11, color: CL.green, marginTop: 1 }}>✓ {fmtDate(payment.paidDate)}</div>}
+                        {payment?.amount && payment.amount !== exp.amount && <div style={{ fontSize: 11, color: CL.muted }}>€{payment.amount.toFixed(2)} {uiText("paid")}</div>}
+                      </td>
+                      <td style={tdSt}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                          <Badge color={getStatusColor(exp)}>{getStatusLabel(exp)}</Badge>
+                          {(overdue || dueToday) && !paid && (
+                            <span style={{ color: CL.red, fontWeight: 900, fontSize: 16, marginLeft: 2 }}>!</span>
+                          )}
+                        </div>
+                      </td>
+                      <td style={tdSt}>
+                        {payment?.receipt ? (
+                          <button style={{ ...btnSec, ...btnSm, color: CL.green, borderColor: CL.green + "50" }} onClick={() => setViewReceipt(payment.receipt)}>
+                            📎 {uiText("View")}
+                          </button>
+                        ) : (
+                          <span style={{ color: CL.dim, fontSize: 12 }}>—</span>
+                        )}
+                      </td>
+                      <td style={tdSt}>
+                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                          {!paid ? (
+                            <button style={{ ...btnPri, ...btnSm, background: overdue || dueToday ? CL.orange : CL.gold }} onClick={() => setShowPayModal(exp)}>
+                              {ICN.check} {uiText("Pay")}
+                            </button>
+                          ) : (
+                            <button style={{ ...btnSec, ...btnSm, fontSize: 12 }} onClick={() => markUnpaid(exp)}>
+                              ↩ {uiText("Undo")}
+                            </button>
+                          )}
+                          <button style={{ ...btnSec, ...btnSm }} onClick={() => { setEditExpense(exp); setShowAddModal(true); }} title={uiText("Edit")}>
+                            {ICN.edit}
+                          </button>
+                          <button style={{ ...btnDng, ...btnSm }} onClick={() => deleteExpense(exp.id)} title={uiText("Delete")}>
+                            {ICN.trash}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr style={{ background: CL.s2 }}>
+                  <td colSpan={2} style={{ ...tdSt, fontWeight: 700, color: CL.muted, fontSize: 11, textTransform: "uppercase", letterSpacing: ".08em", border: "none" }}>{uiText("MONTHLY TOTAL")}</td>
+                  <td style={{ ...tdSt, fontWeight: 800, fontSize: 17, color: CL.gold, border: "none" }}>€{totalMonthly.toFixed(2)}</td>
+                  <td colSpan={4} style={{ ...tdSt, fontSize: 13, border: "none" }}>
+                    <span style={{ color: CL.green, fontWeight: 700 }}>€{paidTotal.toFixed(2)} {uiText("paid")}</span>
+                    <span style={{ color: CL.muted, margin: "0 8px" }}>·</span>
+                    <span style={{ color: outstanding > 0 ? CL.orange : CL.green, fontWeight: 700 }}>€{Math.max(0, outstanding).toFixed(2)} {uiText("remaining")}</span>
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Inactive expenses section */}
+      {expenses.filter(e => e.isActive === false).length > 0 && (
+        <div style={{ ...cardSt, marginTop: 14, opacity: 0.7 }}>
+          <h4 style={{ fontSize: 13, color: CL.muted, marginBottom: 10 }}>{uiText("Inactive Expenses")} ({expenses.filter(e => e.isActive === false).length})</h4>
+          {expenses.filter(e => e.isActive === false).map(exp => (
+            <div key={exp.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: `1px solid ${CL.bd}` }}>
+              <div style={{ fontSize: 13, color: CL.dim }}>{exp.name} · €{(exp.amount || 0).toFixed(2)}</div>
+              <div style={{ display: "flex", gap: 6 }}>
+                <button style={{ ...btnSec, ...btnSm, fontSize: 11 }} onClick={() => { setEditExpense(exp); setShowAddModal(true); }}>{uiText("Edit / Reactivate")}</button>
+                <button style={{ ...btnDng, ...btnSm }} onClick={() => deleteExpense(exp.id)}>{ICN.trash}</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Add/Edit Modal */}
+      {showAddModal && (
+        <ExpenseFormModal
+          expense={editExpense}
+          categories={CATEGORIES}
+          paymentMethods={PAYMENT_METHODS}
+          categoryColors={CATEGORY_COLORS}
+          onSave={(exp) => {
+            if (editExpense) {
+              updateData("expenses", prev => (prev || []).map(e => e.id === exp.id ? exp : e));
+              showToast(uiText("Expense updated"), "success");
+            } else {
+              updateData("expenses", prev => [...(prev || []), exp]);
+              showToast(uiText("Expense added"), "success");
+            }
+            setShowAddModal(false);
+            setEditExpense(null);
+          }}
+          onClose={() => { setShowAddModal(false); setEditExpense(null); }}
+        />
+      )}
+
+      {/* Mark Paid Modal */}
+      {showPayModal && (
+        <MarkPaidModal
+          expense={showPayModal}
+          viewMonth={viewMonth}
+          onSave={(payment) => {
+            updateData("expenses", prev => (prev || []).map(e =>
+              e.id === showPayModal.id
+                ? { ...e, payments: [...(e.payments || []).filter(p => p.month !== viewMonth), payment] }
+                : e
+            ));
+            showToast(uiText("Payment recorded ✓"), "success");
+            setShowPayModal(null);
+          }}
+          onClose={() => setShowPayModal(null)}
+        />
+      )}
+
+      {/* View Receipt Modal */}
+      {viewReceipt && (
+        <ModalBox title="Receipt" onClose={() => setViewReceipt(null)}>
+          <div style={{ textAlign: "center" }}>
+            {viewReceipt.type?.startsWith("image") ? (
+              <img src={viewReceipt.data} alt="receipt" style={{ maxWidth: "100%", borderRadius: 8, marginBottom: 12 }} />
+            ) : (
+              <div style={{ padding: "30px 0" }}>
+                <div style={{ fontSize: 48, marginBottom: 12 }}>📄</div>
+                <div style={{ color: CL.text, marginBottom: 16, fontSize: 14 }}>{viewReceipt.name}</div>
+                <a href={viewReceipt.data} download={viewReceipt.name} style={{ ...btnPri, textDecoration: "none" }}>
+                  {ICN.download} {uiText("Download File")}
+                </a>
+              </div>
+            )}
+            <div style={{ color: CL.muted, fontSize: 12, marginTop: 8 }}>{viewReceipt.name}</div>
+          </div>
+        </ModalBox>
+      )}
+    </div>
+  );
+}
+
+function ExpenseFormModal({ expense, categories, paymentMethods, categoryColors, onSave, onClose }) {
+  const [name, setName] = useState(expense?.name || "");
+  const [category, setCategory] = useState(expense?.category || "Other");
+  const [amount, setAmount] = useState(expense?.amount?.toString() || "");
+  const [dueDay, setDueDay] = useState(expense?.dueDay?.toString() || "1");
+  const [paymentMethod, setPaymentMethod] = useState(expense?.paymentMethod || "Bank Transfer");
+  const [notes, setNotes] = useState(expense?.notes || "");
+  const [isActive, setIsActive] = useState(expense?.isActive !== false);
+
+  const handleSave = () => {
+    if (!name.trim()) { alert(uiText("Expense name is required")); return; }
+    const amt = parseFloat(amount);
+    if (isNaN(amt) || amt <= 0) { alert(uiText("Please enter a valid amount greater than 0")); return; }
+    const day = parseInt(dueDay, 10);
+    if (isNaN(day) || day < 1 || day > 31) { alert(uiText("Due day must be between 1 and 31")); return; }
+    onSave({
+      id: expense?.id || makeId(),
+      name: name.trim(),
+      category,
+      amount: amt,
+      dueDay: day,
+      paymentMethod,
+      notes: notes.trim(),
+      isActive,
+      payments: expense?.payments || [],
+      createdAt: expense?.createdAt || new Date().toISOString(),
+    });
+  };
+
+  return (
+    <ModalBox title={expense ? "Edit Expense" : "Add Expense"} onClose={onClose}>
+      <div>
+        <div className="form-grid">
+          <Field label="Expense Name *">
+            <TextInput value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Office Rent, Internet, Insurance" />
+          </Field>
+          <Field label="Category">
+            <SelectInput value={category} onChange={e => setCategory(e.target.value)}>
+              {categories.map(c => <option key={c} value={c}>{c}</option>)}
+            </SelectInput>
+          </Field>
+          <Field label="Monthly Amount (€) *">
+            <TextInput type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" min="0.01" step="0.01" />
+          </Field>
+          <Field label="Due Day of Month *">
+            <SelectInput value={dueDay} onChange={e => setDueDay(e.target.value)}>
+              {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
+                <option key={d} value={d}>{d}{d === 1 ? "st" : d === 2 ? "nd" : d === 3 ? "rd" : "th"} of each month</option>
+              ))}
+            </SelectInput>
+          </Field>
+          <Field label="Payment Method">
+            <SelectInput value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}>
+              {paymentMethods.map(m => <option key={m} value={m}>{m}</option>)}
+            </SelectInput>
+          </Field>
+          <Field label="Status">
+            <div style={{ display: "flex", alignItems: "center", height: 46, gap: 10 }}>
+              <input type="checkbox" id="exp-active-chk" checked={isActive} onChange={e => setIsActive(e.target.checked)} style={{ width: 18, height: 18, accentColor: CL.gold }} />
+              <label htmlFor="exp-active-chk" style={{ color: CL.text, fontSize: 14, cursor: "pointer" }}>
+                {uiText("Active")} — {uiText("include in monthly budget & reminders")}
+              </label>
+            </div>
+          </Field>
+        </div>
+        <Field label="Notes / Reference">
+          <TextArea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Vendor name, contract reference, account number..." />
+        </Field>
+        {category && (
+          <div style={{ ...cardSt, background: CL.s2, padding: "10px 14px", marginBottom: 14, display: "flex", alignItems: "center", gap: 10 }}>
+            <Badge color={categoryColors[category] || CL.muted}>{category}</Badge>
+            {amount && !isNaN(parseFloat(amount)) && (
+              <span style={{ color: CL.muted, fontSize: 13 }}>
+                {uiText("Due on the")} <strong style={{ color: CL.gold }}>{dueDay}{parseInt(dueDay) === 1 ? "st" : parseInt(dueDay) === 2 ? "nd" : parseInt(dueDay) === 3 ? "rd" : "th"}</strong> {uiText("of each month")} · <strong style={{ color: CL.gold }}>€{parseFloat(amount).toFixed(2)}</strong>/mo
+              </span>
+            )}
+          </div>
+        )}
+        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+          <button style={btnSec} onClick={onClose}>{ICN.close} {uiText("Cancel")}</button>
+          <button style={btnPri} onClick={handleSave}>{ICN.check} {uiText("Save Expense")}</button>
+        </div>
+      </div>
+    </ModalBox>
+  );
+}
+
+function MarkPaidModal({ expense, viewMonth, onSave, onClose }) {
+  const [paidDate, setPaidDate] = useState(getToday());
+  const [amount, setAmount] = useState(expense.amount?.toFixed(2) || "");
+  const [notes, setNotes] = useState("");
+  const [receipt, setReceipt] = useState(null);
+  const [uploading, setUploading] = useState(false);
+
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { alert(uiText("File is too large. Maximum size is 5MB.")); return; }
+    setUploading(true);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setReceipt({ name: file.name, data: ev.target.result, type: file.type });
+      setUploading(false);
+    };
+    reader.onerror = () => { setUploading(false); alert(uiText("Failed to read file")); };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSave = () => {
+    const amt = parseFloat(amount);
+    if (isNaN(amt) || amt <= 0) { alert(uiText("Please enter a valid amount")); return; }
+    if (!paidDate) { alert(uiText("Please select a payment date")); return; }
+    onSave({
+      id: makeId(),
+      month: viewMonth,
+      paidDate,
+      amount: amt,
+      notes: notes.trim(),
+      receipt: receipt || null,
+    });
+  };
+
+  const [mo, yr] = [viewMonth.slice(5, 7), viewMonth.slice(0, 4)];
+  const monthLabel = new Date(Number(yr), Number(mo) - 1, 1)
+    .toLocaleDateString(localeForLang(CURRENT_LANG), { month: "long", year: "numeric" });
+
+  return (
+    <ModalBox title={`Record Payment · ${expense.name}`} onClose={onClose}>
+      <div>
+        {/* Expense summary card */}
+        <div style={{ background: CL.s2, borderRadius: 12, padding: "16px 20px", marginBottom: 20, border: `1px solid ${CL.bd}` }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+            <div>
+              <div style={{ fontSize: 12, color: CL.muted, marginBottom: 2 }}>{uiText("Expense")}</div>
+              <div style={{ fontSize: 17, fontWeight: 700, fontFamily: "'Cormorant Garamond', serif" }}>{expense.name}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 12, color: CL.muted, marginBottom: 2 }}>{uiText("Expected Amount")}</div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: CL.gold }}>€{(expense.amount || 0).toFixed(2)}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 12, color: CL.muted, marginBottom: 2 }}>{uiText("Period")}</div>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>{monthLabel}</div>
+            </div>
+            <Badge color={CL.blue}>{expense.category}</Badge>
+          </div>
+        </div>
+
+        <div className="form-grid">
+          <Field label="Payment Date *">
+            <TextInput type="date" value={paidDate} onChange={e => setPaidDate(e.target.value)} />
+          </Field>
+          <Field label="Amount Paid (€) *">
+            <TextInput type="number" value={amount} onChange={e => setAmount(e.target.value)} min="0.01" step="0.01" />
+          </Field>
+        </div>
+
+        <Field label="Reference / Notes">
+          <TextArea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Transaction ID, bank reference, invoice number..." />
+        </Field>
+
+        <Field label="Receipt / Invoice (optional)">
+          <div style={{ border: `2px dashed ${receipt ? CL.green : CL.bd}`, borderRadius: 10, padding: "20px", textAlign: "center", background: CL.s2, transition: "border-color .2s" }}>
+            {receipt ? (
+              <div>
+                <div style={{ fontSize: 13, color: CL.green, marginBottom: 8, fontWeight: 600 }}>✓ {receipt.name}</div>
+                {receipt.type?.startsWith("image") && (
+                  <img src={receipt.data} alt="preview" style={{ maxHeight: 150, borderRadius: 8, marginBottom: 10, border: `1px solid ${CL.bd}` }} />
+                )}
+                <div>
+                  <button style={{ ...btnSec, ...btnSm }} onClick={() => setReceipt(null)}>✕ {uiText("Remove")}</button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div style={{ fontSize: 32, marginBottom: 6 }}>📎</div>
+                <div style={{ color: CL.muted, fontSize: 12, marginBottom: 12 }}>
+                  {uiText("Attach receipt, invoice, or bank confirmation")}
+                  <br />
+                  <span style={{ color: CL.dim }}>JPG, PNG, PDF · max 5MB</span>
+                </div>
+                <label style={{ ...btnSec, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  {uploading ? <span>⏳ {uiText("Loading...")}</span> : <><span>📁</span> {uiText("Choose File")}</>}
+                  <input type="file" accept="image/*,.pdf" onChange={handleFileChange} style={{ display: "none" }} disabled={uploading} />
+                </label>
+              </div>
+            )}
+          </div>
+        </Field>
+
+        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 6 }}>
+          <button style={btnSec} onClick={onClose}>{ICN.close} {uiText("Cancel")}</button>
+          <button style={{ ...btnPri, background: CL.green }} onClick={handleSave}>{ICN.check} {uiText("Confirm Payment")}</button>
+        </div>
+      </div>
+    </ModalBox>
   );
 }

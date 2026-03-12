@@ -2238,7 +2238,7 @@ region: "",
 type: "Residential", cleaningFrequency: "Weekly", pricePerHour: 35, priceFixed: 0, billingType: "hourly",
 hoursPerSession: 0, forfaitLabel: "", forfaitPrice: 0, forfaitPeriod: "monthly",
 notes: "", contactPerson: "",
-status: "active", accessCode: "", keyLocation: "", parkingInfo: "", petInfo: "", specialInstructions: "", preferredDay: "", preferredTime: "",
+status: "active", accessCode: "", keyLocation: "", parkingInfo: "", petInfo: "", specialInstructions: "", preferredDay: "", preferredTime: "", preferredDays: [],
 contractStart: "", contractEnd: "", squareMeters: "", taxId: "", language: "FR", preferredCleanerIds: [],
 };
 
@@ -2430,12 +2430,46 @@ return (
       <Field label={uiText("Hours per Session")}>
         <TextInput type="number" step=".5" min="0" value={form.hoursPerSession || ""} onChange={ev => set("hoursPerSession", parseFloat(ev.target.value) || 0)} placeholder="ex: 3" />
       </Field>
-      <Field label="Preferred Day">
-        <SelectInput value={form.preferredDay || ""} onChange={ev => set("preferredDay", ev.target.value)}>
-          <option value="">{uiText("No preference")}</option><option value="Monday">{uiText("Monday")}</option><option value="Tuesday">{uiText("Tuesday")}</option><option value="Wednesday">{uiText("Wednesday")}</option><option value="Thursday">{uiText("Thursday")}</option><option value="Friday">{uiText("Friday")}</option><option value="Saturday">{uiText("Saturday")}</option>
-        </SelectInput>
-      </Field>
-      <Field label="Preferred Time"><TextInput value={form.preferredTime || ""} onChange={ev => set("preferredTime", ev.target.value)} placeholder="e.g. 09:00-12:00" /></Field>
+      <div style={{ gridColumn: "1/-1" }}>
+        <Field label="Preferred Days & Hours">
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 4 }}>
+            {["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"].map(day => {
+              const preferredDays = form.preferredDays || [];
+              const dayPref = preferredDays.find(d => d.day === day);
+              const isSelected = !!dayPref;
+              return (
+                <div key={day} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 110, cursor: "pointer", userSelect: "none" }}>
+                    <input type="checkbox" checked={isSelected} onChange={ev => {
+                      const prev = form.preferredDays || [];
+                      if (ev.target.checked) {
+                        set("preferredDays", [...prev, { day, preferredTime: "" }]);
+                      } else {
+                        set("preferredDays", prev.filter(d => d.day !== day));
+                      }
+                    }} style={{ accentColor: CL.gold, width: 15, height: 15, cursor: "pointer" }} />
+                    <span style={{ color: isSelected ? CL.text : CL.muted, fontSize: 13, fontWeight: isSelected ? 600 : 400 }}>{uiText(day)}</span>
+                  </label>
+                  {isSelected && (
+                    <TextInput
+                      value={dayPref.preferredTime || ""}
+                      onChange={ev => {
+                        const prev = form.preferredDays || [];
+                        set("preferredDays", prev.map(d => d.day === day ? { ...d, preferredTime: ev.target.value } : d));
+                      }}
+                      placeholder="e.g. 09:00-12:00"
+                      style={{ maxWidth: 180 }}
+                    />
+                  )}
+                  {!isSelected && (
+                    <span style={{ color: CL.muted, fontSize: 12, fontStyle: "italic" }}>click to select</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </Field>
+      </div>
       <Field label="Billing Type">
         <SelectInput value={form.billingType} onChange={ev => set("billingType", ev.target.value)}>
           <option value="hourly">{uiText("Hourly")}</option>
@@ -2821,7 +2855,12 @@ return (
       {selectedClient.accessCode && <div style={{ color: CL.orange }}>Code: {selectedClient.accessCode}</div>}
       {selectedClient.keyLocation && <div style={{ color: CL.orange }}>Key: {selectedClient.keyLocation}</div>}
       {selectedClient.petInfo && <div style={{ color: CL.orange }}>Pets: {selectedClient.petInfo}</div>}
-      {selectedClient.preferredDay && <div style={{ color: CL.dim }}>Prefers: {selectedClient.preferredDay} {selectedClient.preferredTime || ""}</div>}
+      {(selectedClient.preferredDays && selectedClient.preferredDays.length > 0)
+        ? selectedClient.preferredDays.map(d => (
+            <div key={d.day} style={{ color: CL.dim }}>Prefers: {d.day}{d.preferredTime ? ` · ${d.preferredTime}` : ""}</div>
+          ))
+        : selectedClient.preferredDay && <div style={{ color: CL.dim }}>Prefers: {selectedClient.preferredDay} {selectedClient.preferredTime || ""}</div>
+      }
     </div>
   )}
 

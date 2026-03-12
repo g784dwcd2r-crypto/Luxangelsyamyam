@@ -441,13 +441,25 @@ const UI_FR = {
 "No leave requests found.": "Aucune demande de congé trouvée.",
 "Optional comment": "Commentaire optionnel",
 // Inventory
+"Inventory": "Stock",
 "Add Product": "Ajouter un produit",
+"Unit": "Unité",
+"Min Stock": "Stock minimum",
+"Usage Overview": "Aperçu des stocks",
 "No products added yet.": "Aucun produit ajouté.",
 "Assigned / In-Hand by Cleaner": "Assigné / En main par agent",
 "No product assignments yet": "Aucune attribution de produit",
 "Cleaner Product Requests": "Demandes de produits agents",
 "Update In Hand": "Màj en main",
 "Assigned": "Assigné",
+"Deliver": "Livrer",
+"Delete Product?": "Supprimer le produit ?",
+"Remove this product?": "Supprimer ce produit ?",
+"Requested:": "Demandé :",
+"Delivered:": "Livré :",
+"Product name required": "Nom du produit requis",
+"Product added": "Produit ajouté",
+"Product deleted": "Produit supprimé",
 // History
 "Job history": "Historique des travaux",
 "No jobs": "Aucun travail",
@@ -3118,16 +3130,23 @@ return (
 
 function InventoryPage({ data, updateData, showToast }) {
 const [productForm, setProductForm] = useState({ name: "", unit: "bottles", stock: 0, minStock: 0, note: "" });
+const [deleteProductId, setDeleteProductId] = useState(null);
 
 const products = (data.inventoryProducts || []).sort((a, b) => a.name.localeCompare(b.name));
 const requests = (data.productRequests || []).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 const holdings = (data.cleanerProductHoldings || []);
 
 const saveProduct = () => {
-if (!productForm.name.trim()) { showToast("Product name required", "error"); return; }
+if (!productForm.name.trim()) { showToast(uiText("Product name required"), "error"); return; }
 updateData("inventoryProducts", (prev = []) => [...prev, { id: makeId(), active: true, ...productForm, name: productForm.name.trim(), stock: Number(productForm.stock) || 0, minStock: Number(productForm.minStock) || 0 }]);
 setProductForm({ name: "", unit: "bottles", stock: 0, minStock: 0, note: "" });
-showToast("Product added");
+showToast(uiText("Product added"));
+};
+
+const handleDeleteProduct = (id) => {
+updateData("inventoryProducts", prev => (prev || []).filter(p => p.id !== id));
+setDeleteProductId(null);
+showToast(uiText("Product deleted"));
 };
 
 const adjustStock = (id, delta) => {
@@ -3190,7 +3209,7 @@ return (
 const reqs = requests.filter(r => r.productId === p.id);
 const requested = reqs.reduce((s, r) => s + (Number(r.quantity) || 0), 0);
 const delivered = reqs.reduce((s, r) => s + (Number(r.deliveredQty) || 0), 0);
-return <div key={p.id} style={{ padding: "8px 0", borderBottom: `1px solid ${CL.bd}` }}><div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}><div><div style={{ fontWeight: 600 }}>{p.name}</div><div style={{ fontSize: 12, color: CL.muted }}>Stock: {p.stock} {p.unit} · Requested: {requested} · Delivered: {delivered}</div></div><div style={{ display: "flex", gap: 4 }}><button style={{ ...btnSec, ...btnSm }} onClick={() => adjustStock(p.id, -1)}>-1</button><button style={{ ...btnSec, ...btnSm }} onClick={() => adjustStock(p.id, 1)}>+1</button></div></div></div>;
+return <div key={p.id} style={{ padding: "8px 0", borderBottom: `1px solid ${CL.bd}` }}><div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}><div><div style={{ fontWeight: 600 }}>{p.name}</div><div style={{ fontSize: 12, color: CL.muted }}>Stock: {p.stock} {p.unit} · {uiText("Requested:")} {requested} · {uiText("Delivered:")} {delivered}</div></div><div style={{ display: "flex", gap: 4 }}><button style={{ ...btnSec, ...btnSm }} onClick={() => adjustStock(p.id, -1)}>-1</button><button style={{ ...btnSec, ...btnSm }} onClick={() => adjustStock(p.id, 1)}>+1</button><button style={{ ...btnSec, ...btnSm, color: CL.red }} onClick={() => setDeleteProductId(p.id)}>{ICN.trash}</button></div></div></div>;
 })}
 {products.length === 0 && <p style={{ color: CL.muted }}>{uiText("No products added yet.")}</p>}
 </div>
@@ -3227,6 +3246,16 @@ return <div key={p.id} style={{ padding: "8px 0", borderBottom: `1px solid ${CL.
 </tbody>
 </table>
 </div>
+
+{deleteProductId && (
+  <ModalBox title={uiText("Delete Product?")} onClose={() => setDeleteProductId(null)}>
+    <p style={{ marginBottom: 16 }}>{uiText("Remove this product?")}</p>
+    <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+      <button style={btnSec} onClick={() => setDeleteProductId(null)}>{uiText("Cancel")}</button>
+      <button style={btnDng} onClick={() => handleDeleteProduct(deleteProductId)}>{uiText("Delete")}</button>
+    </div>
+  </ModalBox>
+)}
 </div>
 );
 }

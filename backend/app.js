@@ -341,7 +341,16 @@ app.delete('/api/clients/:id', async (req, res) => {
 // ---------------------------------------------------------------------------
 app.get('/api/schedules', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM schedules ORDER BY date, start_time');
+    const { employee_id, client_id, from, to, status } = req.query;
+    const conditions = [];
+    const params = [];
+    if (employee_id) { params.push(employee_id); conditions.push(`employee_id = $${params.length}`); }
+    if (client_id)   { params.push(client_id);   conditions.push(`client_id = $${params.length}`); }
+    if (from)        { params.push(from);         conditions.push(`date >= $${params.length}`); }
+    if (to)          { params.push(to);           conditions.push(`date <= $${params.length}`); }
+    if (status)      { params.push(status);       conditions.push(`status = $${params.length}`); }
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    const result = await pool.query(`SELECT * FROM schedules ${where} ORDER BY date, start_time`, params);
     res.json(result.rows);
   } catch (err) {
     console.error(err);
@@ -403,7 +412,15 @@ app.delete('/api/schedules/:id', async (req, res) => {
 // ---------------------------------------------------------------------------
 app.get('/api/clock-entries', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM clock_entries ORDER BY clock_in DESC');
+    const { employee_id, client_id, from, to } = req.query;
+    const conditions = [];
+    const params = [];
+    if (employee_id) { params.push(employee_id); conditions.push(`employee_id = $${params.length}`); }
+    if (client_id)   { params.push(client_id);   conditions.push(`client_id = $${params.length}`); }
+    if (from)        { params.push(from);         conditions.push(`clock_in >= $${params.length}`); }
+    if (to)          { params.push(to + 'T23:59:59Z'); conditions.push(`clock_in <= $${params.length}`); }
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    const result = await pool.query(`SELECT * FROM clock_entries ${where} ORDER BY clock_in DESC`, params);
     res.json(result.rows);
   } catch (err) {
     console.error(err);
@@ -554,6 +571,17 @@ app.put('/api/payslips/:id', async (req, res) => {
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Payslip not found' });
     res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.delete('/api/payslips/:id', async (req, res) => {
+  try {
+    const result = await pool.query('DELETE FROM payslips WHERE id=$1 RETURNING id', [req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Payslip not found' });
+    res.json({ deleted: result.rows[0].id });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });

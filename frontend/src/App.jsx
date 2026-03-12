@@ -1249,7 +1249,6 @@ return (
 <div style={{ animation: "fadeIn .5s ease", width: 420, maxWidth: "95vw", padding: "0 16px" }}>
 <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}><LanguageSwitcher /></div>
 <div style={{ width: 80, height: 80, borderRadius: 24, background: `linear-gradient(135deg, ${CL.gold}, ${CL.goldDark})`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", fontSize: 32, fontWeight: 700, color: CL.bg, fontFamily: "'Cormorant Garamond', serif" }}>LAC</div>
-<p style={{ color: CL.muted, marginBottom: 20 }}>{t("managementSystem")}</p>
 
 <div style={{ ...cardSt, textAlign: "left", padding: 24 }}>
   <h3 style={{ fontFamily: "'Cormorant Garamond', serif", color: CL.gold, fontSize: 22, marginBottom: 14 }}>Secure Sign-In</h3>

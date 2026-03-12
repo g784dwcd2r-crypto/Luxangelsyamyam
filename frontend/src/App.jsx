@@ -126,6 +126,7 @@ const UI_FR = {
 "Invoiced": "Facturé",
 "Payroll access is restricted.": "L'accès à la paie est restreint.",
 "Email Marketing Campaigns": "Campagnes marketing par email",
+"Marketing Campaigns": "Campagnes marketing",
 "Frequency": "Fréquence",
 "Channel": "Canal",
 "8 sheets: Employees, Clients, Schedule, Time Clock, Invoices, Payslips, Settings, Summary": "8 feuilles : Employés, Clients, Planning, Pointage, Factures, Fiches de paie, Paramètres, Résumé",
@@ -4586,14 +4587,14 @@ return (
 // ==============================================
 function RemindersPage({ data, showToast }) {
 const { t } = useI18n();
-const [channel, setChannel] = useState("email");
+const [channel, setChannel] = useState("whatsapp");
 const [workflowType, setWorkflowType] = useState("all");
 const [selectedOnly, setSelectedOnly] = useState(false);
 const [selectedClientIds, setSelectedClientIds] = useState([]);
 const [campaignFrequency, setCampaignFrequency] = useState("weekly");
-const [campaignChannel, setCampaignChannel] = useState("email");
+const [campaignChannel, setCampaignChannel] = useState("whatsapp");
 const [campaignSubject, setCampaignSubject] = useState("Lux Angels update");
-const [campaignBody, setCampaignBody] = useState("Hello, this is your scheduled client communication from Lux Angels.");
+const [campaignBody, setCampaignBody] = useState("👋 Hello! This is your scheduled update from *Lux Angels*. Feel free to reply if you have any questions. 😊");
 
 const clients = data.clients.filter(c => c.status === "active");
 
@@ -4648,7 +4649,7 @@ details: `${fmtDate(sched.date)} ${sched.startTime}-${sched.endTime} · ${employ
 buildPayload: () => ({
 to: client.email,
 subject: `Appointment reminder - ${fmtDate(sched.date)}`,
-body: `Dear ${client.contactPerson || client.name},\n\nReminder for your cleaning appointment:\nDate: ${fmtDate(sched.date)}\nTime: ${sched.startTime}-${sched.endTime}\nCleaner: ${employee?.name || "TBA"}\n\nRegards,\n${data.settings.companyName}`,
+body: `👋 Hi ${client.contactPerson || client.name}!\n\n🗓️ *Appointment Reminder*\n\n📅 Date: ${fmtDate(sched.date)}\n⏰ Time: ${sched.startTime} – ${sched.endTime}\n🧹 Cleaner: ${employee?.name || "TBA"}\n\nSee you soon! 😊\n– *${data.settings.companyName}*`,
 }),
 };
 }).filter(Boolean);
@@ -4667,7 +4668,7 @@ details: `${inv.invoiceNumber} · ${fmtDate(inv.date)} · €${(inv.total || 0).
 buildPayload: () => ({
 to: client.email,
 subject: `Invoice ${inv.invoiceNumber} sent`,
-body: `Dear ${client.contactPerson || client.name},\n\nYour invoice ${inv.invoiceNumber} has been sent.\nAmount: €${(inv.total || 0).toFixed(2)}\nDate: ${fmtDate(inv.date)}\n\nRegards,\n${data.settings.companyName}`,
+body: `👋 Hi ${client.contactPerson || client.name}!\n\n🧾 *Invoice Sent*\n\n📋 Invoice: *${inv.invoiceNumber}*\n💶 Amount: *€${(inv.total || 0).toFixed(2)}*\n📅 Date: ${fmtDate(inv.date)}\n\nThank you for choosing us! 🙏\n– *${data.settings.companyName}*`,
 }),
 };
 }).filter(Boolean);
@@ -4686,7 +4687,7 @@ details: `${inv.invoiceNumber} due ${fmtDate(inv.dueDate)} · €${(inv.total ||
 buildPayload: () => ({
 to: client.email,
 subject: `Payment follow-up - ${inv.invoiceNumber}`,
-body: `Dear ${client.contactPerson || client.name},\n\nThis is a friendly follow-up for invoice ${inv.invoiceNumber}.\nDue date: ${fmtDate(inv.dueDate)}\nOutstanding amount: €${(inv.total || 0).toFixed(2)}\n\nPlease let us know if payment has already been made.\n\nRegards,\n${data.settings.companyName}`,
+body: `👋 Hi ${client.contactPerson || client.name}!\n\n💳 *Friendly Payment Reminder*\n\n📋 Invoice: *${inv.invoiceNumber}*\n📅 Due: ${fmtDate(inv.dueDate)}\n💶 Outstanding: *€${(inv.total || 0).toFixed(2)}*\n\nPlease let us know if payment has already been made. Thank you! 🙏\n– *${data.settings.companyName}*`,
 }),
 };
 }).filter(Boolean);
@@ -4705,10 +4706,13 @@ const recipients = clients.filter(c => selectedClientIds.includes(c.id));
 if (!recipients.length) { showToast(uiText("Select at least one client for campaign"), "error"); return; }
 let sentCount = 0;
 for (const client of recipients) {
+const isWhatsApp = campaignChannel === "whatsapp";
 const payload = {
 to: client.email,
 subject: `[${campaignFrequency.toUpperCase()}] ${campaignSubject}`,
-body: `Dear ${client.contactPerson || client.name},\n\n${campaignBody}\n\nRegards,\n${data.settings.companyName}`,
+body: isWhatsApp
+  ? `👋 Hi ${client.contactPerson || client.name}!\n\n${campaignBody}\n\n– *${data.settings.companyName}*`
+  : `Dear ${client.contactPerson || client.name},\n\n${campaignBody}\n\nRegards,\n${data.settings.companyName}`,
 };
 const ok = await dispatch(campaignChannel, payload, client);
 if (ok) sentCount += 1;
@@ -4740,26 +4744,26 @@ return (
 <option value="followup">{uiText("Business follow-up")}</option>
 </SelectInput>
 <SelectInput value={channel} onChange={ev => setChannel(ev.target.value)} style={{ width: 170 }}>
-<option value="email">{uiText("Email")}</option>
 <option value="whatsapp">{uiText("WhatsApp")}</option>
+<option value="email">{uiText("Email")}</option>
 <option value="zoho">{uiText("Zoho")}</option>
 </SelectInput>
 <div style={{ fontSize: 12, color: CL.muted }}>{uiText("Ready reminders:")} {filtered.length}</div>
 </div>
 
 {filtered.length === 0 ? <div style={{ ...cardSt, textAlign: "center", padding: 26, color: CL.muted }}>{uiText("No reminders ready for this filter.")}</div> : (
-<div>{filtered.map(rem => <div key={rem.id} style={{ ...cardSt, marginBottom: 8 }}><div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 8 }}><div><div style={{ fontWeight: 600, fontSize: 15 }}>{rem.title}</div><div style={{ fontSize: 12, color: CL.muted, marginTop: 3 }}>{rem.details}</div><div style={{ fontSize: 12, color: CL.dim, marginTop: 2 }}>{rem.client.email || rem.client.phone || rem.client.phoneMobile || uiText("No contact")}</div></div><button style={btnPri} onClick={() => sendReminder(rem)}>{ICN.mail} {uiText("Send via")} {channel}</button></div></div>)}</div>
+<div>{filtered.map(rem => <div key={rem.id} style={{ ...cardSt, marginBottom: 8 }}><div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 8 }}><div><div style={{ fontWeight: 600, fontSize: 15 }}>{rem.title}</div><div style={{ fontSize: 12, color: CL.muted, marginTop: 3 }}>{rem.details}</div><div style={{ fontSize: 12, color: CL.dim, marginTop: 2 }}>{rem.client.email || rem.client.phone || rem.client.phoneMobile || uiText("No contact")}</div></div><button style={{ ...btnPri, background: channel === "whatsapp" ? "#25D366" : undefined, borderColor: channel === "whatsapp" ? "#25D366" : undefined }} onClick={() => sendReminder(rem)}>{channel === "whatsapp" ? "💬" : ICN.mail} {uiText("Send via")} {channel === "whatsapp" ? "WhatsApp" : channel}</button></div></div>)}</div>
 )}
 
 <div style={{ ...cardSt, marginTop: 12 }}>
-<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>{t("Email Marketing Campaigns")}</h3>
+<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>💬 {uiText("Marketing Campaigns")}</h3>
 <div className="form-grid">
 <Field label={uiText("Frequency")}><SelectInput value={campaignFrequency} onChange={ev => setCampaignFrequency(ev.target.value)}><option value="weekly">{uiText("Weekly")}</option><option value="monthly">{uiText("Monthly")}</option></SelectInput></Field>
-<Field label={uiText("Channel")}><SelectInput value={campaignChannel} onChange={ev => setCampaignChannel(ev.target.value)}><option value="email">{uiText("Email")}</option><option value="whatsapp">{uiText("WhatsApp")}</option><option value="zoho">{uiText("Zoho")}</option></SelectInput></Field>
+<Field label={uiText("Channel")}><SelectInput value={campaignChannel} onChange={ev => setCampaignChannel(ev.target.value)}><option value="whatsapp">{uiText("WhatsApp")}</option><option value="email">{uiText("Email")}</option><option value="zoho">{uiText("Zoho")}</option></SelectInput></Field>
 </div>
 <Field label={uiText("Campaign subject")}><TextInput value={campaignSubject} onChange={ev => setCampaignSubject(ev.target.value)} /></Field>
 <Field label={uiText("Campaign content")}><TextArea value={campaignBody} onChange={ev => setCampaignBody(ev.target.value)} /></Field>
-<div style={{ display: "flex", justifyContent: "flex-end" }}><button style={btnPri} onClick={sendCampaign}>{ICN.mail} {uiText("Send Campaign to Selected Clients")}</button></div>
+<div style={{ display: "flex", justifyContent: "flex-end" }}><button style={{ ...btnPri, background: campaignChannel === "whatsapp" ? "#25D366" : undefined, borderColor: campaignChannel === "whatsapp" ? "#25D366" : undefined }} onClick={sendCampaign}>{campaignChannel === "whatsapp" ? "💬" : ICN.mail} {uiText("Send Campaign to Selected Clients")}</button></div>
 </div>
 </div>
 );

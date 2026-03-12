@@ -423,6 +423,20 @@ const UI_FR = {
 "Congé": "Congé",
 "No reason provided": "Aucune raison fournie",
 "No leave requests submitted yet": "Aucune demande de congé soumise",
+"Leave": "Congé",
+"Sick Leave": "Maladie",
+"Select start and end dates": "Sélectionnez les dates de début et de fin",
+"End date must be after start date": "La date de fin doit être après la date de début",
+"Invalid leave dates": "Dates de congé invalides",
+"Request exceeds remaining leave balance": "La demande dépasse le solde de congés restant",
+"Leave request sent": "Demande de congé envoyée",
+"Reviewed": "Examiné le",
+"Time-off Requests": "Demandes de congé",
+"Unknown": "Inconnu",
+"Approve": "Approuver",
+"Reject": "Rejeter",
+"No leave requests found.": "Aucune demande de congé trouvée.",
+"Optional comment": "Commentaire optionnel",
 // Inventory
 "Add Product": "Ajouter un produit",
 "No products added yet.": "Aucun produit ajouté.",
@@ -438,6 +452,13 @@ const UI_FR = {
 "No images": "Aucune image",
 "All clients": "Tous les clients",
 "Mark images seen": "Marquer les images comme vues",
+"All": "Tous",
+"From": "Du",
+"To": "Au",
+"Prestation": "Prestation",
+"Reset": "Réinitialiser",
+"Use the filters above and click Search to load history.": "Utilisez les filtres ci-dessus et cliquez sur Rechercher pour charger l'historique.",
+"Showing first 200 results. Refine your filters to narrow down.": "Affichage des 200 premiers résultats. Affinez vos filtres.",
 // Leave management (owner view)
 "All Cleaners": "Tous les agents",
 "Holiday Counter": "Compteur de congés",
@@ -1335,11 +1356,11 @@ showToast("Upload failed", "error");
 };
 
 const submitTimeOff = () => {
-if (!timeOffForm.startDate || !timeOffForm.endDate) { showToast("Select start and end dates", "error"); return; }
-if (timeOffForm.endDate < timeOffForm.startDate) { showToast("End date must be after start date", "error"); return; }
+if (!timeOffForm.startDate || !timeOffForm.endDate) { showToast(uiText("Select start and end dates"), "error"); return; }
+if (timeOffForm.endDate < timeOffForm.startDate) { showToast(uiText("End date must be after start date"), "error"); return; }
 const requestedDays = leaveDaysInclusive(timeOffForm.startDate, timeOffForm.endDate);
-if (!requestedDays) { showToast("Invalid leave dates", "error"); return; }
-if (requestedDays > leaveSummary.remaining) { showToast("Request exceeds remaining leave balance", "error"); return; }
+if (!requestedDays) { showToast(uiText("Invalid leave dates"), "error"); return; }
+if (requestedDays > leaveSummary.remaining) { showToast(uiText("Request exceeds remaining leave balance"), "error"); return; }
 updateData("timeOffRequests", (prev = []) => [...prev, {
 id: makeId(), employeeId: auth.employeeId, ...timeOffForm,
 requestedDays,
@@ -1347,7 +1368,7 @@ reason: timeOffForm.reason.trim(), status: "pending", createdAt: new Date().toIS
 reviewedAt: null, reviewedBy: null, reviewNote: "",
 }]);
 setTimeOffForm({ startDate: "", endDate: "", reason: "", leaveType: "conge" });
-showToast("Leave request sent");
+showToast(uiText("Leave request sent"));
 };
 
 const submitProductRequest = () => {
@@ -1591,7 +1612,7 @@ return (
             <Field label={uiText("Start Date")}><TextInput type="date" value={timeOffForm.startDate} onChange={ev => setTimeOffForm(v => ({ ...v, startDate: ev.target.value }))} /></Field>
             <Field label={uiText("End Date")}><TextInput type="date" value={timeOffForm.endDate} onChange={ev => setTimeOffForm(v => ({ ...v, endDate: ev.target.value }))} /></Field>
           </div>
-          <Field label={uiText("Type")}><SelectInput value={timeOffForm.leaveType} onChange={ev => setTimeOffForm(v => ({ ...v, leaveType: ev.target.value }))}><option value="conge">Congé</option><option value="maladie">Maladie</option></SelectInput></Field>
+          <Field label={uiText("Type")}><SelectInput value={timeOffForm.leaveType} onChange={ev => setTimeOffForm(v => ({ ...v, leaveType: ev.target.value }))}><option value="conge">{uiText("Leave")}</option><option value="maladie">{uiText("Sick Leave")}</option></SelectInput></Field>
           <Field label={uiText("Reason")}><TextArea value={timeOffForm.reason} onChange={ev => setTimeOffForm(v => ({ ...v, reason: ev.target.value }))} placeholder={uiText("Vacation, personal, medical, etc.")} /></Field>
           <button onClick={submitTimeOff} style={btnPri}>{uiText("Submit Request")}</button>
         </div>
@@ -1601,8 +1622,8 @@ return (
             <div key={req.id} style={{ padding: "10px 0", borderBottom: `1px solid ${CL.bd}`, display: "flex", justifyContent: "space-between", gap: 10 }}>
               <div>
                 <div style={{ fontWeight: 600 }}>{fmtDate(req.startDate)} - {fmtDate(req.endDate)} ({leaveDaysInclusive(req.startDate, req.endDate)}d)</div>
-                <div style={{ fontSize: 12, color: CL.muted }}>{req.leaveType === "maladie" ? uiText("Maladie") : uiText("Congé")} · {req.reason || uiText("No reason provided")}</div>
-                {req.reviewedAt && <div style={{ fontSize: 11, color: CL.dim }}>Reviewed {fmtBoth(req.reviewedAt)} {req.reviewNote ? `· ${req.reviewNote}` : ""}</div>}
+                <div style={{ fontSize: 12, color: CL.muted }}>{req.leaveType === "maladie" ? uiText("Sick Leave") : uiText("Leave")} · {req.reason || uiText("No reason provided")}</div>
+                {req.reviewedAt && <div style={{ fontSize: 11, color: CL.dim }}>{uiText("Reviewed")} {fmtBoth(req.reviewedAt)} {req.reviewNote ? `· ${req.reviewNote}` : ""}</div>}
               </div>
               <Badge color={req.status === "approved" ? CL.green : req.status === "rejected" ? CL.red : CL.orange}>{uiText(req.status)}</Badge>
             </div>
@@ -1645,10 +1666,10 @@ return (
 {/* Pending alerts */}
 {(pendingLeave > 0 || pendingProducts > 0 || unseenUploads > 0 || overdueInvoices.length > 0) && (
   <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
-    {pendingLeave > 0 && <div style={{ background: CL.orange + "20", border: `1px solid ${CL.orange}40`, borderRadius: 8, padding: "6px 12px", fontSize: 12, color: CL.orange, fontWeight: 600 }}>⏳ {pendingLeave} leave request{pendingLeave > 1 ? "s" : ""} pending</div>}
-    {pendingProducts > 0 && <div style={{ background: CL.blue + "20", border: `1px solid ${CL.blue}40`, borderRadius: 8, padding: "6px 12px", fontSize: 12, color: CL.blue, fontWeight: 600 }}>📦 {pendingProducts} product request{pendingProducts > 1 ? "s" : ""} pending</div>}
-    {unseenUploads > 0 && <div style={{ background: CL.gold + "20", border: `1px solid ${CL.gold}40`, borderRadius: 8, padding: "6px 12px", fontSize: 12, color: CL.gold, fontWeight: 600 }}>📷 {unseenUploads} new photo{unseenUploads > 1 ? "s" : ""} uploaded</div>}
-    {overdueInvoices.length > 0 && <div style={{ background: CL.red + "20", border: `1px solid ${CL.red}40`, borderRadius: 8, padding: "6px 12px", fontSize: 12, color: CL.red, fontWeight: 600 }}>⚠️ {overdueInvoices.length} overdue invoice{overdueInvoices.length > 1 ? "s" : ""}</div>}
+    {pendingLeave > 0 && <div style={{ background: CL.orange + "20", border: `1px solid ${CL.orange}40`, borderRadius: 8, padding: "6px 12px", fontSize: 12, color: CL.orange, fontWeight: 600 }}>⏳ {pendingLeave} {uiText(pendingLeave > 1 ? "leave requests" : "leave request")} {uiText("pending")}</div>}
+    {pendingProducts > 0 && <div style={{ background: CL.blue + "20", border: `1px solid ${CL.blue}40`, borderRadius: 8, padding: "6px 12px", fontSize: 12, color: CL.blue, fontWeight: 600 }}>📦 {pendingProducts} {uiText(pendingProducts > 1 ? "product requests" : "product request")} {uiText("pending")}</div>}
+    {unseenUploads > 0 && <div style={{ background: CL.gold + "20", border: `1px solid ${CL.gold}40`, borderRadius: 8, padding: "6px 12px", fontSize: 12, color: CL.gold, fontWeight: 600 }}>📷 {unseenUploads} {uiText(unseenUploads > 1 ? "new photos" : "new photo")} {uiText("uploaded")}</div>}
+    {overdueInvoices.length > 0 && <div style={{ background: CL.red + "20", border: `1px solid ${CL.red}40`, borderRadius: 8, padding: "6px 12px", fontSize: 12, color: CL.red, fontWeight: 600 }}>⚠️ {overdueInvoices.length} {uiText(overdueInvoices.length > 1 ? "overdue invoices" : "overdue invoice")}</div>}
   </div>
 )}
 
@@ -3921,7 +3942,7 @@ return (
 </div>
 
 <div style={cardSt}>
-<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: CL.gold }}>Time-off Requests</h3>
+<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: CL.gold }}>{uiText("Time-off Requests")}</h3>
 {requests.map(req => {
 const employee = data.employees.find(e => e.id === req.employeeId);
 const days = req.requestedDays || leaveDaysInclusive(req.startDate, req.endDate);
@@ -3929,24 +3950,24 @@ return (
 <div key={req.id} style={{ padding: "12px 0", borderBottom: `1px solid ${CL.bd}` }}>
 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
 <div>
-<div style={{ fontWeight: 600 }}>{employee?.name || "Unknown"} · {fmtDate(req.startDate)} - {fmtDate(req.endDate)} ({days}d)</div>
-<div style={{ fontSize: 12, color: CL.muted }}>{req.leaveType === "maladie" ? "Maladie" : "Congé"}{req.reason ? ` · ${req.reason}` : ""}</div>
-<div style={{ fontSize: 11, color: CL.dim }}>Requested {fmtBoth(req.createdAt)}</div>
-{req.reviewedAt && <div style={{ fontSize: 11, color: CL.dim }}>Reviewed {fmtBoth(req.reviewedAt)} {req.reviewNote ? `· ${req.reviewNote}` : ""}</div>}
+<div style={{ fontWeight: 600 }}>{employee?.name || uiText("Unknown")} · {fmtDate(req.startDate)} - {fmtDate(req.endDate)} ({days}d)</div>
+<div style={{ fontSize: 12, color: CL.muted }}>{req.leaveType === "maladie" ? uiText("Sick Leave") : uiText("Leave")}{req.reason ? ` · ${req.reason}` : ""}</div>
+<div style={{ fontSize: 11, color: CL.dim }}>{uiText("Requested")} {fmtBoth(req.createdAt)}</div>
+{req.reviewedAt && <div style={{ fontSize: 11, color: CL.dim }}>{uiText("Reviewed")} {fmtBoth(req.reviewedAt)} {req.reviewNote ? `· ${req.reviewNote}` : ""}</div>}
 </div>
 <Badge color={req.status === "approved" ? CL.green : req.status === "rejected" ? CL.red : CL.orange}>{req.status}</Badge>
 </div>
 {req.status === "pending" && (
 <div style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
 <TextInput value={reviewNote[req.id] || ""} onChange={ev => setReviewNote(v => ({ ...v, [req.id]: ev.target.value }))} placeholder="Optional comment" style={{ minWidth: 220, flex: 1 }} />
-<button style={{ ...btnPri, ...btnSm, background: CL.green }} onClick={() => reviewRequest(req.id, "approved")}>{ICN.check} Approve</button>
-<button style={{ ...btnSec, ...btnSm, color: CL.red }} onClick={() => reviewRequest(req.id, "rejected")}>{ICN.close} Reject</button>
+<button style={{ ...btnPri, ...btnSm, background: CL.green }} onClick={() => reviewRequest(req.id, "approved")}>{ICN.check} {uiText("Approve")}</button>
+<button style={{ ...btnSec, ...btnSm, color: CL.red }} onClick={() => reviewRequest(req.id, "rejected")}>{ICN.close} {uiText("Reject")}</button>
 </div>
 )}
 </div>
 );
 })}
-{requests.length === 0 && <p style={{ color: CL.muted, textAlign: "center" }}>No leave requests found.</p>}
+{requests.length === 0 && <p style={{ color: CL.muted, textAlign: "center" }}>{uiText("No leave requests found.")}</p>}
 </div>
 </div>
 );

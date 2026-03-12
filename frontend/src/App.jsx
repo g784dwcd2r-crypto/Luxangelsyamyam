@@ -1179,9 +1179,9 @@ const [isSubmitting, setIsSubmitting] = useState(false);
 
 const loginWithServer = async ({ user, pass }) => {
   if (!API_BASE_CANDIDATES.length) return { status: "unreachable" };
-  // Longer timeout to handle Render.com free-tier cold starts (can take 30-60s)
-  // We retry once after a cold-start delay to cover all browsers and network conditions.
-  const REQUEST_TIMEOUT_MS = 12000;
+  // Keep login responsive while still handling Render cold starts.
+  const REQUEST_TIMEOUT_MS = 8000;
+  const WARMUP_TIMEOUT_MS = 10000;
   let reachedServer = false;
 
   const attempts = [
@@ -1208,14 +1208,28 @@ const loginWithServer = async ({ user, pass }) => {
     }
   };
 
+  const tryWarmup = async (baseUrl) => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), WARMUP_TIMEOUT_MS);
+    try {
+      const res = await fetch(apiUrl("/api/health/db", baseUrl), {
+        method: "GET",
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      return res.ok;
+    } catch {
+      clearTimeout(timeoutId);
+      return false;
+    }
+  };
+
   for (const baseUrl of API_BASE_CANDIDATES) {
+    const isWarm = await tryWarmup(baseUrl);
+    if (!isWarm) continue;
+
     for (const payload of attempts) {
-      let res = await tryFetch(baseUrl, payload);
-      // If server didn't respond (cold start), wait and retry once
-      if (!res) {
-        await new Promise(r => setTimeout(r, 3000));
-        res = await tryFetch(baseUrl, payload);
-      }
+      const res = await tryFetch(baseUrl, payload);
       if (!res) continue;
 
       reachedServer = true;

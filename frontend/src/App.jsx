@@ -560,6 +560,23 @@ const fmtBoth = (d) => `${fmtDate(d)} ${fmtTime(d)}`;
 const calcHrs = (a, b) => (a && b) ? Math.max(0, Math.round((new Date(b) - new Date(a)) / 36e5 * 100) / 100) : 0;
 const makeISO = (d, t) => `${d}T${t}:00`;
 const mapsUrl = (address = "") => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+const normalizeCity = (value = "") => String(value || "").trim().toLowerCase();
+const cityMatchLabel = (employee, client) => {
+const empCity = normalizeCity(employee?.city);
+const clientCity = normalizeCity(client?.city);
+if (!employee || !client || !clientCity || !empCity) return "City check unavailable";
+return empCity === clientCity ? "✅ Cleaner is in client city" : "⚠️ Cleaner is outside client city";
+};
+const recommendedCleanerForClient = (client, employees = []) => {
+if (!client) return null;
+const active = employees.filter(e => e.status === "active");
+const preferred = (client.preferredCleanerIds || [])
+  .map(id => active.find(e => e.id === id))
+  .filter(Boolean);
+if (!preferred.length) return null;
+const cityMatched = preferred.find(e => normalizeCity(e.city) && normalizeCity(e.city) === normalizeCity(client.city));
+return cityMatched || preferred[0];
+};
 const scheduleStatusColor = (status) => status === "completed" ? CL.green : status === "in-progress" ? CL.orange : status === "cancelled" ? CL.red : CL.blue;
 const getScheduleForClockEvent = (schedules, { employeeId, clientId, date }) => schedules
 .filter(s => s.employeeId === employeeId && s.clientId === clientId && s.date === date && s.status !== "cancelled")
@@ -786,11 +803,11 @@ ws.columns = cols.map(c => ({ header: c, key: c, width: Math.max(c.length + 4, 1
 ws.addRows(rows.length ? rows : [Object.fromEntries(cols.map(c => [c, ""]))]);
 };
 
-addSheet("Employees", data.employees.map(emp => ({ ID: emp.id, Name: emp.name, Username: data.employeeUsernames?.[emp.id] || "", Email: emp.email, Phone: emp.phone, Mobile: emp.phoneMobile || "", Role: emp.role, "Rate": emp.hourlyRate, Address: emp.address, City: emp.city || "", Zip: emp.postalCode || "", Country: emp.country || "", "Start": emp.startDate, Status: emp.status, Contract: emp.contractType || "", IBAN: emp.bankIban || "", SSN: emp.socialSecNumber || "", DOB: emp.dateOfBirth || "", Nationality: emp.nationality || "", Languages: emp.languages || "", Transport: emp.transport || "", "WorkPermit": emp.workPermit || "", "EmergName": emp.emergencyName || "", "EmergPhone": emp.emergencyPhone || "", Password: data.employeePins?.[emp.id] || "0000", LeaveAllowance: emp.leaveAllowance ?? 26, Notes: emp.notes || "" })),
-["ID","Name","Username","Email","Phone","Mobile","Role","Rate","Address","City","Zip","Country","Start","Status","Contract","IBAN","SSN","DOB","Nationality","Languages","Transport","WorkPermit","EmergName","EmergPhone","Password","LeaveAllowance","Notes"]);
+addSheet("Employees", data.employees.map(emp => ({ ID: emp.id, Name: emp.name, Username: data.employeeUsernames?.[emp.id] || "", Email: emp.email, Phone: emp.phone, Mobile: emp.phoneMobile || "", Role: emp.role, "Rate": emp.hourlyRate, Address: emp.address, City: emp.city || "", Zip: emp.postalCode || "", Country: emp.country || "", "Start": emp.startDate, Status: emp.status, Contract: emp.contractType || "", IBAN: emp.bankIban || "", SSN: emp.socialSecNumber || "", DOB: emp.dateOfBirth || "", Nationality: emp.nationality || "", Languages: emp.languages || "", Transport: emp.transport || "", "WorkPermit": emp.workPermit || "", "EmergName": emp.emergencyName || "", "EmergPhone": emp.emergencyPhone || "", Password: data.employeePins?.[emp.id] || "0000", LeaveAllowance: emp.leaveAllowance ?? 26, Group: emp.cleanerGroup || "", HiringStage: emp.hiringStage || "hired", Notes: emp.notes || "" })),
+["ID","Name","Username","Email","Phone","Mobile","Role","Rate","Address","City","Zip","Country","Start","Status","Contract","IBAN","SSN","DOB","Nationality","Languages","Transport","WorkPermit","EmergName","EmergPhone","Password","LeaveAllowance","Group","HiringStage","Notes"]);
 
-addSheet("Clients", data.clients.map(cl => ({ ID: cl.id, Name: cl.name, Contact: cl.contactPerson || "", Email: cl.email, Phone: cl.phone, Mobile: cl.phoneMobile || "", Address: cl.address, "Apt": cl.apartmentFloor || "", City: cl.city || "", Zip: cl.postalCode || "", Country: cl.country || "", Type: cl.type, Freq: cl.cleaningFrequency, Billing: cl.billingType, "Hourly": cl.pricePerHour || 0, "Fixed": cl.priceFixed || 0, Status: cl.status, Lang: cl.language || "", "Code": cl.accessCode || "", "KeyLoc": cl.keyLocation || "", Parking: cl.parkingInfo || "", Pets: cl.petInfo || "", "PrefDay": cl.preferredDay || "", "PrefTime": cl.preferredTime || "", "ContStart": cl.contractStart || "", "ContEnd": cl.contractEnd || "", "SqM": cl.squareMeters || "", "TaxID": cl.taxId || "", "Instructions": cl.specialInstructions || "", Notes: cl.notes || "" })),
-["ID","Name","Contact","Email","Phone","Mobile","Address","Apt","City","Zip","Country","Type","Freq","Billing","Hourly","Fixed","Status","Lang","Code","KeyLoc","Parking","Pets","PrefDay","PrefTime","ContStart","ContEnd","SqM","TaxID","Instructions","Notes"]);
+addSheet("Clients", data.clients.map(cl => ({ ID: cl.id, Name: cl.name, Contact: cl.contactPerson || "", Email: cl.email, Phone: cl.phone, Mobile: cl.phoneMobile || "", Address: cl.address, "Apt": cl.apartmentFloor || "", City: cl.city || "", Zip: cl.postalCode || "", Country: cl.country || "", Type: cl.type, Freq: cl.cleaningFrequency, Billing: cl.billingType, "Hourly": cl.pricePerHour || 0, "Fixed": cl.priceFixed || 0, Status: cl.status, Lang: cl.language || "", "Code": cl.accessCode || "", "KeyLoc": cl.keyLocation || "", Parking: cl.parkingInfo || "", Pets: cl.petInfo || "", "PrefDay": cl.preferredDay || "", "PrefTime": cl.preferredTime || "", "ContStart": cl.contractStart || "", "ContEnd": cl.contractEnd || "", "SqM": cl.squareMeters || "", "TaxID": cl.taxId || "", "Instructions": cl.specialInstructions || "", PreferredCleaners: (cl.preferredCleanerIds || []).join("|"), Notes: cl.notes || "" })),
+["ID","Name","Contact","Email","Phone","Mobile","Address","Apt","City","Zip","Country","Type","Freq","Billing","Hourly","Fixed","Status","Lang","Code","KeyLoc","Parking","Pets","PrefDay","PrefTime","ContStart","ContEnd","SqM","TaxID","Instructions","PreferredCleaners","Notes"]);
 
 addSheet("Schedule", data.schedules.map(sc => { const cl = data.clients.find(c => c.id === sc.clientId); const em = data.employees.find(e => e.id === sc.employeeId); return { ID: sc.id, Date: sc.date, Client: cl?.name || "", CliID: sc.clientId, Employee: em?.name || "", EmpID: sc.employeeId, Start: sc.startTime, End: sc.endTime, Status: sc.status, Notes: sc.notes || "" }; }),
 ["ID","Date","Client","CliID","Employee","EmpID","Start","End","Status","Notes"]);
@@ -856,11 +873,11 @@ const sheet = (name) => {
   return rows;
 };
 
-  const emps = sheet("Employees").filter(r => r.ID && r.Name).map(r => ({ id: r.ID, name: r.Name, email: r.Email || "", phone: r.Phone || "", phoneMobile: r.Mobile || "", role: r.Role || "Cleaner", hourlyRate: parseFloat(r.Rate) || 15, address: r.Address || "", city: r.City || "", postalCode: r.Zip || "", country: r.Country || "Luxembourg", startDate: r.Start || getToday(), status: r.Status || "active", contractType: r.Contract || "CDI", bankIban: r.IBAN || "", socialSecNumber: r.SSN || "", dateOfBirth: r.DOB || "", nationality: r.Nationality || "", languages: r.Languages || "", transport: r.Transport || "", workPermit: r.WorkPermit || "", emergencyName: r.EmergName || "", emergencyPhone: r.EmergPhone || "", leaveAllowance: parseInt(r.LeaveAllowance || "26", 10) || 26, notes: r.Notes || "" }));
+  const emps = sheet("Employees").filter(r => r.ID && r.Name).map(r => ({ id: r.ID, name: r.Name, email: r.Email || "", phone: r.Phone || "", phoneMobile: r.Mobile || "", role: r.Role || "Cleaner", hourlyRate: parseFloat(r.Rate) || 15, address: r.Address || "", city: r.City || "", postalCode: r.Zip || "", country: r.Country || "Luxembourg", startDate: r.Start || getToday(), status: r.Status || "active", contractType: r.Contract || "CDI", bankIban: r.IBAN || "", socialSecNumber: r.SSN || "", dateOfBirth: r.DOB || "", nationality: r.Nationality || "", languages: r.Languages || "", transport: r.Transport || "", workPermit: r.WorkPermit || "", emergencyName: r.EmergName || "", emergencyPhone: r.EmergPhone || "", leaveAllowance: parseInt(r.LeaveAllowance || "26", 10) || 26, cleanerGroup: r.Group || "", hiringStage: r.HiringStage || "hired", notes: r.Notes || "" }));
   const pins = {}; sheet("Employees").filter(r => r.ID).forEach(r => { pins[r.ID] = String(r.Password || r.PIN || "0000"); });
   const employeeUsernames = {}; sheet("Employees").filter(r => r.ID && r.Username).forEach(r => { employeeUsernames[r.ID] = String(r.Username); });
 
-  const clients = sheet("Clients").filter(r => r.ID && r.Name).map(r => ({ id: r.ID, name: r.Name, contactPerson: r.Contact || "", email: r.Email || "", phone: r.Phone || "", phoneMobile: r.Mobile || "", address: r.Address || "", apartmentFloor: r.Apt || "", city: r.City || "", postalCode: r.Zip || "", country: r.Country || "Luxembourg", type: r.Type || "Residential", cleaningFrequency: r.Freq || "Weekly", billingType: r.Billing || "hourly", pricePerHour: parseFloat(r.Hourly) || 35, priceFixed: parseFloat(r.Fixed) || 0, status: r.Status || "active", language: r.Lang || "FR", accessCode: r.Code || "", keyLocation: r.KeyLoc || "", parkingInfo: r.Parking || "", petInfo: r.Pets || "", preferredDay: r.PrefDay || "", preferredTime: r.PrefTime || "", contractStart: r.ContStart || "", contractEnd: r.ContEnd || "", squareMeters: r.SqM || "", taxId: r.TaxID || "", specialInstructions: r.Instructions || "", notes: r.Notes || "" }));
+  const clients = sheet("Clients").filter(r => r.ID && r.Name).map(r => ({ id: r.ID, name: r.Name, contactPerson: r.Contact || "", email: r.Email || "", phone: r.Phone || "", phoneMobile: r.Mobile || "", address: r.Address || "", apartmentFloor: r.Apt || "", city: r.City || "", postalCode: r.Zip || "", country: r.Country || "Luxembourg", type: r.Type || "Residential", cleaningFrequency: r.Freq || "Weekly", billingType: r.Billing || "hourly", pricePerHour: parseFloat(r.Hourly) || 35, priceFixed: parseFloat(r.Fixed) || 0, status: r.Status || "active", language: r.Lang || "FR", accessCode: r.Code || "", keyLocation: r.KeyLoc || "", parkingInfo: r.Parking || "", petInfo: r.Pets || "", preferredDay: r.PrefDay || "", preferredTime: r.PrefTime || "", contractStart: r.ContStart || "", contractEnd: r.ContEnd || "", squareMeters: r.SqM || "", taxId: r.TaxID || "", specialInstructions: r.Instructions || "", preferredCleanerIds: String(r.PreferredCleaners || "").split("|").map(v => v.trim()).filter(Boolean), notes: r.Notes || "" }));
 
   const scheds = sheet("Schedule").filter(r => r.ID).map(r => ({ id: r.ID, date: r.Date || "", clientId: r.CliID || "", employeeId: r.EmpID || "", startTime: r.Start || "08:00", endTime: r.End || "12:00", status: r.Status || "scheduled", notes: r.Notes || "", recurrence: "none" }));
   const clocks = sheet("TimeClock").filter(r => r.ID).map(r => ({ id: r.ID, employeeId: r.EmpID || "", clientId: r.CliID || "", clockIn: r.In || "", clockOut: r.Out || null, notes: r.Note || "", isLate: String(r.Late || "").toLowerCase() === "yes", lateMinutes: parseFloat(r.LateMins) || 0 }));
@@ -1793,13 +1810,14 @@ const [modal, setModal] = useState(null);
 const [deleteId, setDeleteId] = useState(null);
 const [search, setSearch] = useState("");
 const [statusFilter, setStatusFilter] = useState("all");
+const [groupFilter, setGroupFilter] = useState("all");
 
 const emptyEmployee = {
 name: "", email: "", phone: "", phoneMobile: "", address: "", city: "Luxembourg", postalCode: "", country: "Luxembourg",
 role: "Cleaner", hourlyRate: 15, startDate: getToday(), status: "active", notes: "", bankIban: "", socialSecNumber: "",
 pin: "0000", dateOfBirth: "", nationality: "", contractType: "CDI", workPermit: "", emergencyName: "", emergencyPhone: "",
 username: "",
-languages: "", transport: "", leaveAllowance: 26,
+languages: "", transport: "", leaveAllowance: 26, cleanerGroup: "", hiringStage: "hired",
 };
 
 const handleSave = (empData) => {
@@ -1845,10 +1863,18 @@ setDeleteId(null);
 };
 
 const q = search.toLowerCase();
+const locationGroups = Array.from(new Set((data.employees || []).map(e => (e.cleanerGroup || e.city || "").trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+const preferredCountByEmployee = (data.clients || []).reduce((acc, client) => {
+  (client.preferredCleanerIds || []).forEach(id => { acc[id] = (acc[id] || 0) + 1; });
+  return acc;
+}, {});
+const qLower = q.toLowerCase();
 const filtered = data.employees.filter(e => {
-  const matchesSearch = !q || e.name.toLowerCase().includes(q) || (e.role || "").toLowerCase().includes(q) || (e.email || "").toLowerCase().includes(q) || (e.phone || "").includes(q) || (e.phoneMobile || "").includes(q);
+  const matchesSearch = !qLower || e.name.toLowerCase().includes(qLower) || (e.role || "").toLowerCase().includes(qLower) || (e.email || "").toLowerCase().includes(qLower) || (e.phone || "").includes(qLower) || (e.phoneMobile || "").includes(qLower) || (e.city || "").toLowerCase().includes(qLower) || (e.cleanerGroup || "").toLowerCase().includes(qLower);
   const matchesStatus = statusFilter === "all" || e.status === statusFilter;
-  return matchesSearch && matchesStatus;
+  const empGroup = (e.cleanerGroup || e.city || "").trim();
+  const matchesGroup = groupFilter === "all" || empGroup === groupFilter;
+  return matchesSearch && matchesStatus && matchesGroup;
 });
 
 return (
@@ -1867,19 +1893,27 @@ return (
   <option value="active">{uiText("Active")}</option>
   <option value="inactive">{uiText("Inactive")}</option>
 </SelectInput>
+
+<SelectInput value={groupFilter} onChange={ev => setGroupFilter(ev.target.value)} style={{ width: 190 }}>
+  <option value="all">All Locations</option>
+  {locationGroups.map(group => <option key={group} value={group}>{group}</option>)}
+</SelectInput>
 </div>
 <div style={cardSt} className="tbl-wrap">
 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
 <thead>
-<tr><th style={thSt}>{uiText("Name")}</th><th style={thSt}>{uiText("Role")}</th><th style={thSt}>{uiText("Rate")}</th><th style={thSt}>{uiText("Contact")}</th><th style={thSt}>{uiText("Username")}</th><th style={thSt}>{uiText("Password")}</th><th style={thSt}>{uiText("Status")}</th><th style={thSt}>{uiText("Actions")}</th></tr>
+<tr><th style={thSt}>{uiText("Name")}</th><th style={thSt}>Location Group</th><th style={thSt}>{uiText("Role")}</th><th style={thSt}>{uiText("Rate")}</th><th style={thSt}>{uiText("Contact")}</th><th style={thSt}>Stage</th><th style={thSt}>Assigned Clients</th><th style={thSt}>{uiText("Username")}</th><th style={thSt}>{uiText("Password")}</th><th style={thSt}>{uiText("Status")}</th><th style={thSt}>{uiText("Actions")}</th></tr>
 </thead>
 <tbody>
 {filtered.map(emp => (
 <tr key={emp.id}>
 <td style={tdSt}><div style={{ fontWeight: 600 }}>{emp.name}</div><div style={{ fontSize: 11, color: CL.muted }}>{emp.nationality ? `${emp.nationality} · ` : ""}{emp.languages || ""}</div></td>
+<td style={tdSt}><div style={{ fontWeight: 600 }}>{emp.cleanerGroup || emp.city || "-"}</div><div style={{ fontSize: 11, color: CL.muted }}>{emp.city || "No city"}</div></td>
 <td style={tdSt}>{emp.role}</td>
 <td style={tdSt}>€{Number(emp.hourlyRate).toFixed(2)}/hr</td>
 <td style={tdSt}><div style={{ fontSize: 12 }}>{emp.phone}</div><div style={{ fontSize: 11, color: CL.muted }}>{emp.email}</div></td>
+<td style={tdSt}><Badge color={(emp.hiringStage || "hired") === "standby" ? CL.orange : CL.green}>{(emp.hiringStage || "hired") === "standby" ? "Standby" : "Hired"}</Badge></td>
+<td style={tdSt}>{preferredCountByEmployee[emp.id] || 0}</td>
 <td style={tdSt}><code style={{ background: CL.s2, padding: "2px 5px", borderRadius: 4, fontSize: 12 }}>{data.employeeUsernames?.[emp.id] || "(email/full name)"}</code></td>
 <td style={tdSt}><code style={{ background: CL.s2, padding: "2px 5px", borderRadius: 4, fontSize: 12 }}>{data.employeePins?.[emp.id] || "0000"}</code></td>
 <td style={tdSt}><Badge color={emp.status === "active" ? CL.green : CL.red}>{emp.status}</Badge></td>
@@ -1891,7 +1925,7 @@ return (
 </td>
 </tr>
 ))}
-{filtered.length === 0 && <tr><td colSpan={8} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>{uiText("No employees")}</td></tr>}
+{filtered.length === 0 && <tr><td colSpan={11} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>{uiText("No employees")}</td></tr>}
 </tbody>
 </table>
 </div>
@@ -1926,6 +1960,7 @@ const tabs = [
 { id: "basic", label: uiText("Basic Info") },
 { id: "personal", label: uiText("Personal") },
 { id: "work", label: uiText("Work & Pay") },
+{ id: "operations", label: "Operations" },
 { id: "emergency", label: uiText("Emergency") },
 ];
 
@@ -1987,6 +2022,19 @@ return (
     </div>
   )}
 
+  {activeTab === "operations" && (
+    <div className="form-grid">
+      <Field label="Cleaner Location Group"><TextInput value={form.cleanerGroup || ""} onChange={ev => set("cleanerGroup", ev.target.value)} placeholder="Luxembourg City Team" /></Field>
+      <Field label="Hiring Stage">
+        <SelectInput value={form.hiringStage || "hired"} onChange={ev => set("hiringStage", ev.target.value)}>
+          <option value="hired">Hired</option>
+          <option value="standby">Standby / Potential</option>
+        </SelectInput>
+      </Field>
+      <div style={{ gridColumn: "1/-1", fontSize: 12, color: CL.muted }}>Tip: use Standby for potential cleaners you want to keep in your contact pipeline.</div>
+    </div>
+  )}
+
   {activeTab === "emergency" && (
     <div className="form-grid">
       <Field label="Emergency Contact Name"><TextInput value={form.emergencyName || ""} onChange={ev => set("emergencyName", ev.target.value)} /></Field>
@@ -2020,7 +2068,7 @@ const emptyClient = {
 name: "", email: "", phone: "", phoneMobile: "", address: "", apartmentFloor: "", city: "Luxembourg", postalCode: "", country: "Luxembourg",
 type: "Residential", cleaningFrequency: "Weekly", pricePerHour: 35, priceFixed: 0, billingType: "hourly", notes: "", contactPerson: "",
 status: "active", accessCode: "", keyLocation: "", parkingInfo: "", petInfo: "", specialInstructions: "", preferredDay: "", preferredTime: "",
-contractStart: "", contractEnd: "", squareMeters: "", taxId: "", language: "FR",
+contractStart: "", contractEnd: "", squareMeters: "", taxId: "", language: "FR", preferredCleanerIds: [],
 };
 
 const handleSave = (clientData) => {
@@ -2118,7 +2166,7 @@ return (
 
   {modal && (
     <ModalBox title={uiText(modal.id ? "Edit Client" : "Add Client")} onClose={() => setModal(null)}>
-      <ClientForm initialData={modal} onSave={handleSave} onCancel={() => setModal(null)} />
+      <ClientForm initialData={modal} data={data} onSave={handleSave} onCancel={() => setModal(null)} />
     </ModalBox>
   )}
 </div>
@@ -2126,7 +2174,7 @@ return (
 );
 }
 
-function ClientForm({ initialData, onSave, onCancel }) {
+function ClientForm({ initialData, data, onSave, onCancel }) {
 const [form, setForm] = useState(initialData);
 const [activeTab, setActiveTab] = useState("basic");
 const set = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
@@ -2218,6 +2266,19 @@ return (
     <div className="form-grid">
       <Field label="Property Size (m²)"><TextInput type="number" value={form.squareMeters || ""} onChange={ev => set("squareMeters", ev.target.value)} placeholder="e.g. 120" /></Field>
       <Field label="Pets"><TextInput value={form.petInfo || ""} onChange={ev => set("petInfo", ev.target.value)} placeholder="e.g. 1 cat (friendly)" /></Field>
+      <div style={{ gridColumn: "1/-1", borderTop: `1px solid ${CL.bd}`, paddingTop: 10 }}>
+        <div style={{ fontSize: 13, color: CL.gold, marginBottom: 8, fontWeight: 600 }}>Preferred cleaners for auto-assignment</div>
+        <div style={{ display: "grid", gap: 6 }}>
+          {(data.employees || []).filter(e => e.status === "active").map(emp => {
+            const checked = (form.preferredCleanerIds || []).includes(emp.id);
+            return <label key={emp.id} style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, color: CL.text }}><input type="checkbox" checked={checked} onChange={ev => {
+              const prev = form.preferredCleanerIds || [];
+              const next = ev.target.checked ? [...new Set([...prev, emp.id])] : prev.filter(id => id !== emp.id);
+              set("preferredCleanerIds", next);
+            }} />{emp.name} <span style={{ color: CL.muted }}>· {emp.cleanerGroup || emp.city || "No group"}</span></label>;
+          })}
+        </div>
+      </div>
       <div style={{ gridColumn: "1/-1" }}>
         <Field label="Notes & Special Requests"><TextArea value={form.notes || ""} onChange={ev => set("notes", ev.target.value)} placeholder="Allergies, products to use/avoid, rooms to skip..." /></Field>
       </div>
@@ -2414,6 +2475,7 @@ return (
       </div>
       <div style={{ fontSize: 12, color: CL.text }}>{client?.name || "Unknown client"}</div>
       <div style={{ fontSize: 12, color: CL.muted }}>{uiText("Assigned to:")} {employee?.name || uiText("Unassigned")}</div>
+      <div style={{ fontSize: 11, color: cityMatchLabel(employee, client).startsWith("✅") ? CL.green : CL.orange, marginTop: 2 }}>{cityMatchLabel(employee, client)}</div>
       {job.notes ? <div style={{ fontSize: 11, color: CL.dim, marginTop: 3 }}>{uiText("Details:")} {job.notes}</div> : null}
     </div>;
   })}
@@ -2464,7 +2526,7 @@ return <div key={sched.id} onClick={ev => { ev.stopPropagation(); setModal({ ...
 const client = data.clients.find(c => c.id === sched.clientId);
 const employee = data.employees.find(emp => emp.id === sched.employeeId);
 const empColor = empColors[sched.employeeId] || CL.muted;
-return <div key={sched.id} onClick={() => setModal({ ...sched })} style={{ padding: "10px 12px", marginBottom: 8, borderRadius: 8, cursor: "pointer", background: CL.s2, borderLeft: `4px solid ${empColor}` }}><div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><div style={{ fontWeight: 600, fontSize: 14, color: CL.text }}>{client?.name || "?"}</div><Badge color={scheduleStatusColor(sched.status)}>{uiText(sched.status)}</Badge></div><div style={{ fontSize: 12, color: CL.muted, marginTop: 4 }}>{sched.startTime} - {sched.endTime}</div><div style={{ fontSize: 12, color: empColor, marginTop: 2 }}>{employee?.name || uiText("Unassigned")}</div></div>;
+return <div key={sched.id} onClick={() => setModal({ ...sched })} style={{ padding: "10px 12px", marginBottom: 8, borderRadius: 8, cursor: "pointer", background: CL.s2, borderLeft: `4px solid ${empColor}` }}><div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><div style={{ fontWeight: 600, fontSize: 14, color: CL.text }}>{client?.name || "?"}</div><Badge color={scheduleStatusColor(sched.status)}>{uiText(sched.status)}</Badge></div><div style={{ fontSize: 12, color: CL.muted, marginTop: 4 }}>{sched.startTime} - {sched.endTime}</div><div style={{ fontSize: 12, color: empColor, marginTop: 2 }}>{employee?.name || uiText("Unassigned")}</div><div style={{ fontSize: 11, color: cityMatchLabel(employee, client).startsWith("✅") ? CL.green : CL.orange, marginTop: 2 }}>{cityMatchLabel(employee, client)}</div></div>;
 })}
 </>) : <div style={{ textAlign: "center", padding: "30px 10px" }}><div style={{ color: CL.muted, marginBottom: 8 }}>{ICN.cal}</div><p style={{ color: CL.muted, fontSize: 13 }}>{uiText("Click a date to see details")}</p></div>}
 </div>
@@ -2480,7 +2542,7 @@ return <div key={sched.id} onClick={() => setModal({ ...sched })} style={{ paddi
 {orderedMonthSchedules.map(s => {
 const client = data.clients.find(c => c.id === s.clientId);
 const employee = data.employees.find(e => e.id === s.employeeId);
-return <tr key={s.id} onClick={() => setModal({ ...s })} style={{ cursor: "pointer" }}><td style={tdSt}>{fmtDate(s.date)}</td><td style={tdSt}>{s.startTime} - {s.endTime}</td><td style={tdSt}>{client?.name || "-"}</td><td style={tdSt}>{employee?.name || uiText("Unassigned")}</td><td style={tdSt}><Badge color={scheduleStatusColor(s.status)}>{uiText(s.status)}</Badge></td></tr>;
+return <tr key={s.id} onClick={() => setModal({ ...s })} style={{ cursor: "pointer" }}><td style={tdSt}>{fmtDate(s.date)}</td><td style={tdSt}>{s.startTime} - {s.endTime}</td><td style={tdSt}>{client?.name || "-"}</td><td style={tdSt}><div>{employee?.name || uiText("Unassigned")}</div><div style={{ fontSize: 11, color: cityMatchLabel(employee, client).startsWith("✅") ? CL.green : CL.orange }}>{cityMatchLabel(employee, client)}</div></td><td style={tdSt}><Badge color={scheduleStatusColor(s.status)}>{uiText(s.status)}</Badge></td></tr>;
 })}
 {orderedMonthSchedules.length === 0 && <tr><td colSpan={5} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>{uiText("No jobs in this month")}</td></tr>}
 </tbody>
@@ -2504,6 +2566,8 @@ const set = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
 
 // Show client details when selected
 const selectedClient = data.clients.find(c => c.id === form.clientId);
+const selectedEmployee = data.employees.find(e => e.id === form.employeeId);
+const suggestedCleaner = recommendedCleanerForClient(selectedClient, data.employees || []);
 const isCompletedLocked = Boolean(form.id && form.status === "completed");
 
 return (
@@ -2520,6 +2584,9 @@ return (
 <option value="">Select...</option>
 {data.employees.filter(emp => emp.status === "active").map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
 </SelectInput>
+{suggestedCleaner && !form.employeeId && <div style={{ fontSize: 11, color: CL.green, marginTop: 4 }}>Suggested: {suggestedCleaner.name} ({suggestedCleaner.cleanerGroup || suggestedCleaner.city || "No group"})</div>}
+{suggestedCleaner && form.employeeId !== suggestedCleaner.id && <button type="button" style={{ ...btnSec, ...btnSm, marginTop: 6 }} onClick={() => set("employeeId", suggestedCleaner.id)} disabled={isCompletedLocked}>Use suggested cleaner</button>}
+{selectedClient && selectedEmployee && <div style={{ fontSize: 11, color: cityMatchLabel(selectedEmployee, selectedClient).startsWith("✅") ? CL.green : CL.orange, marginTop: 4 }}>{cityMatchLabel(selectedEmployee, selectedClient)}</div>}
 </Field>
 <Field label="Date"><TextInput type="date" value={form.date} onChange={ev => set("date", ev.target.value)} disabled={isCompletedLocked} /></Field>
 <Field label="Status">

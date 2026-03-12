@@ -162,13 +162,13 @@ CREATE INDEX IF NOT EXISTS idx_account_requests_status ON account_requests(appro
 INSERT INTO settings (key, value) VALUES
   ('companyName',    'Lux Angels Cleaning'),
   ('companyAddress', '12 Rue de la Liberté, L-1930 Luxembourg'),
-  ('companyEmail',   'info@luxangels.lu'),
+  ('companyEmail',   'info@luxangelscleaning.lu'),
   ('companyPhone',   '+352 123 456'),
   ('vatNumber',      'LU12345678'),
   ('bankIban',       'LU12 3456 7890 1234 5678'),
   ('defaultVatRate', '17'),
   ('ownerUsername',  'LuxAdmin'),
-  ('ownerEmail',     'owner@luxangels.lu'),
+  ('ownerEmail',     'owner@luxangelscleaning.lu'),
   ('ownerPin',       'LuxAngels@2025'),
   ('managerUsername','manager'),
   ('managerPin',     'Manager@2025')

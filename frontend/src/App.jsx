@@ -692,7 +692,7 @@ text: "#E4E6ED", muted: "#838AA3", dim: "#525976", white: "#FFF",
 };
 
 // -- Base Styles --
-const inputSt = { width: "100%", padding: "12px 16px", background: CL.sf, border: `1px solid ${CL.bd}`, borderRadius: 10, color: CL.text, fontSize: 14, outline: "none", boxSizing: "border-box" };
+const inputSt = { width: "100%", padding: "0 16px", height: 46, background: CL.sf, border: `1px solid ${CL.bd}`, borderRadius: 10, color: CL.text, fontSize: 14, outline: "none", boxSizing: "border-box" };
 const btnPri = { padding: "10px 20px", background: CL.gold, color: CL.bg, border: "none", borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8 };
 const btnSec = { ...btnPri, background: CL.s2, color: CL.text, border: `1px solid ${CL.bd}` };
 const btnDng = { ...btnPri, background: CL.red, color: CL.white };
@@ -752,7 +752,7 @@ const Field = ({ label, children }) => (
 
 const TextInput = (props) => <input {...props} placeholder={uiText(props.placeholder)} style={{ ...inputSt, ...(props.style || {}) }} />;
 const SelectInput = ({ children, ...props }) => <select {...props} style={{ ...inputSt, appearance: "auto", color: CL.text, colorScheme: "dark", ...(props.style || {}) }}>{children}</select>;
-const TextArea = (props) => <textarea {...props} placeholder={uiText(props.placeholder)} style={{ ...inputSt, minHeight: 80, resize: "vertical", ...(props.style || {}) }} />;
+const TextArea = (props) => <textarea {...props} placeholder={uiText(props.placeholder)} style={{ ...inputSt, height: "auto", minHeight: 80, padding: "12px 16px", resize: "vertical", ...(props.style || {}) }} />;
 const Badge = ({ children, color = CL.gold }) => <span style={{ display: "inline-block", padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 600, background: color + "20", color }}>{uiText(children)}</span>;
 const StatCard = ({ label, value, icon, color = CL.gold }) => (
 
@@ -911,9 +911,11 @@ const globalCSS = `
   input[type="time"]::-webkit-calendar-picker-indicator,
   input[type="month"]::-webkit-calendar-picker-indicator,
   input[type="datetime-local"]::-webkit-calendar-picker-indicator { filter: invert(0.95); cursor: pointer; }
+  input[type="date"], input[type="time"], input[type="month"], input[type="datetime-local"], input[type="number"], input[type="text"], input[type="email"], input[type="password"], input[type="tel"], select { height: 46px !important; padding: 0 16px !important; line-height: 46px; }
+  textarea { padding: 12px 16px !important; height: auto !important; min-height: 80px; }
   @media print { .no-print { display: none !important; } }
 
-.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; align-items: end; }
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
 .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
 .stat-row { display: flex; gap: 16px; flex-wrap: wrap; }

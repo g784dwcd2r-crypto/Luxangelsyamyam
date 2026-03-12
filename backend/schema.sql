@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS employees (
   emergency_name   TEXT,
   emergency_phone  TEXT,
   pin              TEXT NOT NULL DEFAULT '0000',
+  username         TEXT DEFAULT '',
   notes            TEXT,
   created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

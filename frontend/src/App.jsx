@@ -3885,7 +3885,8 @@ throw new Error(errPayload.error || 'Unable to send email');
 showToast("Email sent from platform");
 } catch (err) {
 console.error(err);
-showToast(err.message || "Unable to send email", "error");
+const fallbackEmailError = !err?.message || /load failed|failed to fetch/i.test(err.message);
+showToast(fallbackEmailError ? uiText("Unable to send email") : err.message, "error");
 }
 };
 
@@ -4613,7 +4614,8 @@ throw new Error(errPayload.error || 'Unable to send email');
 return true;
 } catch (err) {
 console.error(err);
-showToast(err.message || "Unable to send email", "error");
+const fallbackEmailError = !err?.message || /load failed|failed to fetch/i.test(err.message);
+showToast(fallbackEmailError ? uiText("Unable to send email") : err.message, "error");
 return false;
 }
 };

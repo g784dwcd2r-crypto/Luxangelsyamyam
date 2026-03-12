@@ -136,7 +136,11 @@ npm run dev
 | Method | Path                        | Description                  |
 |--------|-----------------------------|------------------------------|
 | GET    | `/api/health/db`            | DB connectivity health check  |
-| POST   | `/api/auth/pin-login`       | PIN login (owner or cleaner) |
+| POST   | `/api/auth/pin-login`       | Login (owner/manager PIN, employee email+password) |
+| POST   | `/api/auth/register-employee` | Employee sign-up via email/password (sends verification email) |
+| POST   | `/api/auth/verify-email`     | Verify employee email token |
+| GET    | `/api/account-requests`      | Owner list of signup requests |
+| PATCH  | `/api/account-requests/:id/decision` | Owner approve/reject a request |
 | GET    | `/api/employees`            | List all employees           |
 | POST   | `/api/employees`            | Create employee              |
 | PUT    | `/api/employees/:id`        | Update employee              |

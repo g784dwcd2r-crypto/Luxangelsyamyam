@@ -5,6 +5,7 @@ const bodyParser = require('body-parser');
 const rateLimit = require('express-rate-limit');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const pool = require('./db');
 
 const app = express();
@@ -102,6 +103,92 @@ const getEmailGateway = () => {
   return null;
 };
 
+
+const normalizeEmail = (value) => String(value || '').trim().toLowerCase();
+const hashPassword = (password) => {
+  const iterations = 210000;
+  const salt = crypto.randomBytes(16).toString('hex');
+  const hash = crypto.pbkdf2Sync(String(password), salt, iterations, 32, 'sha256').toString('hex');
+  return `pbkdf2$${iterations}$${salt}$${hash}`;
+};
+
+const verifyPassword = (password, storedHash) => {
+  if (!storedHash || typeof storedHash !== 'string') return false;
+  const [algo, iterRaw, salt, hash] = storedHash.split('$');
+  if (algo !== 'pbkdf2' || !iterRaw || !salt || !hash) return false;
+  const iterations = Number(iterRaw);
+  if (!Number.isInteger(iterations) || iterations < 100000) return false;
+  const calculated = crypto.pbkdf2Sync(String(password), salt, iterations, 32, 'sha256').toString('hex');
+  return crypto.timingSafeEqual(Buffer.from(calculated, 'hex'), Buffer.from(hash, 'hex'));
+};
+
+const hashToken = (token) => crypto.createHash('sha256').update(String(token)).digest('hex');
+const makeToken = () => crypto.randomBytes(32).toString('hex');
+const makeEmployeeId = () => `EMP${Date.now().toString(36).toUpperCase()}${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
+
+async function sendEmail({ to, subject, body, html, from }) {
+  const gateway = getEmailGateway();
+  if (!gateway?.token) return { ok: false, status: 503, error: 'Email provider is not configured' };
+
+  const settingsResult = await pool.query(
+    "SELECT key, value FROM settings WHERE key IN ('companyEmail', 'companyName')"
+  );
+  const settings = Object.fromEntries(settingsResult.rows.map(r => [r.key, String(r.value || '').trim()]));
+  const senderEmail = String(from || settings.companyEmail || process.env.ZEPTO_FROM_ADDRESS || process.env.RESEND_FROM || '').trim();
+  const senderName = settings.companyName || 'Lux Angels';
+  if (!senderEmail) return { ok: false, status: 400, error: 'Sender email is missing' };
+
+  if (gateway.provider === 'zeptomail') {
+    const response = await fetch(gateway.url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Zoho-enczapikey ${gateway.token}`,
+      },
+      body: JSON.stringify({
+        from: { address: senderEmail, name: senderName },
+        to: [{ email_address: { address: to } }],
+        subject,
+        textbody: body || undefined,
+        htmlbody: html || undefined,
+        reply_to: [{ address: senderEmail }],
+      }),
+    });
+    if (!response.ok) return { ok: false, status: 502, error: 'Email provider rejected the request' };
+    return { ok: true, provider: 'zeptomail' };
+  }
+
+  const response = await fetch(gateway.url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${gateway.token}`,
+    },
+    body: JSON.stringify({
+      from: `${senderName} <${senderEmail}>`,
+      to,
+      subject,
+      text: body || undefined,
+      html: html || undefined,
+      reply_to: senderEmail,
+    }),
+  });
+  if (!response.ok) return { ok: false, status: 502, error: 'Email provider rejected the request' };
+  return { ok: true, provider: 'resend' };
+}
+
+const ensureOwnerAccess = async ({ identifier, secret }) => {
+  const result = await pool.query(
+    "SELECT key, value FROM settings WHERE key IN ('ownerPin', 'ownerUsername', 'ownerEmail')"
+  );
+  const settings = Object.fromEntries(result.rows.map(r => [r.key, String(r.value || '').trim()]));
+  const ownerPin = settings.ownerPin || '1234';
+  const allowed = [settings.ownerUsername, settings.ownerEmail].map(v => String(v || '').trim().toLowerCase()).filter(Boolean);
+  if (String(secret || '').trim() !== ownerPin) return false;
+  if (allowed.length && identifier && !allowed.includes(String(identifier).trim().toLowerCase())) return false;
+  return true;
+};
+
 // ---------------------------------------------------------------------------
 // AUTH
 // ---------------------------------------------------------------------------
@@ -155,34 +242,178 @@ app.post('/api/auth/pin-login', async (req, res) => {
     }
 
     if (requestedRole === 'cleaner' || requestedRole === 'employee') {
-      if (!accountIdentifier) return res.status(400).json({ error: 'employeeId is required for cleaner login' });
-      const normalizedIdentifier = accountIdentifier.toLowerCase();
-      const compactIdentifier = normalizedIdentifier.replace(/\s+/g, '');
+      const normalizedIdentifier = normalizeEmail(accountIdentifier);
+      if (!normalizedIdentifier || !normalizedIdentifier.includes('@')) {
+        return res.status(400).json({ error: 'A valid email is required for employee login' });
+      }
       const result = await pool.query(
-        `SELECT id, pin
+        `SELECT id, pin, password_hash, account_status, email_verified
          FROM employees
-         WHERE LOWER(COALESCE(status, 'active')) = $2
-           AND (
-             LOWER(id) = $3
-             OR LOWER(email) = $3
-             OR phone = $1
-             OR phone_mobile = $1
-             OR LOWER(name) = $3
-             OR REPLACE(LOWER(name), ' ', '') = $4
-             OR (username != '' AND LOWER(username) = $3)
-           )
+         WHERE LOWER(COALESCE(status, 'active')) = 'active'
+           AND LOWER(email) = $1
          LIMIT 1`,
-        [accountIdentifier, 'active', normalizedIdentifier, compactIdentifier]
+        [normalizedIdentifier]
       );
       if (!result.rows.length) return res.status(401).json({ error: 'Employee not found' });
-      if (submittedPin !== String(result.rows[0].pin).trim()) return res.status(401).json({ error: 'Invalid PIN' });
-      return res.json({ success: true, role: 'cleaner', employeeId: result.rows[0].id });
+      const employee = result.rows[0];
+      if (!employee.email_verified) return res.status(403).json({ error: 'Email is not verified yet' });
+      if (String(employee.account_status || 'approved') !== 'approved') {
+        return res.status(403).json({ error: 'Account is waiting for owner approval' });
+      }
+
+      const passwordHash = String(employee.password_hash || '').trim();
+      if (passwordHash) {
+        if (!verifyPassword(submittedPin, passwordHash)) return res.status(401).json({ error: 'Invalid credentials' });
+      } else if (submittedPin !== String(employee.pin).trim()) {
+        return res.status(401).json({ error: 'Invalid credentials' });
+      }
+      return res.json({ success: true, role: 'cleaner', employeeId: employee.id });
     }
 
     return res.status(400).json({ error: 'Invalid role' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+
+app.post('/api/auth/register-employee', async (req, res) => {
+  try {
+    const name = String(req.body?.name || '').trim();
+    const email = normalizeEmail(req.body?.email);
+    const password = String(req.body?.password || '');
+    if (!name || !email || !email.includes('@') || password.length < 10) {
+      return res.status(400).json({ error: 'name, valid email and password (min 10 chars) are required' });
+    }
+
+    const existingEmployee = await pool.query('SELECT id FROM employees WHERE LOWER(email) = $1 LIMIT 1', [email]);
+    if (existingEmployee.rows.length) return res.status(409).json({ error: 'An account with this email already exists' });
+
+    const verificationToken = makeToken();
+    const verificationHash = hashToken(verificationToken);
+    const passwordHash = hashPassword(password);
+
+    const requestResult = await pool.query(
+      `INSERT INTO account_requests (id, name, email, password_hash, verification_token_hash, verification_expires_at, email_verified, approval_status)
+       VALUES ($1,$2,$3,$4,$5,NOW() + INTERVAL '30 minutes',false,'pending_verification')
+       ON CONFLICT (email)
+       DO UPDATE SET name=EXCLUDED.name, password_hash=EXCLUDED.password_hash, verification_token_hash=EXCLUDED.verification_token_hash,
+                     verification_expires_at=EXCLUDED.verification_expires_at, email_verified=false, approval_status='pending_verification',
+                     rejection_reason=NULL, decided_at=NULL
+       RETURNING id, email`,
+      [makeEmployeeId(), name, email, passwordHash, verificationHash]
+    );
+
+    const verifyUrl = `${String(process.env.FRONTEND_URL || 'https://luxangelsyamyam-frontend.onrender.com').replace(/\/$/, '')}/verify-email?email=${encodeURIComponent(email)}&token=${verificationToken}`;
+    const emailSend = await sendEmail({
+      to: email,
+      subject: 'Verify your Lux Angels account',
+      body: `Hi ${name}, verify your email by opening this link: ${verifyUrl}`,
+      html: `<p>Hi ${name},</p><p>Please verify your email:</p><p><a href="${verifyUrl}">Verify account</a></p>`,
+    });
+
+    if (!emailSend.ok) {
+      return res.status(emailSend.status || 500).json({ error: emailSend.error || 'Failed to send verification email' });
+    }
+
+    res.status(201).json({ success: true, requestId: requestResult.rows[0].id, message: 'Verification email sent' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.post('/api/auth/verify-email', async (req, res) => {
+  try {
+    const email = normalizeEmail(req.body?.email);
+    const token = String(req.body?.token || '').trim();
+    if (!email || !token) return res.status(400).json({ error: 'email and token are required' });
+
+    const result = await pool.query(
+      `UPDATE account_requests
+       SET email_verified=true, approval_status='pending_approval'
+       WHERE LOWER(email)=$1
+         AND verification_token_hash=$2
+         AND verification_expires_at > NOW()
+       RETURNING id`,
+      [email, hashToken(token)]
+    );
+
+    if (!result.rows.length) return res.status(400).json({ error: 'Invalid or expired verification token' });
+    return res.json({ success: true, message: 'Email verified, waiting for owner approval' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.get('/api/account-requests', async (req, res) => {
+  try {
+    const owner = String(req.query.owner || '').trim();
+    const ownerPin = String(req.query.ownerPin || '').trim();
+    if (!(await ensureOwnerAccess({ identifier: owner, secret: ownerPin }))) {
+      return res.status(403).json({ error: 'Owner authentication failed' });
+    }
+    const status = String(req.query.status || '').trim();
+    const where = status ? 'WHERE approval_status = $1' : '';
+    const params = status ? [status] : [];
+    const result = await pool.query(
+      `SELECT id, name, email, email_verified, approval_status, rejection_reason, created_at, decided_at
+       FROM account_requests ${where}
+       ORDER BY created_at DESC`,
+      params
+    );
+    return res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.patch('/api/account-requests/:id/decision', async (req, res) => {
+  try {
+    const owner = String(req.body?.owner || '').trim();
+    const ownerPin = String(req.body?.ownerPin || '').trim();
+    if (!(await ensureOwnerAccess({ identifier: owner, secret: ownerPin }))) {
+      return res.status(403).json({ error: 'Owner authentication failed' });
+    }
+
+    const decision = String(req.body?.decision || '').trim().toLowerCase();
+    const rejectionReason = String(req.body?.rejectionReason || '').trim();
+    if (!['approve', 'reject'].includes(decision)) return res.status(400).json({ error: 'decision must be approve or reject' });
+
+    const reqResult = await pool.query('SELECT * FROM account_requests WHERE id=$1 LIMIT 1', [req.params.id]);
+    if (!reqResult.rows.length) return res.status(404).json({ error: 'Request not found' });
+    const pending = reqResult.rows[0];
+    if (!pending.email_verified) return res.status(400).json({ error: 'Email must be verified before approval decision' });
+
+    if (decision === 'reject') {
+      await pool.query(
+        `UPDATE account_requests SET approval_status='rejected', rejection_reason=$1, decided_at=NOW() WHERE id=$2`,
+        [rejectionReason || null, req.params.id]
+      );
+      return res.json({ success: true, status: 'rejected' });
+    }
+
+    const employeeInsert = await pool.query(
+      `INSERT INTO employees (id, name, email, role, status, pin, password_hash, email_verified, account_status)
+       VALUES ($1,$2,$3,'Cleaner','active','0000',$4,true,'approved')
+       ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name, email=EXCLUDED.email, password_hash=EXCLUDED.password_hash,
+         email_verified=true, account_status='approved', status='active'
+       RETURNING id`,
+      [makeEmployeeId(), pending.name, normalizeEmail(pending.email), pending.password_hash]
+    );
+
+    await pool.query(
+      `UPDATE account_requests SET approval_status='approved', decided_at=NOW() WHERE id=$1`,
+      [req.params.id]
+    );
+
+    return res.json({ success: true, status: 'approved', employeeId: employeeInsert.rows[0].id });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -202,22 +433,29 @@ app.get('/api/employees', async (req, res) => {
 app.post('/api/employees', async (req, res) => {
   try {
     const b = req.body;
-    const absent = missing(b, ['id', 'name']);
+    const absent = missing(b, ['name', 'email']);
     if (absent.length) return res.status(400).json({ error: `Missing required fields: ${absent.join(', ')}` });
+
+    const email = normalizeEmail(b.email);
+    if (!email || !email.includes('@')) return res.status(400).json({ error: 'A valid employee email is required' });
+
+    const explicitPassword = String(b.password || '').trim();
+    const passwordHash = b.password_hash || (explicitPassword ? hashPassword(explicitPassword) : null);
 
     const result = await pool.query(
       `INSERT INTO employees (id, name, email, phone, phone_mobile, role, hourly_rate, address, city,
         postal_code, country, start_date, status, contract_type, bank_iban, social_sec_number,
         date_of_birth, nationality, languages, transport, work_permit, emergency_name, emergency_phone,
-        pin, notes, username)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26)
+        pin, notes, username, password_hash, email_verified, account_status)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29)
        RETURNING *`,
-      [b.id, b.name, b.email||'', b.phone||'', b.phone_mobile||'', b.role||'Cleaner',
+      [b.id || makeEmployeeId(), b.name, email, b.phone||'', b.phone_mobile||'', b.role||'Cleaner',
        b.hourly_rate||15, b.address||'', b.city||'', b.postal_code||'', b.country||'Luxembourg',
        b.start_date||null, b.status||'active', b.contract_type||'CDI', b.bank_iban||'',
        b.social_sec_number||'', b.date_of_birth||null, b.nationality||'', b.languages||'',
        b.transport||'', b.work_permit||'', b.emergency_name||'', b.emergency_phone||'',
-       b.pin||'0000', b.notes||'', (b.username||'').toLowerCase()]
+       b.pin||'0000', b.notes||'', (b.username||'').toLowerCase(), passwordHash,
+       b.email_verified === false ? false : true, b.account_status || 'approved']
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -663,71 +901,9 @@ app.post('/api/notifications/email', async (req, res) => {
       return res.status(400).json({ error: 'to, subject and body/html are required' });
     }
 
-    const gateway = getEmailGateway();
-    if (!gateway?.token) {
-      return res.status(503).json({
-        error: 'Email provider is not configured on the platform',
-        requiredEnv: ['EMAIL_PROVIDER', 'ZEPTO_API_TOKEN or RESEND_API_KEY'],
-      });
-    }
-
-    const settingsResult = await pool.query(
-      "SELECT key, value FROM settings WHERE key IN ('companyEmail', 'companyName')"
-    );
-    const settings = Object.fromEntries(settingsResult.rows.map(r => [r.key, String(r.value || '').trim()]));
-
-    const senderEmail = String(from || settings.companyEmail || process.env.ZEPTO_FROM_ADDRESS || process.env.RESEND_FROM || '').trim();
-    const senderName = settings.companyName || 'Lux Angels';
-    if (!senderEmail) {
-      return res.status(400).json({ error: 'Sender email is missing. Configure companyEmail or provider sender env var.' });
-    }
-
-    if (gateway.provider === 'zeptomail') {
-      const response = await fetch(gateway.url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Zoho-enczapikey ${gateway.token}`,
-        },
-        body: JSON.stringify({
-          from: { address: senderEmail, name: senderName },
-          to: [{ email_address: { address: to } }],
-          subject,
-          textbody: body || undefined,
-          htmlbody: html || undefined,
-          reply_to: [{ address: senderEmail }],
-        }),
-      });
-      if (!response.ok) {
-        const payload = await response.text();
-        console.error('ZeptoMail error:', payload);
-        return res.status(502).json({ error: 'ZeptoMail rejected the request' });
-      }
-      return res.json({ success: true, provider: 'zeptomail' });
-    }
-
-    const response = await fetch(gateway.url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${gateway.token}`,
-      },
-      body: JSON.stringify({
-        from: `${senderName} <${senderEmail}>`,
-        to,
-        subject,
-        text: body || undefined,
-        html: html || undefined,
-        reply_to: senderEmail,
-      }),
-    });
-    if (!response.ok) {
-      const payload = await response.text();
-      console.error('Resend error:', payload);
-      return res.status(502).json({ error: 'Resend rejected the request' });
-    }
-
-    return res.json({ success: true, provider: 'resend' });
+    const sent = await sendEmail({ to, subject, body, html, from });
+    if (!sent.ok) return res.status(sent.status || 500).json({ error: sent.error || 'Unable to send email notification' });
+    return res.json({ success: true, provider: sent.provider });
   } catch (err) {
     console.error('Email notification send failed:', err);
     return res.status(500).json({ error: 'Unable to send email notification' });
@@ -748,10 +924,28 @@ async function initDb() {
       await pool.query(schema);
       console.log('Schema initialized successfully.');
     }
-    // Migrate: add username column to employees if missing (for existing DBs)
-    await pool.query(
-      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS username TEXT DEFAULT ''"
-    );
+    // Migrations for legacy databases
+    await pool.query("ALTER TABLE employees ADD COLUMN IF NOT EXISTS username TEXT DEFAULT ''");
+    await pool.query("ALTER TABLE employees ADD COLUMN IF NOT EXISTS password_hash TEXT");
+    await pool.query("ALTER TABLE employees ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT false");
+    await pool.query("ALTER TABLE employees ADD COLUMN IF NOT EXISTS account_status TEXT NOT NULL DEFAULT 'approved'");
+    await pool.query("CREATE UNIQUE INDEX IF NOT EXISTS idx_employees_email_unique ON employees(LOWER(email))");
+
+    await pool.query(`CREATE TABLE IF NOT EXISTS account_requests (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      email TEXT NOT NULL UNIQUE,
+      password_hash TEXT NOT NULL,
+      verification_token_hash TEXT NOT NULL,
+      verification_expires_at TIMESTAMPTZ NOT NULL,
+      email_verified BOOLEAN NOT NULL DEFAULT false,
+      approval_status TEXT NOT NULL DEFAULT 'pending_verification',
+      rejection_reason TEXT,
+      decided_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`);
+
+    await pool.query("INSERT INTO settings (key, value) VALUES ('ownerEmail', 'owner@luxangels.lu') ON CONFLICT (key) DO NOTHING");
   } catch (err) {
     console.error('Schema initialization failed:', err.message);
   }

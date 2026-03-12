@@ -42,6 +42,8 @@ mySchedule: "My Schedule", clockInOut: "Clock In/Out", photoUploads: "Photo Uplo
 };
 const LanguageContext = createContext({ lang: "fr", setLang: () => {}, t: (k) => k });
 const useI18n = () => useContext(LanguageContext);
+const ThemeContext = createContext({ theme: "dark", setTheme: () => {} });
+const useTheme = () => useContext(ThemeContext);
 const tr = (lang, key, fallback = key) => I18N[lang]?.[key] || I18N.fr?.[key] || fallback;
 const localeForLang = (lang) => lang === "en" ? "en-GB" : "fr-FR";
 let CURRENT_LANG = loadLang();
@@ -730,6 +732,15 @@ const btnSm = { padding: "6px 12px", fontSize: 13 };
 const cardSt = { background: CL.sf, border: `1px solid ${CL.bd}`, borderRadius: 14, padding: 28 };
 const thSt = { textAlign: "left", padding: "10px 14px", color: CL.muted, fontWeight: 500, fontSize: 11, textTransform: "uppercase", letterSpacing: ".06em", borderBottom: `1px solid ${CL.bd}` };
 const tdSt = { padding: "10px 14px", borderBottom: `1px solid ${CL.bd}`, color: CL.text, fontSize: 14 };
+function refreshStyleConstants() {
+  inputSt.background = CL.sf; inputSt.border = `1px solid ${CL.bd}`; inputSt.color = CL.text;
+  btnPri.background = CL.gold; btnPri.color = CL.bg;
+  btnSec.background = CL.s2; btnSec.color = CL.text; btnSec.border = `1px solid ${CL.bd}`;
+  btnDng.background = CL.red; btnDng.color = CL.white;
+  cardSt.background = CL.sf; cardSt.border = `1px solid ${CL.bd}`;
+  thSt.color = CL.muted; thSt.borderBottom = `1px solid ${CL.bd}`;
+  tdSt.borderBottom = `1px solid ${CL.bd}`; tdSt.color = CL.text;
+}
 
 // -- Icons --
 const SvgIcon = ({ paths, size = 18 }) => (
@@ -1084,8 +1095,9 @@ return (
 }
 
 function ThemeToggle() {
-const isDark = INIT_THEME === "dark";
-const toggle = () => { saveTheme(isDark ? "light" : "dark"); window.location.reload(); };
+const { theme, setTheme } = useTheme();
+const isDark = theme === "dark";
+const toggle = () => { const next = isDark ? "light" : "dark"; saveTheme(next); setTheme(next); };
 return (
 <button
   onClick={toggle}
@@ -1103,7 +1115,12 @@ return (
 export default function App() {
 const [data, setData] = useState(() => loadStore() || DEFAULTS);
 const [lang, setLang] = useState(() => loadLang());
+const [theme, setTheme] = useState(() => loadTheme());
 const [auth, setAuth] = useState(null);
+
+// Apply theme colors synchronously before render so all inline styles pick up new values
+Object.assign(CL, THEMES[theme] || THEMES.dark);
+refreshStyleConstants();
 const [toast, setToast] = useState(null);
 const [section, setSection] = useState("dashboard");
 const [devisSeed, setDevisSeed] = useState(null);
@@ -1145,8 +1162,8 @@ return draft;
 });
 }, []);
 
-if (!auth) return <LanguageContext.Provider value={{ lang, setLang, t }}><LoginScreen data={data} onAuth={setAuth} /></LanguageContext.Provider>;
-if (auth.role === "cleaner") return <LanguageContext.Provider value={{ lang, setLang, t }}><CleanerPortal data={data} updateData={updateData} auth={auth} onLogout={() => setAuth(null)} showToast={showToast} toast={toast} /></LanguageContext.Provider>;
+if (!auth) return <ThemeContext.Provider value={{ theme, setTheme }}><LanguageContext.Provider value={{ lang, setLang, t }}><LoginScreen data={data} onAuth={setAuth} /></LanguageContext.Provider></ThemeContext.Provider>;
+if (auth.role === "cleaner") return <ThemeContext.Provider value={{ theme, setTheme }}><LanguageContext.Provider value={{ lang, setLang, t }}><CleanerPortal data={data} updateData={updateData} auth={auth} onLogout={() => setAuth(null)} showToast={showToast} toast={toast} /></LanguageContext.Provider></ThemeContext.Provider>;
 
 // Owner nav items
 const pendingProductRequests = (data.productRequests || []).filter(r => r.status === "pending").length;
@@ -1229,6 +1246,7 @@ default: return <DashboardPage data={data} auth={auth} />;
 };
 
 return (
+<ThemeContext.Provider value={{ theme, setTheme }}>
 <LanguageContext.Provider value={{ lang, setLang, t }}>
 <div style={{ display: "flex", height: "100vh", background: CL.bg, fontFamily: "'Outfit', sans-serif", color: CL.text, overflow: "hidden" }}>
 <style>{globalCSS}</style>
@@ -1277,6 +1295,7 @@ return (
 </div>
 
 </LanguageContext.Provider>
+</ThemeContext.Provider>
 
 );
 }

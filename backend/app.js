@@ -137,9 +137,9 @@ app.post('/api/auth/pin-login', async (req, res) => {
       const result = await pool.query(
         `SELECT id, pin
          FROM employees
-         WHERE status = $2
+         WHERE LOWER(COALESCE(status, 'active')) = $2
            AND (
-             id = $1
+             LOWER(id) = $3
              OR LOWER(email) = $3
              OR phone = $1
              OR phone_mobile = $1

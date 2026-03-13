@@ -8,6 +8,7 @@ const path = require('path');
 const crypto = require('crypto');
 const https = require('https');
 const http = require('http');
+const nodemailer = require('nodemailer');
 const pool = require('./db');
 
 const app = express();
@@ -85,6 +86,19 @@ const getEmailGateway = () => {
   const provider = String(process.env.EMAIL_PROVIDER || '').trim().toLowerCase();
   const zeptoToken = String(process.env.ZEPTO_API_TOKEN || '').trim();
   const resendKey = String(process.env.RESEND_API_KEY || '').trim();
+  const smtpUser = String(process.env.SMTP_USER || '').trim();
+  const smtpPass = String(process.env.SMTP_PASS || '').trim();
+
+  if (provider === 'smtp' || (!provider && smtpUser && smtpPass)) {
+    return {
+      provider: 'smtp',
+      host: String(process.env.SMTP_HOST || 'mail.infomaniak.com').trim(),
+      port: parseInt(process.env.SMTP_PORT || '465', 10),
+      secure: (process.env.SMTP_SECURE || 'true').trim().toLowerCase() !== 'false',
+      user: smtpUser,
+      pass: smtpPass,
+    };
+  }
 
   if (provider === 'zeptomail' || (!provider && zeptoToken)) {
     return {
@@ -234,15 +248,38 @@ async function sendSMS({ to, body }) {
 
 async function sendEmail({ to, subject, body, html, from }) {
   const gateway = getEmailGateway();
-  if (!gateway?.token) return { ok: false, status: 503, error: 'Email provider is not configured' };
+  if (!gateway) return { ok: false, status: 503, error: 'Email provider is not configured' };
 
   const settingsResult = await pool.query(
     "SELECT key, value FROM settings WHERE key IN ('companyEmail', 'companyName')"
   );
   const settings = Object.fromEntries(settingsResult.rows.map(r => [r.key, String(r.value || '').trim()]));
-  const senderEmail = String(from || settings.companyEmail || process.env.ZEPTO_FROM_ADDRESS || process.env.RESEND_FROM || '').trim();
+  const senderEmail = String(from || settings.companyEmail || process.env.SMTP_USER || process.env.ZEPTO_FROM_ADDRESS || process.env.RESEND_FROM || '').trim();
   const senderName = settings.companyName || 'Lux Angels';
   if (!senderEmail) return { ok: false, status: 400, error: 'Sender email is missing' };
+
+  if (gateway.provider === 'smtp') {
+    try {
+      const transporter = nodemailer.createTransport({
+        host: gateway.host,
+        port: gateway.port,
+        secure: gateway.secure,
+        auth: { user: gateway.user, pass: gateway.pass },
+      });
+      await transporter.sendMail({
+        from: `"${senderName}" <${senderEmail}>`,
+        to,
+        subject,
+        text: body || undefined,
+        html: html || undefined,
+        replyTo: senderEmail,
+      });
+      return { ok: true, provider: 'smtp' };
+    } catch (err) {
+      console.error('SMTP send failed:', err.message);
+      return { ok: false, status: 502, error: 'SMTP send failed: ' + err.message };
+    }
+  }
 
   if (gateway.provider === 'zeptomail') {
     const response = await postJson(gateway.url, {

@@ -87,6 +87,32 @@ app.get('/api/email-status', (_req, res) => {
 // ---------------------------------------------------------------------------
 const missing = (obj, fields) => fields.filter(f => obj[f] == null || obj[f] === '');
 
+// Translates PostgreSQL errors into meaningful HTTP responses.
+const dbError = (err, res) => {
+  console.error(err);
+  if (err.code === '23505') {
+    const match = (err.detail || '').match(/\(([^)]+)\)/);
+    const field = match ? match[1] : 'field';
+    return res.status(409).json({ error: `A record with this ${field} already exists.` });
+  }
+  if (err.code === '23503') {
+    return res.status(400).json({ error: 'Referenced record does not exist.' });
+  }
+  if (err.code === '23502') {
+    return res.status(400).json({ error: `Missing required field: ${err.column || 'unknown'}.` });
+  }
+  if (err.code === '42P01') {
+    return res.status(500).json({ error: 'Database not initialized. Please contact the administrator.' });
+  }
+  if (err.code === '42703') {
+    return res.status(500).json({ error: 'Database schema is outdated. Please contact the administrator.' });
+  }
+  if (err.code === 'ECONNREFUSED' || err.code === 'ETIMEDOUT' || err.code === '57P03') {
+    return res.status(503).json({ error: 'Database connection failed. Please try again in a moment.' });
+  }
+  return res.status(500).json({ error: err.message || 'Internal server error' });
+};
+
 const getEmailGateway = () => {
   const provider = String(process.env.EMAIL_PROVIDER || '').trim().toLowerCase();
   const zeptoToken = String(process.env.ZEPTO_API_TOKEN || '').trim();
@@ -360,8 +386,7 @@ app.get('/api/auth/agent-list', async (req, res) => {
     );
     res.json(result.rows);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    return dbError(err, res);
   }
 });
 
@@ -467,8 +492,7 @@ app.post('/api/auth/pin-login', async (req, res) => {
 
     return res.status(400).json({ error: 'Invalid role' });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    return dbError(err, res);
   }
 });
 
@@ -514,8 +538,7 @@ app.post('/api/auth/register-employee', async (req, res) => {
 
     res.status(201).json({ success: true, requestId: requestResult.rows[0].id, message: 'Verification email sent' });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    return dbError(err, res);
   }
 });
 
@@ -538,8 +561,7 @@ app.post('/api/auth/verify-email', async (req, res) => {
     if (!result.rows.length) return res.status(400).json({ error: 'Invalid or expired verification token' });
     return res.json({ success: true, message: 'Email verified, waiting for owner approval' });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    return dbError(err, res);
   }
 });
 
@@ -561,8 +583,7 @@ app.get('/api/account-requests', async (req, res) => {
     );
     return res.json(result.rows);
   } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: 'Internal server error' });
+    return dbError(err, res);
   }
 });
 
@@ -607,8 +628,7 @@ app.patch('/api/account-requests/:id/decision', async (req, res) => {
 
     return res.json({ success: true, status: 'approved', employeeId: employeeInsert.rows[0].id });
   } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: 'Internal server error' });
+    return dbError(err, res);
   }
 });
 
@@ -620,8 +640,7 @@ app.get('/api/employees', async (req, res) => {
     const result = await pool.query('SELECT * FROM employees ORDER BY name');
     res.json(result.rows);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    return dbError(err, res);
   }
 });
 
@@ -657,8 +676,7 @@ app.post('/api/employees', async (req, res) => {
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    return dbError(err, res);
   }
 });
 
@@ -688,8 +706,7 @@ app.put('/api/employees/:id', async (req, res) => {
     if (!result.rows.length) return res.status(404).json({ error: 'Employee not found' });
     res.json(result.rows[0]);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    return dbError(err, res);
   }
 });
 
@@ -699,8 +716,7 @@ app.delete('/api/employees/:id', async (req, res) => {
     if (!result.rows.length) return res.status(404).json({ error: 'Employee not found' });
     res.json({ deleted: result.rows[0].id });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    return dbError(err, res);
   }
 });
 
@@ -720,8 +736,7 @@ app.put('/api/employees/:id/pin', async (req, res) => {
     if (!result.rows.length) return res.status(404).json({ error: 'Employee not found' });
     res.json({ success: true });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    return dbError(err, res);
   }
 });
 
@@ -733,8 +748,7 @@ app.get('/api/clients', async (req, res) => {
     const result = await pool.query('SELECT * FROM clients ORDER BY name');
     res.json(result.rows);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    return dbError(err, res);
   }
 });
 
@@ -763,8 +777,7 @@ app.post('/api/clients', async (req, res) => {
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    return dbError(err, res);
   }
 });
 
@@ -791,8 +804,7 @@ app.put('/api/clients/:id', async (req, res) => {
     if (!result.rows.length) return res.status(404).json({ error: 'Client not found' });
     res.json(result.rows[0]);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    return dbError(err, res);
   }
 });
 
@@ -802,8 +814,7 @@ app.delete('/api/clients/:id', async (req, res) => {
     if (!result.rows.length) return res.status(404).json({ error: 'Client not found' });
     res.json({ deleted: result.rows[0].id });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    return dbError(err, res);
   }
 });
 
@@ -824,8 +835,7 @@ app.get('/api/schedules', async (req, res) => {
     const result = await pool.query(`SELECT * FROM schedules ${where} ORDER BY date, start_time`, params);
     res.json(result.rows);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    return dbError(err, res);
   }
 });
 
@@ -844,8 +854,7 @@ app.post('/api/schedules', async (req, res) => {
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    return dbError(err, res);
   }
 });
 
@@ -863,8 +872,7 @@ app.put('/api/schedules/:id', async (req, res) => {
     if (!result.rows.length) return res.status(404).json({ error: 'Schedule not found' });
     res.json(result.rows[0]);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    return dbError(err, res);
   }
 });
 
@@ -874,8 +882,7 @@ app.delete('/api/schedules/:id', async (req, res) => {
     if (!result.rows.length) return res.status(404).json({ error: 'Schedule not found' });
     res.json({ deleted: result.rows[0].id });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    return dbError(err, res);
   }
 });
 
@@ -895,8 +902,7 @@ app.get('/api/clock-entries', async (req, res) => {
     const result = await pool.query(`SELECT * FROM clock_entries ${where} ORDER BY clock_in DESC`, params);
     res.json(result.rows);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    return dbError(err, res);
   }
 });
 
@@ -913,8 +919,7 @@ app.post('/api/clock-entries', async (req, res) => {
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    return dbError(err, res);
   }
 });
 
@@ -928,8 +933,7 @@ app.put('/api/clock-entries/:id', async (req, res) => {
     if (!result.rows.length) return res.status(404).json({ error: 'Clock entry not found' });
     res.json(result.rows[0]);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    return dbError(err, res);
   }
 });
 
@@ -939,8 +943,7 @@ app.delete('/api/clock-entries/:id', async (req, res) => {
     if (!result.rows.length) return res.status(404).json({ error: 'Clock entry not found' });
     res.json({ deleted: result.rows[0].id });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    return dbError(err, res);
   }
 });
 
@@ -952,8 +955,7 @@ app.get('/api/invoices', async (req, res) => {
     const result = await pool.query('SELECT * FROM invoices ORDER BY date DESC');
     res.json(result.rows);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    return dbError(err, res);
   }
 });
 
@@ -973,8 +975,7 @@ app.post('/api/invoices', async (req, res) => {
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    return dbError(err, res);
   }
 });
 
@@ -992,8 +993,7 @@ app.put('/api/invoices/:id', async (req, res) => {
     if (!result.rows.length) return res.status(404).json({ error: 'Invoice not found' });
     res.json(result.rows[0]);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    return dbError(err, res);
   }
 });
 
@@ -1009,8 +1009,7 @@ app.patch('/api/invoices/:id/status', async (req, res) => {
     if (!result.rows.length) return res.status(404).json({ error: 'Invoice not found' });
     res.json(result.rows[0]);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    return dbError(err, res);
   }
 });
 
@@ -1020,8 +1019,7 @@ app.delete('/api/invoices/:id', async (req, res) => {
     if (!result.rows.length) return res.status(404).json({ error: 'Invoice not found' });
     res.json({ deleted: result.rows[0].id });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    return dbError(err, res);
   }
 });
 
@@ -1033,8 +1031,7 @@ app.get('/api/payslips', async (req, res) => {
     const result = await pool.query('SELECT * FROM payslips ORDER BY month DESC, created_at DESC');
     res.json(result.rows);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    return dbError(err, res);
   }
 });
 
@@ -1053,8 +1050,7 @@ app.post('/api/payslips', async (req, res) => {
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    return dbError(err, res);
   }
 });
 
@@ -1072,8 +1068,7 @@ app.put('/api/payslips/:id', async (req, res) => {
     if (!result.rows.length) return res.status(404).json({ error: 'Payslip not found' });
     res.json(result.rows[0]);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    return dbError(err, res);
   }
 });
 
@@ -1083,8 +1078,7 @@ app.delete('/api/payslips/:id', async (req, res) => {
     if (!result.rows.length) return res.status(404).json({ error: 'Payslip not found' });
     res.json({ deleted: result.rows[0].id });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    return dbError(err, res);
   }
 });
 
@@ -1097,8 +1091,7 @@ app.get('/api/settings', async (req, res) => {
     const settings = Object.fromEntries(result.rows.map(r => [r.key, r.value]));
     res.json(settings);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    return dbError(err, res);
   }
 });
 
@@ -1121,8 +1114,7 @@ app.put('/api/settings', async (req, res) => {
     );
     res.json({ success: true });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    return dbError(err, res);
   }
 });
 

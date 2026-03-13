@@ -582,11 +582,14 @@ app.get('/api/employees', async (req, res) => {
 app.post('/api/employees', async (req, res) => {
   try {
     const b = req.body;
-    const absent = missing(b, ['name', 'email']);
+    const absent = missing(b, ['name']);
     if (absent.length) return res.status(400).json({ error: `Missing required fields: ${absent.join(', ')}` });
 
-    const email = normalizeEmail(b.email);
-    if (!email || !email.includes('@')) return res.status(400).json({ error: 'A valid employee email is required' });
+    const rawEmail = String(b.email || '').trim();
+    const email = rawEmail ? normalizeEmail(rawEmail) : null;
+    if (rawEmail && (!email || !email.includes('@'))) {
+      return res.status(400).json({ error: 'A valid employee email is required when provided' });
+    }
 
     const explicitPassword = String(b.password || '').trim();
     const passwordHash = b.password_hash || (explicitPassword ? hashPassword(explicitPassword) : null);
@@ -616,6 +619,12 @@ app.post('/api/employees', async (req, res) => {
 app.put('/api/employees/:id', async (req, res) => {
   try {
     const b = req.body;
+    const rawEmail = String(b.email || '').trim();
+    const email = rawEmail ? normalizeEmail(rawEmail) : null;
+    if (rawEmail && (!email || !email.includes('@'))) {
+      return res.status(400).json({ error: 'A valid employee email is required when provided' });
+    }
+
     const result = await pool.query(
       `UPDATE employees SET name=$1, email=$2, phone=$3, phone_mobile=$4, role=$5, hourly_rate=$6,
         address=$7, city=$8, postal_code=$9, country=$10, start_date=$11, status=$12,
@@ -623,7 +632,7 @@ app.put('/api/employees/:id', async (req, res) => {
         nationality=$17, languages=$18, transport=$19, work_permit=$20, emergency_name=$21,
         emergency_phone=$22, notes=$23, username=$24
        WHERE id=$25 RETURNING *`,
-      [b.name, b.email||'', b.phone||'', b.phone_mobile||'', b.role||'Cleaner',
+      [b.name, email, b.phone||'', b.phone_mobile||'', b.role||'Cleaner',
        b.hourly_rate||15, b.address||'', b.city||'', b.postal_code||'', b.country||'Luxembourg',
        b.start_date||null, b.status||'active', b.contract_type||'CDI', b.bank_iban||'',
        b.social_sec_number||'', b.date_of_birth||null, b.nationality||'', b.languages||'',

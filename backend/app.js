@@ -790,10 +790,11 @@ app.post('/api/schedules', async (req, res) => {
     if (absent.length) return res.status(400).json({ error: `Missing required fields: ${absent.join(', ')}` });
 
     const result = await pool.query(
-      `INSERT INTO schedules (id, date, client_id, employee_id, start_time, end_time, status, notes, recurrence)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+      `INSERT INTO schedules (id, date, client_id, employee_id, start_time, end_time, status, notes, recurrence, payment_status)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
       [b.id, b.date, b.client_id||null, b.employee_id||null, b.start_time||'08:00',
-       b.end_time||'12:00', b.status||'scheduled', b.notes||'', b.recurrence||'none']
+       b.end_time||'12:00', b.status||'scheduled', b.notes||'', b.recurrence||'none',
+       b.payment_status||'unpaid']
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -807,11 +808,11 @@ app.put('/api/schedules/:id', async (req, res) => {
     const b = req.body;
     const result = await pool.query(
       `UPDATE schedules SET date=$1, client_id=$2, employee_id=$3, start_time=$4,
-        end_time=$5, status=$6, notes=$7, recurrence=$8
-       WHERE id=$9 RETURNING *`,
+        end_time=$5, status=$6, notes=$7, recurrence=$8, payment_status=$9
+       WHERE id=$10 RETURNING *`,
       [b.date, b.client_id||null, b.employee_id||null, b.start_time||'08:00',
        b.end_time||'12:00', b.status||'scheduled', b.notes||'', b.recurrence||'none',
-       req.params.id]
+       b.payment_status||'unpaid', req.params.id]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Schedule not found' });
     res.json(result.rows[0]);
@@ -1167,6 +1168,7 @@ async function initDb() {
       "ALTER TABLE clients ADD COLUMN IF NOT EXISTS tax_id TEXT",
       "ALTER TABLE clients ADD COLUMN IF NOT EXISTS special_instructions TEXT",
       "ALTER TABLE clients ADD COLUMN IF NOT EXISTS notes TEXT",
+      "ALTER TABLE schedules ADD COLUMN IF NOT EXISTS payment_status TEXT NOT NULL DEFAULT 'unpaid'",
     ];
 
     for (const sql of schemaUpgrades) {

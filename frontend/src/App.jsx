@@ -643,6 +643,9 @@ const UI_FR = {
 "Delete this expense? All payment history will be lost.": "Supprimer cette dépense ? Tout l'historique de paiement sera perdu.",
 "Expense deleted": "Dépense supprimée",
 "Marked as unpaid": "Marqué comme non payé",
+"Marked as paid": "Marqué comme payé",
+"Payment Status": "Statut de paiement",
+"Payment": "Paiement",
 "Mark as Paid": "Marquer comme payé",
 "Mark as Unpaid": "Marquer comme non payé",
 "View Receipt": "Voir le reçu",
@@ -771,6 +774,7 @@ const toApiEmployee = (emp, pin, username) => ({
   postal_code: emp.postalCode || "",
   country: emp.country || "Luxembourg",
   start_date: emp.startDate || null,
+  contract_end_date: emp.contractEndDate || null,
   status: emp.status || "active",
   contract_type: emp.contractType || "CDI",
   bank_iban: emp.bankIban || "",
@@ -919,6 +923,7 @@ const toApiSchedule = (s) => ({
   start_time: s.startTime || "08:00",
   end_time: s.endTime || "12:00",
   status: s.status || "scheduled",
+  payment_status: s.paymentStatus || "unpaid",
   notes: s.notes || "",
   recurrence: s.recurrence || "none",
 });
@@ -1308,13 +1313,13 @@ ws.columns = cols.map(c => ({ header: c, key: c, width: Math.max(c.length + 4, 1
 ws.addRows(rows.length ? rows : [Object.fromEntries(cols.map(c => [c, ""]))]);
 };
 
-addSheet("Employees", data.employees.map(emp => ({ ID: emp.id, Name: emp.name, Username: data.employeeUsernames?.[emp.id] || "", Email: emp.email, Phone: emp.phone, Mobile: emp.phoneMobile || "", Role: emp.role, "Rate": emp.hourlyRate, Address: emp.address, City: emp.city || "", Zip: emp.postalCode || "", Country: emp.country || "", "Start": emp.startDate, Status: emp.status, Contract: emp.contractType || "", IBAN: emp.bankIban || "", SSN: emp.socialSecNumber || "", DOB: emp.dateOfBirth || "", Nationality: emp.nationality || "", Languages: emp.languages || "", Transport: emp.transport || "", "WorkPermit": emp.workPermit || "", "EmergName": emp.emergencyName || "", "EmergPhone": emp.emergencyPhone || "", Password: data.employeePins?.[emp.id] || "0000", LeaveAllowance: emp.leaveAllowance ?? 26, Group: emp.cleanerGroup || "", HiringStage: emp.hiringStage || "hired", Notes: emp.notes || "" })),
+addSheet("Employees", data.employees.map(emp => ({ ID: emp.id, Name: emp.name, Username: data.employeeUsernames?.[emp.id] || "", Email: emp.email, Phone: emp.phone, Mobile: emp.phoneMobile || "", Role: emp.role, "Rate": emp.hourlyRate, Address: emp.address, City: emp.city || "", Zip: emp.postalCode || "", Country: emp.country || "", "Start": emp.startDate, "EndDate": emp.contractEndDate || "", Status: emp.status, Contract: emp.contractType || "", IBAN: emp.bankIban || "", SSN: emp.socialSecNumber || "", DOB: emp.dateOfBirth || "", Nationality: emp.nationality || "", Languages: emp.languages || "", Transport: emp.transport || "", "WorkPermit": emp.workPermit || "", "EmergName": emp.emergencyName || "", "EmergPhone": emp.emergencyPhone || "", Password: data.employeePins?.[emp.id] || "0000", LeaveAllowance: emp.leaveAllowance ?? 26, Group: emp.cleanerGroup || "", HiringStage: emp.hiringStage || "hired", Notes: emp.notes || "" })),
 ["ID","Name","Username","Email","Phone","Mobile","Role","Rate","Address","City","Zip","Country","Start","Status","Contract","IBAN","SSN","DOB","Nationality","Languages","Transport","WorkPermit","EmergName","EmergPhone","Password","LeaveAllowance","Group","HiringStage","Notes"]);
 
 addSheet("Clients", data.clients.map(cl => ({ ID: cl.id, Name: cl.name, Contact: cl.contactPerson || "", Email: cl.email, Phone: cl.phone, Mobile: cl.phoneMobile || "", Address: cl.address, "Apt": cl.apartmentFloor || "", City: cl.city || "", Zip: cl.postalCode || "", Country: cl.country || "", Type: cl.type, Freq: cl.cleaningFrequency, Billing: cl.billingType, "Hourly": cl.pricePerHour || 0, "Fixed": cl.priceFixed || 0, Status: cl.status, Lang: cl.language || "", "Code": cl.accessCode || "", "KeyLoc": cl.keyLocation || "", Parking: cl.parkingInfo || "", Pets: cl.petInfo || "", "PrefDay": cl.preferredDay || "", "PrefTime": cl.preferredTime || "", "ContStart": cl.contractStart || "", "ContEnd": cl.contractEnd || "", "SqM": cl.squareMeters || "", "TaxID": cl.taxId || "", "Instructions": cl.specialInstructions || "", PreferredCleaners: (cl.preferredCleanerIds || []).join("|"), Notes: cl.notes || "" })),
 ["ID","Name","Contact","Email","Phone","Mobile","Address","Apt","City","Zip","Country","Type","Freq","Billing","Hourly","Fixed","Status","Lang","Code","KeyLoc","Parking","Pets","PrefDay","PrefTime","ContStart","ContEnd","SqM","TaxID","Instructions","PreferredCleaners","Notes"]);
 
-addSheet("Schedule", data.schedules.map(sc => { const cl = data.clients.find(c => c.id === sc.clientId); const em = data.employees.find(e => e.id === sc.employeeId); return { ID: sc.id, Date: sc.date, Client: cl?.name || "", CliID: sc.clientId, Employee: em?.name || "", EmpID: sc.employeeId, Start: sc.startTime, End: sc.endTime, Status: sc.status, Notes: sc.notes || "" }; }),
+addSheet("Schedule", data.schedules.map(sc => { const cl = data.clients.find(c => c.id === sc.clientId); const em = data.employees.find(e => e.id === sc.employeeId); return { ID: sc.id, Date: sc.date, Client: cl?.name || "", CliID: sc.clientId, Employee: em?.name || "", EmpID: sc.employeeId, Start: sc.startTime, End: sc.endTime, Status: sc.status, PaymentStatus: sc.paymentStatus || "unpaid", Notes: sc.notes || "" }; }),
 ["ID","Date","Client","CliID","Employee","EmpID","Start","End","Status","Notes"]);
 
 addSheet("TimeClock", data.clockEntries.map(ce => { const em = data.employees.find(e => e.id === ce.employeeId); const cl = data.clients.find(c => c.id === ce.clientId); const h = calcHrs(ce.clockIn, ce.clockOut); return { ID: ce.id, Employee: em?.name || "", EmpID: ce.employeeId, Client: cl?.name || "", CliID: ce.clientId, In: ce.clockIn || "", Out: ce.clockOut || "", Hours: ce.clockOut ? h : "Active", Late: ce.isLate ? "yes" : "no", LateMins: ce.lateMinutes || 0, Note: ce.notes || "", Rate: em?.hourlyRate || 0, Cost: ce.clockOut ? Math.round(h * (em?.hourlyRate || 0) * 100) / 100 : "" }; }),
@@ -1378,13 +1383,13 @@ const sheet = (name) => {
   return rows;
 };
 
-  const emps = sheet("Employees").filter(r => r.ID && r.Name).map(r => ({ id: r.ID, name: r.Name, email: r.Email || "", phone: r.Phone || "", phoneMobile: r.Mobile || "", role: r.Role || "Cleaner", hourlyRate: parseFloat(r.Rate) || 15, address: r.Address || "", city: r.City || "", postalCode: r.Zip || "", country: r.Country || "Luxembourg", startDate: r.Start || getToday(), status: r.Status || "active", contractType: r.Contract || "CDI", bankIban: r.IBAN || "", socialSecNumber: r.SSN || "", dateOfBirth: r.DOB || "", nationality: r.Nationality || "", languages: r.Languages || "", transport: r.Transport || "", workPermit: r.WorkPermit || "", emergencyName: r.EmergName || "", emergencyPhone: r.EmergPhone || "", leaveAllowance: parseInt(r.LeaveAllowance || "26", 10) || 26, cleanerGroup: r.Group || "", hiringStage: r.HiringStage || "hired", notes: r.Notes || "" }));
+  const emps = sheet("Employees").filter(r => r.ID && r.Name).map(r => ({ id: r.ID, name: r.Name, email: r.Email || "", phone: r.Phone || "", phoneMobile: r.Mobile || "", role: r.Role || "Cleaner", hourlyRate: parseFloat(r.Rate) || 15, address: r.Address || "", city: r.City || "", postalCode: r.Zip || "", country: r.Country || "Luxembourg", startDate: r.Start || getToday(), contractEndDate: r.EndDate || "", status: r.Status || "active", contractType: r.Contract || "CDI", bankIban: r.IBAN || "", socialSecNumber: r.SSN || "", dateOfBirth: r.DOB || "", nationality: r.Nationality || "", languages: r.Languages || "", transport: r.Transport || "", workPermit: r.WorkPermit || "", emergencyName: r.EmergName || "", emergencyPhone: r.EmergPhone || "", leaveAllowance: parseInt(r.LeaveAllowance || "26", 10) || 26, cleanerGroup: r.Group || "", hiringStage: r.HiringStage || "hired", notes: r.Notes || "" }));
   const pins = {}; sheet("Employees").filter(r => r.ID).forEach(r => { pins[r.ID] = String(r.Password || r.PIN || "0000"); });
   const employeeUsernames = {}; sheet("Employees").filter(r => r.ID && r.Username).forEach(r => { employeeUsernames[r.ID] = String(r.Username); });
 
   const clients = sheet("Clients").filter(r => r.ID && r.Name).map(r => ({ id: r.ID, name: r.Name, contactPerson: r.Contact || "", email: r.Email || "", phone: r.Phone || "", phoneMobile: r.Mobile || "", address: r.Address || "", apartmentFloor: r.Apt || "", city: r.City || "", postalCode: r.Zip || "", country: r.Country || "Luxembourg", type: r.Type || "Residential", cleaningFrequency: r.Freq || "Weekly", billingType: r.Billing || "hourly", pricePerHour: parseFloat(r.Hourly) || 35, priceFixed: parseFloat(r.Fixed) || 0, status: r.Status || "active", language: r.Lang || "FR", accessCode: r.Code || "", keyLocation: r.KeyLoc || "", parkingInfo: r.Parking || "", petInfo: r.Pets || "", preferredDay: r.PrefDay || "", preferredTime: r.PrefTime || "", contractStart: r.ContStart || "", contractEnd: r.ContEnd || "", squareMeters: r.SqM || "", taxId: r.TaxID || "", specialInstructions: r.Instructions || "", preferredCleanerIds: String(r.PreferredCleaners || "").split("|").map(v => v.trim()).filter(Boolean), notes: r.Notes || "" }));
 
-  const scheds = sheet("Schedule").filter(r => r.ID).map(r => ({ id: r.ID, date: r.Date || "", clientId: r.CliID || "", employeeId: r.EmpID || "", startTime: r.Start || "08:00", endTime: r.End || "12:00", status: r.Status || "scheduled", notes: r.Notes || "", recurrence: "none" }));
+  const scheds = sheet("Schedule").filter(r => r.ID).map(r => ({ id: r.ID, date: r.Date || "", clientId: r.CliID || "", employeeId: r.EmpID || "", startTime: r.Start || "08:00", endTime: r.End || "12:00", status: r.Status || "scheduled", paymentStatus: r.PaymentStatus || "unpaid", notes: r.Notes || "", recurrence: "none" }));
   const clocks = sheet("TimeClock").filter(r => r.ID).map(r => ({ id: r.ID, employeeId: r.EmpID || "", clientId: r.CliID || "", clockIn: r.In || "", clockOut: r.Out || null, notes: r.Note || "", isLate: String(r.Late || "").toLowerCase() === "yes", lateMinutes: parseFloat(r.LateMins) || 0 }));
 
   const invMap = {};
@@ -1545,6 +1550,7 @@ useEffect(() => {
     postalCode: e.postal_code || "",
     country: e.country || "Luxembourg",
     startDate: e.start_date || "",
+    contractEndDate: e.contract_end_date || "",
     status: e.status || "active",
     contractType: e.contract_type || "CDI",
     bankIban: e.bank_iban || "",
@@ -1599,6 +1605,7 @@ useEffect(() => {
     startTime: s.start_time || "08:00",
     endTime: s.end_time || "12:00",
     status: s.status || "scheduled",
+    paymentStatus: s.payment_status || "unpaid",
     notes: s.notes || "",
     recurrence: s.recurrence || "none",
   });
@@ -2660,7 +2667,7 @@ const [groupFilter, setGroupFilter] = useState("all");
 
 const emptyEmployee = {
 name: "", email: "", phone: "", phoneMobile: "", address: "", city: "Luxembourg", postalCode: "", country: "Luxembourg",
-role: "Cleaner", hourlyRate: 15, startDate: getToday(), status: "active", notes: "", bankIban: "", socialSecNumber: "",
+role: "Cleaner", hourlyRate: 15, startDate: getToday(), contractEndDate: "", status: "active", notes: "", bankIban: "", socialSecNumber: "",
 pin: "0000", dateOfBirth: "", nationality: "", contractType: "CDI", workPermit: "", emergencyName: "", emergencyPhone: "",
 username: "",
 languages: "", transport: "", leaveAllowance: 26, cleanerGroup: "", hiringStage: "hired",
@@ -2871,6 +2878,7 @@ return (
         </SelectInput>
       </Field>
       <Field label="Start Date"><DatePicker value={form.startDate} onChange={ev => set("startDate", ev.target.value)} /></Field>
+      <Field label="End Date"><DatePicker value={form.contractEndDate || ""} onChange={ev => set("contractEndDate", ev.target.value)} /></Field>
       <Field label="Work Permit #"><TextInput value={form.workPermit || ""} onChange={ev => set("workPermit", ev.target.value)} placeholder="If applicable" /></Field>
       <Field label="Bank IBAN"><TextInput value={form.bankIban || ""} onChange={ev => set("bankIban", ev.target.value)} placeholder="LU..." /></Field>
       <Field label="Status">
@@ -3268,7 +3276,7 @@ const now = new Date();
 const [viewYear, setViewYear] = useState(now.getFullYear());
 const [viewMonth, setViewMonth] = useState(now.getMonth());
 
-const emptySchedule = { clientId: "", employeeId: "", date: getToday(), dateTo: "", startTime: "08:00", endTime: "12:00", status: "scheduled", notes: "", recurrence: "none" };
+const emptySchedule = { clientId: "", employeeId: "", date: getToday(), dateTo: "", startTime: "08:00", endTime: "12:00", status: "scheduled", paymentStatus: "unpaid", notes: "", recurrence: "none" };
 const dayHeaders = [uiText("Mon"), uiText("Tue"), uiText("Wed"), uiText("Thu"), uiText("Fri"), uiText("Sat"), uiText("Sun")];
 
 const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
@@ -3445,6 +3453,19 @@ showToast(err?.message || "Unable to delete schedule", "error");
 }
 };
 
+const handleTogglePayment = async (sched, ev) => {
+ev.stopPropagation();
+const next = { ...sched, paymentStatus: sched.paymentStatus === "paid" ? "unpaid" : "paid" };
+try {
+await syncScheduleToApi(next);
+updateData("schedules", prev => prev.map(s => s.id === next.id ? next : s));
+showToast(next.paymentStatus === "paid" ? uiText("Marked as paid") : uiText("Marked as unpaid"), "success");
+} catch (err) {
+console.error(err);
+showToast(err?.message || "Unable to update payment status", "error");
+}
+};
+
 return (
 <div>
 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
@@ -3495,10 +3516,14 @@ return (
   {focusedJobs.length === 0 ? <p style={{ color: CL.muted, margin: 0 }}>{uiText("No jobs in this period.")}</p> : focusedJobs.slice(0, 20).map(job => {
     const client = data.clients.find(c => c.id === job.clientId);
     const employee = data.employees.find(e => e.id === job.employeeId);
+    const isPaid = job.paymentStatus === "paid";
     return <div key={job.id} onClick={() => setModal({ ...job })} style={{ border: `1px solid ${CL.bd}`, borderRadius: 8, padding: 10, marginBottom: 8, cursor: "pointer", background: CL.s2 }}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
         <div style={{ fontWeight: 600 }}>{fmtDate(job.date)} · {job.startTime}-{job.endTime}</div>
-        <Badge color={scheduleStatusColor(job.status)}>{job.status}</Badge>
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <button onClick={ev => handleTogglePayment(job, ev)} style={{ background: isPaid ? CL.green + "20" : CL.s2, color: isPaid ? CL.green : CL.muted, border: `1px solid ${isPaid ? CL.green : CL.bd}`, borderRadius: 6, padding: "2px 8px", cursor: "pointer", fontSize: 11, fontWeight: 600 }}>{isPaid ? uiText("Paid") : uiText("Unpaid")}</button>
+          <Badge color={scheduleStatusColor(job.status)}>{job.status}</Badge>
+        </div>
       </div>
       <div style={{ fontSize: 12, color: CL.text }}>{client?.name || "Unknown client"}</div>
       <div style={{ fontSize: 12, color: CL.muted }}>{uiText("Assigned to:")} {employee?.name || uiText("Unassigned")}</div>
@@ -3564,14 +3589,15 @@ return <div key={sched.id} onClick={() => setModal({ ...sched })} style={{ paddi
 <div style={{ fontSize: 12, color: CL.muted, marginBottom: 10 }}>{uiText("Monthly job list by date (readable after clocking/status changes).")}</div>
 <div className="tbl-wrap">
 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-<thead><tr><th style={thSt}>{uiText("Date")}</th><th style={thSt}>{uiText("Time")}</th><th style={thSt}>{uiText("Client")}</th><th style={thSt}>{uiText("Cleaner")}</th><th style={thSt}>{uiText("Status")}</th></tr></thead>
+<thead><tr><th style={thSt}>{uiText("Date")}</th><th style={thSt}>{uiText("Time")}</th><th style={thSt}>{uiText("Client")}</th><th style={thSt}>{uiText("Cleaner")}</th><th style={thSt}>{uiText("Status")}</th><th style={thSt}>{uiText("Payment")}</th></tr></thead>
 <tbody>
 {orderedMonthSchedules.map(s => {
 const client = data.clients.find(c => c.id === s.clientId);
 const employee = data.employees.find(e => e.id === s.employeeId);
-return <tr key={s.id} onClick={() => setModal({ ...s })} style={{ cursor: "pointer" }}><td style={tdSt}>{fmtDate(s.date)}</td><td style={tdSt}>{s.startTime} - {s.endTime}</td><td style={tdSt}>{client?.name || "-"}</td><td style={tdSt}><div>{employee?.name || uiText("Unassigned")}</div><div style={{ fontSize: 11, color: cityMatchLabel(employee, client).startsWith("✅") ? CL.green : CL.orange }}>{cityMatchLabel(employee, client)}</div></td><td style={tdSt}><Badge color={scheduleStatusColor(s.status)}>{uiText(s.status)}</Badge></td></tr>;
+const isPaid = s.paymentStatus === "paid";
+return <tr key={s.id} onClick={() => setModal({ ...s })} style={{ cursor: "pointer" }}><td style={tdSt}>{fmtDate(s.date)}</td><td style={tdSt}>{s.startTime} - {s.endTime}</td><td style={tdSt}>{client?.name || "-"}</td><td style={tdSt}><div>{employee?.name || uiText("Unassigned")}</div><div style={{ fontSize: 11, color: cityMatchLabel(employee, client).startsWith("✅") ? CL.green : CL.orange }}>{cityMatchLabel(employee, client)}</div></td><td style={tdSt}><Badge color={scheduleStatusColor(s.status)}>{uiText(s.status)}</Badge></td><td style={tdSt} onClick={ev => ev.stopPropagation()}><button onClick={ev => handleTogglePayment(s, ev)} style={{ ...btnSm, background: isPaid ? CL.green + "20" : CL.s2, color: isPaid ? CL.green : CL.muted, border: `1px solid ${isPaid ? CL.green : CL.bd}`, borderRadius: 6, padding: "3px 10px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>{isPaid ? uiText("Paid") : uiText("Unpaid")}</button></td></tr>;
 })}
-{orderedMonthSchedules.length === 0 && <tr><td colSpan={5} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>{uiText("No jobs in this month")}</td></tr>}
+{orderedMonthSchedules.length === 0 && <tr><td colSpan={6} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>{uiText("No jobs in this month")}</td></tr>}
 </tbody>
 </table>
 </div>
@@ -3655,6 +3681,11 @@ return (
 <Field label="Status">
 <SelectInput value={form.status} onChange={ev => set("status", ev.target.value)} disabled={isCompletedLocked}>
 <option value="scheduled">{uiText("Scheduled")}</option><option value="in-progress">{uiText("In Progress")}</option><option value="completed">{uiText("Completed")}</option><option value="cancelled">{uiText("Cancelled")}</option>
+</SelectInput>
+</Field>
+<Field label={uiText("Payment Status")}>
+<SelectInput value={form.paymentStatus || "unpaid"} onChange={ev => set("paymentStatus", ev.target.value)}>
+<option value="unpaid">{uiText("Unpaid")}</option><option value="paid">{uiText("Paid")}</option>
 </SelectInput>
 </Field>
 <Field label="Start"><TextInput type="time" value={form.startTime} onChange={ev => set("startTime", ev.target.value)} disabled={isCompletedLocked} /></Field>

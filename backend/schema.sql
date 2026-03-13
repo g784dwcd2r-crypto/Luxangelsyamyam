@@ -84,16 +84,17 @@ CREATE TABLE IF NOT EXISTS clients (
 );
 
 CREATE TABLE IF NOT EXISTS schedules (
-  id          TEXT PRIMARY KEY,
-  date        DATE NOT NULL,
-  client_id   TEXT REFERENCES clients(id) ON DELETE SET NULL,
-  employee_id TEXT REFERENCES employees(id) ON DELETE SET NULL,
-  start_time  TEXT NOT NULL DEFAULT '08:00',
-  end_time    TEXT NOT NULL DEFAULT '12:00',
-  status      TEXT NOT NULL DEFAULT 'scheduled',
-  notes       TEXT,
-  recurrence  TEXT DEFAULT 'none',
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  id             TEXT PRIMARY KEY,
+  date           DATE NOT NULL,
+  client_id      TEXT REFERENCES clients(id) ON DELETE SET NULL,
+  employee_id    TEXT REFERENCES employees(id) ON DELETE SET NULL,
+  start_time     TEXT NOT NULL DEFAULT '08:00',
+  end_time       TEXT NOT NULL DEFAULT '12:00',
+  status         TEXT NOT NULL DEFAULT 'scheduled',
+  payment_status TEXT NOT NULL DEFAULT 'unpaid',
+  notes          TEXT,
+  recurrence     TEXT DEFAULT 'none',
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS clock_entries (

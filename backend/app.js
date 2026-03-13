@@ -950,6 +950,23 @@ app.put('/api/invoices/:id', async (req, res) => {
   }
 });
 
+app.patch('/api/invoices/:id/status', async (req, res) => {
+  try {
+    const { status } = req.body;
+    const allowed = ['draft', 'sent', 'paid', 'overdue'];
+    if (!allowed.includes(status)) return res.status(400).json({ error: 'Invalid status' });
+    const result = await pool.query(
+      'UPDATE invoices SET status=$1 WHERE id=$2 RETURNING *',
+      [status, req.params.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Invoice not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 app.delete('/api/invoices/:id', async (req, res) => {
   try {
     const result = await pool.query('DELETE FROM invoices WHERE id=$1 RETURNING id', [req.params.id]);

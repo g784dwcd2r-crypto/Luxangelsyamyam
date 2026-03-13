@@ -549,6 +549,117 @@ const UI_FR = {
 "Username": "Identifiant",
 "Password": "Mot de passe",
 "More": "Plus",
+// Days
+"Sunday": "Dimanche",
+// Visitation
+"Site Photos (optional)": "Photos du site (optionnel)",
+"Add Photo": "Ajouter une photo",
+"No photos for this visit": "Aucune photo pour cette visite",
+"File too large (max 5MB)": "Fichier trop grand (max 5 Mo)",
+"Select client and date": "Sélectionnez un client et une date",
+"Visit added": "Visite ajoutée",
+"Add Visit": "Ajouter une visite",
+"Filter by client": "Filtrer par client",
+"View details": "Voir les détails",
+"View": "Voir",
+"Visit": "Visite",
+"No visits scheduled yet": "Aucune visite programmée",
+"planned": "Planifié",
+"done": "Terminé",
+"Scope, apartment access, expectations...": "Périmètre, accès appartement, attentes...",
+// Schedule Form
+"Suggested:": "Suggéré :",
+"Use suggested cleaner": "Utiliser l'agent suggéré",
+"No group": "Aucun groupe",
+"City check unavailable": "Vérification ville indisponible",
+"Cleaner is in client city": "L'agent est dans la ville du client",
+"Cleaner is outside client city": "L'agent est hors de la ville du client",
+"Code:": "Code :",
+"Key:": "Clé :",
+"Pets:": "Animaux :",
+"Prefers:": "Préférence :",
+"Preferred days:": "Jours préférés :",
+// Cleaning frequency
+"Daily (weekends included)": "Quotidien (week-ends inclus)",
+"Daily (weekdays only)": "Quotidien (jours ouvrables uniquement)",
+// Expenses
+"include in monthly budget & reminders": "inclure dans le budget mensuel et rappels",
+"Due on the": "Dû le",
+"of each month": "de chaque mois",
+"Save Expense": "Enregistrer la dépense",
+"Expected Amount": "Montant attendu",
+"Period": "Période",
+"Expense": "Dépense",
+"Payment Date *": "Date de paiement *",
+"Amount Paid (€) *": "Montant payé (€) *",
+"Reference / Notes": "Référence / Notes",
+"Receipt / Invoice (optional)": "Reçu / Facture (optionnel)",
+"Attach receipt, invoice, or bank confirmation": "Joindre reçu, facture ou confirmation bancaire",
+"Choose File": "Choisir un fichier",
+"Loading...": "Chargement...",
+"Remove": "Supprimer",
+"Confirm Payment": "Confirmer le paiement",
+"Failed to read file": "Échec de lecture du fichier",
+"Please enter a valid amount": "Veuillez entrer un montant valide",
+"Please select a payment date": "Veuillez sélectionner une date de paiement",
+"File is too large. Maximum size is 5MB.": "Fichier trop volumineux. Taille maximale 5 Mo.",
+// General
+"All clients": "Tous les clients",
+"No preference": "Pas de préférence",
+"Preferred cleaners for auto-assignment": "Agents préférés pour l'auto-attribution",
+"Requested:": "Demandé :",
+"Delivery:": "Livraison :",
+"due today": "dû aujourd'hui",
+"due in": "dans",
+"days": "jours",
+"day": "jour",
+"overdue": "en retard",
+"No group": "Aucun groupe",
+// Expense status labels
+"Paid": "Payé",
+"Overdue": "En retard",
+"Due Today": "Dû aujourd'hui",
+"Due Soon": "Bientôt dû",
+"Pending": "En attente",
+"paid": "payé(e)s",
+"overdue since day": "en retard depuis le jour",
+"expenses are overdue": "dépenses en retard",
+"expense is overdue": "dépense en retard",
+"action required": "action requise",
+// Expense page strings
+"Track and manage your monthly business expenses": "Suivez et gérez vos dépenses professionnelles mensuelles",
+"Add Expense": "Ajouter une dépense",
+"Current Month": "Mois en cours",
+"Monthly Budget": "Budget mensuel",
+"Paid This Month": "Payé ce mois",
+"Outstanding": "Restant",
+"Payment Progress": "Progression des paiements",
+"Expense List": "Liste des dépenses",
+"Sorted by urgency · overdue first": "Trié par urgence · en retard d'abord",
+"No expenses defined yet": "Aucune dépense définie",
+"Add your monthly expenses — rent, utilities, subscriptions — to track payments.": "Ajoutez vos dépenses mensuelles — loyer, services, abonnements — pour suivre les paiements.",
+"Add First Expense": "Ajouter la première dépense",
+"Category": "Catégorie",
+"Due Day": "Jour d'échéance",
+"Receipt": "Reçu",
+"Delete this expense? All payment history will be lost.": "Supprimer cette dépense ? Tout l'historique de paiement sera perdu.",
+"Expense deleted": "Dépense supprimée",
+"Marked as unpaid": "Marqué comme non payé",
+"Mark as Paid": "Marquer comme payé",
+"Mark as Unpaid": "Marquer comme non payé",
+"View Receipt": "Voir le reçu",
+"Edit": "Modifier",
+"Delete": "Supprimer",
+"No payment recorded for this month": "Aucun paiement enregistré ce mois",
+"Paid on": "Payé le",
+"Day": "Jour",
+"Pay": "Payer",
+"Undo": "Annuler",
+"MONTHLY TOTAL": "TOTAL MENSUEL",
+"remaining": "restant",
+"Inactive Expenses": "Dépenses inactives",
+"Edit / Reactivate": "Modifier / Réactiver",
+"Notes / Reference": "Notes / Référence",
 };
 
 const uiText = (text) => {
@@ -604,8 +715,8 @@ const normalizeCity = (value = "") => String(value || "").trim().toLowerCase();
 const cityMatchLabel = (employee, client) => {
 const empCity = normalizeCity(employee?.city);
 const clientCity = normalizeCity(client?.city);
-if (!employee || !client || !clientCity || !empCity) return "City check unavailable";
-return empCity === clientCity ? "✅ Cleaner is in client city" : "⚠️ Cleaner is outside client city";
+if (!employee || !client || !clientCity || !empCity) return uiText("City check unavailable");
+return empCity === clientCity ? `✅ ${uiText("Cleaner is in client city")}` : `⚠️ ${uiText("Cleaner is outside client city")}`;
 };
 const recommendedCleanerForClient = (client, employees = []) => {
 if (!client) return null;
@@ -1789,7 +1900,7 @@ return (
             <div key={req.id} style={{ padding: "10px 0", borderBottom: `1px solid ${CL.bd}`, display: "flex", justifyContent: "space-between", gap: 10 }}>
               <div>
                 <div style={{ fontWeight: 600 }}>{prod?.name || uiText("Unknown product")} · {uiText("Qty")} {req.quantity}</div>
-                <div style={{ fontSize: 12, color: CL.muted }}>Requested {fmtBoth(req.createdAt)}{req.deliveryAt ? ` · Delivery ${fmtBoth(req.deliveryAt)}` : ""}</div>
+                <div style={{ fontSize: 12, color: CL.muted }}>{uiText("Requested:")} {fmtBoth(req.createdAt)}{req.deliveryAt ? ` · ${uiText("Delivery:")} ${fmtBoth(req.deliveryAt)}` : ""}</div>
                 {req.note && <div style={{ fontSize: 12, color: CL.dim }}>{req.note}</div>}
                 <div style={{ fontSize: 12, color: CL.text }}>{uiText("Approved")}: {req.approvedQty || 0} · {uiText("Received")}: {req.deliveredQty || 0}</div>
               </div>
@@ -2433,17 +2544,48 @@ return (
     <div className="form-grid">
       <Field label="Cleaning Frequency">
         <SelectInput value={form.cleaningFrequency} onChange={ev => set("cleaningFrequency", ev.target.value)}>
-          <option value="One-time">{uiText("One-time")}</option><option value="Weekly">{uiText("Weekly")}</option><option value="Bi-weekly">{uiText("Bi-weekly")}</option><option value="Monthly">{uiText("Monthly")}</option><option value="2x per week">{uiText("2x per week")}</option><option value="3x per week">{uiText("3x per week")}</option><option value="Daily">{uiText("Daily")}</option><option value="Custom">{uiText("Custom")}</option>
+          <option value="One-time">{uiText("One-time")}</option><option value="Weekly">{uiText("Weekly")}</option><option value="Bi-weekly">{uiText("Bi-weekly")}</option><option value="Monthly">{uiText("Monthly")}</option><option value="2x per week">{uiText("2x per week")}</option><option value="3x per week">{uiText("3x per week")}</option><option value="Daily (weekends included)">{uiText("Daily (weekends included)")}</option><option value="Daily (weekdays only)">{uiText("Daily (weekdays only)")}</option><option value="Custom">{uiText("Custom")}</option>
         </SelectInput>
       </Field>
       <Field label={uiText("Hours per Session")}>
         <TextInput type="number" step=".5" min="0" value={form.hoursPerSession || ""} onChange={ev => set("hoursPerSession", parseFloat(ev.target.value) || 0)} placeholder="ex: 3" />
       </Field>
-      <Field label="Preferred Day">
-        <SelectInput value={form.preferredDay || ""} onChange={ev => set("preferredDay", ev.target.value)}>
-          <option value="">{uiText("No preference")}</option><option value="Monday">{uiText("Monday")}</option><option value="Tuesday">{uiText("Tuesday")}</option><option value="Wednesday">{uiText("Wednesday")}</option><option value="Thursday">{uiText("Thursday")}</option><option value="Friday">{uiText("Friday")}</option><option value="Saturday">{uiText("Saturday")}</option>
-        </SelectInput>
-      </Field>
+      <div style={{ gridColumn: "1/-1" }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: CL.gold, marginBottom: 8 }}>{uiText("Preferred Day")}</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 8 }}>
+          {["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"].map(day => {
+            const preferred = (form.preferredDays || []);
+            const entry = preferred.find(d => d.day === day);
+            const checked = !!entry;
+            return (
+              <div key={day} style={{ display: "flex", alignItems: "center", gap: 8, background: CL.s2, border: `1px solid ${checked ? CL.gold : CL.bd}`, borderRadius: 8, padding: "8px 10px" }}>
+                <input type="checkbox" id={`pday-${day}`} checked={checked} onChange={ev => {
+                  const prev = form.preferredDays || [];
+                  const next = ev.target.checked
+                    ? [...prev, { day, hours: 3 }]
+                    : prev.filter(d => d.day !== day);
+                  set("preferredDays", next);
+                }} style={{ cursor: "pointer" }} />
+                <label htmlFor={`pday-${day}`} style={{ fontSize: 13, color: CL.text, cursor: "pointer", flex: 1 }}>{uiText(day)}</label>
+                {checked && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                    <TextInput
+                      type="number" min="0.5" step="0.5"
+                      value={entry?.hours || ""}
+                      onChange={ev => {
+                        const prev = form.preferredDays || [];
+                        set("preferredDays", prev.map(d => d.day === day ? { ...d, hours: parseFloat(ev.target.value) || 0 } : d));
+                      }}
+                      style={{ width: 60, padding: "4px 6px", fontSize: 12 }}
+                    />
+                    <span style={{ fontSize: 11, color: CL.muted }}>h</span>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
       <Field label="Preferred Time"><TextInput value={form.preferredTime || ""} onChange={ev => set("preferredTime", ev.target.value)} placeholder="e.g. 09:00-12:00" /></Field>
       <Field label="Billing Type">
         <SelectInput value={form.billingType} onChange={ev => set("billingType", ev.target.value)}>
@@ -2480,7 +2622,7 @@ return (
       <Field label="Property Size (m²)"><TextInput type="number" value={form.squareMeters || ""} onChange={ev => set("squareMeters", ev.target.value)} placeholder="e.g. 120" /></Field>
       <Field label="Pets"><TextInput value={form.petInfo || ""} onChange={ev => set("petInfo", ev.target.value)} placeholder="e.g. 1 cat (friendly)" /></Field>
       <div style={{ gridColumn: "1/-1", borderTop: `1px solid ${CL.bd}`, paddingTop: 10 }}>
-        <div style={{ fontSize: 13, color: CL.gold, marginBottom: 8, fontWeight: 600 }}>Preferred cleaners for auto-assignment</div>
+        <div style={{ fontSize: 13, color: CL.gold, marginBottom: 8, fontWeight: 600 }}>{uiText("Preferred cleaners for auto-assignment")}</div>
         <div style={{ display: "grid", gap: 6 }}>
           {(data.employees || []).filter(e => e.status === "active").map(emp => {
             const checked = (form.preferredCleanerIds || []).includes(emp.id);
@@ -2515,6 +2657,7 @@ const [focusWindow, setFocusWindow] = useState("today");
 const [modal, setModal] = useState(null);
 const [selectedDate, setSelectedDate] = useState(null);
 const [filterEmp, setFilterEmp] = useState("");
+const [filterClient, setFilterClient] = useState("");
 const [viewMode, setViewMode] = useState("calendar");
 const now = new Date();
 const [viewYear, setViewYear] = useState(now.getFullYear());
@@ -2561,6 +2704,7 @@ jumpToDate(nextWeek);
 const monthSchedules = data.schedules.filter(s => {
 if (!s.date?.startsWith(monthStr)) return false;
 if (filterEmp && s.employeeId !== filterEmp) return false;
+if (filterClient && s.clientId !== filterClient) return false;
 return true;
 });
 const orderedMonthSchedules = [...monthSchedules].sort((a, b) => `${a.date} ${a.startTime}`.localeCompare(`${b.date} ${b.startTime}`));
@@ -2584,7 +2728,7 @@ const focusMeta = {
 };
 const focused = focusMeta[focusWindow];
 const focusedJobs = (data.schedules || [])
-  .filter(s => s.date && s.date >= focused.from && s.date <= focused.to && (!filterEmp || s.employeeId === filterEmp))
+  .filter(s => s.date && s.date >= focused.from && s.date <= focused.to && (!filterEmp || s.employeeId === filterEmp) && (!filterClient || s.clientId === filterClient))
   .sort((a, b) => `${a.date} ${a.startTime}`.localeCompare(`${b.date} ${b.startTime}`));
 
 const handleSave = (schedData) => {
@@ -2660,6 +2804,10 @@ return (
 <option value="">{uiText("All Employees")}</option>
 {data.employees.filter(emp => emp.status === "active").map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
 </SelectInput>
+<SelectInput value={filterClient} onChange={ev => setFilterClient(ev.target.value)} style={{ width: 180 }}>
+<option value="">{uiText("All clients")}</option>
+{data.clients.filter(c => c.status === "active").map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+</SelectInput>
 </div>
 </div>
 
@@ -2671,7 +2819,7 @@ return (
 
 <div style={{ ...cardSt, marginBottom: 16 }}>
   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
-    <h3 style={{ margin: 0, fontSize: 16, color: CL.gold }}>{focused.label} - Close-up ({focusedJobs.length})</h3>
+    <h3 style={{ margin: 0, fontSize: 16, color: CL.gold }}>{focused.label} ({focusedJobs.length})</h3>
     <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
       <button style={{ ...btnSec, ...btnSm, background: focusWindow === "today" ? CL.blue : "transparent", color: focusWindow === "today" ? CL.white : CL.muted }} onClick={() => { setFocusWindow("today"); goToday(); }}>{uiText("Today")}</button>
       <button style={{ ...btnSec, ...btnSm, background: focusWindow === "tomorrow" ? CL.blue : "transparent", color: focusWindow === "tomorrow" ? CL.white : CL.muted }} onClick={() => { setFocusWindow("tomorrow"); goTomorrow(); }}>{uiText("Tomorrow")}</button>
@@ -2797,8 +2945,8 @@ return (
 <option value="">Select...</option>
 {data.employees.filter(emp => emp.status === "active").map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
 </SelectInput>
-{suggestedCleaner && !form.employeeId && <div style={{ fontSize: 11, color: CL.green, marginTop: 4 }}>Suggested: {suggestedCleaner.name} ({suggestedCleaner.cleanerGroup || suggestedCleaner.city || "No group"})</div>}
-{suggestedCleaner && form.employeeId !== suggestedCleaner.id && <button type="button" style={{ ...btnSec, ...btnSm, marginTop: 6 }} onClick={() => set("employeeId", suggestedCleaner.id)} disabled={isCompletedLocked}>Use suggested cleaner</button>}
+{suggestedCleaner && !form.employeeId && <div style={{ fontSize: 11, color: CL.green, marginTop: 4 }}>{uiText("Suggested:")} {suggestedCleaner.name} ({suggestedCleaner.cleanerGroup || suggestedCleaner.city || uiText("No group")})</div>}
+{suggestedCleaner && form.employeeId !== suggestedCleaner.id && <button type="button" style={{ ...btnSec, ...btnSm, marginTop: 6 }} onClick={() => set("employeeId", suggestedCleaner.id)} disabled={isCompletedLocked}>{uiText("Use suggested cleaner")}</button>}
 {selectedClient && selectedEmployee && <div style={{ fontSize: 11, color: cityMatchLabel(selectedEmployee, selectedClient).startsWith("✅") ? CL.green : CL.orange, marginTop: 4 }}>{cityMatchLabel(selectedEmployee, selectedClient)}</div>}
 </Field>
 <Field label="Date"><DatePicker value={form.date} onChange={ev => set("date", ev.target.value)} /></Field>
@@ -2827,10 +2975,11 @@ return (
         {selectedClient.address}{selectedClient.apartmentFloor ? `, ${selectedClient.apartmentFloor}` : ""}
         {selectedClient.city ? ` · ${selectedClient.postalCode || ""} ${selectedClient.city}` : ""}
       </div>
-      {selectedClient.accessCode && <div style={{ color: CL.orange }}>Code: {selectedClient.accessCode}</div>}
-      {selectedClient.keyLocation && <div style={{ color: CL.orange }}>Key: {selectedClient.keyLocation}</div>}
-      {selectedClient.petInfo && <div style={{ color: CL.orange }}>Pets: {selectedClient.petInfo}</div>}
-      {selectedClient.preferredDay && <div style={{ color: CL.dim }}>Prefers: {selectedClient.preferredDay} {selectedClient.preferredTime || ""}</div>}
+      {selectedClient.accessCode && <div style={{ color: CL.orange }}>{uiText("Code:")} {selectedClient.accessCode}</div>}
+      {selectedClient.keyLocation && <div style={{ color: CL.orange }}>{uiText("Key:")} {selectedClient.keyLocation}</div>}
+      {selectedClient.petInfo && <div style={{ color: CL.orange }}>{uiText("Pets:")} {selectedClient.petInfo}</div>}
+      {(selectedClient.preferredDays || []).length > 0 && <div style={{ color: CL.dim }}>{uiText("Preferred days:")} {(selectedClient.preferredDays || []).map(d => `${uiText(d.day)}${d.hours ? ` (${d.hours}h)` : ""}`).join(", ")} {selectedClient.preferredTime || ""}</div>}
+      {!(selectedClient.preferredDays || []).length && selectedClient.preferredDay && <div style={{ color: CL.dim }}>{uiText("Prefers:")} {uiText(selectedClient.preferredDay)} {selectedClient.preferredTime || ""}</div>}
     </div>
   )}
 
@@ -4332,8 +4481,8 @@ return (
         );
       })()}
       <div className="no-print" style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 12 }}>
-        <button style={btnSec} onClick={() => setPreview(null)}>Close</button>
-        <button style={btnPri} onClick={() => window.print()}>{ICN.download} Print</button>
+        <button style={btnSec} onClick={() => setPreview(null)}>{uiText("Close")}</button>
+        <button style={btnPri} onClick={() => window.print()}>{ICN.download} {uiText("Print")}</button>
       </div>
     </ModalBox>
   )}
@@ -4348,18 +4497,36 @@ return (
 // ==============================================
 function VisitationPage({ data, updateData, showToast, setSection, setDevisSeed }) {
 const { t } = useI18n();
-const [form, setForm] = useState({ clientId: "", visitDate: getToday(), visitTime: "10:00", address: "", notes: "", status: "planned" });
-const visits = (data.prospectVisits || []).slice().sort((a, b) => `${b.visitDate} ${b.visitTime}`.localeCompare(`${a.visitDate} ${a.visitTime}`));
+const [form, setForm] = useState({ clientId: "", visitDate: getToday(), visitTime: "10:00", address: "", notes: "", status: "planned", photos: [] });
+const [filterClient, setFilterClient] = useState("");
+const [viewVisit, setViewVisit] = useState(null);
+const [uploadingPhoto, setUploadingPhoto] = useState(false);
+const allVisits = (data.prospectVisits || []).slice().sort((a, b) => `${b.visitDate} ${b.visitTime}`.localeCompare(`${a.visitDate} ${a.visitTime}`));
+const visits = filterClient ? allVisits.filter(v => v.clientId === filterClient) : allVisits;
 const prospects = data.clients.filter(c => c.status === "prospect" || c.status === "active");
 const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
 
+const handlePhotoUpload = (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) { showToast(uiText("File too large (max 5MB)"), "error"); return; }
+  setUploadingPhoto(true);
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    setForm(prev => ({ ...prev, photos: [...(prev.photos || []), { name: file.name, data: ev.target.result, type: file.type }] }));
+    setUploadingPhoto(false);
+  };
+  reader.onerror = () => { setUploadingPhoto(false); };
+  reader.readAsDataURL(file);
+};
+
 const saveVisit = () => {
-if (!form.clientId || !form.visitDate) { showToast("Select client and date", "error"); return; }
+if (!form.clientId || !form.visitDate) { showToast(uiText("Select client and date"), "error"); return; }
 const client = data.clients.find(c => c.id === form.clientId);
 const payload = { ...form, id: makeId(), createdAt: new Date().toISOString(), address: form.address || client?.address || "" };
 updateData("prospectVisits", prev => [payload, ...(prev || [])]);
-setForm({ clientId: "", visitDate: getToday(), visitTime: "10:00", address: "", notes: "", status: "planned" });
-showToast("Visit added");
+setForm({ clientId: "", visitDate: getToday(), visitTime: "10:00", address: "", notes: "", status: "planned", photos: [] });
+showToast(uiText("Visit added"));
 };
 
 const markStatus = (id, status) => updateData("prospectVisits", prev => (prev || []).map(v => v.id === id ? { ...v, status, updatedAt: new Date().toISOString() } : v));
@@ -4370,24 +4537,90 @@ return (
 <h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold, marginBottom: 16 }}>{t("visitationSchedule")}</h1>
 <div style={{ ...cardSt, marginBottom: 14 }}>
   <div className="form-grid">
-    <Field label="Prospect / Client"><SelectInput value={form.clientId} onChange={ev => { const id = ev.target.value; const c = data.clients.find(x => x.id === id); setForm(v => ({ ...v, clientId: id, address: c?.address || "" })); }}><option value="">Select...</option>{prospects.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</SelectInput></Field>
-    <Field label="Address"><TextInput value={form.address} onChange={ev => set("address", ev.target.value)} placeholder="Visit address" /></Field>
+    <Field label="Prospect / Client"><SelectInput value={form.clientId} onChange={ev => { const id = ev.target.value; const c = data.clients.find(x => x.id === id); setForm(v => ({ ...v, clientId: id, address: c?.address || "" })); }}><option value="">{uiText("Select...")}</option>{prospects.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</SelectInput></Field>
+    <Field label="Address"><TextInput value={form.address} onChange={ev => set("address", ev.target.value)} placeholder={uiText("Visit address")} /></Field>
     <Field label="Visit date"><DatePicker value={form.visitDate} onChange={ev => set("visitDate", ev.target.value)} /></Field>
     <Field label="Visit time"><TextInput type="time" value={form.visitTime} onChange={ev => set("visitTime", ev.target.value)} /></Field>
   </div>
-  <Field label="Notes"><TextArea value={form.notes} onChange={ev => set("notes", ev.target.value)} placeholder="Scope, apartment access, expectations..." /></Field>
-  <button style={btnPri} onClick={saveVisit}>{ICN.plus} Add Visit</button>
+  <Field label="Notes"><TextArea value={form.notes} onChange={ev => set("notes", ev.target.value)} placeholder={uiText("Scope, apartment access, expectations...")} /></Field>
+  <Field label={uiText("Site Photos (optional)")}>
+    <div style={{ border: `2px dashed ${CL.bd}`, borderRadius: 10, padding: 16, background: CL.s2 }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: (form.photos || []).length > 0 ? 10 : 0 }}>
+        {(form.photos || []).map((ph, i) => (
+          <div key={i} style={{ position: "relative" }}>
+            <img src={ph.data} alt={ph.name} style={{ width: 80, height: 80, objectFit: "cover", borderRadius: 6, border: `1px solid ${CL.bd}` }} />
+            <button onClick={() => set("photos", (form.photos || []).filter((_, j) => j !== i))} style={{ position: "absolute", top: -6, right: -6, background: CL.red, color: "#fff", border: "none", borderRadius: "50%", width: 18, height: 18, fontSize: 10, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+          </div>
+        ))}
+      </div>
+      <label style={{ ...btnSec, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}>
+        {uploadingPhoto ? <span>⏳ {uiText("Loading...")}</span> : <><span>📷</span> {uiText("Add Photo")}</>}
+        <input type="file" accept="image/*" onChange={handlePhotoUpload} style={{ display: "none" }} disabled={uploadingPhoto} />
+      </label>
+    </div>
+  </Field>
+  <button style={btnPri} onClick={saveVisit}>{ICN.plus} {uiText("Add Visit")}</button>
+</div>
+
+<div style={{ ...cardSt, marginBottom: 12, padding: "12px 16px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+  <div style={{ fontSize: 13, color: CL.muted, fontWeight: 600 }}>{uiText("Filter by client")} :</div>
+  <SelectInput value={filterClient} onChange={ev => setFilterClient(ev.target.value)} style={{ width: 220 }}>
+    <option value="">{uiText("All clients")}</option>
+    {data.clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+  </SelectInput>
+  {filterClient && <button style={{ ...btnSec, ...btnSm }} onClick={() => setFilterClient("")}>{uiText("Reset")}</button>}
 </div>
 
 <div style={cardSt} className="tbl-wrap">
 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-<thead><tr><th style={thSt}>Date</th><th style={thSt}>Client</th><th style={thSt}>Address</th><th style={thSt}>Notes</th><th style={thSt}>Status</th><th style={thSt}>Actions</th></tr></thead>
+<thead><tr><th style={thSt}>{uiText("Date")}</th><th style={thSt}>{uiText("Client")}</th><th style={thSt}>{uiText("Address")}</th><th style={thSt}>{uiText("Notes")}</th><th style={thSt}>{uiText("Status")}</th><th style={thSt}>{uiText("Actions")}</th></tr></thead>
 <tbody>
-{visits.map(v => { const client = data.clients.find(c => c.id === v.clientId); return <tr key={v.id}><td style={tdSt}>{fmtDate(v.visitDate)} {v.visitTime || ""}</td><td style={tdSt}>{client?.name || "-"}</td><td style={tdSt}><a href={mapsUrl(v.address || client?.address || "") } target="_blank" rel="noreferrer" style={{ color: CL.blue, textDecoration: "underline" }}>{v.address || client?.address || "-"}</a></td><td style={tdSt}>{v.notes || "-"}</td><td style={tdSt}><Badge color={v.status === "done" ? CL.green : v.status === "cancelled" ? CL.red : CL.orange}>{v.status}</Badge></td><td style={tdSt}><div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}><button style={{ ...btnSec, ...btnSm }} onClick={() => markStatus(v.id, "done")}>Done</button><button style={{ ...btnSec, ...btnSm }} onClick={() => { setDevisSeed?.({ clientId: v.clientId, description: `Quote after visit on ${v.visitDate}` }); setSection?.("devis"); }}>Create Devis</button><button style={{ ...btnSec, ...btnSm, color: CL.red }} onClick={() => removeVisit(v.id)}>Delete</button></div></td></tr>; })}
-{visits.length === 0 && <tr><td colSpan={6} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>No visits scheduled yet</td></tr>}
+{visits.map(v => { const client = data.clients.find(c => c.id === v.clientId); const photoCount = (v.photos || []).length; return <tr key={v.id}><td style={tdSt}>{fmtDate(v.visitDate)} {v.visitTime || ""}</td><td style={tdSt}>{client?.name || "-"}</td><td style={tdSt}><a href={mapsUrl(v.address || client?.address || "")} target="_blank" rel="noreferrer" style={{ color: CL.blue, textDecoration: "underline" }}>{v.address || client?.address || "-"}</a></td><td style={tdSt}><span style={{ maxWidth: 180, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{v.notes || "-"}</span>{photoCount > 0 && <span style={{ fontSize: 11, color: CL.gold }}>📷 {photoCount}</span>}</td><td style={tdSt}><Badge color={v.status === "done" ? CL.green : v.status === "cancelled" ? CL.red : CL.orange}>{uiText(v.status)}</Badge></td><td style={tdSt}><div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}><button style={{ ...btnSec, ...btnSm, color: CL.blue }} onClick={() => setViewVisit(v)} title={uiText("View details")}>👁 {uiText("View")}</button><button style={{ ...btnSec, ...btnSm }} onClick={() => markStatus(v.id, "done")}>{uiText("Done")}</button><button style={{ ...btnSec, ...btnSm }} onClick={() => { setDevisSeed?.({ clientId: v.clientId, description: `Quote after visit on ${v.visitDate}` }); setSection?.("devis"); }}>{uiText("Create Devis")}</button><button style={{ ...btnSec, ...btnSm, color: CL.red }} onClick={() => removeVisit(v.id)}>{uiText("Delete")}</button></div></td></tr>; })}
+{visits.length === 0 && <tr><td colSpan={6} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>{uiText("No visits scheduled yet")}</td></tr>}
 </tbody>
 </table>
 </div>
+
+{viewVisit && (() => {
+  const client = data.clients.find(c => c.id === viewVisit.clientId);
+  return (
+    <ModalBox title={`${uiText("Visit")} — ${client?.name || "-"} · ${fmtDate(viewVisit.visitDate)}`} onClose={() => setViewVisit(null)}>
+      <div>
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 11, color: CL.muted, marginBottom: 4, textTransform: "uppercase", fontWeight: 600 }}>{uiText("Address")}</div>
+          <div style={{ fontSize: 14, color: CL.text }}>{viewVisit.address || client?.address || "-"}</div>
+        </div>
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 11, color: CL.muted, marginBottom: 4, textTransform: "uppercase", fontWeight: 600 }}>{uiText("Status")}</div>
+          <Badge color={viewVisit.status === "done" ? CL.green : viewVisit.status === "cancelled" ? CL.red : CL.orange}>{uiText(viewVisit.status)}</Badge>
+        </div>
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 11, color: CL.muted, marginBottom: 4, textTransform: "uppercase", fontWeight: 600 }}>{uiText("Notes")}</div>
+          <div style={{ fontSize: 14, color: CL.text, whiteSpace: "pre-wrap", background: CL.s2, borderRadius: 8, padding: 10 }}>{viewVisit.notes || <span style={{ color: CL.muted }}>—</span>}</div>
+        </div>
+        {(viewVisit.photos || []).length > 0 && (
+          <div>
+            <div style={{ fontSize: 11, color: CL.muted, marginBottom: 8, textTransform: "uppercase", fontWeight: 600 }}>{uiText("Photos")} ({viewVisit.photos.length})</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+              {viewVisit.photos.map((ph, i) => (
+                <div key={i} style={{ position: "relative" }}>
+                  <img src={ph.data} alt={ph.name} style={{ width: 140, height: 140, objectFit: "cover", borderRadius: 10, border: `2px solid ${CL.bd}`, cursor: "pointer" }} onClick={() => window.open(ph.data, "_blank")} />
+                  <div style={{ fontSize: 10, color: CL.muted, marginTop: 3, textAlign: "center", maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ph.name}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {(viewVisit.photos || []).length === 0 && (
+          <div style={{ color: CL.muted, fontSize: 13 }}>📷 {uiText("No photos for this visit")}</div>
+        )}
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
+          <button style={btnSec} onClick={() => setViewVisit(null)}>{uiText("Close")}</button>
+        </div>
+      </div>
+    </ModalBox>
+  );
+})()}
 </div>
 );
 }
@@ -5080,11 +5313,11 @@ function ExpensesPage({ data, updateData, showToast }) {
     return CL.muted;
   };
   const getStatusLabel = (exp) => {
-    if (isPaid(exp)) return "Paid";
-    if (isOverdue(exp)) return "Overdue";
-    if (isDueToday(exp)) return "Due Today";
-    if (isDueSoon(exp)) return "Due Soon";
-    return "Pending";
+    if (isPaid(exp)) return uiText("Paid");
+    if (isOverdue(exp)) return uiText("Overdue");
+    if (isDueToday(exp)) return uiText("Due Today");
+    if (isDueSoon(exp)) return uiText("Due Soon");
+    return uiText("Pending");
   };
 
   const deleteExpense = (id) => {

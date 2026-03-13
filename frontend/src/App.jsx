@@ -2543,12 +2543,31 @@ return (
   {activeTab === "service" && (
     <div className="form-grid">
       <Field label="Cleaning Frequency">
-        <SelectInput value={form.cleaningFrequency} onChange={ev => set("cleaningFrequency", ev.target.value)}>
+        <SelectInput value={form.cleaningFrequency} onChange={ev => {
+          const newFreq = ev.target.value;
+          const hrs = form.hoursPerSession || 3;
+          let newDays = form.preferredDays || [];
+          if (newFreq === "Daily (weekdays only)") {
+            newDays = ["Monday","Tuesday","Wednesday","Thursday","Friday"].map(day => ({ day, hours: hrs }));
+          } else if (newFreq === "Daily (weekends included)") {
+            newDays = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"].map(day => ({ day, hours: hrs }));
+          } else if (newFreq === "Weekly" || newFreq === "Bi-weekly" || newFreq === "Monthly") {
+            if (newDays.length > 1) newDays = newDays.slice(0, 1);
+          } else if (newFreq === "2x per week") {
+            if (newDays.length > 2) newDays = newDays.slice(0, 2);
+          } else if (newFreq === "3x per week") {
+            if (newDays.length > 3) newDays = newDays.slice(0, 3);
+          }
+          setForm(prev => ({ ...prev, cleaningFrequency: newFreq, preferredDays: newDays }));
+        }}>
           <option value="One-time">{uiText("One-time")}</option><option value="Weekly">{uiText("Weekly")}</option><option value="Bi-weekly">{uiText("Bi-weekly")}</option><option value="Monthly">{uiText("Monthly")}</option><option value="2x per week">{uiText("2x per week")}</option><option value="3x per week">{uiText("3x per week")}</option><option value="Daily (weekends included)">{uiText("Daily (weekends included)")}</option><option value="Daily (weekdays only)">{uiText("Daily (weekdays only)")}</option><option value="Custom">{uiText("Custom")}</option>
         </SelectInput>
       </Field>
       <Field label={uiText("Hours per Session")}>
-        <TextInput type="number" step=".5" min="0" value={form.hoursPerSession || ""} onChange={ev => set("hoursPerSession", parseFloat(ev.target.value) || 0)} placeholder="ex: 3" />
+        <TextInput type="number" step=".5" min="0" value={form.hoursPerSession || ""} onChange={ev => {
+          const hrs = parseFloat(ev.target.value) || 0;
+          setForm(prev => ({ ...prev, hoursPerSession: hrs, preferredDays: (prev.preferredDays || []).map(d => ({ ...d, hours: hrs })) }));
+        }} placeholder="ex: 3" />
       </Field>
       <div style={{ gridColumn: "1/-1" }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: CL.gold, marginBottom: 8 }}>{uiText("Preferred Day")}</div>
@@ -2663,7 +2682,7 @@ const now = new Date();
 const [viewYear, setViewYear] = useState(now.getFullYear());
 const [viewMonth, setViewMonth] = useState(now.getMonth());
 
-const emptySchedule = { clientId: "", employeeId: "", date: getToday(), startTime: "08:00", endTime: "12:00", status: "scheduled", notes: "", recurrence: "none" };
+const emptySchedule = { clientId: "", employeeId: "", date: getToday(), dateTo: "", startTime: "08:00", endTime: "12:00", status: "scheduled", notes: "", recurrence: "none" };
 const dayHeaders = [uiText("Mon"), uiText("Tue"), uiText("Wed"), uiText("Thu"), uiText("Fri"), uiText("Sat"), uiText("Sun")];
 
 const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
@@ -2737,36 +2756,77 @@ updateData("schedules", prev => prev.map(s => s.id === schedData.id ? { ...sched
 showToast("Updated");
 } else {
 const stamp = new Date().toISOString();
-const items = [{ ...schedData, id: makeId(), updatedAt: stamp }];
-if (schedData.recurrence !== "none") {
-const baseDate = new Date(schedData.date);
-if (schedData.recurrence === "daily") {
-for (let i = 1; i <= 30; i++) {
-const d = new Date(baseDate);
-d.setDate(d.getDate() + i);
-items.push({ ...schedData, id: makeId(), date: d.toISOString().slice(0, 10), updatedAt: stamp });
-}
-} else if (schedData.recurrence === "daily-weekdays") {
-let added = 0;
-let offset = 1;
-while (added < 30) {
-const d = new Date(baseDate);
-d.setDate(d.getDate() + offset);
-const dayOfWeek = d.getDay();
-if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-items.push({ ...schedData, id: makeId(), date: d.toISOString().slice(0, 10), updatedAt: stamp });
-added++;
-}
-offset++;
-}
+const base = { ...schedData, dateTo: undefined };
+const items = [];
+const hasRange = schedData.dateTo && schedData.dateTo > schedData.date;
+
+if (hasRange) {
+  // Date range mode
+  const client = data.clients.find(c => c.id === schedData.clientId);
+  const preferredDays = client?.preferredDays || [];
+  const dayNames = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  let cur = new Date(schedData.date + "T00:00:00");
+  const end = new Date(schedData.dateTo + "T00:00:00");
+
+  if (preferredDays.length > 0) {
+    // Generate on preferred days of week within range
+    const pdNums = preferredDays.map(pd => dayNames.indexOf(pd.day));
+    while (cur <= end) {
+      const dow = cur.getDay();
+      if (pdNums.includes(dow)) {
+        const pd = preferredDays.find(pd => dayNames.indexOf(pd.day) === dow);
+        let endTime = schedData.endTime;
+        if (pd?.hours && schedData.startTime) {
+          const [h, m] = schedData.startTime.split(":").map(Number);
+          const tot = h * 60 + m + pd.hours * 60;
+          endTime = `${String(Math.floor(tot / 60) % 24).padStart(2, "0")}:${String(tot % 60).padStart(2, "0")}`;
+        }
+        items.push({ ...base, id: makeId(), date: cur.toISOString().slice(0, 10), endTime, updatedAt: stamp });
+      }
+      cur.setDate(cur.getDate() + 1);
+    }
+  } else if (schedData.recurrence === "daily-weekdays") {
+    while (cur <= end) {
+      if (cur.getDay() !== 0 && cur.getDay() !== 6) items.push({ ...base, id: makeId(), date: cur.toISOString().slice(0, 10), updatedAt: stamp });
+      cur.setDate(cur.getDate() + 1);
+    }
+  } else if (schedData.recurrence === "weekly") {
+    while (cur <= end) { items.push({ ...base, id: makeId(), date: cur.toISOString().slice(0, 10), updatedAt: stamp }); cur.setDate(cur.getDate() + 7); }
+  } else if (schedData.recurrence === "biweekly") {
+    while (cur <= end) { items.push({ ...base, id: makeId(), date: cur.toISOString().slice(0, 10), updatedAt: stamp }); cur.setDate(cur.getDate() + 14); }
+  } else if (schedData.recurrence === "monthly") {
+    while (cur <= end) { items.push({ ...base, id: makeId(), date: cur.toISOString().slice(0, 10), updatedAt: stamp }); cur.setMonth(cur.getMonth() + 1); }
+  } else {
+    // Every day
+    while (cur <= end) { items.push({ ...base, id: makeId(), date: cur.toISOString().slice(0, 10), updatedAt: stamp }); cur.setDate(cur.getDate() + 1); }
+  }
+
+  if (items.length === 0) { showToast("Aucun créneau dans cette plage", "error"); return; }
 } else {
-const interval = schedData.recurrence === "weekly" ? 7 : schedData.recurrence === "biweekly" ? 14 : 28;
-for (let i = 1; i <= 12; i++) {
-const d = new Date(baseDate);
-d.setDate(d.getDate() + interval * i);
-items.push({ ...schedData, id: makeId(), date: d.toISOString().slice(0, 10), updatedAt: stamp });
-}
-}
+  // Single date or classic recurrence
+  items.push({ ...base, id: makeId(), updatedAt: stamp });
+  if (schedData.recurrence !== "none") {
+    const baseDate = new Date(schedData.date);
+    if (schedData.recurrence === "daily") {
+      for (let i = 1; i <= 30; i++) {
+        const d = new Date(baseDate); d.setDate(d.getDate() + i);
+        items.push({ ...base, id: makeId(), date: d.toISOString().slice(0, 10), updatedAt: stamp });
+      }
+    } else if (schedData.recurrence === "daily-weekdays") {
+      let added = 0, offset = 1;
+      while (added < 30) {
+        const d = new Date(baseDate); d.setDate(d.getDate() + offset);
+        if (d.getDay() !== 0 && d.getDay() !== 6) { items.push({ ...base, id: makeId(), date: d.toISOString().slice(0, 10), updatedAt: stamp }); added++; }
+        offset++;
+      }
+    } else {
+      const interval = schedData.recurrence === "weekly" ? 7 : schedData.recurrence === "biweekly" ? 14 : 28;
+      for (let i = 1; i <= 12; i++) {
+        const d = new Date(baseDate); d.setDate(d.getDate() + interval * i);
+        items.push({ ...base, id: makeId(), date: d.toISOString().slice(0, 10), updatedAt: stamp });
+      }
+    }
+  }
 }
 updateData("schedules", prev => [...prev, ...items]);
 showToast(`${items.length} job(s) scheduled`);
@@ -2931,6 +2991,31 @@ const selectedEmployee = data.employees.find(e => e.id === form.employeeId);
 const suggestedCleaner = recommendedCleanerForClient(selectedClient, data.employees || []);
 const isCompletedLocked = Boolean(form.id && form.status === "completed");
 
+// Preview: count how many jobs will be generated in date range
+const hasDateRange = !form.id && form.dateTo && form.dateTo > form.date;
+const previewJobCount = (() => {
+  if (!hasDateRange) return null;
+  const preferredDays = selectedClient?.preferredDays || [];
+  const dayNames = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  let count = 0;
+  let cur = new Date(form.date + "T00:00:00");
+  const end = new Date(form.dateTo + "T00:00:00");
+  if (preferredDays.length > 0) {
+    const pdNums = preferredDays.map(pd => dayNames.indexOf(pd.day));
+    while (cur <= end) { if (pdNums.includes(cur.getDay())) count++; cur.setDate(cur.getDate() + 1); }
+  } else if (form.recurrence !== "none") {
+    const interval = form.recurrence === "daily" ? 1 : form.recurrence === "daily-weekdays" ? 1 : form.recurrence === "weekly" ? 7 : form.recurrence === "biweekly" ? 14 : 28;
+    if (form.recurrence === "daily-weekdays") {
+      while (cur <= end) { if (cur.getDay() !== 0 && cur.getDay() !== 6) count++; cur.setDate(cur.getDate() + 1); }
+    } else {
+      while (cur <= end) { count++; cur.setDate(cur.getDate() + interval); }
+    }
+  } else {
+    while (cur <= end) { count++; cur.setDate(cur.getDate() + 1); }
+  }
+  return count;
+})();
+
 return (
 <div>
 <div className="form-grid">
@@ -2949,7 +3034,18 @@ return (
 {suggestedCleaner && form.employeeId !== suggestedCleaner.id && <button type="button" style={{ ...btnSec, ...btnSm, marginTop: 6 }} onClick={() => set("employeeId", suggestedCleaner.id)} disabled={isCompletedLocked}>{uiText("Use suggested cleaner")}</button>}
 {selectedClient && selectedEmployee && <div style={{ fontSize: 11, color: cityMatchLabel(selectedEmployee, selectedClient).startsWith("✅") ? CL.green : CL.orange, marginTop: 4 }}>{cityMatchLabel(selectedEmployee, selectedClient)}</div>}
 </Field>
-<Field label="Date"><DatePicker value={form.date} onChange={ev => set("date", ev.target.value)} /></Field>
+<Field label={form.id ? uiText("Date") : uiText("Date From")}><DatePicker value={form.date} onChange={ev => set("date", ev.target.value)} /></Field>
+{!form.id && (
+  <Field label={uiText("Date To (optional)")}>
+    <DatePicker value={form.dateTo || ""} onChange={ev => set("dateTo", ev.target.value)} />
+    {hasDateRange && previewJobCount !== null && (
+      <div style={{ fontSize: 11, color: CL.green, marginTop: 4 }}>
+        ✓ {previewJobCount} {uiText("job(s) will be created")}
+        {(selectedClient?.preferredDays || []).length > 0 && <span style={{ color: CL.muted }}> · {uiText("based on preferred days")}</span>}
+      </div>
+    )}
+  </Field>
+)}
 <Field label="Status">
 <SelectInput value={form.status} onChange={ev => set("status", ev.target.value)} disabled={isCompletedLocked}>
 <option value="scheduled">{uiText("Scheduled")}</option><option value="in-progress">{uiText("In Progress")}</option><option value="completed">{uiText("Completed")}</option><option value="cancelled">{uiText("Cancelled")}</option>
@@ -2957,10 +3053,17 @@ return (
 </Field>
 <Field label="Start"><TextInput type="time" value={form.startTime} onChange={ev => set("startTime", ev.target.value)} disabled={isCompletedLocked} /></Field>
 <Field label="End"><TextInput type="time" value={form.endTime} onChange={ev => set("endTime", ev.target.value)} disabled={isCompletedLocked} /></Field>
-{!form.id && (
+{!form.id && !hasDateRange && (
 <Field label="Recurrence">
 <SelectInput value={form.recurrence} onChange={ev => set("recurrence", ev.target.value)} disabled={isCompletedLocked}>
 <option value="none">{uiText("One-time")}</option><option value="daily">{uiText("Daily (weekends included)")}</option><option value="daily-weekdays">{uiText("Daily (weekdays only)")}</option><option value="weekly">{uiText("Weekly (12 weeks)")}</option><option value="biweekly">{uiText("Bi-weekly (12x)")}</option><option value="monthly">{uiText("Monthly (12 months)")}</option>
+</SelectInput>
+</Field>
+)}
+{!form.id && hasDateRange && (selectedClient?.preferredDays || []).length === 0 && (
+<Field label={uiText("Interval in range")}>
+<SelectInput value={form.recurrence} onChange={ev => set("recurrence", ev.target.value)}>
+<option value="none">{uiText("Every day")}</option><option value="daily-weekdays">{uiText("Daily (weekdays only)")}</option><option value="weekly">{uiText("Weekly")}</option><option value="biweekly">{uiText("Bi-weekly")}</option><option value="monthly">{uiText("Monthly")}</option>
 </SelectInput>
 </Field>
 )}

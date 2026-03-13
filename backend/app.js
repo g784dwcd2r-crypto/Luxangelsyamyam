@@ -596,15 +596,15 @@ app.post('/api/employees', async (req, res) => {
 
     const result = await pool.query(
       `INSERT INTO employees (id, name, email, phone, phone_mobile, role, hourly_rate, address, city,
-        postal_code, country, start_date, status, contract_type, bank_iban, social_sec_number,
+        postal_code, country, start_date, status, contract_type, contract_end_date, bank_iban, social_sec_number,
         date_of_birth, nationality, languages, transport, work_permit, emergency_name, emergency_phone,
         pin, notes, username, password_hash, email_verified, account_status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30)
        RETURNING *`,
       [b.id || makeEmployeeId(), b.name, email, b.phone||'', b.phone_mobile||'', b.role||'Cleaner',
        b.hourly_rate||15, b.address||'', b.city||'', b.postal_code||'', b.country||'Luxembourg',
-       b.start_date||null, b.status||'active', b.contract_type||'CDI', b.bank_iban||'',
-       b.social_sec_number||'', b.date_of_birth||null, b.nationality||'', b.languages||'',
+       b.start_date||null, b.status||'active', b.contract_type||'CDI', b.contract_end_date||null,
+       b.bank_iban||'', b.social_sec_number||'', b.date_of_birth||null, b.nationality||'', b.languages||'',
        b.transport||'', b.work_permit||'', b.emergency_name||'', b.emergency_phone||'',
        b.pin||'0000', b.notes||'', (b.username||'').toLowerCase(), passwordHash,
        b.email_verified === false ? false : true, b.account_status || 'approved']
@@ -628,14 +628,14 @@ app.put('/api/employees/:id', async (req, res) => {
     const result = await pool.query(
       `UPDATE employees SET name=$1, email=$2, phone=$3, phone_mobile=$4, role=$5, hourly_rate=$6,
         address=$7, city=$8, postal_code=$9, country=$10, start_date=$11, status=$12,
-        contract_type=$13, bank_iban=$14, social_sec_number=$15, date_of_birth=$16,
-        nationality=$17, languages=$18, transport=$19, work_permit=$20, emergency_name=$21,
-        emergency_phone=$22, notes=$23, username=$24
-       WHERE id=$25 RETURNING *`,
+        contract_type=$13, contract_end_date=$14, bank_iban=$15, social_sec_number=$16, date_of_birth=$17,
+        nationality=$18, languages=$19, transport=$20, work_permit=$21, emergency_name=$22,
+        emergency_phone=$23, notes=$24, username=$25
+       WHERE id=$26 RETURNING *`,
       [b.name, email, b.phone||'', b.phone_mobile||'', b.role||'Cleaner',
        b.hourly_rate||15, b.address||'', b.city||'', b.postal_code||'', b.country||'Luxembourg',
-       b.start_date||null, b.status||'active', b.contract_type||'CDI', b.bank_iban||'',
-       b.social_sec_number||'', b.date_of_birth||null, b.nationality||'', b.languages||'',
+       b.start_date||null, b.status||'active', b.contract_type||'CDI', b.contract_end_date||null,
+       b.bank_iban||'', b.social_sec_number||'', b.date_of_birth||null, b.nationality||'', b.languages||'',
        b.transport||'', b.work_permit||'', b.emergency_name||'', b.emergency_phone||'',
        b.notes||'', (b.username||'').toLowerCase(), req.params.id]
     );

@@ -4657,6 +4657,7 @@ function InvoicesPage({ data, updateData, showToast }) {
 const { t, lang } = useI18n();
 const [modal, setModal] = useState(null);
 const [preview, setPreview] = useState(null);
+const [filters, setFilters] = useState({ invoiceNumber: "", clientId: "", status: "", dateFrom: "", dateTo: "" });
 
 const nextInvoiceNum = (dateStr = getToday()) => {
 const [year, month, day] = (dateStr || getToday()).split("-");
@@ -4859,20 +4860,81 @@ showToast(fallbackEmailError ? uiText("Unable to send email") : err.message, "er
 }
 };
 
+const filteredInvoices = data.invoices
+.filter(inv => {
+  if (filters.invoiceNumber && !String(inv.invoiceNumber || "").toLowerCase().includes(filters.invoiceNumber.toLowerCase())) return false;
+  if (filters.clientId && inv.clientId !== filters.clientId) return false;
+  if (filters.status && inv.status !== filters.status) return false;
+  if (filters.dateFrom && (inv.date || "") < filters.dateFrom) return false;
+  if (filters.dateTo && (inv.date || "") > filters.dateTo) return false;
+  return true;
+})
+.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+
+const hasFilters = filters.invoiceNumber || filters.clientId || filters.status || filters.dateFrom || filters.dateTo;
+
 return (
 <div>
 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
 <h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold }}>{t("invoices")}</h1>
 <button style={btnPri} onClick={() => setModal({ clientId: "", date: getToday(), dueDate: "", invoiceNumber: nextInvoiceNum(), items: [{ prestationDate: getToday(), description: "", hours: "", quantity: 1, unitPrice: 0, total: 0 }], visibleColumns: { prestationDate: true, description: true, hours: true, quantity: false, unitPrice: true, total: true, tva: true }, subtotal: 0, vatRate: data.settings.defaultVatRate, vatAmount: 0, total: 0, status: "draft", notes: "", paymentTerms: "Payment due within 30 days.", emailTemplate: "standard", zohoEmail: "" })}>{ICN.plus} {t("newInvoice")}</button>
 </div>
+<div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12, alignItems: "flex-end" }}>
+<input
+  placeholder={lang === "fr" ? "N° facture…" : "Invoice #…"}
+  value={filters.invoiceNumber}
+  onChange={e => setFilters(f => ({ ...f, invoiceNumber: e.target.value }))}
+  style={{ ...inputSt, width: 140, fontSize: 13 }}
+/>
+<select
+  value={filters.clientId}
+  onChange={e => setFilters(f => ({ ...f, clientId: e.target.value }))}
+  style={{ ...inputSt, width: 180, fontSize: 13 }}
+>
+  <option value="">{lang === "fr" ? "Tous les clients" : "All clients"}</option>
+  {[...data.clients].sort((a, b) => (a.name || "").localeCompare(b.name || "")).map(c => (
+    <option key={c.id} value={c.id}>{c.name}</option>
+  ))}
+</select>
+<select
+  value={filters.status}
+  onChange={e => setFilters(f => ({ ...f, status: e.target.value }))}
+  style={{ ...inputSt, width: 140, fontSize: 13 }}
+>
+  <option value="">{lang === "fr" ? "Tous les statuts" : "All statuses"}</option>
+  <option value="draft">{lang === "fr" ? "Brouillon" : "Draft"}</option>
+  <option value="sent">{lang === "fr" ? "Envoyée" : "Sent"}</option>
+  <option value="paid">{lang === "fr" ? "Payée" : "Paid"}</option>
+  <option value="overdue">{lang === "fr" ? "En retard" : "Overdue"}</option>
+</select>
+<input
+  type="date"
+  value={filters.dateFrom}
+  onChange={e => setFilters(f => ({ ...f, dateFrom: e.target.value }))}
+  style={{ ...inputSt, width: 150, fontSize: 13 }}
+  title={lang === "fr" ? "Date de début" : "Date from"}
+/>
+<input
+  type="date"
+  value={filters.dateTo}
+  onChange={e => setFilters(f => ({ ...f, dateTo: e.target.value }))}
+  style={{ ...inputSt, width: 150, fontSize: 13 }}
+  title={lang === "fr" ? "Date de fin" : "Date to"}
+/>
+{hasFilters && (
+  <button style={{ ...btnSec, fontSize: 13 }} onClick={() => setFilters({ invoiceNumber: "", clientId: "", status: "", dateFrom: "", dateTo: "" })}>
+    {lang === "fr" ? "Effacer" : "Clear"}
+  </button>
+)}
+</div>
 <div style={cardSt} className="tbl-wrap">
 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
 <thead><tr><th style={thSt}>#</th><th style={thSt}>{t("client")}</th><th style={thSt}>{t("date")}</th><th style={thSt}>{t("total")}</th><th style={thSt}>{t("status")}</th><th style={thSt}>{t("actions")}</th></tr></thead>
 <tbody>
-{data.invoices.sort((a, b) => (b.date || "").localeCompare(a.date || "")).map(inv => { const client = data.clients.find(c => c.id === inv.clientId); return (
+{filteredInvoices.map(inv => { const client = data.clients.find(c => c.id === inv.clientId); return (
 <tr key={inv.id}><td style={tdSt}><strong>{inv.invoiceNumber}</strong></td><td style={tdSt}>{client?.name || "-"}</td><td style={tdSt}>{fmtDate(inv.date)}</td><td style={{ ...tdSt, fontWeight: 600 }}>€{(inv.total || 0).toFixed(2)}</td><td style={tdSt}>{(() => { const statusColor = inv.status === "paid" ? CL.green : inv.status === "overdue" ? CL.red : inv.status === "sent" ? CL.blue : CL.muted; return <select value={inv.status} onChange={e => handleStatusChange(inv, e.target.value)} style={{ background: statusColor + "22", color: statusColor, border: `1.5px solid ${statusColor}`, borderRadius: 20, padding: "3px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer", appearance: "none", WebkitAppearance: "none", outline: "none" }}><option value="draft">{lang === "fr" ? "Brouillon" : "Draft"}</option><option value="sent">{lang === "fr" ? "Envoyée" : "Sent"}</option><option value="paid">{lang === "fr" ? "Payée ✓" : "Paid ✓"}</option><option value="overdue">{lang === "fr" ? "En retard" : "Overdue"}</option></select>; })()}</td><td style={tdSt}><div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}><button style={{ ...btnSec, ...btnSm }} onClick={() => setPreview(inv)}>{t("view")}</button><button style={{ ...btnSec, ...btnSm }} onClick={() => setModal({ ...inv })}>{ICN.edit}</button><button style={{ ...btnSec, ...btnSm }} onClick={() => emailInvoice(inv)}>{ICN.mail}</button><button style={{ ...btnSec, ...btnSm, color: CL.red }} onClick={() => handleDelete(inv.id)}>{ICN.trash}</button></div></td></tr>
 ); })}
-{data.invoices.length === 0 && <tr><td colSpan={6} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>{uiText("No invoices")}</td></tr>}
+{filteredInvoices.length === 0 && <tr><td colSpan={6} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>{hasFilters ? (lang === "fr" ? "Aucune facture trouvée" : "No invoices match filters") : uiText("No invoices")}</td></tr>}
 </tbody>
 </table>
 </div>

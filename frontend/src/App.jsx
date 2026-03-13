@@ -787,53 +787,60 @@ const toApiEmployee = (emp, pin, username) => ({
   ...(pin !== undefined ? { pin } : {}),
 });
 
-// Fire-and-forget API sync — errors are non-fatal (DB is primary store)
-const syncEmployeeToApi = async (emp, pin, username) => {
-  try {
-    const payload = toApiEmployee(emp, pin, username);
-    const updateRes = await fetch(apiUrl(`/api/employees/${emp.id}`), {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-
-    // If PUT fails because the employee does not exist in the API DB yet,
-    // create it so cleaner login can still work from any device/browser.
-    if (updateRes.status === 404) {
-      await fetch(apiUrl("/api/employees"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-    }
-  } catch { /* non-fatal */ }
+const parseApiErrorMessage = async (response, fallbackMessage) => {
+  let payload = {};
+  try { payload = await response.json(); } catch { payload = {}; }
+  return payload?.error || payload?.message || fallbackMessage;
 };
 
-const createEmployeeInApi = async (emp, pin, username) => {
-  try {
-    const payload = toApiEmployee(emp, pin, username);
-    await fetch(apiUrl("/api/employees"), {
+const ensureApiOk = async (response, fallbackMessage) => {
+  if (response.ok) return;
+  throw new Error(await parseApiErrorMessage(response, fallbackMessage));
+};
+
+const syncEmployeeToApi = async (emp, pin, username) => {
+  const payload = toApiEmployee(emp, pin, username);
+  const updateRes = await fetch(apiUrl(`/api/employees/${emp.id}`), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (updateRes.status === 404) {
+    const createRes = await fetch(apiUrl("/api/employees"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-  } catch { /* non-fatal */ }
+    await ensureApiOk(createRes, "Failed to create employee");
+    return;
+  }
+
+  await ensureApiOk(updateRes, "Failed to update employee");
+};
+
+const createEmployeeInApi = async (emp, pin, username) => {
+  const payload = toApiEmployee(emp, pin, username);
+  const response = await fetch(apiUrl("/api/employees"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  await ensureApiOk(response, "Failed to create employee");
 };
 
 const syncEmployeePinToApi = async (id, pin) => {
-  try {
-    await fetch(apiUrl(`/api/employees/${id}/pin`), {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pin }),
-    });
-  } catch { /* non-fatal */ }
+  const response = await fetch(apiUrl(`/api/employees/${id}/pin`), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pin }),
+  });
+  await ensureApiOk(response, "Failed to update employee PIN");
 };
 
 const deleteEmployeeFromApi = async (id) => {
-  try {
-    await fetch(apiUrl(`/api/employees/${id}`), { method: "DELETE" });
-  } catch { /* non-fatal */ }
+  const response = await fetch(apiUrl(`/api/employees/${id}`), { method: "DELETE" });
+  await ensureApiOk(response, "Failed to delete employee");
 };
 
 const getLeaveSummary = (data, employeeId, year = getToday().slice(0, 4)) => {
@@ -2398,31 +2405,41 @@ username: "",
 languages: "", transport: "", leaveAllowance: 26, cleanerGroup: "", hiringStage: "hired",
 };
 
-const handleSave = (empData) => {
+const handleSave = async (empData) => {
 const { pin: empPin, username: empUsername, ...empFields } = empData;
 const pinValue = empPin || "0000";
+const normalizedUsername = String(empUsername || "").trim().toLowerCase();
+const apiErrorMessage = (err, fallback) => {
+  const msg = err?.message;
+  return !msg || /load failed|failed to fetch/i.test(msg) ? fallback : msg;
+};
+try {
 if (empData.id) {
+await syncEmployeeToApi(empFields, pinValue, normalizedUsername);
+await syncEmployeePinToApi(empData.id, pinValue);
 updateData("employees", prev => prev.map(e => e.id === empData.id ? empFields : e));
 updateData("employeePins", prev => ({ ...prev, [empData.id]: pinValue }));
-updateData("employeeUsernames", prev => ({ ...prev, [empData.id]: String(empUsername || "").trim().toLowerCase() }));
-// Sync to backend so cleaner login works on all browsers/devices
-syncEmployeeToApi(empFields, pinValue, String(empUsername || "").trim().toLowerCase());
-syncEmployeePinToApi(empData.id, pinValue);
-showToast("Employee updated");
+updateData("employeeUsernames", prev => ({ ...prev, [empData.id]: normalizedUsername }));
+showToast("Employee updated", "success");
 } else {
 const newId = makeId();
 const newEmp = { ...empFields, id: newId };
+await createEmployeeInApi(newEmp, pinValue, normalizedUsername);
 updateData("employees", prev => [...prev, newEmp]);
 updateData("employeePins", prev => ({ ...prev, [newId]: pinValue }));
-updateData("employeeUsernames", prev => ({ ...prev, [newId]: String(empUsername || "").trim().toLowerCase() }));
-// Create in backend so cleaner login works on all browsers/devices
-createEmployeeInApi(newEmp, pinValue, String(empUsername || "").trim().toLowerCase());
-showToast("Employee added");
+updateData("employeeUsernames", prev => ({ ...prev, [newId]: normalizedUsername }));
+showToast("Employee added", "success");
 }
 setModal(null);
+} catch (err) {
+console.error(err);
+showToast(apiErrorMessage(err, "Unable to save employee"), "error");
+}
 };
 
-const handleDelete = (id) => {
+const handleDelete = async (id) => {
+try {
+await deleteEmployeeFromApi(id);
 updateData("employees", prev => prev.filter(e => e.id !== id));
 updateData("employeePins", prev => {
   const next = { ...(prev || {}) };
@@ -2434,10 +2451,13 @@ updateData("employeeUsernames", prev => {
   delete next[id];
   return next;
 });
-// Remove from backend too
-deleteEmployeeFromApi(id);
-showToast("Deleted", "error");
+showToast("Deleted", "success");
 setDeleteId(null);
+} catch (err) {
+console.error(err);
+const msg = err?.message;
+showToast(!msg || /load failed|failed to fetch/i.test(msg) ? "Unable to delete employee" : msg, "error");
+}
 };
 
 const q = search.toLowerCase();

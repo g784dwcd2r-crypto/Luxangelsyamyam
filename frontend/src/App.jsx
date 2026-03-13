@@ -843,6 +843,250 @@ const deleteEmployeeFromApi = async (id) => {
   await ensureApiOk(response, "Failed to delete employee");
 };
 
+// CLIENT API helpers
+const toApiClient = (c) => ({
+  id: c.id,
+  name: c.name,
+  contact_person: c.contactPerson || "",
+  email: c.email || "",
+  phone: c.phone || "",
+  phone_mobile: c.phoneMobile || "",
+  address: c.address || "",
+  apartment_floor: c.apartmentFloor || "",
+  city: c.city || "",
+  postal_code: c.postalCode || "",
+  country: c.country || "Luxembourg",
+  type: c.type || "Residential",
+  cleaning_frequency: c.cleaningFrequency || "Weekly",
+  billing_type: c.billingType || "hourly",
+  price_per_hour: c.pricePerHour || 35,
+  price_fixed: c.priceFixed || 0,
+  status: c.status || "active",
+  language: c.language || "FR",
+  access_code: c.accessCode || "",
+  key_location: c.keyLocation || "",
+  parking_info: c.parkingInfo || "",
+  pet_info: c.petInfo || "",
+  preferred_day: c.preferredDay || "",
+  preferred_time: c.preferredTime || "",
+  contract_start: c.contractStart || null,
+  contract_end: c.contractEnd || null,
+  square_meters: c.squareMeters || null,
+  tax_id: c.taxId || "",
+  special_instructions: c.specialInstructions || "",
+  notes: c.notes || "",
+});
+
+const syncClientToApi = async (client) => {
+  const payload = toApiClient(client);
+  const updateRes = await fetch(apiUrl(`/api/clients/${client.id}`), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (updateRes.status === 404) {
+    const createRes = await fetch(apiUrl("/api/clients"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    await ensureApiOk(createRes, "Failed to create client");
+    return;
+  }
+  await ensureApiOk(updateRes, "Failed to update client");
+};
+
+const createClientInApi = async (client) => {
+  const response = await fetch(apiUrl("/api/clients"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(toApiClient(client)),
+  });
+  await ensureApiOk(response, "Failed to create client");
+};
+
+const deleteClientFromApi = async (id) => {
+  const response = await fetch(apiUrl(`/api/clients/${id}`), { method: "DELETE" });
+  await ensureApiOk(response, "Failed to delete client");
+};
+
+// SCHEDULE API helpers
+const toApiSchedule = (s) => ({
+  id: s.id,
+  date: s.date,
+  client_id: s.clientId || null,
+  employee_id: s.employeeId || null,
+  start_time: s.startTime || "08:00",
+  end_time: s.endTime || "12:00",
+  status: s.status || "scheduled",
+  notes: s.notes || "",
+  recurrence: s.recurrence || "none",
+});
+
+const createScheduleInApi = async (sched) => {
+  const response = await fetch(apiUrl("/api/schedules"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(toApiSchedule(sched)),
+  });
+  await ensureApiOk(response, "Failed to create schedule");
+};
+
+const syncScheduleToApi = async (sched) => {
+  const payload = toApiSchedule(sched);
+  const updateRes = await fetch(apiUrl(`/api/schedules/${sched.id}`), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (updateRes.status === 404) {
+    const createRes = await fetch(apiUrl("/api/schedules"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    await ensureApiOk(createRes, "Failed to create schedule");
+    return;
+  }
+  await ensureApiOk(updateRes, "Failed to update schedule");
+};
+
+const deleteScheduleFromApi = async (id) => {
+  const response = await fetch(apiUrl(`/api/schedules/${id}`), { method: "DELETE" });
+  await ensureApiOk(response, "Failed to delete schedule");
+};
+
+// INVOICE API helpers
+const toApiInvoice = (inv) => ({
+  id: inv.id,
+  invoice_number: inv.invoiceNumber,
+  date: inv.date,
+  due_date: inv.dueDate || null,
+  client_id: inv.clientId || null,
+  status: inv.status || "draft",
+  items: inv.items || [],
+  subtotal: inv.subtotal || 0,
+  vat_rate: inv.vatRate || 17,
+  vat_amount: inv.vatAmount || 0,
+  total: inv.total || 0,
+  notes: inv.notes || "",
+  payment_terms: inv.paymentTerms || "",
+});
+
+const syncInvoiceToApi = async (inv) => {
+  const payload = toApiInvoice(inv);
+  const updateRes = await fetch(apiUrl(`/api/invoices/${inv.id}`), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (updateRes.status === 404) {
+    const createRes = await fetch(apiUrl("/api/invoices"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    await ensureApiOk(createRes, "Failed to create invoice");
+    return;
+  }
+  await ensureApiOk(updateRes, "Failed to update invoice");
+};
+
+const createInvoiceInApi = async (inv) => {
+  const response = await fetch(apiUrl("/api/invoices"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(toApiInvoice(inv)),
+  });
+  await ensureApiOk(response, "Failed to create invoice");
+};
+
+const deleteInvoiceFromApi = async (id) => {
+  const response = await fetch(apiUrl(`/api/invoices/${id}`), { method: "DELETE" });
+  await ensureApiOk(response, "Failed to delete invoice");
+};
+
+// PAYSLIP API helpers
+const toApiPayslip = (ps) => ({
+  id: ps.id,
+  payslip_number: ps.payslipNumber,
+  employee_id: ps.employeeId,
+  month: ps.month,
+  total_hours: ps.totalHours || 0,
+  hourly_rate: ps.hourlyRate || 0,
+  gross_pay: ps.grossPay || 0,
+  social_charges: ps.socialCharges || 0,
+  tax_estimate: ps.taxEstimate || 0,
+  net_pay: ps.netPay || 0,
+  status: ps.status || "draft",
+});
+
+const createPayslipInApi = async (ps) => {
+  const response = await fetch(apiUrl("/api/payslips"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(toApiPayslip(ps)),
+  });
+  await ensureApiOk(response, "Failed to create payslip");
+};
+
+const syncPayslipToApi = async (ps) => {
+  const payload = toApiPayslip(ps);
+  const updateRes = await fetch(apiUrl(`/api/payslips/${ps.id}`), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (updateRes.status === 404) {
+    const createRes = await fetch(apiUrl("/api/payslips"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    await ensureApiOk(createRes, "Failed to create payslip");
+    return;
+  }
+  await ensureApiOk(updateRes, "Failed to update payslip");
+};
+
+// CLOCK ENTRY API helpers
+const toApiClock = (c) => ({
+  id: c.id,
+  employee_id: c.employeeId,
+  client_id: c.clientId || null,
+  clock_in: c.clockIn,
+  clock_out: c.clockOut || null,
+  notes: c.notes || "",
+});
+
+const createClockEntryInApi = async (entry) => {
+  const response = await fetch(apiUrl("/api/clock-entries"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(toApiClock(entry)),
+  });
+  await ensureApiOk(response, "Failed to create clock entry");
+};
+
+const syncClockEntryToApi = async (entry) => {
+  const payload = toApiClock(entry);
+  const updateRes = await fetch(apiUrl(`/api/clock-entries/${entry.id}`), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (updateRes.status === 404) {
+    const createRes = await fetch(apiUrl("/api/clock-entries"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    await ensureApiOk(createRes, "Failed to create clock entry");
+    return;
+  }
+  await ensureApiOk(updateRes, "Failed to update clock entry");
+};
+
 const getLeaveSummary = (data, employeeId, year = getToday().slice(0, 4)) => {
 const allowance = data.employees.find(e => e.id === employeeId)?.leaveAllowance ?? 26;
 const requests = (data.timeOffRequests || []).filter(r => r.employeeId === employeeId && (r.startDate || "").startsWith(year));
@@ -1426,12 +1670,14 @@ useEffect(() => {
       const employeePins = Object.fromEntries((employeesRows || []).map(e => [e.id, String(e.pin || '0000')]));
       const employeeUsernames = Object.fromEntries((employeesRows || []).map(e => [e.id, String(e.username || '').toLowerCase()]));
 
+      const mappedSchedules = (schedulesRows || []).map(mapSchedule);
+      const mappedClocks = (clocksRows || []).map(mapClock);
       setData(prev => ({
         ...prev,
         employees: (employeesRows || []).map(mapEmployee),
         clients: (clientsRows || []).map(mapClient),
-        schedules: (schedulesRows || []).map(mapSchedule),
-        clockEntries: (clocksRows || []).map(mapClock),
+        schedules: syncSchedulesWithClockEntries(mappedSchedules, mappedClocks),
+        clockEntries: mappedClocks,
         invoices: (invoicesRows || []).map(mapInvoice),
         payslips: (payslipsRows || []).map(mapPayslip),
         employeePins,
@@ -1914,29 +2160,43 @@ const myInHandTotal = myHoldings.reduce((sum, h) => sum + (Number(h.qtyInHand) |
 const hasPendingProductRequest = myProductRequests.some(r => r.status === "pending");
 const hasPendingTimeOffRequest = myTimeOffRequests.some(r => r.status === "pending");
 
-const doClockIn = (clientId) => {
+const doClockIn = async (clientId) => {
 if (activeClock) { showToast("Already clocked in!", "error"); return; }
 const isCompletedToday = data.schedules.some(sc => sc.employeeId === auth.employeeId && sc.clientId === clientId && sc.date === getToday() && sc.status === "completed");
 if (isCompletedToday) { showToast("This job is already completed and locked", "error"); return; }
 const nowAt = new Date();
 const lateMeta = getLateMeta(data.schedules, { employeeId: auth.employeeId, clientId, clockInAt: nowAt });
-updateData("clockEntries", prev => [...prev, {
+const newEntry = {
 id: makeId(), employeeId: auth.employeeId, clientId,
 clockIn: nowAt.toISOString(), clockOut: null,
 notes: clockInNote.trim(),
 isLate: lateMeta.isLate, lateMinutes: lateMeta.lateMinutes,
 scheduledStart: lateMeta.scheduledStart,
-}]);
+};
+try {
+await createClockEntryInApi(newEntry);
+updateData("clockEntries", prev => [...prev, newEntry]);
 updateData("schedules", prev => updateScheduleStatusForJob(prev, { employeeId: auth.employeeId, clientId, date: lateMeta.workDate, from: "scheduled", to: "in-progress" }));
 setClockInNote("");
 showToast(lateMeta.isLate ? `Clocked in (Late by ${lateMeta.lateMinutes} min)` : "Clocked in!");
+} catch (err) {
+console.error(err);
+showToast(err?.message || "Unable to clock in", "error");
+}
 };
-const doClockOut = () => {
+const doClockOut = async () => {
 if (!activeClock) return;
 const today = activeClock.clockIn?.slice(0, 10) || getToday();
-updateData("clockEntries", prev => prev.map(c => c.id === activeClock.id ? { ...c, clockOut: new Date().toISOString() } : c));
+const updatedEntry = { ...activeClock, clockOut: new Date().toISOString() };
+try {
+await syncClockEntryToApi(updatedEntry);
+updateData("clockEntries", prev => prev.map(c => c.id === activeClock.id ? updatedEntry : c));
 updateData("schedules", prev => updateScheduleStatusForJob(prev, { employeeId: auth.employeeId, clientId: activeClock.clientId, date: today, from: "in-progress", to: "completed" }));
 showToast("Clocked out!");
+} catch (err) {
+console.error(err);
+showToast(err?.message || "Unable to clock out", "error");
+}
 };
 
 const readAsDataUrl = (file) => new Promise((resolve, reject) => {
@@ -2674,21 +2934,35 @@ status: "active", accessCode: "", keyLocation: "", parkingInfo: "", petInfo: "",
 contractStart: "", contractEnd: "", squareMeters: "", taxId: "", language: "FR", preferredCleanerIds: [],
 };
 
-const handleSave = (clientData) => {
+const handleSave = async (clientData) => {
+try {
 if (clientData.id) {
+await syncClientToApi(clientData);
 updateData("clients", prev => prev.map(c => c.id === clientData.id ? clientData : c));
 showToast("Client updated");
 } else {
-updateData("clients", prev => [...prev, { ...clientData, id: makeId() }]);
+const newClient = { ...clientData, id: makeId() };
+await createClientInApi(newClient);
+updateData("clients", prev => [...prev, newClient]);
 showToast("Client added");
 }
 setModal(null);
+} catch (err) {
+console.error(err);
+showToast(err?.message || "Unable to save client", "error");
+}
 };
 
-const handleDelete = (id) => {
+const handleDelete = async (id) => {
+try {
+await deleteClientFromApi(id);
 updateData("clients", prev => prev.filter(c => c.id !== id));
 showToast("Deleted", "error");
 setDeleteId(null);
+} catch (err) {
+console.error(err);
+showToast(err?.message || "Unable to delete client", "error");
+}
 };
 
 const q = search.toLowerCase();
@@ -3062,10 +3336,18 @@ const focusedJobs = (data.schedules || [])
   .filter(s => s.date && s.date >= focused.from && s.date <= focused.to && (!filterEmp || s.employeeId === filterEmp) && (!filterClient || s.clientId === filterClient))
   .sort((a, b) => `${a.date} ${a.startTime}`.localeCompare(`${b.date} ${b.startTime}`));
 
-const handleSave = (schedData) => {
+const handleSave = async (schedData) => {
 if (schedData.id) {
+try {
+await syncScheduleToApi({ ...schedData, updatedAt: new Date().toISOString() });
 updateData("schedules", prev => prev.map(s => s.id === schedData.id ? { ...schedData, updatedAt: new Date().toISOString() } : s));
 showToast("Updated");
+setModal(null);
+} catch (err) {
+console.error(err);
+showToast(err?.message || "Unable to update schedule", "error");
+}
+return;
 } else {
 const stamp = new Date().toISOString();
 const base = { ...schedData, dateTo: undefined };
@@ -3140,15 +3422,27 @@ if (hasRange) {
     }
   }
 }
+try {
+await Promise.all(items.map(item => createScheduleInApi(item)));
 updateData("schedules", prev => [...prev, ...items]);
 showToast(`${items.length} job(s) scheduled`);
-}
 setModal(null);
+} catch (err) {
+console.error(err);
+showToast(err?.message || "Unable to save schedules", "error");
+}
+}
 };
 
-const handleDelete = (id) => {
+const handleDelete = async (id) => {
+try {
+await deleteScheduleFromApi(id);
 updateData("schedules", prev => prev.filter(s => s.id !== id));
 showToast("Removed", "error");
+} catch (err) {
+console.error(err);
+showToast(err?.message || "Unable to delete schedule", "error");
+}
 };
 
 return (
@@ -3432,33 +3726,46 @@ const [editEntry, setEditEntry] = useState(null);
 
 const setManual = (key, value) => setManualEntry(prev => ({ ...prev, [key]: value }));
 
-const doClockIn = () => {
+const doClockIn = async () => {
 if (!selectedEmp || !selectedCli) { showToast("Select both", "error"); return; }
 if (data.clockEntries.find(c => c.employeeId === selectedEmp && !c.clockOut)) { showToast("Already in!", "error"); return; }
 const isCompletedToday = data.schedules.some(sc => sc.employeeId === selectedEmp && sc.clientId === selectedCli && sc.date === getToday() && sc.status === "completed");
 if (isCompletedToday) { showToast("Job already completed for today", "error"); return; }
 const nowAt = new Date();
 const lateMeta = getLateMeta(data.schedules, { employeeId: selectedEmp, clientId: selectedCli, clockInAt: nowAt });
-updateData("clockEntries", prev => [...prev, {
+const newEntry = {
 id: makeId(), employeeId: selectedEmp, clientId: selectedCli,
 clockIn: nowAt.toISOString(), clockOut: null,
 notes: clockInNote.trim(),
 isLate: lateMeta.isLate, lateMinutes: lateMeta.lateMinutes,
 scheduledStart: lateMeta.scheduledStart,
-}]);
+};
+try {
+await createClockEntryInApi(newEntry);
+updateData("clockEntries", prev => [...prev, newEntry]);
 updateData("schedules", prev => updateScheduleStatusForJob(prev, { employeeId: selectedEmp, clientId: selectedCli, date: lateMeta.workDate, from: "scheduled", to: "in-progress" }));
 setClockInNote("");
 showToast(lateMeta.isLate ? `Clocked in (Late by ${lateMeta.lateMinutes} min)` : "Clocked in!");
+} catch (err) {
+console.error(err);
+showToast(err?.message || "Unable to clock in", "error");
+}
 };
 
-const doClockOut = (id) => {
+const doClockOut = async (id) => {
 const entry = data.clockEntries.find(c => c.id === id);
-updateData("clockEntries", prev => prev.map(c => c.id === id ? { ...c, clockOut: new Date().toISOString() } : c));
-if (entry) {
+if (!entry) return;
+const updatedEntry = { ...entry, clockOut: new Date().toISOString() };
+try {
+await syncClockEntryToApi(updatedEntry);
+updateData("clockEntries", prev => prev.map(c => c.id === id ? updatedEntry : c));
 const workDate = entry.clockIn?.slice(0, 10) || getToday();
 updateData("schedules", prev => updateScheduleStatusForJob(prev, { employeeId: entry.employeeId, clientId: entry.clientId, date: workDate, from: "in-progress", to: "completed" }));
-}
 showToast("Clocked out!");
+} catch (err) {
+console.error(err);
+showToast(err?.message || "Unable to clock out", "error");
+}
 };
 
 const addManualEntry = () => {
@@ -3480,7 +3787,7 @@ clientId: manualEntry.clientId,
 clockInAt: new Date(clockInISO),
 });
 
-updateData("clockEntries", prev => [...prev, {
+const newManualEntry = {
 id: makeId(),
 employeeId: manualEntry.employeeId,
 clientId: manualEntry.clientId,
@@ -3490,8 +3797,11 @@ notes: manualEntry.notes.trim(),
 isLate: lateMeta.isLate,
 lateMinutes: lateMeta.lateMinutes,
 scheduledStart: lateMeta.scheduledStart,
-}]);
+};
 
+try {
+await createClockEntryInApi(newManualEntry);
+updateData("clockEntries", prev => [...prev, newManualEntry]);
 updateData("schedules", prev => updateScheduleStatusForJob(prev, {
 employeeId: manualEntry.employeeId,
 clientId: manualEntry.clientId,
@@ -3499,7 +3809,6 @@ date: manualEntry.clockInDate,
 from: "scheduled",
 to: clockOutISO ? "completed" : "in-progress",
 }));
-
 setManualEntry({
 employeeId: "",
 clientId: "",
@@ -3510,17 +3819,34 @@ clockOutTime: "",
 notes: "",
 });
 showToast("Manual clock entry added");
+} catch (err) {
+console.error(err);
+showToast(err?.message || "Unable to add manual clock entry", "error");
+}
 };
 
-const saveEntry = (entry) => {
+const saveEntry = async (entry) => {
+try {
+await syncClockEntryToApi(entry);
 updateData("clockEntries", prev => prev.map(c => c.id === entry.id ? entry : c));
 showToast("Updated");
 setEditEntry(null);
+} catch (err) {
+console.error(err);
+showToast(err?.message || "Unable to update clock entry", "error");
+}
 };
 
-const deleteEntry = (id) => {
+const deleteEntry = async (id) => {
+try {
+const response = await fetch(apiUrl(`/api/clock-entries/${id}`), { method: "DELETE" });
+await ensureApiOk(response, "Failed to delete clock entry");
 updateData("clockEntries", prev => prev.filter(c => c.id !== id));
 showToast("Deleted", "error");
+} catch (err) {
+console.error(err);
+showToast(err?.message || "Unable to delete clock entry", "error");
+}
 };
 
 const activeClocks = data.clockEntries.filter(c => !c.clockOut);
@@ -4005,7 +4331,7 @@ if (frequency === "one-time") {
 return entries;
 };
 
-const convertToInvoice = (q) => {
+const convertToInvoice = async (q) => {
 const invoice = {
 id: makeId(),
 invoiceNumber: toInvoiceNum(),
@@ -4023,12 +4349,24 @@ status: "draft",
 notes: q.notes || "",
 paymentTerms: q.paymentTerms || "Payment due within 30 days.",
 };
+try {
+await createInvoiceInApi(invoice);
+} catch (err) {
+console.error(err);
+showToast(err?.message || "Unable to save invoice", "error");
+return;
+}
 updateData("invoices", prev => [...prev, invoice]);
 updateData("quotes", prev => (prev || []).map(x => x.id === q.id ? { ...x, status: "converted", convertedInvoiceId: invoice.id } : x));
 const js = q.jobSchedule;
 if (js && js.employeeId && js.startDate) {
   const newSchedules = generateScheduleEntries(q.clientId, js);
   if (newSchedules.length > 0) {
+    try {
+      await Promise.all(newSchedules.map(s => createScheduleInApi(s)));
+    } catch (err) {
+      console.error(err);
+    }
     updateData("schedules", prev => [...(prev || []), ...newSchedules]);
     showToast(`Devis converti en facture · ${newSchedules.length} entrée(s) ajoutée(s) au planning`);
     return;
@@ -4344,18 +4682,38 @@ employeeName: employee?.name || "Unassigned",
 return [...scheduleRows, ...manualClockRows].sort((a, b) => `${a.prestationDate}`.localeCompare(b.prestationDate));
 };
 
-const handleSave = (inv) => {
+const handleSave = async (inv) => {
 const subtotal = (inv.items || []).reduce((sum, it) => sum + (Number(it.total) || 0), 0);
 const vatAmount = Math.round(subtotal * (Number(inv.vatRate) || 0) / 100 * 100) / 100;
 const hasValidFormat = /^LA-\d{4}-\d{2}-\d{2}-\d+$/.test(inv.invoiceNumber || "");
 const final = { ...inv, invoiceNumber: hasValidFormat ? inv.invoiceNumber : nextInvoiceNum(inv.date || getToday()), subtotal, vatAmount, total: subtotal + vatAmount };
-if (final.id) updateData("invoices", prev => prev.map(i => i.id === final.id ? final : i));
-else updateData("invoices", prev => [...prev, { ...final, id: makeId() }]);
+try {
+if (final.id) {
+await syncInvoiceToApi(final);
+updateData("invoices", prev => prev.map(i => i.id === final.id ? final : i));
+} else {
+const newInv = { ...final, id: makeId() };
+await createInvoiceInApi(newInv);
+updateData("invoices", prev => [...prev, newInv]);
+}
 showToast(final.id ? "Updated" : "Created");
 setModal(null);
+} catch (err) {
+console.error(err);
+showToast(err?.message || "Unable to save invoice", "error");
+}
 };
 
-const handleDelete = (id) => { updateData("invoices", prev => prev.filter(i => i.id !== id)); showToast("Deleted", "error"); };
+const handleDelete = async (id) => {
+try {
+await deleteInvoiceFromApi(id);
+updateData("invoices", prev => prev.filter(i => i.id !== id));
+showToast("Deleted", "error");
+} catch (err) {
+console.error(err);
+showToast(err?.message || "Unable to delete invoice", "error");
+}
+};
 
 const previewRef = useRef(null);
 
@@ -4794,7 +5152,7 @@ const [month, setMonth] = useState(getToday().slice(0, 7));
 
 if (auth?.role !== "owner") return <div style={cardSt}>{t("Payroll access is restricted.")}</div>;
 
-const generatePayslips = () => {
+const generatePayslips = async () => {
 const payslips = data.employees.filter(emp => emp.status === "active").map(emp => {
 const entries = data.clockEntries.filter(c => c.employeeId === emp.id && c.clockOut && c.clockIn?.startsWith(month));
 const totalH = entries.reduce((sum, ce) => sum + calcHrs(ce.clockIn, ce.clockOut), 0);
@@ -4806,13 +5164,27 @@ status: "draft", createdAt: new Date().toISOString(),
 payslipNumber: `PS-${month.replace("-", "")}-${emp.name.slice(0, 3).toUpperCase()}`,
 };
 });
+try {
+await Promise.all(payslips.map(ps => createPayslipInApi(ps)));
 updateData("payslips", prev => [...prev, ...payslips]);
 showToast(`${payslips.length} generated`);
+} catch (err) {
+console.error(err);
+showToast(err?.message || "Unable to generate payslips", "error");
+}
 };
 
-const markPaid = (id) => {
-updateData("payslips", prev => prev.map(ps => ps.id === id ? { ...ps, status: "paid" } : ps));
+const markPaid = async (id) => {
+const ps = data.payslips.find(p => p.id === id);
+if (!ps) return;
+try {
+await syncPayslipToApi({ ...ps, status: "paid" });
+updateData("payslips", prev => prev.map(p => p.id === id ? { ...p, status: "paid" } : p));
 showToast("Marked paid");
+} catch (err) {
+console.error(err);
+showToast(err?.message || "Unable to update payslip", "error");
+}
 };
 
 return (

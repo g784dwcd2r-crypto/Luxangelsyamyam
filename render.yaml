@@ -16,13 +16,17 @@ services:
     healthCheckPath: /api/health/db
     envVars:
       - key: DATABASE_URL
-        value: postgresql://test_bb89_user:JPy2LBdWAruo4SmfuNYvoiWicsB5Rl1A@dpg-d6ovgfpr0fns73e0us30-a/test_bb89
+        fromDatabase:
+          name: Test
+          property: connectionString
       - key: PORT
         value: 5000
       - key: NODE_ENV
         value: production
       - key: FRONTEND_URL
         value: https://luxangelsyamyamyam.onrender.com
+      - key: PGSSLMODE
+        value: "true"
 
   - type: web
     name: Luxangelsyamyamyam

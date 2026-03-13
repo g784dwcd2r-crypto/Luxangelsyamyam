@@ -207,18 +207,49 @@ const postForm = (urlString, { headers = {}, body = {} } = {}) =>
   });
 
 const getSmsGateway = () => {
+  // Android phone gateway (self-hosted, uses your own SIM card)
+  const gatewayUrl = process.env.SMS_GATEWAY_URL;
+  if (gatewayUrl) {
+    return {
+      provider: 'android',
+      url: gatewayUrl,
+      login: process.env.SMS_GATEWAY_LOGIN || '',
+      password: process.env.SMS_GATEWAY_PASSWORD || '',
+    };
+  }
+  // Twilio fallback
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
   const authToken = process.env.TWILIO_AUTH_TOKEN;
   const fromNumber = process.env.TWILIO_FROM_NUMBER;
-  if (!accountSid || !authToken || !fromNumber) return null;
-  return { accountSid, authToken, fromNumber };
+  if (accountSid && authToken && fromNumber) {
+    return { provider: 'twilio', accountSid, authToken, fromNumber };
+  }
+  return null;
 };
 
 async function sendSMS({ to, body }) {
   const gateway = getSmsGateway();
-  if (!gateway) return { ok: false, status: 503, error: 'SMS provider is not configured. Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_FROM_NUMBER.' };
+  if (!gateway) return { ok: false, status: 503, error: 'SMS not configured. Set SMS_GATEWAY_URL (Android gateway) or Twilio env vars.' };
   const cleaned = String(to || '').replace(/[^\d+]/g, '').replace(/^00/, '+');
   if (!cleaned) return { ok: false, status: 400, error: 'Invalid phone number' };
+
+  if (gateway.provider === 'android') {
+    const headers = { 'Content-Type': 'application/json' };
+    if (gateway.login) {
+      headers['Authorization'] = `Basic ${Buffer.from(`${gateway.login}:${gateway.password}`).toString('base64')}`;
+    }
+    const response = await postJson(gateway.url, {
+      headers,
+      body: { phone_number: cleaned, message: body },
+    });
+    if (!response.ok) {
+      console.error('Android SMS gateway error:', response.status, response.body);
+      return { ok: false, status: 502, error: 'Android SMS gateway rejected the request' };
+    }
+    return { ok: true, provider: 'android-gateway' };
+  }
+
+  // Twilio
   const url = `https://api.twilio.com/2010-04-01/Accounts/${gateway.accountSid}/Messages.json`;
   const auth = Buffer.from(`${gateway.accountSid}:${gateway.authToken}`).toString('base64');
   const response = await postForm(url, {

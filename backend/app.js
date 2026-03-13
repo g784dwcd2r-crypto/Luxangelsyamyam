@@ -990,7 +990,7 @@ async function initDb() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )`);
 
-    await pool.query("INSERT INTO settings (key, value) VALUES ('ownerEmail', 'owner@luxangels.lu') ON CONFLICT (key) DO NOTHING");
+    await pool.query("INSERT INTO settings (key, value) VALUES ('ownerEmail', 'owner@luxangelscleaning.lu') ON CONFLICT (key) DO NOTHING");
   } catch (err) {
     console.error('Schema initialization failed:', err.message);
   }

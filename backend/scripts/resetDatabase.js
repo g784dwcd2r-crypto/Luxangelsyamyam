@@ -36,7 +36,7 @@ async function resetDatabase() {
 
     await client.query(
       `INSERT INTO employees (id, name, email, role, status, pin)
-       VALUES ('EMP001', 'Default Cleaner', 'cleaner@luxangels.lu', 'Cleaner', 'active', '0000')`
+       VALUES ('EMP001', 'Default Cleaner', 'cleaner@luxangelscleaning.lu', 'Cleaner', 'active', '0000')`
     );
 
     await client.query('COMMIT');

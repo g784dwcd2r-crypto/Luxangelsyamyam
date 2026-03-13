@@ -169,6 +169,69 @@ const postJson = (urlString, { headers = {}, body = {} } = {}) =>
     }
   });
 
+const postForm = (urlString, { headers = {}, body = {} } = {}) =>
+  new Promise((resolve, reject) => {
+    try {
+      const url = new URL(urlString);
+      const transport = url.protocol === 'http:' ? http : https;
+      const payload = Object.entries(body)
+        .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+        .join('&');
+      const req = transport.request(
+        {
+          method: 'POST',
+          hostname: url.hostname,
+          port: url.port || undefined,
+          path: `${url.pathname}${url.search}`,
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Content-Length': Buffer.byteLength(payload),
+            ...headers,
+          },
+        },
+        (res) => {
+          let responseBody = '';
+          res.setEncoding('utf8');
+          res.on('data', chunk => { responseBody += chunk; });
+          res.on('end', () => {
+            resolve({ ok: res.statusCode >= 200 && res.statusCode < 300, status: res.statusCode, body: responseBody });
+          });
+        }
+      );
+      req.on('error', reject);
+      req.write(payload);
+      req.end();
+    } catch (err) {
+      reject(err);
+    }
+  });
+
+const getSmsGateway = () => {
+  const accountSid = process.env.TWILIO_ACCOUNT_SID;
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+  const fromNumber = process.env.TWILIO_FROM_NUMBER;
+  if (!accountSid || !authToken || !fromNumber) return null;
+  return { accountSid, authToken, fromNumber };
+};
+
+async function sendSMS({ to, body }) {
+  const gateway = getSmsGateway();
+  if (!gateway) return { ok: false, status: 503, error: 'SMS provider is not configured. Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_FROM_NUMBER.' };
+  const cleaned = String(to || '').replace(/[^\d+]/g, '').replace(/^00/, '+');
+  if (!cleaned) return { ok: false, status: 400, error: 'Invalid phone number' };
+  const url = `https://api.twilio.com/2010-04-01/Accounts/${gateway.accountSid}/Messages.json`;
+  const auth = Buffer.from(`${gateway.accountSid}:${gateway.authToken}`).toString('base64');
+  const response = await postForm(url, {
+    headers: { Authorization: `Basic ${auth}` },
+    body: { From: gateway.fromNumber, To: cleaned, Body: body },
+  });
+  if (!response.ok) {
+    console.error('Twilio rejected request:', response.status, response.body);
+    return { ok: false, status: 502, error: 'SMS provider rejected the request' };
+  }
+  return { ok: true, provider: 'twilio' };
+}
+
 async function sendEmail({ to, subject, body, html, from }) {
   const gateway = getEmailGateway();
   if (!gateway?.token) return { ok: false, status: 503, error: 'Email provider is not configured' };
@@ -952,6 +1015,21 @@ app.post('/api/notifications/email', async (req, res) => {
   } catch (err) {
     console.error('Email notification send failed:', err);
     return res.status(500).json({ error: 'Unable to send email notification' });
+  }
+});
+
+app.post('/api/notifications/sms', async (req, res) => {
+  try {
+    const { to, body } = req.body || {};
+    if (!to || !body) {
+      return res.status(400).json({ error: 'to and body are required' });
+    }
+    const sent = await sendSMS({ to, body });
+    if (!sent.ok) return res.status(sent.status || 500).json({ error: sent.error || 'Unable to send SMS' });
+    return res.json({ success: true, provider: sent.provider });
+  } catch (err) {
+    console.error('SMS notification send failed:', err);
+    return res.status(500).json({ error: 'Unable to send SMS notification' });
   }
 });
 

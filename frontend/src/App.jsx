@@ -166,6 +166,8 @@ const UI_FR = {
 "Details:": "Détails :",
 "Client email missing": "Email client manquant",
 "Client phone missing": "Téléphone client manquant",
+"Unable to send SMS": "Impossible d'envoyer le SMS",
+"SMS": "SMS",
 "Reminder opened via": "Rappel ouvert via",
 "Select at least one client for campaign": "Sélectionnez au moins un client pour la campagne",
 "Campaign opened for": "Campagne ouverte pour",
@@ -4962,8 +4964,30 @@ window.open(`https://wa.me/${cleaned.replace("+", "")}?text=${encodeURIComponent
 return true;
 };
 
+const sendPlatformSMS = async ({ to, body }) => {
+if (!to) { showToast(uiText("Client phone missing"), "error"); return false; }
+try {
+const response = await fetch(apiUrl('/api/notifications/sms'), {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ to, body }),
+});
+if (!response.ok) {
+const errPayload = await response.json().catch(() => ({}));
+throw new Error(errPayload.error || 'Unable to send SMS');
+}
+return true;
+} catch (err) {
+console.error(err);
+const fallbackSmsError = !err?.message || /load failed|failed to fetch/i.test(err.message);
+showToast(fallbackSmsError ? uiText("Unable to send SMS") : err.message, "error");
+return false;
+}
+};
+
 const dispatch = async (mode, payload, client) => {
 if (mode === "whatsapp") return openWhatsApp({ phone: client.phoneMobile || client.phone, message: payload.body });
+if (mode === "sms") return sendPlatformSMS({ to: client.phoneMobile || client.phone, body: payload.body });
 if (mode === "zoho") return sendPlatformEmail({ ...payload, subject: `[ZOHO] ${payload.subject}`, from: data.settings.companyEmail });
 return sendPlatformEmail(payload);
 };
@@ -5077,6 +5101,7 @@ return (
 </SelectInput>
 <SelectInput value={channel} onChange={ev => setChannel(ev.target.value)} style={{ width: 170 }}>
 <option value="email">{uiText("Email")}</option>
+<option value="sms">{uiText("SMS")}</option>
 <option value="whatsapp">{uiText("WhatsApp")}</option>
 <option value="zoho">{uiText("Zoho")}</option>
 </SelectInput>
@@ -5091,7 +5116,7 @@ return (
 <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>{t("Email Marketing Campaigns")}</h3>
 <div className="form-grid">
 <Field label={uiText("Frequency")}><SelectInput value={campaignFrequency} onChange={ev => setCampaignFrequency(ev.target.value)}><option value="weekly">{uiText("Weekly")}</option><option value="monthly">{uiText("Monthly")}</option></SelectInput></Field>
-<Field label={uiText("Channel")}><SelectInput value={campaignChannel} onChange={ev => setCampaignChannel(ev.target.value)}><option value="email">{uiText("Email")}</option><option value="whatsapp">{uiText("WhatsApp")}</option><option value="zoho">{uiText("Zoho")}</option></SelectInput></Field>
+<Field label={uiText("Channel")}><SelectInput value={campaignChannel} onChange={ev => setCampaignChannel(ev.target.value)}><option value="email">{uiText("Email")}</option><option value="sms">{uiText("SMS")}</option><option value="whatsapp">{uiText("WhatsApp")}</option><option value="zoho">{uiText("Zoho")}</option></SelectInput></Field>
 </div>
 <Field label={uiText("Campaign subject")}><TextInput value={campaignSubject} onChange={ev => setCampaignSubject(ev.target.value)} /></Field>
 <Field label={uiText("Campaign content")}><TextArea value={campaignBody} onChange={ev => setCampaignBody(ev.target.value)} /></Field>

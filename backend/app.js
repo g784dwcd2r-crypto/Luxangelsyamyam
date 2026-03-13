@@ -1098,10 +1098,53 @@ async function initDb() {
       console.log('Schema initialized successfully.');
     }
     // Migrations for legacy databases
-    await pool.query("ALTER TABLE employees ADD COLUMN IF NOT EXISTS username TEXT DEFAULT ''");
-    await pool.query("ALTER TABLE employees ADD COLUMN IF NOT EXISTS password_hash TEXT");
-    await pool.query("ALTER TABLE employees ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT false");
-    await pool.query("ALTER TABLE employees ADD COLUMN IF NOT EXISTS account_status TEXT NOT NULL DEFAULT 'approved'");
+    const schemaUpgrades = [
+      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS phone_mobile TEXT",
+      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS address TEXT",
+      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS city TEXT",
+      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS postal_code TEXT",
+      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS country TEXT DEFAULT 'Luxembourg'",
+      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS start_date DATE",
+      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS contract_type TEXT DEFAULT 'CDI'",
+      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS bank_iban TEXT",
+      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS social_sec_number TEXT",
+      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS date_of_birth DATE",
+      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS nationality TEXT",
+      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS languages TEXT",
+      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS transport TEXT",
+      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS work_permit TEXT",
+      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS emergency_name TEXT",
+      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS emergency_phone TEXT",
+      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS notes TEXT",
+      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS username TEXT DEFAULT ''",
+      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS password_hash TEXT",
+      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT false",
+      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS account_status TEXT NOT NULL DEFAULT 'approved'",
+
+      "ALTER TABLE clients ADD COLUMN IF NOT EXISTS contact_person TEXT",
+      "ALTER TABLE clients ADD COLUMN IF NOT EXISTS phone_mobile TEXT",
+      "ALTER TABLE clients ADD COLUMN IF NOT EXISTS apartment_floor TEXT",
+      "ALTER TABLE clients ADD COLUMN IF NOT EXISTS billing_type TEXT DEFAULT 'hourly'",
+      "ALTER TABLE clients ADD COLUMN IF NOT EXISTS price_fixed NUMERIC(10,2) DEFAULT 0",
+      "ALTER TABLE clients ADD COLUMN IF NOT EXISTS language TEXT DEFAULT 'FR'",
+      "ALTER TABLE clients ADD COLUMN IF NOT EXISTS access_code TEXT",
+      "ALTER TABLE clients ADD COLUMN IF NOT EXISTS key_location TEXT",
+      "ALTER TABLE clients ADD COLUMN IF NOT EXISTS parking_info TEXT",
+      "ALTER TABLE clients ADD COLUMN IF NOT EXISTS pet_info TEXT",
+      "ALTER TABLE clients ADD COLUMN IF NOT EXISTS preferred_day TEXT",
+      "ALTER TABLE clients ADD COLUMN IF NOT EXISTS preferred_time TEXT",
+      "ALTER TABLE clients ADD COLUMN IF NOT EXISTS contract_start DATE",
+      "ALTER TABLE clients ADD COLUMN IF NOT EXISTS contract_end DATE",
+      "ALTER TABLE clients ADD COLUMN IF NOT EXISTS square_meters NUMERIC(10,2)",
+      "ALTER TABLE clients ADD COLUMN IF NOT EXISTS tax_id TEXT",
+      "ALTER TABLE clients ADD COLUMN IF NOT EXISTS special_instructions TEXT",
+      "ALTER TABLE clients ADD COLUMN IF NOT EXISTS notes TEXT",
+    ];
+
+    for (const sql of schemaUpgrades) {
+      await pool.query(sql);
+    }
+
     await pool.query("CREATE UNIQUE INDEX IF NOT EXISTS idx_employees_email_unique ON employees(LOWER(email))");
 
     await pool.query(`CREATE TABLE IF NOT EXISTS account_requests (

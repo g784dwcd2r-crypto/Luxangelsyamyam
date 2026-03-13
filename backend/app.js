@@ -886,6 +886,17 @@ app.put('/api/clock-entries/:id', async (req, res) => {
   }
 });
 
+app.delete('/api/clock-entries/:id', async (req, res) => {
+  try {
+    const result = await pool.query('DELETE FROM clock_entries WHERE id=$1 RETURNING id', [req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Clock entry not found' });
+    res.json({ deleted: result.rows[0].id });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // ---------------------------------------------------------------------------
 // INVOICES
 // ---------------------------------------------------------------------------

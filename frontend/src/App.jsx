@@ -830,7 +830,140 @@ const Field = ({ label, children }) => (
 );
 
 const TextInput = (props) => <input {...props} placeholder={uiText(props.placeholder)} style={{ ...inputSt, ...(props.style || {}) }} />;
-const SelectInput = ({ children, ...props }) => <select {...props} style={{ ...inputSt, appearance: "auto", color: CL.text, colorScheme: "dark", ...(props.style || {}) }}>{children}</select>;
+// -- Multi-Select Dropdown Component --
+const labelFromChildren = (ch) => {
+  if (ch === null || ch === undefined) return "";
+  if (typeof ch === "string") return ch;
+  if (typeof ch === "number") return String(ch);
+  if (Array.isArray(ch)) return ch.map(labelFromChildren).join("");
+  if (typeof ch === "object" && ch.props !== undefined) return labelFromChildren(ch.props.children);
+  return "";
+};
+
+const flattenOptions = (children) => {
+  const result = [];
+  const process = (child) => {
+    if (!child || typeof child !== "object") return;
+    if (Array.isArray(child)) { child.forEach(process); return; }
+    if (child.type === "option") {
+      result.push({ value: String(child.props.value ?? ""), label: labelFromChildren(child.props.children) });
+      return;
+    }
+    if (child.props?.children) process(child.props.children);
+  };
+  process(children);
+  return result;
+};
+
+function MultiSelectDropdown({ options = [], value, onChange, placeholder, style, disabled, multiple = true }) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) { setOpen(false); setSearch(""); } };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const selected = multiple ? (Array.isArray(value) ? value : []) : value;
+  const filteredOpts = search ? options.filter(o => String(o.label).toLowerCase().includes(search.toLowerCase())) : options;
+
+  const toggle = (v) => {
+    if (!multiple) { onChange(v); setOpen(false); return; }
+    const next = selected.includes(v) ? selected.filter(x => x !== v) : [...selected, v];
+    onChange(next);
+  };
+
+  const displayText = () => {
+    if (!multiple) {
+      const opt = options.find(o => o.value === value);
+      return opt ? opt.label : (placeholder || "Select...");
+    }
+    if (!selected.length) return placeholder || "Select...";
+    if (selected.length === 1) {
+      const opt = options.find(o => o.value === selected[0]);
+      return opt ? opt.label : selected[0];
+    }
+    return `${selected.length} selected`;
+  };
+
+  const isSelected = (v) => multiple ? selected.includes(v) : value === v;
+
+  return (
+    <div ref={ref} style={{ position: "relative", width: style?.width || "100%" }}>
+      <button
+        type="button"
+        onClick={() => !disabled && setOpen(o => !o)}
+        disabled={disabled}
+        style={{ ...inputSt, cursor: disabled ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 12px", opacity: disabled ? 0.6 : 1, textAlign: "left", width: "100%", ...(style ? { ...style, width: "100%" } : {}) }}
+      >
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: (multiple ? selected.length > 0 : !!value) ? CL.text : CL.muted, flex: 1 }}>{displayText()}</span>
+        <span style={{ color: CL.muted, fontSize: 10, marginLeft: 8, display: "inline-block", transform: open ? "rotate(180deg)" : "none", transition: "transform .2s", flexShrink: 0 }}>▼</span>
+      </button>
+      {open && (
+        <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, minWidth: "100%", zIndex: 500, background: CL.sf, border: `1px solid ${CL.bd}`, borderRadius: 10, boxShadow: "0 8px 32px rgba(0,0,0,.35)", overflow: "hidden" }}>
+          {options.length > 6 && (
+            <div style={{ padding: "8px 10px", borderBottom: `1px solid ${CL.bd}` }}>
+              <input autoFocus value={search} onChange={e => setSearch(e.target.value)} placeholder="Search..." style={{ ...inputSt, height: 34, fontSize: 13, padding: "0 10px", width: "100%" }} />
+            </div>
+          )}
+          {multiple && (
+            <div style={{ display: "flex", gap: 6, padding: "6px 10px", borderBottom: `1px solid ${CL.bd}` }}>
+              <button type="button" onClick={() => onChange(options.map(o => o.value))} style={{ ...btnSec, ...btnSm, flex: 1, justifyContent: "center", fontSize: 12 }}>All</button>
+              <button type="button" onClick={() => onChange([])} style={{ ...btnSec, ...btnSm, flex: 1, justifyContent: "center", fontSize: 12 }}>Clear</button>
+            </div>
+          )}
+          <div style={{ maxHeight: 220, overflowY: "auto" }}>
+            {filteredOpts.map(opt => (
+              <div
+                key={opt.value}
+                onClick={() => toggle(opt.value)}
+                style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", cursor: "pointer", background: isSelected(opt.value) ? CL.gold + "18" : "transparent", color: CL.text, fontSize: 14, userSelect: "none" }}
+                onMouseEnter={e => { if (!isSelected(opt.value)) e.currentTarget.style.background = CL.s2; }}
+                onMouseLeave={e => { e.currentTarget.style.background = isSelected(opt.value) ? CL.gold + "18" : "transparent"; }}
+              >
+                {multiple && (
+                  <span style={{ width: 16, height: 16, borderRadius: 4, border: `2px solid ${isSelected(opt.value) ? CL.gold : CL.bd}`, background: isSelected(opt.value) ? CL.gold : "transparent", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    {isSelected(opt.value) && <span style={{ color: CL.bg, fontSize: 9, fontWeight: 800, lineHeight: 1 }}>✓</span>}
+                  </span>
+                )}
+                <span>{opt.label}</span>
+              </div>
+            ))}
+            {filteredOpts.length === 0 && <div style={{ padding: "10px 12px", color: CL.muted, fontSize: 13 }}>No results</div>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const SelectInput = ({ children, value, onChange, multiple = false, placeholder, style, ...props }) => {
+  const options = flattenOptions(children);
+  const ph = placeholder || (options[0]?.value === "" ? String(options[0].label) : "Select...");
+  const selectableOptions = multiple ? options.filter(o => o.value !== "") : options;
+
+  const handleChange = (newVal) => {
+    if (multiple) {
+      onChange(newVal);
+    } else {
+      onChange({ target: { value: newVal } });
+    }
+  };
+
+  return (
+    <MultiSelectDropdown
+      options={selectableOptions}
+      value={value}
+      onChange={handleChange}
+      placeholder={ph}
+      multiple={multiple}
+      style={style}
+      {...props}
+    />
+  );
+};
 const TextArea = (props) => <textarea {...props} placeholder={uiText(props.placeholder)} style={{ ...inputSt, height: "auto", minHeight: 80, padding: "12px 16px", resize: "vertical", ...(props.style || {}) }} />;
 const Badge = ({ children, color = CL.gold }) => <span style={{ display: "inline-block", padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 600, background: color + "20", color }}>{uiText(children)}</span>;
 const StatCard = ({ label, value, icon, color = CL.gold }) => (
@@ -1069,13 +1202,13 @@ const globalCSS = `
   ::-webkit-scrollbar-thumb { background: ${CL.bd}; border-radius: 3px; }
   @keyframes slideIn { from { transform: translateX(60px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
   @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-  input:focus, select:focus, textarea:focus { border-color: ${CL.gold} !important; }
+  input:focus, textarea:focus { border-color: ${CL.gold} !important; }
   input[type="date"], input[type="time"], input[type="month"], input[type="datetime-local"] { color-scheme: ${INIT_THEME === "dark" ? "dark" : "light"}; }
   input[type="date"]::-webkit-calendar-picker-indicator,
   input[type="time"]::-webkit-calendar-picker-indicator,
   input[type="month"]::-webkit-calendar-picker-indicator,
   input[type="datetime-local"]::-webkit-calendar-picker-indicator { filter: ${INIT_THEME === "dark" ? "invert(0.95)" : "none"}; cursor: pointer; }
-  input[type="date"], input[type="time"], input[type="month"], input[type="datetime-local"], input[type="number"], input[type="text"], input[type="email"], input[type="password"], input[type="tel"], select { height: 46px !important; padding: 0 16px !important; line-height: 46px; }
+  input[type="date"], input[type="time"], input[type="month"], input[type="datetime-local"], input[type="number"], input[type="text"], input[type="email"], input[type="password"], input[type="tel"] { height: 46px !important; padding: 0 16px !important; line-height: 46px; }
   textarea { padding: 12px 16px !important; height: auto !important; min-height: 80px; }
   @media print { .no-print { display: none !important; } }
 
@@ -1985,8 +2118,8 @@ function EmployeesPage({ data, updateData, showToast }) {
 const [modal, setModal] = useState(null);
 const [deleteId, setDeleteId] = useState(null);
 const [search, setSearch] = useState("");
-const [statusFilter, setStatusFilter] = useState("all");
-const [groupFilter, setGroupFilter] = useState("all");
+const [statusFilter, setStatusFilter] = useState([]);
+const [groupFilter, setGroupFilter] = useState([]);
 
 const emptyEmployee = {
 name: "", email: "", phone: "", phoneMobile: "", address: "", city: "Luxembourg", postalCode: "", country: "Luxembourg",
@@ -2047,9 +2180,9 @@ const preferredCountByEmployee = (data.clients || []).reduce((acc, client) => {
 const qLower = q.toLowerCase();
 const filtered = data.employees.filter(e => {
   const matchesSearch = !qLower || e.name.toLowerCase().includes(qLower) || (e.role || "").toLowerCase().includes(qLower) || (e.email || "").toLowerCase().includes(qLower) || (e.phone || "").includes(qLower) || (e.phoneMobile || "").includes(qLower) || (e.city || "").toLowerCase().includes(qLower) || (e.cleanerGroup || "").toLowerCase().includes(qLower);
-  const matchesStatus = statusFilter === "all" || e.status === statusFilter;
+  const matchesStatus = !statusFilter.length || statusFilter.includes(e.status);
   const empGroup = (e.cleanerGroup || e.city || "").trim();
-  const matchesGroup = groupFilter === "all" || empGroup === groupFilter;
+  const matchesGroup = !groupFilter.length || groupFilter.includes(empGroup);
   return matchesSearch && matchesStatus && matchesGroup;
 });
 
@@ -2064,14 +2197,12 @@ return (
   <TextInput placeholder={uiText("Search by name, role, email, phone...")} value={search} onChange={ev => setSearch(ev.target.value)} style={{ paddingLeft: 34 }} />
   <span style={{ position: "absolute", left: 10, top: 10, color: CL.muted }}>{ICN.search}</span>
 </div>
-<SelectInput value={statusFilter} onChange={ev => setStatusFilter(ev.target.value)} style={{ width: 140 }}>
-  <option value="all">{uiText("All Statuses")}</option>
+<SelectInput multiple value={statusFilter} onChange={setStatusFilter} placeholder={uiText("All Statuses")} style={{ width: 140 }}>
   <option value="active">{uiText("Active")}</option>
   <option value="inactive">{uiText("Inactive")}</option>
 </SelectInput>
 
-<SelectInput value={groupFilter} onChange={ev => setGroupFilter(ev.target.value)} style={{ width: 190 }}>
-  <option value="all">All Locations</option>
+<SelectInput multiple value={groupFilter} onChange={setGroupFilter} placeholder="All Locations" style={{ width: 190 }}>
   {locationGroups.map(group => <option key={group} value={group}>{group}</option>)}
 </SelectInput>
 </div>
@@ -2237,9 +2368,9 @@ function ClientsPage({ data, updateData, showToast }) {
 const [modal, setModal] = useState(null);
 const [deleteId, setDeleteId] = useState(null);
 const [search, setSearch] = useState("");
-const [statusFilter, setStatusFilter] = useState("all");
-const [typeFilter, setTypeFilter] = useState("all");
-const [regionFilter, setRegionFilter] = useState("all");
+const [statusFilter, setStatusFilter] = useState([]);
+const [typeFilter, setTypeFilter] = useState([]);
+const [regionFilter, setRegionFilter] = useState([]);
 
 const emptyClient = {
 name: "", email: "", phone: "", phoneMobile: "", address: "", apartmentFloor: "", city: "Luxembourg", postalCode: "", country: "Luxembourg",
@@ -2272,9 +2403,9 @@ const q = search.toLowerCase();
 const allRegions = [...new Set((data.clients || []).map(c => (c.region || "").trim()).filter(Boolean))].sort();
 const filtered = data.clients.filter(c => {
   const matchesSearch = !q || c.name.toLowerCase().includes(q) || (c.contactPerson || "").toLowerCase().includes(q) || (c.email || "").toLowerCase().includes(q) || (c.phone || "").includes(q) || (c.city || "").toLowerCase().includes(q);
-  const matchesStatus = statusFilter === "all" || c.status === statusFilter;
-  const matchesType = typeFilter === "all" || (c.type || "") === typeFilter;
-  const matchesRegion = regionFilter === "all" || (c.region || "") === regionFilter;
+  const matchesStatus = !statusFilter.length || statusFilter.includes(c.status);
+  const matchesType = !typeFilter.length || typeFilter.includes(c.type || "");
+  const matchesRegion = !regionFilter.length || regionFilter.includes(c.region || "");
   return matchesSearch && matchesStatus && matchesType && matchesRegion;
 });
 
@@ -2289,19 +2420,16 @@ return (
   <TextInput placeholder={uiText("Search by name, contact, email, phone, city...")} value={search} onChange={ev => setSearch(ev.target.value)} style={{ paddingLeft: 34 }} />
   <span style={{ position: "absolute", left: 10, top: 10, color: CL.muted }}>{ICN.search}</span>
 </div>
-<SelectInput value={statusFilter} onChange={ev => setStatusFilter(ev.target.value)} style={{ width: 150 }}>
-  <option value="all">{uiText("All Statuses")}</option>
+<SelectInput multiple value={statusFilter} onChange={setStatusFilter} placeholder={uiText("All Statuses")} style={{ width: 150 }}>
   <option value="active">{uiText("Active")}</option>
   <option value="inactive">{uiText("Inactive")}</option>
   <option value="prospect">{uiText("Prospect")}</option>
 </SelectInput>
-<SelectInput value={typeFilter} onChange={ev => setTypeFilter(ev.target.value)} style={{ width: 150 }}>
-  <option value="all">{uiText("All Types")}</option>
+<SelectInput multiple value={typeFilter} onChange={setTypeFilter} placeholder={uiText("All Types")} style={{ width: 150 }}>
   <option value="Residential">{uiText("Residential")}</option>
   <option value="Commercial">{uiText("Commercial")}</option>
 </SelectInput>
-<SelectInput value={regionFilter} onChange={ev => setRegionFilter(ev.target.value)} style={{ width: 160 }}>
-  <option value="all">{uiText("All Regions")}</option>
+<SelectInput multiple value={regionFilter} onChange={setRegionFilter} placeholder={uiText("All Regions")} style={{ width: 160 }}>
   {allRegions.map(r => <option key={r} value={r}>{r}</option>)}
 </SelectInput>
 </div>
@@ -2514,7 +2642,7 @@ function SchedulePage({ data, updateData, showToast }) {
 const [focusWindow, setFocusWindow] = useState("today");
 const [modal, setModal] = useState(null);
 const [selectedDate, setSelectedDate] = useState(null);
-const [filterEmp, setFilterEmp] = useState("");
+const [filterEmp, setFilterEmp] = useState([]);
 const [viewMode, setViewMode] = useState("calendar");
 const now = new Date();
 const [viewYear, setViewYear] = useState(now.getFullYear());
@@ -2560,7 +2688,7 @@ jumpToDate(nextWeek);
 
 const monthSchedules = data.schedules.filter(s => {
 if (!s.date?.startsWith(monthStr)) return false;
-if (filterEmp && s.employeeId !== filterEmp) return false;
+if (filterEmp.length && !filterEmp.includes(s.employeeId)) return false;
 return true;
 });
 const orderedMonthSchedules = [...monthSchedules].sort((a, b) => `${a.date} ${a.startTime}`.localeCompare(`${b.date} ${b.startTime}`));
@@ -2584,7 +2712,7 @@ const focusMeta = {
 };
 const focused = focusMeta[focusWindow];
 const focusedJobs = (data.schedules || [])
-  .filter(s => s.date && s.date >= focused.from && s.date <= focused.to && (!filterEmp || s.employeeId === filterEmp))
+  .filter(s => s.date && s.date >= focused.from && s.date <= focused.to && (!filterEmp.length || filterEmp.includes(s.employeeId)))
   .sort((a, b) => `${a.date} ${a.startTime}`.localeCompare(`${b.date} ${b.startTime}`));
 
 const handleSave = (schedData) => {
@@ -2656,8 +2784,7 @@ return (
 <button style={{ ...btnSec, ...btnSm, background: viewMode === "calendar" ? CL.blue : "transparent", border: "none", color: viewMode === "calendar" ? CL.white : CL.muted }} onClick={() => setViewMode("calendar")}>{uiText("Calendar")}</button>
 <button style={{ ...btnSec, ...btnSm, background: viewMode === "list" ? CL.blue : "transparent", border: "none", color: viewMode === "list" ? CL.white : CL.muted }} onClick={() => setViewMode("list")}>{uiText("List")}</button>
 </div>
-<SelectInput value={filterEmp} onChange={ev => setFilterEmp(ev.target.value)} style={{ width: 180 }}>
-<option value="">{uiText("All Employees")}</option>
+<SelectInput multiple value={filterEmp} onChange={setFilterEmp} placeholder={uiText("All Employees")} style={{ width: 180 }}>
 {data.employees.filter(emp => emp.status === "active").map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
 </SelectInput>
 </div>
@@ -2863,7 +2990,7 @@ clockOutDate: "",
 clockOutTime: "",
 notes: "",
 });
-const [filters, setFilters] = useState({ emp: "", month: getToday().slice(0, 7) });
+const [filters, setFilters] = useState({ emp: [], month: getToday().slice(0, 7) });
 const [editEntry, setEditEntry] = useState(null);
 
 const setManual = (key, value) => setManualEntry(prev => ({ ...prev, [key]: value }));
@@ -2961,7 +3088,7 @@ showToast("Deleted", "error");
 
 const activeClocks = data.clockEntries.filter(c => !c.clockOut);
 const filteredEntries = data.clockEntries.filter(c => {
-if (filters.emp && c.employeeId !== filters.emp) return false;
+if (filters.emp.length && !filters.emp.includes(c.employeeId)) return false;
 if (filters.month && c.clockIn && !c.clockIn.startsWith(filters.month)) return false;
 return true;
 }).sort((a, b) => new Date(b.clockIn) - new Date(a.clockIn));
@@ -3038,8 +3165,7 @@ return (
   </div>
 
   <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
-    <SelectInput value={filters.emp} onChange={ev => setFilters(f => ({ ...f, emp: ev.target.value }))} style={{ width: 160 }}>
-      <option value="">{uiText("All Employees")}</option>
+    <SelectInput multiple value={filters.emp} onChange={v => setFilters(f => ({ ...f, emp: v }))} placeholder={uiText("All Employees")} style={{ width: 160 }}>
       {data.employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
     </SelectInput>
     <TextInput type="month" value={filters.month} onChange={ev => setFilters(f => ({ ...f, month: ev.target.value }))} style={{ width: 160 }} />
@@ -4394,31 +4520,31 @@ return (
 
 function HistoryPage({ data, updateData }) {
 const { t } = useI18n();
-const [clientFilter, setClientFilter] = useState("");
+const [clientFilter, setClientFilter] = useState([]);
 const [dateFrom, setDateFrom] = useState("");
 const [dateTo, setDateTo] = useState("");
-const [prestationFilter, setPrestationFilter] = useState("");
+const [prestationFilter, setPrestationFilter] = useState([]);
 const [searched, setSearched] = useState(false);
 
 const allStatuses = [...new Set((data.schedules || []).map(j => j.status).filter(Boolean))];
 
 const applyFilters = () => setSearched(true);
-const resetFilters = () => { setClientFilter(""); setDateFrom(""); setDateTo(""); setPrestationFilter(""); setSearched(false); };
+const resetFilters = () => { setClientFilter([]); setDateFrom(""); setDateTo(""); setPrestationFilter([]); setSearched(false); };
 
 const uploads = (data.photoUploads || []).slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 const jobs = (data.schedules || []).slice().sort((a, b) => `${b.date} ${b.startTime}`.localeCompare(`${a.date} ${a.startTime}`));
 
 const filteredJobs = !searched ? [] : jobs.filter(j => {
-  if (clientFilter && j.clientId !== clientFilter) return false;
+  if (clientFilter.length && !clientFilter.includes(j.clientId)) return false;
   if (dateFrom && j.date < dateFrom) return false;
   if (dateTo && j.date > dateTo) return false;
-  if (prestationFilter && j.status !== prestationFilter) return false;
+  if (prestationFilter.length && !prestationFilter.includes(j.status)) return false;
   return true;
 });
 
 const filteredUploads = !searched ? [] : uploads.filter(u => {
   const uploadDate = (u.createdAt || "").slice(0, 10);
-  if (clientFilter && u.clientId !== clientFilter) return false;
+  if (clientFilter.length && !clientFilter.includes(u.clientId)) return false;
   if (dateFrom && uploadDate < dateFrom) return false;
   if (dateTo && uploadDate > dateTo) return false;
   return true;
@@ -4437,8 +4563,7 @@ return (
   <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
     <div>
       <div style={{ fontSize: 11, color: CL.muted, marginBottom: 4 }}>{uiText("Client")}</div>
-      <SelectInput value={clientFilter} onChange={ev => setClientFilter(ev.target.value)} style={{ width: 200 }}>
-        <option value="">{uiText("All clients")}</option>
+      <SelectInput multiple value={clientFilter} onChange={setClientFilter} placeholder={uiText("All clients")} style={{ width: 200 }}>
         {data.clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
       </SelectInput>
     </div>
@@ -4452,8 +4577,7 @@ return (
     </div>
     <div>
       <div style={{ fontSize: 11, color: CL.muted, marginBottom: 4 }}>{uiText("Prestation")}</div>
-      <SelectInput value={prestationFilter} onChange={ev => setPrestationFilter(ev.target.value)} style={{ width: 160 }}>
-        <option value="">{uiText("All")}</option>
+      <SelectInput multiple value={prestationFilter} onChange={setPrestationFilter} placeholder={uiText("All")} style={{ width: 160 }}>
         {allStatuses.map(s => <option key={s} value={s}>{s}</option>)}
       </SelectInput>
     </div>
@@ -4491,12 +4615,12 @@ return (
 }
 
 function LeaveManagementPage({ data, updateData, showToast }) {
-const [employeeFilter, setEmployeeFilter] = useState("");
+const [employeeFilter, setEmployeeFilter] = useState([]);
 const [yearFilter, setYearFilter] = useState(getToday().slice(0, 4));
 const [reviewNote, setReviewNote] = useState({});
 
 const requests = (data.timeOffRequests || [])
-.filter(r => (!employeeFilter || r.employeeId === employeeFilter) && (!yearFilter || (r.startDate || "").startsWith(yearFilter)))
+.filter(r => (!employeeFilter.length || employeeFilter.includes(r.employeeId)) && (!yearFilter || (r.startDate || "").startsWith(yearFilter)))
 .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
 const pendingCount = requests.filter(r => r.status === "pending").length;
@@ -4522,8 +4646,7 @@ return (
 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
 <h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold }}>{uiText("Congés")}</h1>
 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-<SelectInput value={employeeFilter} onChange={ev => setEmployeeFilter(ev.target.value)} style={{ width: 180 }}>
-<option value="">{uiText("All Cleaners")}</option>
+<SelectInput multiple value={employeeFilter} onChange={setEmployeeFilter} placeholder={uiText("All Cleaners")} style={{ width: 180 }}>
 {data.employees.filter(e => e.status === "active").map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
 </SelectInput>
 <TextInput type="number" value={yearFilter} onChange={ev => setYearFilter(ev.target.value)} style={{ width: 110 }} />
@@ -4587,7 +4710,7 @@ return (
 function RemindersPage({ data, showToast }) {
 const { t } = useI18n();
 const [channel, setChannel] = useState("email");
-const [workflowType, setWorkflowType] = useState("all");
+const [workflowType, setWorkflowType] = useState([]);
 const [selectedOnly, setSelectedOnly] = useState(false);
 const [selectedClientIds, setSelectedClientIds] = useState([]);
 const [campaignFrequency, setCampaignFrequency] = useState("weekly");
@@ -4692,7 +4815,7 @@ body: `Dear ${client.contactPerson || client.name},\n\nThis is a friendly follow
 }).filter(Boolean);
 
 const workflows = [...upcomingShiftReminders, ...invoiceSentReminders, ...paymentFollowUpReminders];
-const filtered = workflows.filter(w => (workflowType === "all" || w.kind === workflowType) && (!selectedOnly || selectedClientIds.includes(w.client.id)));
+const filtered = workflows.filter(w => (!workflowType.length || workflowType.includes(w.kind)) && (!selectedOnly || selectedClientIds.includes(w.client.id)));
 
 const sendReminder = async (rem) => {
 const payload = rem.buildPayload();
@@ -4734,8 +4857,7 @@ return (
 </div>
 
 <div style={{ ...cardSt, marginBottom: 12, padding: 12, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-<SelectInput value={workflowType} onChange={ev => setWorkflowType(ev.target.value)} style={{ width: 220 }}>
-<option value="all">{uiText("All workflows")}</option>
+<SelectInput multiple value={workflowType} onChange={setWorkflowType} placeholder={uiText("All workflows")} style={{ width: 220 }}>
 <option value="work">{uiText("Work reminders / upcoming shifts")}</option>
 <option value="followup">{uiText("Business follow-up")}</option>
 </SelectInput>

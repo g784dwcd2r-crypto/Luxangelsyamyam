@@ -2048,34 +2048,57 @@ if (view === "admin") return (
 );
 
 // ── AGENT PICK: choose name ───────────────────────────────────────────────
-if (view === "agent-pick") return (
-  <LoginShell>
-    <div style={{ animation: "fadeIn .4s ease", width: 500, maxWidth: "100%" }}>
-      <LoginLogo lang={lang} />
-      <div style={{ ...cardSt, padding: 24 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
-          <button onClick={goBack} style={{ background: "none", border: "none", color: CL.muted, cursor: "pointer", padding: 4, lineHeight: 0 }}>
-            <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+if (view === "agent-pick") {
+  const pickedId = selectedAgent?.id || "";
+  const handleAgentContinue = () => {
+    if (!pickedId) return;
+    setPassword(""); setError(""); setView("agent-pw");
+  };
+  return (
+    <LoginShell>
+      <div style={{ animation: "fadeIn .4s ease", width: 420, maxWidth: "100%" }}>
+        <LoginLogo lang={lang} />
+        <div style={{ ...cardSt, padding: 28 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
+            <button onClick={goBack} style={{ background: "none", border: "none", color: CL.muted, cursor: "pointer", padding: 4, lineHeight: 0 }}>
+              <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <h3 style={{ margin: 0, fontFamily: "'Cormorant Garamond', serif", color: CL.gold, fontSize: 21 }}>{lang === "en" ? "Agent Login" : "Connexion Agent"}</h3>
+          </div>
+          <Field label={lang === "en" ? "Select Your Name" : "Sélectionnez votre nom"}>
+            {agentListLoading
+              ? <p style={{ color: CL.muted, fontSize: 13, margin: 0 }}>{lang === "en" ? "Loading…" : "Chargement…"}</p>
+              : <SelectInput
+                  value={pickedId}
+                  onChange={ev => {
+                    const agent = agentList.find(a => String(a.id) === ev.target.value) || null;
+                    setSelectedAgent(agent);
+                    setError("");
+                  }}
+                  autoFocus
+                >
+                  <option value="">{lang === "en" ? "— Select your name —" : "— Choisissez votre nom —"}</option>
+                  {agentList.map(agent => (
+                    <option key={agent.id} value={agent.id}>
+                      {agent.display_name || agent.name}
+                    </option>
+                  ))}
+                </SelectInput>
+            }
+          </Field>
+          {error && <div style={{ color: CL.red, fontSize: 13, marginBottom: 10, textAlign: "center" }}>{error}</div>}
+          <button
+            disabled={!pickedId}
+            onClick={handleAgentContinue}
+            style={{ ...btnPri, width: "100%", justifyContent: "center", opacity: pickedId ? 1 : 0.45, cursor: pickedId ? "pointer" : "not-allowed", marginTop: 4 }}
+          >
+            {lang === "en" ? "Continue" : "Continuer"}
           </button>
-          <h3 style={{ margin: 0, fontFamily: "'Cormorant Garamond', serif", color: CL.gold, fontSize: 21 }}>{lang === "en" ? "Select Your Name" : "Sélectionnez votre nom"}</h3>
         </div>
-        <p style={{ margin: "0 0 16px", fontSize: 13, color: CL.muted }}>{lang === "en" ? "Tap your name to continue" : "Appuyez sur votre nom pour continuer"}</p>
-        {agentList.length === 0
-          ? <p style={{ color: CL.muted, fontSize: 13, textAlign: "center" }}>{lang === "en" ? "No agents found." : "Aucun agent trouvé."}</p>
-          : <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-              {agentList.map(agent => (
-                <button key={agent.id} className="login-agent-btn" onClick={() => { setSelectedAgent(agent); setPassword(""); setError(""); setView("agent-pw"); }}
-                  style={{ padding: "12px 20px", background: CL.s2, border: `1px solid ${CL.bd}`, borderRadius: 12, color: CL.text, fontSize: 15, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ width: 32, height: 32, borderRadius: "50%", background: `${CL.gold}22`, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 14, color: CL.gold, fontWeight: 700, flexShrink: 0 }}>{(agent.display_name || agent.name || "?").charAt(0).toUpperCase()}</span>
-                  {agent.display_name || agent.name}
-                </button>
-              ))}
-            </div>}
-        {error && <div style={{ color: CL.red, fontSize: 13, marginTop: 12, textAlign: "center" }}>{error}</div>}
       </div>
-    </div>
-  </LoginShell>
-);
+    </LoginShell>
+  );
+}
 
 // ── AGENT PASSWORD ────────────────────────────────────────────────────────
 if (view === "agent-pw") return (

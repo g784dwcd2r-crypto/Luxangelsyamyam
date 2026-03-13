@@ -1445,145 +1445,270 @@ return (
 // LOGIN SCREEN
 // ==============================================
 function LoginScreen({ data, onAuth }) {
-const { lang, t } = useI18n();
+const { lang } = useI18n();
+// "home" | "admin" | "agent-pick" | "agent-pw"
+const [view, setView] = useState("home");
+const [agentList, setAgentList] = useState([]);
+const [agentListLoading, setAgentListLoading] = useState(false);
+const [selectedAgent, setSelectedAgent] = useState(null); // {id, name, display_name}
 const [username, setUsername] = useState("");
 const [password, setPassword] = useState("");
 const [error, setError] = useState("");
 const [isSubmitting, setIsSubmitting] = useState(false);
 
+const REQUEST_TIMEOUT_MS = 8000;
+const WARMUP_TIMEOUT_MS = 10000;
 
-const loginWithServer = async ({ user, pass }) => {
-  if (!API_BASE_CANDIDATES.length) return { status: "unreachable" };
-  // Keep login responsive while still handling Render cold starts.
-  const REQUEST_TIMEOUT_MS = 8000;
-  const WARMUP_TIMEOUT_MS = 10000;
-  let reachedServer = false;
+const tryFetch = async (baseUrl, path, opts) => {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    const res = await fetch(apiUrl(path, baseUrl), { ...opts, signal: controller.signal });
+    clearTimeout(id);
+    return res;
+  } catch { clearTimeout(id); return null; }
+};
 
-  const attempts = [
-    { role: "owner", username: user, employeeId: user },
-    { role: "manager", employeeId: user },
-    { role: "cleaner", employeeId: user },
-  ];
+const tryWarmup = async (baseUrl) => {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), WARMUP_TIMEOUT_MS);
+  try {
+    const res = await fetch(apiUrl("/api/health/db", baseUrl), { signal: controller.signal });
+    clearTimeout(id);
+    return res.ok;
+  } catch { clearTimeout(id); return false; }
+};
 
-  const tryFetch = async (baseUrl, payload) => {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-    try {
-      const res = await fetch(apiUrl("/api/auth/pin-login", baseUrl), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...payload, pin: pass }),
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
-      return res;
-    } catch {
-      clearTimeout(timeoutId);
-      return null;
-    }
-  };
-
-  const tryWarmup = async (baseUrl) => {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), WARMUP_TIMEOUT_MS);
-    try {
-      const res = await fetch(apiUrl("/api/health/db", baseUrl), {
-        method: "GET",
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
-      return res.ok;
-    } catch {
-      clearTimeout(timeoutId);
-      return false;
-    }
-  };
-
-  for (const baseUrl of API_BASE_CANDIDATES) {
-    const isWarm = await tryWarmup(baseUrl);
-    if (!isWarm) continue;
-
-    for (const payload of attempts) {
-      const res = await tryFetch(baseUrl, payload);
-      if (!res) continue;
-
-      reachedServer = true;
-      if (!res.ok) continue;
-      let body = null;
-      try { body = await res.json(); } catch { continue; }
-
-      if (body?.success && body?.role === "owner") {
-        onAuth({ role: "owner" });
-        return { status: "success" };
-      }
-      if (body?.success && body?.role === "manager") {
-        onAuth({ role: "manager" });
-        return { status: "success" };
-      }
-      if (body?.success && body?.role === "cleaner" && body?.employeeId) {
-        onAuth({ role: "cleaner", employeeId: body.employeeId });
-        return { status: "success" };
-      }
-    }
+const getWarmBase = async () => {
+  for (const base of API_BASE_CANDIDATES) {
+    if (await tryWarmup(base)) return base;
   }
+  return null;
+};
 
+// Fetch the list of agents for the picker
+const loadAgentList = async () => {
+  setAgentListLoading(true);
+  setError("");
+  const base = await getWarmBase();
+  if (!base) {
+    setError(lang === "en" ? "Server is starting up — please wait and try again." : "Le serveur démarre — réessayez dans un moment.");
+    setAgentListLoading(false);
+    return;
+  }
+  const res = await tryFetch(base, "/api/auth/agent-list", { method: "GET" });
+  if (res && res.ok) {
+    const rows = await res.json();
+    setAgentList(rows);
+    setView("agent-pick");
+  } else {
+    setError(lang === "en" ? "Could not load agent list." : "Impossible de charger la liste des agents.");
+  }
+  setAgentListLoading(false);
+};
+
+const loginWithServer = async ({ user, pass, roleHints }) => {
+  const base = await getWarmBase();
+  if (!base) return { status: "unreachable" };
+  let reachedServer = false;
+  for (const payload of roleHints) {
+    const res = await tryFetch(base, "/api/auth/pin-login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...payload, pin: pass }),
+    });
+    if (!res) continue;
+    reachedServer = true;
+    if (!res.ok) continue;
+    let body = null;
+    try { body = await res.json(); } catch { continue; }
+    if (body?.success && body?.role === "owner") { onAuth({ role: "owner" }); return { status: "success" }; }
+    if (body?.success && body?.role === "manager") { onAuth({ role: "manager" }); return { status: "success" }; }
+    if (body?.success && body?.role === "cleaner" && body?.employeeId) { onAuth({ role: "cleaner", employeeId: body.employeeId }); return { status: "success" }; }
+  }
   return { status: reachedServer ? "invalid" : "unreachable" };
 };
 
-const doLogin = async () => {
-const rawUser = String(username || "").trim();
-const pass = String(password || "").trim();
-if (!rawUser || !pass) { setError(lang === "en" ? "Enter username and password" : "Saisissez identifiant et mot de passe"); return; }
-setIsSubmitting(true);
-setError("");
-
-try {
-  const serverLogin = await loginWithServer({ user: rawUser, pass });
-  if (serverLogin.status === "success") return;
-
-  if (serverLogin.status === "unreachable") {
-    setError(lang === "en"
-      ? "Server is starting up — please wait 30 seconds and try again."
-      : "Le serveur démarre — attendez 30 secondes et réessayez.");
-    return;
-  }
-
-  if (serverLogin.status === "invalid") {
-    setError(lang === "en" ? "Incorrect username or password" : "Identifiant ou mot de passe incorrect");
-    return;
-  }
-} catch {
-  setError(lang === "en" ? "Connection error. Please try again." : "Erreur de connexion. Veuillez réessayer.");
-} finally {
-  setIsSubmitting(false);
-}
+// Admin/Manager login
+const doAdminLogin = async () => {
+  const rawUser = String(username || "").trim();
+  const pass = String(password || "").trim();
+  if (!rawUser || !pass) { setError(lang === "en" ? "Enter username and password" : "Saisissez identifiant et mot de passe"); return; }
+  setIsSubmitting(true); setError("");
+  try {
+    const result = await loginWithServer({ user: rawUser, pass, roleHints: [
+      { role: "owner", username: rawUser, employeeId: rawUser },
+      { role: "manager", employeeId: rawUser },
+    ]});
+    if (result.status === "success") return;
+    if (result.status === "unreachable") setError(lang === "en" ? "Server is starting up — please wait 30s and retry." : "Le serveur démarre — attendez 30 secondes et réessayez.");
+    else setError(lang === "en" ? "Incorrect username or password" : "Identifiant ou mot de passe incorrect");
+  } catch { setError(lang === "en" ? "Connection error. Please try again." : "Erreur de connexion. Veuillez réessayer."); }
+  finally { setIsSubmitting(false); }
 };
 
-return (
-<div style={{ minHeight: "100vh", background: CL.bg, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Outfit', sans-serif" }}>
-<style>{globalCSS}</style>
-<div style={{ position: "fixed", top: 16, right: 16, zIndex: 100 }}><LanguageSwitcher /></div>
-<div style={{ animation: "fadeIn .5s ease", width: 420, maxWidth: "95vw", padding: "0 16px" }}>
-<div style={{ width: 80, height: 80, borderRadius: 24, background: `linear-gradient(135deg, ${CL.gold}, ${CL.goldDark})`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", fontSize: 32, fontWeight: 700, color: CL.bg, fontFamily: "'Cormorant Garamond', serif" }}>LAC</div>
+// Agent login (after picking name)
+const doAgentLogin = async () => {
+  const pass = String(password || "").trim();
+  if (!pass) { setError(lang === "en" ? "Enter your password" : "Saisissez votre mot de passe"); return; }
+  setIsSubmitting(true); setError("");
+  try {
+    const result = await loginWithServer({ pass, roleHints: [
+      { role: "cleaner", employeeId: selectedAgent.id },
+    ]});
+    if (result.status === "success") return;
+    if (result.status === "unreachable") setError(lang === "en" ? "Server is starting up — please wait 30s and retry." : "Le serveur démarre — attendez 30 secondes et réessayez.");
+    else setError(lang === "en" ? "Incorrect password" : "Mot de passe incorrect");
+  } catch { setError(lang === "en" ? "Connection error. Please try again." : "Erreur de connexion. Veuillez réessayer."); }
+  finally { setIsSubmitting(false); }
+};
 
-<div style={{ ...cardSt, textAlign: "left", padding: 24 }}>
-  <h3 style={{ fontFamily: "'Cormorant Garamond', serif", color: CL.gold, fontSize: 22, marginBottom: 14 }}>Secure Sign-In</h3>
-  <Field label="Username or email">
-    <TextInput value={username} onChange={ev => { setUsername(ev.target.value); setError(""); }} placeholder="username or email" onKeyDown={ev => ev.key === "Enter" && doLogin()} />
-  </Field>
+const goBack = () => { setError(""); setPassword(""); setUsername(""); setSelectedAgent(null); setView("home"); };
 
-  <Field label="Password">
-    <TextInput type="password" maxLength={24} value={password} onChange={ev => { setPassword(ev.target.value); setError(""); }} placeholder="••••••" onKeyDown={ev => ev.key === "Enter" && doLogin()} />
-  </Field>
-
-  {error && <div style={{ color: CL.red, fontSize: 13, marginBottom: 10, textAlign: "center" }}>{error}</div>}
-  <button disabled={isSubmitting} onClick={() => void doLogin()} style={{ ...btnPri, width: "100%", justifyContent: "center", background: CL.gold, opacity: isSubmitting ? 0.7 : 1, cursor: isSubmitting ? "not-allowed" : "pointer" }}>{isSubmitting ? (lang === "en" ? "Connecting…" : "Connexion en cours…") : t("loginBtn")}</button>
-  {isSubmitting && <p style={{ marginTop: 6, fontSize: 11, color: CL.muted, textAlign: "center" }}>{lang === "en" ? "Server may need a moment to wake up — please wait…" : "Le serveur démarre, merci de patienter…"}</p>}
-</div>
-</div>
-</div>
-
+// ── Shared layout wrapper ──────────────────────────────────────────────────
+const Page = ({ children }) => (
+  <div style={{ minHeight: "100vh", background: `linear-gradient(160deg, ${CL.bg} 0%, #0d0f18 100%)`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: "'Outfit', sans-serif", padding: "24px 16px" }}>
+    <style>{globalCSS}</style>
+    <style>{`
+      .login-agent-btn { transition: background .15s, transform .1s, box-shadow .15s; }
+      .login-agent-btn:hover { background: ${CL.gold}22 !important; transform: translateY(-2px); box-shadow: 0 6px 20px ${CL.gold}25; }
+      .login-role-card { transition: transform .15s, box-shadow .15s; cursor: pointer; }
+      .login-role-card:hover { transform: translateY(-4px); box-shadow: 0 12px 36px rgba(0,0,0,.45); }
+    `}</style>
+    <div style={{ position: "fixed", top: 16, right: 16, zIndex: 100 }}><LanguageSwitcher /></div>
+    {children}
+  </div>
 );
+
+// ── Logo ──────────────────────────────────────────────────────────────────
+const Logo = () => (
+  <div style={{ textAlign: "center", marginBottom: 32 }}>
+    <div style={{ width: 90, height: 90, borderRadius: 28, background: `linear-gradient(135deg, ${CL.gold}, ${CL.goldDark})`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px", fontSize: 34, fontWeight: 700, color: "#0d0e15", fontFamily: "'Cormorant Garamond', serif", boxShadow: `0 8px 32px ${CL.gold}40` }}>LAC</div>
+    <h1 style={{ margin: 0, fontFamily: "'Cormorant Garamond', serif", fontSize: 26, color: CL.gold, letterSpacing: "0.06em" }}>Lux Angels Cleaning</h1>
+    <p style={{ margin: "6px 0 0", fontSize: 13, color: CL.muted, letterSpacing: "0.08em", textTransform: "uppercase" }}>{lang === "en" ? "Management Portal" : "Portail de gestion"}</p>
+  </div>
+);
+
+// ── HOME: choose role ─────────────────────────────────────────────────────
+if (view === "home") return (
+  <Page>
+    <div style={{ animation: "fadeIn .5s ease", width: 460, maxWidth: "100%" }}>
+      <Logo />
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+        {/* Admin / Manager card */}
+        <div className="login-role-card" onClick={() => { setView("admin"); setError(""); }} style={{ flex: 1, minWidth: 180, background: CL.sf, border: `1px solid ${CL.bd}`, borderRadius: 18, padding: "28px 20px", textAlign: "center" }}>
+          <div style={{ width: 52, height: 52, borderRadius: 16, background: CL.s2, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px", color: CL.muted, fontSize: 24 }}>🔐</div>
+          <div style={{ fontWeight: 700, fontSize: 16, color: CL.text, marginBottom: 6 }}>{lang === "en" ? "Admin / Manager" : "Admin / Manager"}</div>
+          <div style={{ fontSize: 12, color: CL.muted, lineHeight: 1.5 }}>{lang === "en" ? "Owner & manager access" : "Accès propriétaire & manager"}</div>
+        </div>
+        {/* Agent Login card */}
+        <div className="login-role-card" onClick={() => { loadAgentList(); }} style={{ flex: 1, minWidth: 180, background: `linear-gradient(135deg, ${CL.gold}18, ${CL.goldDark}10)`, border: `1.5px solid ${CL.gold}60`, borderRadius: 18, padding: "28px 20px", textAlign: "center" }}>
+          {agentListLoading
+            ? <div style={{ color: CL.gold, fontSize: 13, paddingTop: 12 }}>{lang === "en" ? "Loading…" : "Chargement…"}</div>
+            : <>
+              <div style={{ width: 52, height: 52, borderRadius: 16, background: `${CL.gold}20`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px", fontSize: 24 }}>✨</div>
+              <div style={{ fontWeight: 700, fontSize: 16, color: CL.gold, marginBottom: 6 }}>{lang === "en" ? "Agent Login" : "Connexion Agent"}</div>
+              <div style={{ fontSize: 12, color: CL.muted, lineHeight: 1.5 }}>{lang === "en" ? "Cleaning agents — tap to continue" : "Agents de nettoyage — appuyez pour continuer"}</div>
+            </>}
+        </div>
+      </div>
+      {error && <div style={{ color: CL.red, fontSize: 13, marginTop: 14, textAlign: "center" }}>{error}</div>}
+    </div>
+  </Page>
+);
+
+// ── ADMIN LOGIN form ──────────────────────────────────────────────────────
+if (view === "admin") return (
+  <Page>
+    <div style={{ animation: "fadeIn .4s ease", width: 420, maxWidth: "100%" }}>
+      <Logo />
+      <div style={{ ...cardSt, padding: 28 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
+          <button onClick={goBack} style={{ background: "none", border: "none", color: CL.muted, cursor: "pointer", padding: 4, lineHeight: 0 }}>
+            <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <h3 style={{ margin: 0, fontFamily: "'Cormorant Garamond', serif", color: CL.gold, fontSize: 21 }}>{lang === "en" ? "Admin / Manager Login" : "Connexion Admin / Manager"}</h3>
+        </div>
+        <Field label={lang === "en" ? "Username" : "Identifiant"}>
+          <TextInput value={username} onChange={ev => { setUsername(ev.target.value); setError(""); }} placeholder={lang === "en" ? "username or email" : "identifiant ou email"} onKeyDown={ev => ev.key === "Enter" && doAdminLogin()} />
+        </Field>
+        <Field label={lang === "en" ? "Password" : "Mot de passe"}>
+          <TextInput type="password" maxLength={32} value={password} onChange={ev => { setPassword(ev.target.value); setError(""); }} placeholder="••••••••" onKeyDown={ev => ev.key === "Enter" && doAdminLogin()} />
+        </Field>
+        {error && <div style={{ color: CL.red, fontSize: 13, marginBottom: 10, textAlign: "center" }}>{error}</div>}
+        <button disabled={isSubmitting} onClick={() => void doAdminLogin()} style={{ ...btnPri, width: "100%", justifyContent: "center", opacity: isSubmitting ? 0.7 : 1, cursor: isSubmitting ? "not-allowed" : "pointer" }}>
+          {isSubmitting ? (lang === "en" ? "Connecting…" : "Connexion…") : (lang === "en" ? "Sign In" : "Se connecter")}
+        </button>
+        {isSubmitting && <p style={{ marginTop: 6, fontSize: 11, color: CL.muted, textAlign: "center" }}>{lang === "en" ? "Server may need a moment to wake up…" : "Le serveur démarre, merci de patienter…"}</p>}
+      </div>
+    </div>
+  </Page>
+);
+
+// ── AGENT PICK: choose name ───────────────────────────────────────────────
+if (view === "agent-pick") return (
+  <Page>
+    <div style={{ animation: "fadeIn .4s ease", width: 500, maxWidth: "100%" }}>
+      <Logo />
+      <div style={{ ...cardSt, padding: 24 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
+          <button onClick={goBack} style={{ background: "none", border: "none", color: CL.muted, cursor: "pointer", padding: 4, lineHeight: 0 }}>
+            <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <h3 style={{ margin: 0, fontFamily: "'Cormorant Garamond', serif", color: CL.gold, fontSize: 21 }}>{lang === "en" ? "Select Your Name" : "Sélectionnez votre nom"}</h3>
+        </div>
+        <p style={{ margin: "0 0 16px", fontSize: 13, color: CL.muted }}>{lang === "en" ? "Tap your name to continue" : "Appuyez sur votre nom pour continuer"}</p>
+        {agentList.length === 0
+          ? <p style={{ color: CL.muted, fontSize: 13, textAlign: "center" }}>{lang === "en" ? "No agents found." : "Aucun agent trouvé."}</p>
+          : <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+              {agentList.map(agent => (
+                <button key={agent.id} className="login-agent-btn" onClick={() => { setSelectedAgent(agent); setPassword(""); setError(""); setView("agent-pw"); }}
+                  style={{ padding: "12px 20px", background: CL.s2, border: `1px solid ${CL.bd}`, borderRadius: 12, color: CL.text, fontSize: 15, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ width: 32, height: 32, borderRadius: "50%", background: `${CL.gold}22`, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 14, color: CL.gold, fontWeight: 700, flexShrink: 0 }}>{(agent.display_name || agent.name || "?").charAt(0).toUpperCase()}</span>
+                  {agent.display_name || agent.name}
+                </button>
+              ))}
+            </div>}
+        {error && <div style={{ color: CL.red, fontSize: 13, marginTop: 12, textAlign: "center" }}>{error}</div>}
+      </div>
+    </div>
+  </Page>
+);
+
+// ── AGENT PASSWORD ────────────────────────────────────────────────────────
+if (view === "agent-pw") return (
+  <Page>
+    <div style={{ animation: "fadeIn .4s ease", width: 420, maxWidth: "100%" }}>
+      <Logo />
+      <div style={{ ...cardSt, padding: 28 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
+          <button onClick={() => { setView("agent-pick"); setError(""); setPassword(""); }} style={{ background: "none", border: "none", color: CL.muted, cursor: "pointer", padding: 4, lineHeight: 0 }}>
+            <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <h3 style={{ margin: 0, fontFamily: "'Cormorant Garamond', serif", color: CL.gold, fontSize: 21 }}>{lang === "en" ? "Agent Login" : "Connexion Agent"}</h3>
+        </div>
+        {/* Show the selected agent's name/avatar */}
+        <div style={{ display: "flex", alignItems: "center", gap: 14, background: `${CL.gold}12`, border: `1px solid ${CL.gold}30`, borderRadius: 12, padding: "14px 16px", marginBottom: 20 }}>
+          <div style={{ width: 44, height: 44, borderRadius: "50%", background: `${CL.gold}28`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, color: CL.gold, fontWeight: 700, flexShrink: 0 }}>{(selectedAgent?.display_name || selectedAgent?.name || "?").charAt(0).toUpperCase()}</div>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 16, color: CL.text }}>{selectedAgent?.display_name || selectedAgent?.name}</div>
+            <div style={{ fontSize: 12, color: CL.muted }}>{lang === "en" ? "Cleaning Agent" : "Agent de nettoyage"}</div>
+          </div>
+        </div>
+        <Field label={lang === "en" ? "Password" : "Mot de passe"}>
+          <TextInput type="password" maxLength={32} value={password} autoFocus onChange={ev => { setPassword(ev.target.value); setError(""); }} placeholder="••••••••" onKeyDown={ev => ev.key === "Enter" && doAgentLogin()} />
+        </Field>
+        {error && <div style={{ color: CL.red, fontSize: 13, marginBottom: 10, textAlign: "center" }}>{error}</div>}
+        <button disabled={isSubmitting} onClick={() => void doAgentLogin()} style={{ ...btnPri, width: "100%", justifyContent: "center", opacity: isSubmitting ? 0.7 : 1, cursor: isSubmitting ? "not-allowed" : "pointer" }}>
+          {isSubmitting ? (lang === "en" ? "Connecting…" : "Connexion…") : (lang === "en" ? "Sign In" : "Se connecter")}
+        </button>
+        {isSubmitting && <p style={{ marginTop: 6, fontSize: 11, color: CL.muted, textAlign: "center" }}>{lang === "en" ? "Server may need a moment to wake up…" : "Le serveur démarre, merci de patienter…"}</p>}
+      </div>
+    </div>
+  </Page>
+);
+
+return null;
 }
 
 // ==============================================

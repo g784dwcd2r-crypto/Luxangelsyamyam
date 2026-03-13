@@ -300,6 +300,25 @@ const ensureOwnerAccess = async ({ identifier, secret }) => {
 // ---------------------------------------------------------------------------
 // AUTH
 // ---------------------------------------------------------------------------
+
+// Public endpoint: returns {id, name, username} for active+approved cleaners only
+// No sensitive data (no emails, no pins, no hashes)
+app.get('/api/auth/agent-list', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, name, COALESCE(NULLIF(TRIM(username), ''), SPLIT_PART(name, ' ', 1)) AS display_name
+       FROM employees
+       WHERE LOWER(COALESCE(status, 'active')) = 'active'
+         AND LOWER(COALESCE(account_status, 'approved')) = 'approved'
+       ORDER BY name`
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 app.post('/api/auth/pin-login', async (req, res) => {
   try {
     const { role, pin, employeeId } = req.body;
@@ -350,21 +369,41 @@ app.post('/api/auth/pin-login', async (req, res) => {
     }
 
     if (requestedRole === 'cleaner' || requestedRole === 'employee') {
-      const normalizedIdentifier = normalizeEmail(accountIdentifier);
-      if (!normalizedIdentifier || !normalizedIdentifier.includes('@')) {
-        return res.status(400).json({ error: 'A valid email is required for employee login' });
+      // Support login by employee ID (from agent-list picker) OR by email
+      let result;
+      const looksLikeId = accountIdentifier && !accountIdentifier.includes('@') && accountIdentifier.length > 4;
+      if (looksLikeId) {
+        // Login via employee ID selected from the agent list
+        result = await pool.query(
+          `SELECT id, pin, password_hash, account_status, email_verified
+           FROM employees
+           WHERE LOWER(COALESCE(status, 'active')) = 'active'
+             AND id = $1
+           LIMIT 1`,
+          [accountIdentifier]
+        );
+      } else {
+        // Legacy: login via email
+        const normalizedEmail = normalizeEmail(accountIdentifier);
+        if (!normalizedEmail || !normalizedEmail.includes('@')) {
+          return res.status(400).json({ error: 'A valid email or agent ID is required for employee login' });
+        }
+        result = await pool.query(
+          `SELECT id, pin, password_hash, account_status, email_verified
+           FROM employees
+           WHERE LOWER(COALESCE(status, 'active')) = 'active'
+             AND LOWER(email) = $1
+           LIMIT 1`,
+          [normalizedEmail]
+        );
       }
-      const result = await pool.query(
-        `SELECT id, pin, password_hash, account_status, email_verified
-         FROM employees
-         WHERE LOWER(COALESCE(status, 'active')) = 'active'
-           AND LOWER(email) = $1
-         LIMIT 1`,
-        [normalizedIdentifier]
-      );
+
       if (!result.rows.length) return res.status(401).json({ error: 'Employee not found' });
       const employee = result.rows[0];
-      if (!employee.email_verified) return res.status(403).json({ error: 'Email is not verified yet' });
+      // ID-based login bypasses email verification requirement (admin created them)
+      if (!looksLikeId && !employee.email_verified) {
+        return res.status(403).json({ error: 'Email is not verified yet' });
+      }
       if (String(employee.account_status || 'approved') !== 'approved') {
         return res.status(403).json({ error: 'Account is waiting for owner approval' });
       }

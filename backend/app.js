@@ -259,6 +259,10 @@ async function sendEmail({ to, subject, body, html, from }) {
   if (!senderEmail) return { ok: false, status: 400, error: 'Sender email is missing' };
 
   if (gateway.provider === 'smtp') {
+    // For SMTP, the from address MUST match the authenticated SMTP_USER.
+    // Using a different address (e.g. from DB settings) will cause most SMTP
+    // servers (including Infomaniak) to reject the message with a 550 error.
+    const smtpFrom = gateway.user;
     try {
       const transporter = nodemailer.createTransport({
         host: gateway.host,
@@ -267,16 +271,16 @@ async function sendEmail({ to, subject, body, html, from }) {
         auth: { user: gateway.user, pass: gateway.pass },
       });
       await transporter.sendMail({
-        from: `"${senderName}" <${senderEmail}>`,
+        from: `"${senderName}" <${smtpFrom}>`,
         to,
         subject,
         text: body || undefined,
         html: html || undefined,
-        replyTo: senderEmail,
+        replyTo: smtpFrom,
       });
       return { ok: true, provider: 'smtp' };
     } catch (err) {
-      console.error('SMTP send failed:', err.message);
+      console.error('SMTP send failed:', err);
       return { ok: false, status: 502, error: 'SMTP send failed: ' + err.message };
     }
   }
@@ -297,7 +301,7 @@ async function sendEmail({ to, subject, body, html, from }) {
     });
     if (!response.ok) {
       console.error('ZeptoMail rejected request:', response.status, response.body);
-      return { ok: false, status: 502, error: 'Email provider rejected the request' };
+      return { ok: false, status: 502, error: `Email provider rejected the request (${response.status}): ${response.body}` };
     }
     return { ok: true, provider: 'zeptomail' };
   }
@@ -308,16 +312,16 @@ async function sendEmail({ to, subject, body, html, from }) {
     },
     body: {
       from: `${senderName} <${senderEmail}>`,
-      to,
+      to: [to],
       subject,
       text: body || undefined,
       html: html || undefined,
-      reply_to: senderEmail,
+      reply_to: [senderEmail],
     },
   });
   if (!response.ok) {
     console.error('Resend rejected request:', response.status, response.body);
-    return { ok: false, status: 502, error: 'Email provider rejected the request' };
+    return { ok: false, status: 502, error: `Email provider rejected the request (${response.status}): ${response.body}` };
   }
   return { ok: true, provider: 'resend' };
 }
@@ -1117,6 +1121,36 @@ app.put('/api/settings', async (req, res) => {
   }
 });
 
+
+// Diagnostic endpoint — returns email config status and optionally sends a test email.
+// Usage: POST /api/admin/test-email  { "to": "you@example.com" }
+// Protected by owner PIN: pass ?pin=YOUR_PIN or body.pin
+app.post('/api/admin/test-email', async (req, res) => {
+  try {
+    const pin = String(req.body?.pin || req.query.pin || '').trim();
+    const authorized = await ensureOwnerAccess({ identifier: '', secret: pin });
+    if (!authorized) return res.status(403).json({ error: 'Unauthorized' });
+
+    const gateway = getEmailGateway();
+    const config = gateway
+      ? { provider: gateway.provider, configured: true, ...(gateway.provider === 'smtp' ? { host: gateway.host, port: gateway.port, secure: gateway.secure, user: gateway.user } : {}) }
+      : { configured: false };
+
+    const to = String(req.body?.to || '').trim();
+    if (!to) return res.json({ config });
+
+    const result = await sendEmail({
+      to,
+      subject: 'Lux Angels — test email',
+      body: 'This is a test email from your Lux Angels backend.',
+      html: '<p>This is a <strong>test email</strong> from your Lux Angels backend.</p>',
+    });
+    return res.json({ config, send: result });
+  } catch (err) {
+    console.error('test-email error:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
 
 app.post('/api/notifications/email', async (req, res) => {
   try {

@@ -77,6 +77,11 @@ app.get('/api/health/db', async (_req, res) => {
   }
 });
 
+app.get('/api/email-status', (_req, res) => {
+  const gateway = getEmailGateway();
+  res.json({ configured: !!gateway, provider: gateway ? gateway.provider : null });
+});
+
 // ---------------------------------------------------------------------------
 // Helper
 // ---------------------------------------------------------------------------

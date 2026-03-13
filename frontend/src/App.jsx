@@ -1520,6 +1520,7 @@ const [toast, setToast] = useState(null);
 const [section, setSection] = useState("dashboard");
 const [devisSeed, setDevisSeed] = useState(null);
 const [sideOpen, setSideOpen] = useState(true);
+const [emailConfigured, setEmailConfigured] = useState(true);
 const installPromptRef = useRef(null);
 
 useEffect(() => {
@@ -1652,7 +1653,7 @@ useEffect(() => {
     const base = API_BASE_CANDIDATES[0] || "";
     if (!base) return;
     try {
-      const [employeesRes, clientsRes, schedulesRes, clocksRes, invoicesRes, payslipsRes, settingsRes] = await Promise.all([
+      const [employeesRes, clientsRes, schedulesRes, clocksRes, invoicesRes, payslipsRes, settingsRes, emailStatusRes] = await Promise.all([
         fetch(apiUrl('/api/employees', base), { cache: 'no-store' }),
         fetch(apiUrl('/api/clients', base), { cache: 'no-store' }),
         fetch(apiUrl('/api/schedules', base), { cache: 'no-store' }),
@@ -1660,9 +1661,15 @@ useEffect(() => {
         fetch(apiUrl('/api/invoices', base), { cache: 'no-store' }),
         fetch(apiUrl('/api/payslips', base), { cache: 'no-store' }),
         fetch(apiUrl('/api/settings', base), { cache: 'no-store' }),
+        fetch(apiUrl('/api/email-status', base), { cache: 'no-store' }).catch(() => null),
       ]);
 
       if (![employeesRes, clientsRes, schedulesRes, clocksRes, invoicesRes, payslipsRes, settingsRes].every(r => r.ok)) return;
+
+      if (emailStatusRes && emailStatusRes.ok) {
+        const emailStatus = await emailStatusRes.json().catch(() => null);
+        if (emailStatus) setEmailConfigured(!!emailStatus.configured);
+      }
 
       const [employeesRows, clientsRows, schedulesRows, clocksRows, invoicesRows, payslipsRows, settingsRows] = await Promise.all([
         employeesRes.json(),
@@ -1788,7 +1795,7 @@ showToast(uiText("Use browser menu > Install app"), "info");
 };
 
 const renderSection = () => {
-const props = { data, updateData, showToast, setData, auth, setSection, setDevisSeed, devisSeed };
+const props = { data, updateData, showToast, setData, auth, setSection, setDevisSeed, devisSeed, emailConfigured };
 switch (section) {
 case "dashboard": return <DashboardPage data={data} auth={auth} />;
 case "employees": return <EmployeesPage {...props} />;
@@ -4653,7 +4660,7 @@ return (
 );
 }
 
-function InvoicesPage({ data, updateData, showToast }) {
+function InvoicesPage({ data, updateData, showToast, emailConfigured = true }) {
 const { t, lang } = useI18n();
 const [modal, setModal] = useState(null);
 const [preview, setPreview] = useState(null);
@@ -4875,6 +4882,12 @@ const hasFilters = filters.invoiceNumber || filters.clientId || filters.status |
 
 return (
 <div>
+{!emailConfigured && (
+  <div style={{ background: "#fff3cd", border: "1px solid #ffc107", borderRadius: 8, padding: "10px 14px", marginBottom: 14, fontSize: 13, color: "#856404", display: "flex", alignItems: "center", gap: 8 }}>
+    <span>&#9888;</span>
+    <span>{lang === "fr" ? "L'envoi d'e-mails n'est pas configuré. Configurez un fournisseur d'e-mail (SMTP, ZeptoMail ou Resend) dans les variables d'environnement du serveur pour activer l'envoi de factures par e-mail." : "Email sending is not configured. Set up an email provider (SMTP, ZeptoMail, or Resend) in the server environment variables to enable invoice emailing."}</span>
+  </div>
+)}
 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
 <h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold }}>{t("invoices")}</h1>
 <button style={btnPri} onClick={() => setModal({ clientId: "", date: getToday(), dueDate: "", invoiceNumber: nextInvoiceNum(), items: [{ prestationDate: getToday(), description: "", hours: "", quantity: 1, unitPrice: 0, total: 0 }], visibleColumns: { prestationDate: true, description: true, hours: true, quantity: false, unitPrice: true, total: true, tva: true }, subtotal: 0, vatRate: data.settings.defaultVatRate, vatAmount: 0, total: 0, status: "draft", notes: "", paymentTerms: "Payment due within 30 days.", emailTemplate: "standard", zohoEmail: "" })}>{ICN.plus} {t("newInvoice")}</button>
@@ -4932,7 +4945,7 @@ return (
 <thead><tr><th style={thSt}>#</th><th style={thSt}>{t("client")}</th><th style={thSt}>{t("date")}</th><th style={thSt}>{t("total")}</th><th style={thSt}>{t("status")}</th><th style={thSt}>{t("actions")}</th></tr></thead>
 <tbody>
 {filteredInvoices.map(inv => { const client = data.clients.find(c => c.id === inv.clientId); return (
-<tr key={inv.id}><td style={tdSt}><strong>{inv.invoiceNumber}</strong></td><td style={tdSt}>{client?.name || "-"}</td><td style={tdSt}>{fmtDate(inv.date)}</td><td style={{ ...tdSt, fontWeight: 600 }}>€{(inv.total || 0).toFixed(2)}</td><td style={tdSt}>{(() => { const statusColor = inv.status === "paid" ? CL.green : inv.status === "overdue" ? CL.red : inv.status === "sent" ? CL.blue : CL.muted; return <select value={inv.status} onChange={e => handleStatusChange(inv, e.target.value)} style={{ background: statusColor + "22", color: statusColor, border: `1.5px solid ${statusColor}`, borderRadius: 20, padding: "3px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer", appearance: "none", WebkitAppearance: "none", outline: "none" }}><option value="draft">{lang === "fr" ? "Brouillon" : "Draft"}</option><option value="sent">{lang === "fr" ? "Envoyée" : "Sent"}</option><option value="paid">{lang === "fr" ? "Payée ✓" : "Paid ✓"}</option><option value="overdue">{lang === "fr" ? "En retard" : "Overdue"}</option></select>; })()}</td><td style={tdSt}><div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}><button style={{ ...btnSec, ...btnSm }} onClick={() => setPreview(inv)}>{t("view")}</button><button style={{ ...btnSec, ...btnSm }} onClick={() => setModal({ ...inv })}>{ICN.edit}</button><button style={{ ...btnSec, ...btnSm }} onClick={() => emailInvoice(inv)}>{ICN.mail}</button><button style={{ ...btnSec, ...btnSm, color: CL.red }} onClick={() => handleDelete(inv.id)}>{ICN.trash}</button></div></td></tr>
+<tr key={inv.id}><td style={tdSt}><strong>{inv.invoiceNumber}</strong></td><td style={tdSt}>{client?.name || "-"}</td><td style={tdSt}>{fmtDate(inv.date)}</td><td style={{ ...tdSt, fontWeight: 600 }}>€{(inv.total || 0).toFixed(2)}</td><td style={tdSt}>{(() => { const statusColor = inv.status === "paid" ? CL.green : inv.status === "overdue" ? CL.red : inv.status === "sent" ? CL.blue : CL.muted; return <select value={inv.status} onChange={e => handleStatusChange(inv, e.target.value)} style={{ background: statusColor + "22", color: statusColor, border: `1.5px solid ${statusColor}`, borderRadius: 20, padding: "3px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer", appearance: "none", WebkitAppearance: "none", outline: "none" }}><option value="draft">{lang === "fr" ? "Brouillon" : "Draft"}</option><option value="sent">{lang === "fr" ? "Envoyée" : "Sent"}</option><option value="paid">{lang === "fr" ? "Payée ✓" : "Paid ✓"}</option><option value="overdue">{lang === "fr" ? "En retard" : "Overdue"}</option></select>; })()}</td><td style={tdSt}><div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}><button style={{ ...btnSec, ...btnSm }} onClick={() => setPreview(inv)}>{t("view")}</button><button style={{ ...btnSec, ...btnSm }} onClick={() => setModal({ ...inv })}>{ICN.edit}</button><button style={{ ...btnSec, ...btnSm, ...(emailConfigured ? {} : { opacity: 0.45, cursor: "not-allowed" }) }} title={emailConfigured ? undefined : (lang === "fr" ? "Email non configuré — contactez votre administrateur" : "Email not configured — contact your administrator")} disabled={!emailConfigured} onClick={() => emailInvoice(inv)}>{ICN.mail}</button><button style={{ ...btnSec, ...btnSm, color: CL.red }} onClick={() => handleDelete(inv.id)}>{ICN.trash}</button></div></td></tr>
 ); })}
 {filteredInvoices.length === 0 && <tr><td colSpan={6} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>{hasFilters ? (lang === "fr" ? "Aucune facture trouvée" : "No invoices match filters") : uiText("No invoices")}</td></tr>}
 </tbody>
@@ -4946,7 +4959,7 @@ return (
 <button style={btnSec} onClick={() => setPreview(null)}>{lang === "en" ? "Close" : "Fermer"}</button>
 <button style={btnSec} onClick={() => downloadInvoicePng(preview)}>{ICN.download} PNG</button>
 <button style={btnPri} onClick={() => downloadInvoicePdf(preview)}>{ICN.download} PDF</button>
-<button style={{ ...btnSec, color: CL.blue }} onClick={() => emailInvoice(preview)}>{ICN.mail} {t("sendEmail")}</button>
+<button style={{ ...btnSec, color: emailConfigured ? CL.blue : CL.muted, ...(emailConfigured ? {} : { opacity: 0.45, cursor: "not-allowed" }) }} title={emailConfigured ? undefined : (lang === "fr" ? "Email non configuré — contactez votre administrateur" : "Email not configured — contact your administrator")} disabled={!emailConfigured} onClick={() => emailInvoice(preview)}>{ICN.mail} {t("sendEmail")}</button>
 </div>
 </ModalBox>
 )}

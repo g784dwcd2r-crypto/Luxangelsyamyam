@@ -687,8 +687,8 @@ const LU_PUBLIC_HOLIDAYS = [
 const DEFAULTS = {
 employees: [], clients: [], schedules: [], clockEntries: [], quotes: [], invoices: [], payslips: [],
 photoUploads: [], timeOffRequests: [], inventoryProducts: [], productRequests: [], cleanerProductHoldings: [], prospectVisits: [], expenses: [],
-ownerUsername: "LuxAdmin", ownerPin: "LuxAngels@2025",
-managerUsername: "manager", managerPin: "Manager@2025",
+ownerUsername: "", ownerPin: "",
+managerUsername: "", managerPin: "",
 employeePins: {}, employeeUsernames: {},
 settings: {
 companyName: "Lux Angels Cleaning",
@@ -1337,8 +1337,8 @@ addSheet("Settings", [
 { Key: "Email", Val: data.settings.companyEmail }, { Key: "Phone", Val: data.settings.companyPhone },
 { Key: "VAT Number", Val: data.settings.vatNumber }, { Key: "Bank IBAN", Val: data.settings.bankIban },
 { Key: "VAT Rate", Val: data.settings.defaultVatRate },
-{ Key: "Owner Username", Val: data.ownerUsername || "info@luxangelscleaning.lu" }, { Key: "Owner Password", Val: data.ownerPin || "0000" },
-{ Key: "Manager Username", Val: data.managerUsername || "manager" }, { Key: "Manager Password", Val: data.managerPin || "4321" },
+{ Key: "Owner Username", Val: data.ownerUsername || "" }, { Key: "Owner Password", Val: data.ownerPin || "" },
+{ Key: "Manager Username", Val: data.managerUsername || "" }, { Key: "Manager Password", Val: data.managerPin || "" },
 ], ["Key", "Val"]);
 
 const months = [...new Set(data.clockEntries.filter(c => c.clockOut && c.clockIn).map(c => c.clockIn.slice(0, 7)))].sort();
@@ -1412,10 +1412,10 @@ const sheet = (name) => {
     clockEntries: clocks.length ? clocks : prev.clockEntries,
     invoices: Object.values(invMap).length ? Object.values(invMap) : prev.invoices,
     payslips: payslips.length ? payslips : prev.payslips,
-    ownerUsername: sett["Owner Username"] || prev.ownerUsername || "info@luxangelscleaning.lu",
-    ownerPin: sett["Owner Password"] || sett["Owner PIN"] || prev.ownerPin || "0000",
-    managerUsername: sett["Manager Username"] || prev.managerUsername || "manager",
-    managerPin: sett["Manager Password"] || sett["Manager PIN"] || prev.managerPin || "4321",
+    ownerUsername: sett["Owner Username"] || prev.ownerUsername || "",
+    ownerPin: sett["Owner Password"] || sett["Owner PIN"] || prev.ownerPin || "",
+    managerUsername: sett["Manager Username"] || prev.managerUsername || "",
+    managerPin: sett["Manager Password"] || sett["Manager PIN"] || prev.managerPin || "",
     settings: { ...prev.settings, companyName: sett["Company Name"] || prev.settings.companyName, companyAddress: sett["Address"] || prev.settings.companyAddress, companyEmail: sett["Email"] || prev.settings.companyEmail, companyPhone: sett["Phone"] || prev.settings.companyPhone, vatNumber: sett["VAT Number"] || prev.settings.vatNumber, bankIban: sett["Bank IBAN"] || prev.settings.bankIban, defaultVatRate: parseFloat(sett["VAT Rate"]) || prev.settings.defaultVatRate },
   }));
   showToast("Excel imported!", "success");
@@ -6001,10 +6001,10 @@ return (
 // ==============================================
 function SettingsPage({ data, updateData, setData, showToast, auth }) {
 const [form, setForm] = useState(data.settings);
-const [ownerUsername, setOwnerUsername] = useState(data.ownerUsername || "LuxAdmin");
-const [pin, setPin] = useState(data.ownerPin || "LuxAngels@2025");
-const [managerUsername, setManagerUsername] = useState(data.managerUsername || "manager");
-const [managerPin, setManagerPin] = useState(data.managerPin || "Manager@2025");
+const [ownerUsername, setOwnerUsername] = useState(data.ownerUsername || "");
+const [pin, setPin] = useState(data.ownerPin || "");
+const [managerUsername, setManagerUsername] = useState(data.managerUsername || "");
+const [managerPin, setManagerPin] = useState(data.managerPin || "");
 const set = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
 
 const handleSave = async () => {

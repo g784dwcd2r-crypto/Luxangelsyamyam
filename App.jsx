@@ -722,7 +722,7 @@ const [search, setSearch] = useState(””);
 const emptyEmployee = {
 name: “”, email: “”, phone: “”, phoneMobile: “”, address: “”, city: “Luxembourg”, postalCode: “”, country: “Luxembourg”,
 role: “Cleaner”, hourlyRate: 15, startDate: getToday(), status: “active”, notes: “”, bankIban: “”, socialSecNumber: “”,
-pin: “0000”, dateOfBirth: “”, nationality: “”, contractType: “CDI”, workPermit: “”, emergencyName: “”, emergencyPhone: “”,
+pin: “0000”, dateOfBirth: “”, nationality: “”, contractType: “CDI”, contractEndDate: “”, workPermit: “”, emergencyName: “”, emergencyPhone: “”,
 languages: “”, transport: “”,
 };
 
@@ -870,6 +870,9 @@ return (
         </SelectInput>
       </Field>
       <Field label="Start Date"><TextInput type="date" value={form.startDate} onChange={ev => set("startDate", ev.target.value)} /></Field>
+      {form.contractType === "CDD" && (
+        <Field label="End Date"><TextInput type="date" value={form.contractEndDate || ""} onChange={ev => set("contractEndDate", ev.target.value)} /></Field>
+      )}
       <Field label="Work Permit #"><TextInput value={form.workPermit || ""} onChange={ev => set("workPermit", ev.target.value)} placeholder="If applicable" /></Field>
       <Field label="Bank IBAN"><TextInput value={form.bankIban || ""} onChange={ev => set("bankIban", ev.target.value)} placeholder="LU..." /></Field>
       <Field label="Status">

@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS employees (
   start_date       DATE,
   status           TEXT NOT NULL DEFAULT 'active',
   contract_type    TEXT DEFAULT 'CDI',
+  contract_end_date DATE,
   bank_iban        TEXT,
   social_sec_number TEXT,
   date_of_birth    DATE,

@@ -1644,9 +1644,11 @@ const tryWarmup = async (baseUrl) => {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), WARMUP_TIMEOUT_MS);
   try {
-    const res = await fetch(apiUrl("/api/health/db", baseUrl), { signal: controller.signal });
+    // Warm only the API server process; DB-specific health can be flaky right
+    // after cold starts and should not block opening the login screen.
+    const res = await fetch(apiUrl("/", baseUrl), { signal: controller.signal });
     clearTimeout(id);
-    return res.ok;
+    return res.ok || (res.status >= 200 && res.status < 500);
   } catch { clearTimeout(id); return false; }
 };
 
@@ -1736,35 +1738,11 @@ const doAgentLogin = async () => {
 
 const goBack = () => { setError(""); setPassword(""); setUsername(""); setSelectedAgent(null); setView("home"); };
 
-// ── Shared layout wrapper ──────────────────────────────────────────────────
-const Page = ({ children }) => (
-  <div style={{ minHeight: "100vh", background: `linear-gradient(160deg, ${CL.bg} 0%, #0d0f18 100%)`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: "'Outfit', sans-serif", padding: "24px 16px" }}>
-    <style>{globalCSS}</style>
-    <style>{`
-      .login-agent-btn { transition: background .15s, transform .1s, box-shadow .15s; }
-      .login-agent-btn:hover { background: ${CL.gold}22 !important; transform: translateY(-2px); box-shadow: 0 6px 20px ${CL.gold}25; }
-      .login-role-card { transition: transform .15s, box-shadow .15s; cursor: pointer; }
-      .login-role-card:hover { transform: translateY(-4px); box-shadow: 0 12px 36px rgba(0,0,0,.45); }
-    `}</style>
-    <div style={{ position: "fixed", top: 16, right: 16, zIndex: 100 }}><LanguageSwitcher /></div>
-    {children}
-  </div>
-);
-
-// ── Logo ──────────────────────────────────────────────────────────────────
-const Logo = () => (
-  <div style={{ textAlign: "center", marginBottom: 32 }}>
-    <div style={{ width: 90, height: 90, borderRadius: 28, background: `linear-gradient(135deg, ${CL.gold}, ${CL.goldDark})`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px", fontSize: 34, fontWeight: 700, color: "#0d0e15", fontFamily: "'Cormorant Garamond', serif", boxShadow: `0 8px 32px ${CL.gold}40` }}>LAC</div>
-    <h1 style={{ margin: 0, fontFamily: "'Cormorant Garamond', serif", fontSize: 26, color: CL.gold, letterSpacing: "0.06em" }}>Lux Angels Cleaning</h1>
-    <p style={{ margin: "6px 0 0", fontSize: 13, color: CL.muted, letterSpacing: "0.08em", textTransform: "uppercase" }}>{lang === "en" ? "Management Portal" : "Portail de gestion"}</p>
-  </div>
-);
-
 // ── HOME: choose role ─────────────────────────────────────────────────────
 if (view === "home") return (
-  <Page>
+  <LoginShell>
     <div style={{ animation: "fadeIn .5s ease", width: 460, maxWidth: "100%" }}>
-      <Logo />
+      <LoginLogo lang={lang} />
       <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
         {/* Admin / Manager card */}
         <div className="login-role-card" onClick={() => { setView("admin"); setError(""); }} style={{ flex: 1, minWidth: 180, background: CL.sf, border: `1px solid ${CL.bd}`, borderRadius: 18, padding: "28px 20px", textAlign: "center" }}>
@@ -1785,14 +1763,14 @@ if (view === "home") return (
       </div>
       {error && <div style={{ color: CL.red, fontSize: 13, marginTop: 14, textAlign: "center" }}>{error}</div>}
     </div>
-  </Page>
+  </LoginShell>
 );
 
 // ── ADMIN LOGIN form ──────────────────────────────────────────────────────
 if (view === "admin") return (
-  <Page>
+  <LoginShell>
     <div style={{ animation: "fadeIn .4s ease", width: 420, maxWidth: "100%" }}>
-      <Logo />
+      <LoginLogo lang={lang} />
       <div style={{ ...cardSt, padding: 28 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
           <button onClick={goBack} style={{ background: "none", border: "none", color: CL.muted, cursor: "pointer", padding: 4, lineHeight: 0 }}>
@@ -1813,14 +1791,14 @@ if (view === "admin") return (
         {isSubmitting && <p style={{ marginTop: 6, fontSize: 11, color: CL.muted, textAlign: "center" }}>{lang === "en" ? "Server may need a moment to wake up…" : "Le serveur démarre, merci de patienter…"}</p>}
       </div>
     </div>
-  </Page>
+  </LoginShell>
 );
 
 // ── AGENT PICK: choose name ───────────────────────────────────────────────
 if (view === "agent-pick") return (
-  <Page>
+  <LoginShell>
     <div style={{ animation: "fadeIn .4s ease", width: 500, maxWidth: "100%" }}>
-      <Logo />
+      <LoginLogo lang={lang} />
       <div style={{ ...cardSt, padding: 24 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
           <button onClick={goBack} style={{ background: "none", border: "none", color: CL.muted, cursor: "pointer", padding: 4, lineHeight: 0 }}>
@@ -1843,14 +1821,14 @@ if (view === "agent-pick") return (
         {error && <div style={{ color: CL.red, fontSize: 13, marginTop: 12, textAlign: "center" }}>{error}</div>}
       </div>
     </div>
-  </Page>
+  </LoginShell>
 );
 
 // ── AGENT PASSWORD ────────────────────────────────────────────────────────
 if (view === "agent-pw") return (
-  <Page>
+  <LoginShell>
     <div style={{ animation: "fadeIn .4s ease", width: 420, maxWidth: "100%" }}>
-      <Logo />
+      <LoginLogo lang={lang} />
       <div style={{ ...cardSt, padding: 28 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
           <button onClick={() => { setView("agent-pick"); setError(""); setPassword(""); }} style={{ background: "none", border: "none", color: CL.muted, cursor: "pointer", padding: 4, lineHeight: 0 }}>
@@ -1876,11 +1854,34 @@ if (view === "agent-pw") return (
         {isSubmitting && <p style={{ marginTop: 6, fontSize: 11, color: CL.muted, textAlign: "center" }}>{lang === "en" ? "Server may need a moment to wake up…" : "Le serveur démarre, merci de patienter…"}</p>}
       </div>
     </div>
-  </Page>
+  </LoginShell>
 );
 
 return null;
 }
+
+
+const LoginShell = ({ children }) => (
+  <div style={{ minHeight: "100vh", background: `linear-gradient(160deg, ${CL.bg} 0%, #0d0f18 100%)`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: "'Outfit', sans-serif", padding: "24px 16px" }}>
+    <style>{globalCSS}</style>
+    <style>{`
+      .login-agent-btn { transition: background .15s, transform .1s, box-shadow .15s; }
+      .login-agent-btn:hover { background: ${CL.gold}22 !important; transform: translateY(-2px); box-shadow: 0 6px 20px ${CL.gold}25; }
+      .login-role-card { transition: transform .15s, box-shadow .15s; cursor: pointer; }
+      .login-role-card:hover { transform: translateY(-4px); box-shadow: 0 12px 36px rgba(0,0,0,.45); }
+    `}</style>
+    <div style={{ position: "fixed", top: 16, right: 16, zIndex: 100 }}><LanguageSwitcher /></div>
+    {children}
+  </div>
+);
+
+const LoginLogo = ({ lang }) => (
+  <div style={{ textAlign: "center", marginBottom: 32 }}>
+    <div style={{ width: 90, height: 90, borderRadius: 28, background: `linear-gradient(135deg, ${CL.gold}, ${CL.goldDark})`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px", fontSize: 34, fontWeight: 700, color: "#0d0e15", fontFamily: "'Cormorant Garamond', serif", boxShadow: `0 8px 32px ${CL.gold}40` }}>LAC</div>
+    <h1 style={{ margin: 0, fontFamily: "'Cormorant Garamond', serif", fontSize: 26, color: CL.gold, letterSpacing: "0.06em" }}>Lux Angels Cleaning</h1>
+    <p style={{ margin: "6px 0 0", fontSize: 13, color: CL.muted, letterSpacing: "0.08em", textTransform: "uppercase" }}>{lang === "en" ? "Management Portal" : "Portail de gestion"}</p>
+  </div>
+);
 
 // ==============================================
 // CLEANER PORTAL

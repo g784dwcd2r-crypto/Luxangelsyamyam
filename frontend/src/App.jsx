@@ -8,17 +8,13 @@ LUX ANGELS CLEANING - Management System v3 (Bug-free)
 =========================================================== */
 
 // -- Persistence --
-const STORE_KEY = "lux-angels-v3";
-const LANG_KEY = "lux-angels-lang";
-const THEME_KEY = "lux-angels-theme";
-const loadStore = () => { try { return JSON.parse(localStorage.getItem(STORE_KEY)); } catch { return null; } };
-const saveStore = (d) => { try { localStorage.setItem(STORE_KEY, JSON.stringify(d)); } catch {} };
-const loadLang = () => {
-try { return localStorage.getItem(LANG_KEY) || "fr"; } catch { return "fr"; }
-};
-const saveLang = (lang) => { try { localStorage.setItem(LANG_KEY, lang); } catch {} };
-const loadTheme = () => { try { return localStorage.getItem(THEME_KEY) || "dark"; } catch { return "dark"; } };
-const saveTheme = (t) => { try { localStorage.setItem(THEME_KEY, t); } catch {} };
+// Data is sourced from the backend DB; no browser localStorage cache is used.
+const loadStore = () => null;
+const saveStore = () => {};
+const loadLang = () => "fr";
+const saveLang = () => {};
+const loadTheme = () => "dark";
+const saveTheme = () => {};
 
 const I18N = {
 fr: {
@@ -791,7 +787,7 @@ const toApiEmployee = (emp, pin, username) => ({
   ...(pin !== undefined ? { pin } : {}),
 });
 
-// Fire-and-forget API sync — errors are non-fatal (localStorage is primary store)
+// Fire-and-forget API sync — errors are non-fatal (DB is primary store)
 const syncEmployeeToApi = async (emp, pin, username) => {
   try {
     const payload = toApiEmployee(emp, pin, username);
@@ -1284,7 +1280,175 @@ return () => {
 };
 }, []);
 
-useEffect(() => { saveStore(data); }, [data]);
+useEffect(() => {
+  const mapEmployee = (e) => ({
+    id: e.id,
+    name: e.name,
+    email: e.email || "",
+    phone: e.phone || "",
+    phoneMobile: e.phone_mobile || "",
+    role: e.role || "Cleaner",
+    hourlyRate: Number(e.hourly_rate) || 15,
+    address: e.address || "",
+    city: e.city || "",
+    postalCode: e.postal_code || "",
+    country: e.country || "Luxembourg",
+    startDate: e.start_date || "",
+    status: e.status || "active",
+    contractType: e.contract_type || "CDI",
+    bankIban: e.bank_iban || "",
+    socialSecNumber: e.social_sec_number || "",
+    dateOfBirth: e.date_of_birth || "",
+    nationality: e.nationality || "",
+    languages: e.languages || "",
+    transport: e.transport || "",
+    workPermit: e.work_permit || "",
+    emergencyName: e.emergency_name || "",
+    emergencyPhone: e.emergency_phone || "",
+    notes: e.notes || "",
+  });
+  const mapClient = (c) => ({
+    id: c.id,
+    name: c.name,
+    contactPerson: c.contact_person || "",
+    email: c.email || "",
+    phone: c.phone || "",
+    phoneMobile: c.phone_mobile || "",
+    address: c.address || "",
+    apartmentFloor: c.apartment_floor || "",
+    city: c.city || "",
+    postalCode: c.postal_code || "",
+    country: c.country || "Luxembourg",
+    type: c.type || "Residential",
+    cleaningFrequency: c.cleaning_frequency || "Weekly",
+    billingType: c.billing_type || "hourly",
+    pricePerHour: Number(c.price_per_hour) || 0,
+    priceFixed: Number(c.price_fixed) || 0,
+    status: c.status || "active",
+    language: c.language || "FR",
+    accessCode: c.access_code || "",
+    keyLocation: c.key_location || "",
+    parkingInfo: c.parking_info || "",
+    petInfo: c.pet_info || "",
+    preferredDay: c.preferred_day || "",
+    preferredTime: c.preferred_time || "",
+    contractStart: c.contract_start || "",
+    contractEnd: c.contract_end || "",
+    squareMeters: Number(c.square_meters) || 0,
+    taxId: c.tax_id || "",
+    specialInstructions: c.special_instructions || "",
+    notes: c.notes || "",
+    preferredCleanerIds: [],
+  });
+  const mapSchedule = (s) => ({
+    id: s.id,
+    date: s.date,
+    clientId: s.client_id,
+    employeeId: s.employee_id,
+    startTime: s.start_time || "08:00",
+    endTime: s.end_time || "12:00",
+    status: s.status || "scheduled",
+    notes: s.notes || "",
+    recurrence: s.recurrence || "none",
+  });
+  const mapClock = (c) => ({
+    id: c.id,
+    employeeId: c.employee_id,
+    clientId: c.client_id,
+    clockIn: c.clock_in,
+    clockOut: c.clock_out,
+    notes: c.notes || "",
+    isLate: false,
+    lateMinutes: 0,
+  });
+  const mapInvoice = (inv) => ({
+    id: inv.id,
+    invoiceNumber: inv.invoice_number,
+    date: inv.date,
+    dueDate: inv.due_date || "",
+    clientId: inv.client_id,
+    status: inv.status || "draft",
+    items: Array.isArray(inv.items) ? inv.items : [],
+    subtotal: Number(inv.subtotal) || 0,
+    vatRate: Number(inv.vat_rate) || 0,
+    vatAmount: Number(inv.vat_amount) || 0,
+    total: Number(inv.total) || 0,
+    notes: inv.notes || "",
+    paymentTerms: inv.payment_terms || "",
+  });
+  const mapPayslip = (ps) => ({
+    id: ps.id,
+    payslipNumber: ps.payslip_number,
+    employeeId: ps.employee_id,
+    month: ps.month,
+    totalHours: Number(ps.total_hours) || 0,
+    hourlyRate: Number(ps.hourly_rate) || 0,
+    grossPay: Number(ps.gross_pay) || 0,
+    socialCharges: Number(ps.social_charges) || 0,
+    taxEstimate: Number(ps.tax_estimate) || 0,
+    netPay: Number(ps.net_pay) || 0,
+    status: ps.status || "draft",
+  });
+
+  const loadFromDb = async () => {
+    const base = API_BASE_CANDIDATES[0] || "";
+    if (!base) return;
+    try {
+      const [employeesRes, clientsRes, schedulesRes, clocksRes, invoicesRes, payslipsRes, settingsRes] = await Promise.all([
+        fetch(apiUrl('/api/employees', base), { cache: 'no-store' }),
+        fetch(apiUrl('/api/clients', base), { cache: 'no-store' }),
+        fetch(apiUrl('/api/schedules', base), { cache: 'no-store' }),
+        fetch(apiUrl('/api/clock-entries', base), { cache: 'no-store' }),
+        fetch(apiUrl('/api/invoices', base), { cache: 'no-store' }),
+        fetch(apiUrl('/api/payslips', base), { cache: 'no-store' }),
+        fetch(apiUrl('/api/settings', base), { cache: 'no-store' }),
+      ]);
+
+      if (![employeesRes, clientsRes, schedulesRes, clocksRes, invoicesRes, payslipsRes, settingsRes].every(r => r.ok)) return;
+
+      const [employeesRows, clientsRows, schedulesRows, clocksRows, invoicesRows, payslipsRows, settingsRows] = await Promise.all([
+        employeesRes.json(),
+        clientsRes.json(),
+        schedulesRes.json(),
+        clocksRes.json(),
+        invoicesRes.json(),
+        payslipsRes.json(),
+        settingsRes.json(),
+      ]);
+
+      const employeePins = Object.fromEntries((employeesRows || []).map(e => [e.id, String(e.pin || '0000')]));
+      const employeeUsernames = Object.fromEntries((employeesRows || []).map(e => [e.id, String(e.username || '').toLowerCase()]));
+
+      setData(prev => ({
+        ...prev,
+        employees: (employeesRows || []).map(mapEmployee),
+        clients: (clientsRows || []).map(mapClient),
+        schedules: (schedulesRows || []).map(mapSchedule),
+        clockEntries: (clocksRows || []).map(mapClock),
+        invoices: (invoicesRows || []).map(mapInvoice),
+        payslips: (payslipsRows || []).map(mapPayslip),
+        employeePins,
+        employeeUsernames,
+        settings: {
+          ...prev.settings,
+          ...(settingsRows || {}),
+          defaultVatRate: Number((settingsRows || {}).defaultVatRate ?? prev.settings.defaultVatRate) || prev.settings.defaultVatRate,
+          publicHolidays: (() => {
+            const value = (settingsRows || {}).publicHolidays;
+            if (Array.isArray(value)) return value;
+            if (!value) return prev.settings.publicHolidays;
+            try { const parsed = JSON.parse(value); return Array.isArray(parsed) ? parsed : prev.settings.publicHolidays; } catch { return prev.settings.publicHolidays; }
+          })(),
+        },
+      }));
+    } catch {
+      // Keep in-memory defaults when DB is unreachable.
+    }
+  };
+
+  void loadFromDb();
+}, []);
+
 CURRENT_LANG = lang; // sync before any child render
 useEffect(() => { saveLang(lang); }, [lang]);
 const t = useCallback((key, fallback) => tr(lang, key, fallback), [lang]);
@@ -5488,7 +5652,7 @@ return (
 <div style={{ marginTop: 14 }}><button style={btnPri} onClick={handleSave}>{ICN.check} {uiText("Save All")}</button></div>
 {auth?.role === "owner" && <div style={{ ...cardSt, marginTop: 14 }}>
 <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: CL.red }}>{uiText("Danger Zone")}</h3>
-<button style={btnDng} onClick={() => { if (confirm(uiText("DELETE ALL DATA?"))) { saveStore(DEFAULTS); window.location.reload(); } }}>{uiText("Reset Everything")}</button>
+<button style={btnDng} onClick={() => { if (confirm(uiText("DELETE ALL DATA?"))) { setData(DEFAULTS); window.location.reload(); } }}>{uiText("Reset Everything")}</button>
 </div>}
 </div>
 );

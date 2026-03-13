@@ -3768,7 +3768,7 @@ showToast(err?.message || "Unable to clock out", "error");
 }
 };
 
-const addManualEntry = () => {
+const addManualEntry = async () => {
 if (!manualEntry.employeeId || !manualEntry.clientId) { showToast("Select employee and client", "error"); return; }
 if (!manualEntry.clockInDate || !manualEntry.clockInTime) { showToast("Set clock-in date/time", "error"); return; }
 

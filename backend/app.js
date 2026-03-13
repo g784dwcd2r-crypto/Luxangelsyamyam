@@ -322,12 +322,13 @@ app.get('/api/auth/agent-list', async (req, res) => {
 app.post('/api/auth/pin-login', async (req, res) => {
   try {
     const { role, pin, employeeId } = req.body;
+    const explicitEmployeeId = [employeeId, req.body.employee_id, req.body.employeeID]
+      .map(v => (v == null ? '' : String(v).trim()))
+      .find(Boolean);
     const requestedRole = String(role || '').trim().toLowerCase();
     const submittedPin = String(pin || '').trim();
     const accountIdentifier = [
-      employeeId,
-      req.body.employee_id,
-      req.body.employeeID,
+      explicitEmployeeId,
       req.body.userId,
       req.body.username,
       req.body.email,
@@ -372,7 +373,8 @@ app.post('/api/auth/pin-login', async (req, res) => {
       // Support login by employee ID (from agent-list picker) OR by email
       let result;
       const looksLikeId = accountIdentifier && !accountIdentifier.includes('@') && accountIdentifier.length > 4;
-      if (looksLikeId) {
+      const shouldUseEmployeeId = Boolean(explicitEmployeeId) || looksLikeId;
+      if (shouldUseEmployeeId) {
         // Login via employee ID selected from the agent list
         result = await pool.query(
           `SELECT id, pin, password_hash, account_status, email_verified
@@ -401,7 +403,7 @@ app.post('/api/auth/pin-login', async (req, res) => {
       if (!result.rows.length) return res.status(401).json({ error: 'Employee not found' });
       const employee = result.rows[0];
       // ID-based login bypasses email verification requirement (admin created them)
-      if (!looksLikeId && !employee.email_verified) {
+      if (!shouldUseEmployeeId && !employee.email_verified) {
         return res.status(403).json({ error: 'Email is not verified yet' });
       }
       if (String(employee.account_status || 'approved') !== 'approved') {

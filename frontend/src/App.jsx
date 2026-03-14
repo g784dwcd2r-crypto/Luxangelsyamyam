@@ -699,6 +699,7 @@ vatNumber: "LU12345678",
 bankIban: "LU12 3456 7890 1234 5678",
 defaultVatRate: 17,
 publicHolidays: [],
+emailSignature: "Best regards,\nLux Angels Cleaning Team\ninfo@luxangels.lu | +352 123 456",
 },
 };
 
@@ -4675,6 +4676,7 @@ function InvoicesPage({ data, updateData, showToast, emailConfigured = true }) {
 const { t, lang } = useI18n();
 const [modal, setModal] = useState(null);
 const [preview, setPreview] = useState(null);
+const [emailDraft, setEmailDraft] = useState(null);
 const [filters, setFilters] = useState({ invoiceNumber: "", clientId: "", status: "", dateFrom: "", dateTo: "" });
 
 const nextInvoiceNum = (dateStr = getToday()) => {
@@ -4832,45 +4834,46 @@ if (y < imgHeight) pdf.addPage();
 pdf.save(`${inv.invoiceNumber || "invoice"}.pdf`);
 };
 
-const emailInvoice = async (inv) => {
+const buildEmailBody = (inv, client, template) => {
+const sig = data.settings.emailSignature ? `\n\n--\n${data.settings.emailSignature}` : `\n\nRegards,\n${data.settings.companyName}`;
+const name = client.contactPerson || client.name;
+if (template === "friendly") {
+return `Hello ${name},\n\nPlease find your invoice ${inv.invoiceNumber} for cleaning services on ${fmtDate(inv.date)}.\nAmount due: €${(inv.total || 0).toFixed(2)}\n\nFeel free to reach out if you have any questions.${sig}`;
+}
+if (template === "thank_you") {
+return `Dear ${name},\n\nThank you for choosing Lux Angels Cleaning!\n\nPlease find attached invoice ${inv.invoiceNumber} dated ${fmtDate(inv.date)}.\nTotal: €${(inv.total || 0).toFixed(2)}\n\nWe appreciate your trust and look forward to serving you again.${sig}`;
+}
+if (template === "overdue") {
+return `Dear ${name},\n\nThis is a reminder that invoice ${inv.invoiceNumber} dated ${fmtDate(inv.date)} is now overdue.\nOutstanding amount: €${(inv.total || 0).toFixed(2)}\n\nPlease arrange payment at your earliest convenience. Contact us if you have already settled this invoice.${sig}`;
+}
+// standard
+return `Dear ${name},\n\nInvoice: ${inv.invoiceNumber}\nDate: ${fmtDate(inv.date)}\nTotal: €${(inv.total || 0).toFixed(2)}\n\nPlease find your invoice details above.${sig}`;
+};
+
+const emailInvoice = (inv) => {
 const client = data.clients.find(c => c.id === inv.clientId);
 if (!client?.email) { showToast("Client email missing", "error"); return; }
 const template = inv.emailTemplate || "standard";
 const subject = `Invoice ${inv.invoiceNumber}`;
-const bodyPlain = template === "friendly"
-? `Hello ${client.contactPerson || client.name},
+const body = buildEmailBody(inv, client, template);
+const from = inv.zohoEmail || data.settings.companyEmail;
+setEmailDraft({ to: client.email, subject, body, from, template, inv });
+};
 
-Please find your invoice ${inv.invoiceNumber} for cleaning services on ${fmtDate(inv.date)}.
-Amount due: €${(inv.total || 0).toFixed(2)}
-
-Best regards,
-${data.settings.companyName}`
-: `Dear ${client.contactPerson || client.name},
-
-Invoice: ${inv.invoiceNumber}
-Date: ${fmtDate(inv.date)}
-Total: €${(inv.total || 0).toFixed(2)}
-
-Regards,
-${data.settings.companyName}`;
-const senderEmail = inv.zohoEmail || data.settings.companyEmail;
-
+const sendEmailDraft = async () => {
+if (!emailDraft) return;
 try {
 const response = await fetch(apiUrl('/api/notifications/email'), {
 method: 'POST',
 headers: { 'Content-Type': 'application/json' },
-body: JSON.stringify({
-to: client.email,
-subject,
-body: bodyPlain,
-from: senderEmail,
-}),
+body: JSON.stringify({ to: emailDraft.to, subject: emailDraft.subject, body: emailDraft.body, from: emailDraft.from }),
 });
 if (!response.ok) {
 const errPayload = await response.json().catch(() => ({}));
 throw new Error(errPayload.error || 'Unable to send email');
 }
 showToast("Email sent from platform");
+setEmailDraft(null);
 } catch (err) {
 console.error(err);
 const fallbackEmailError = !err?.message || /load failed|failed to fetch/i.test(err.message);
@@ -4978,6 +4981,37 @@ return (
 {modal && (
 <ModalBox title={modal.id ? t("editInvoice") : t("newInvoice")} onClose={() => setModal(null)} wide>
 <InvoiceFormContent invoice={modal} data={data} onSave={handleSave} nextInvoiceNum={nextInvoiceNum} buildPrestationOptions={buildPrestationOptions} onCancel={() => setModal(null)} />
+</ModalBox>
+)}
+
+{emailDraft && (
+<ModalBox title={lang === "fr" ? "Aperçu de l'email" : "Email Preview"} onClose={() => setEmailDraft(null)}>
+<div style={{ marginBottom: 14 }}>
+  <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
+    {["standard","friendly","thank_you","overdue"].map(tpl => (
+      <button key={tpl} style={{ ...btnSec, ...btnSm, fontWeight: emailDraft.template === tpl ? 700 : 400, borderColor: emailDraft.template === tpl ? CL.gold : CL.bd, color: emailDraft.template === tpl ? CL.gold : CL.muted }}
+        onClick={() => {
+          const client = data.clients.find(c => c.id === emailDraft.inv.clientId);
+          const newBody = buildEmailBody(emailDraft.inv, client, tpl);
+          const subjectMap = { standard: `Invoice ${emailDraft.inv.invoiceNumber}`, friendly: `Invoice ${emailDraft.inv.invoiceNumber}`, thank_you: `Thank you — Invoice ${emailDraft.inv.invoiceNumber}`, overdue: `Overdue: Invoice ${emailDraft.inv.invoiceNumber}` };
+          setEmailDraft(prev => ({ ...prev, template: tpl, body: newBody, subject: subjectMap[tpl] }));
+        }}>
+        {tpl === "standard" ? (lang === "fr" ? "Standard" : "Standard") : tpl === "friendly" ? (lang === "fr" ? "Amical" : "Friendly") : tpl === "thank_you" ? (lang === "fr" ? "Merci" : "Thank You") : (lang === "fr" ? "Relance" : "Overdue")}
+      </button>
+    ))}
+  </div>
+  <div style={{ fontSize: 12, color: CL.muted, marginBottom: 4 }}>{lang === "fr" ? "À" : "To"}</div>
+  <div style={{ fontWeight: 600, marginBottom: 10, color: CL.text }}>{emailDraft.to}</div>
+  <div style={{ fontSize: 12, color: CL.muted, marginBottom: 4 }}>{lang === "fr" ? "Objet" : "Subject"}</div>
+  <input value={emailDraft.subject} onChange={ev => setEmailDraft(prev => ({ ...prev, subject: ev.target.value }))} style={{ ...inputSt, width: "100%", marginBottom: 10 }} />
+  <div style={{ fontSize: 12, color: CL.muted, marginBottom: 4 }}>{lang === "fr" ? "Corps de l'email" : "Email Body"}</div>
+  <textarea value={emailDraft.body} onChange={ev => setEmailDraft(prev => ({ ...prev, body: ev.target.value }))} style={{ ...inputSt, width: "100%", minHeight: 220, fontFamily: "monospace", fontSize: 13, resize: "vertical", whiteSpace: "pre-wrap" }} />
+  <div style={{ fontSize: 11, color: CL.muted, marginTop: 6 }}>{lang === "fr" ? "Expéditeur" : "From"}: {emailDraft.from}</div>
+</div>
+<div style={{ display: "flex", gap: 10, justifyContent: "flex-end", paddingTop: 14, borderTop: `1px solid ${CL.bd}` }}>
+  <button style={{ ...btnSec, padding: "10px 24px" }} onClick={() => setEmailDraft(null)}>{t("cancel")}</button>
+  <button style={{ ...btnPri, padding: "10px 28px" }} onClick={sendEmailDraft}>{ICN.mail} {lang === "fr" ? "Envoyer" : "Send"}</button>
+</div>
 </ModalBox>
 )}
 </div>
@@ -5162,7 +5196,7 @@ return (
   <SectionHeader label="Email & Conditions" />
   <div className="form-grid" style={{ gap: 20 }}>
     <Field label="Email expéditeur (optionnel)"><TextInput value={form.zohoEmail || ""} onChange={ev => set("zohoEmail", ev.target.value)} placeholder="name@yourcompany.com" /></Field>
-    <Field label={uiText("Email template")}><SelectInput value={form.emailTemplate || "standard"} onChange={ev => set("emailTemplate", ev.target.value)}><option value="standard">{uiText("Standard")}</option><option value="friendly">{uiText("Friendly reminder")}</option></SelectInput></Field>
+    <Field label={uiText("Email template")}><SelectInput value={form.emailTemplate || "standard"} onChange={ev => set("emailTemplate", ev.target.value)}><option value="standard">{uiText("Standard")}</option><option value="friendly">{uiText("Friendly reminder")}</option><option value="thank_you">{uiText("Thank you")}</option><option value="overdue">{uiText("Overdue notice")}</option></SelectInput></Field>
   </div>
   <Field label="Conditions de paiement"><TextInput value={form.paymentTerms || ""} onChange={ev => set("paymentTerms", ev.target.value)} /></Field>
 
@@ -6141,6 +6175,7 @@ return (
 <Field label="Bank IBAN"><TextInput value={form.bankIban} onChange={ev => set("bankIban", ev.target.value)} /></Field>
 </div>
 <Field label="Address"><TextInput value={form.companyAddress} onChange={ev => set("companyAddress", ev.target.value)} /></Field>
+<Field label="Email Signature"><TextArea value={form.emailSignature || ""} onChange={ev => set("emailSignature", ev.target.value)} placeholder={"Best regards,\nYour Company Name\nemail@example.com"} style={{ minHeight: 72, fontFamily: "monospace", fontSize: 13 }} /></Field>
 </div>
 <div style={{ ...cardSt, marginTop: 14 }}>
 <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: CL.gold }}>{uiText("Access Credentials")}</h3>

@@ -77,9 +77,18 @@ app.get('/api/health/db', async (_req, res) => {
   }
 });
 
-app.get('/api/email-status', (_req, res) => {
-  const gateway = getEmailGateway();
-  res.json({ configured: !!gateway, provider: gateway ? gateway.provider : null });
+app.get('/api/email-status', async (_req, res) => {
+  try {
+    const result = await pool.query(
+      "SELECT key, value FROM settings WHERE key IN ('emailProvider','smtpHost','smtpPort','smtpSecure','smtpUser','smtpPass','zeptoApiToken','zeptoApiUrl','zeptoFromAddress','resendApiKey','resendFrom')"
+    );
+    const dbSettings = Object.fromEntries(result.rows.map(r => [r.key, r.value]));
+    const gateway = getEmailGateway(dbSettings);
+    res.json({ configured: !!gateway, provider: gateway ? gateway.provider : null });
+  } catch {
+    const gateway = getEmailGateway();
+    res.json({ configured: !!gateway, provider: gateway ? gateway.provider : null });
+  }
 });
 
 // ---------------------------------------------------------------------------
@@ -87,19 +96,19 @@ app.get('/api/email-status', (_req, res) => {
 // ---------------------------------------------------------------------------
 const missing = (obj, fields) => fields.filter(f => obj[f] == null || obj[f] === '');
 
-const getEmailGateway = () => {
-  const provider = String(process.env.EMAIL_PROVIDER || '').trim().toLowerCase();
-  const zeptoToken = String(process.env.ZEPTO_API_TOKEN || '').trim();
-  const resendKey = String(process.env.RESEND_API_KEY || '').trim();
-  const smtpUser = String(process.env.SMTP_USER || '').trim();
-  const smtpPass = String(process.env.SMTP_PASS || '').trim();
+const getEmailGateway = (dbSettings = {}) => {
+  const provider = String(process.env.EMAIL_PROVIDER || dbSettings.emailProvider || '').trim().toLowerCase();
+  const zeptoToken = String(process.env.ZEPTO_API_TOKEN || dbSettings.zeptoApiToken || '').trim();
+  const resendKey = String(process.env.RESEND_API_KEY || dbSettings.resendApiKey || '').trim();
+  const smtpUser = String(process.env.SMTP_USER || dbSettings.smtpUser || '').trim();
+  const smtpPass = String(process.env.SMTP_PASS || dbSettings.smtpPass || '').trim();
 
   if (provider === 'smtp' || (!provider && smtpUser && smtpPass)) {
     return {
       provider: 'smtp',
-      host: String(process.env.SMTP_HOST || 'mail.infomaniak.com').trim(),
-      port: parseInt(process.env.SMTP_PORT || '465', 10),
-      secure: (process.env.SMTP_SECURE || 'true').trim().toLowerCase() !== 'false',
+      host: String(process.env.SMTP_HOST || dbSettings.smtpHost || 'mail.infomaniak.com').trim(),
+      port: parseInt(process.env.SMTP_PORT || dbSettings.smtpPort || '465', 10),
+      secure: (process.env.SMTP_SECURE || dbSettings.smtpSecure || 'true').trim().toLowerCase() !== 'false',
       user: smtpUser,
       pass: smtpPass,
     };
@@ -108,7 +117,7 @@ const getEmailGateway = () => {
   if (provider === 'zeptomail' || (!provider && zeptoToken)) {
     return {
       provider: 'zeptomail',
-      url: String(process.env.ZEPTO_API_URL || 'https://api.zeptomail.eu/v1.1/email').trim(),
+      url: String(process.env.ZEPTO_API_URL || dbSettings.zeptoApiUrl || 'https://api.zeptomail.eu/v1.1/email').trim(),
       token: zeptoToken,
     };
   }
@@ -252,14 +261,14 @@ async function sendSMS({ to, body }) {
 }
 
 async function sendEmail({ to, subject, body, html, from }) {
-  const gateway = getEmailGateway();
-  if (!gateway) return { ok: false, status: 503, error: 'Email provider is not configured' };
-
   const settingsResult = await pool.query(
-    "SELECT key, value FROM settings WHERE key IN ('companyEmail', 'companyName')"
+    "SELECT key, value FROM settings WHERE key IN ('companyEmail','companyName','emailProvider','smtpHost','smtpPort','smtpSecure','smtpUser','smtpPass','zeptoApiToken','zeptoApiUrl','zeptoFromAddress','resendApiKey','resendFrom')"
   );
   const settings = Object.fromEntries(settingsResult.rows.map(r => [r.key, String(r.value || '').trim()]));
-  const senderEmail = String(from || settings.companyEmail || process.env.SMTP_USER || process.env.ZEPTO_FROM_ADDRESS || process.env.RESEND_FROM || '').trim();
+
+  const gateway = getEmailGateway(settings);
+  if (!gateway) return { ok: false, status: 503, error: 'Email provider is not configured' };
+  const senderEmail = String(from || settings.companyEmail || process.env.SMTP_USER || settings.smtpUser || process.env.ZEPTO_FROM_ADDRESS || settings.zeptoFromAddress || process.env.RESEND_FROM || settings.resendFrom || '').trim();
   const senderName = settings.companyName || 'Lux Angels';
   if (!senderEmail) return { ok: false, status: 400, error: 'Sender email is missing' };
 
@@ -1136,7 +1145,11 @@ app.post('/api/admin/test-email', async (req, res) => {
     const authorized = await ensureOwnerAccess({ identifier: '', secret: pin });
     if (!authorized) return res.status(403).json({ error: 'Unauthorized' });
 
-    const gateway = getEmailGateway();
+    const settingsResult2 = await pool.query(
+      "SELECT key, value FROM settings WHERE key IN ('emailProvider','smtpHost','smtpPort','smtpSecure','smtpUser','smtpPass','zeptoApiToken','zeptoApiUrl','resendApiKey')"
+    );
+    const dbSettings2 = Object.fromEntries(settingsResult2.rows.map(r => [r.key, r.value]));
+    const gateway = getEmailGateway(dbSettings2);
     const config = gateway
       ? { provider: gateway.provider, configured: true, ...(gateway.provider === 'smtp' ? { host: gateway.host, port: gateway.port, secure: gateway.secure, user: gateway.user } : {}) }
       : { configured: false };

@@ -1170,6 +1170,37 @@ app.post('/api/admin/test-email', async (req, res) => {
   }
 });
 
+// Test SMTP connection without sending an email (no auth required).
+app.post('/api/email-connection-test', async (req, res) => {
+  try {
+    const { smtpHost, smtpPort, smtpSecure, smtpUser, smtpPass } = req.body || {};
+    const host = String(smtpHost || process.env.SMTP_HOST || '').trim();
+    const port = parseInt(smtpPort || process.env.SMTP_PORT || '465', 10);
+    const secure = String(smtpSecure || process.env.SMTP_SECURE || 'true').trim().toLowerCase() !== 'false';
+    const user = String(smtpUser || process.env.SMTP_USER || '').trim();
+    const pass = String(smtpPass || process.env.SMTP_PASS || '').trim();
+
+    if (!host || !user || !pass) {
+      return res.status(400).json({ ok: false, error: 'SMTP host, user and password are required' });
+    }
+
+    const transporter = nodemailer.createTransport({
+      host,
+      port,
+      secure,
+      auth: { user, pass },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+    });
+
+    await transporter.verify();
+    return res.json({ ok: true, message: `Connected to ${host}:${port} as ${user}` });
+  } catch (err) {
+    console.error('SMTP connection test failed:', err);
+    return res.json({ ok: false, error: err.message });
+  }
+});
+
 app.post('/api/notifications/email', async (req, res) => {
   try {
     const { to, subject, body, html, from } = req.body || {};

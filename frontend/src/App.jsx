@@ -6238,7 +6238,9 @@ const [ownerUsername, setOwnerUsername] = useState(data.ownerUsername || "");
 const [pin, setPin] = useState(data.ownerPin || "");
 const [managerUsername, setManagerUsername] = useState(data.managerUsername || "");
 const [managerPin, setManagerPin] = useState(data.managerPin || "");
-const set = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
+const [smtpTestResult, setSmtpTestResult] = useState(null);
+const [smtpTesting, setSmtpTesting] = useState(false);
+const set = (key, value) => { setForm(prev => ({ ...prev, [key]: value })); setSmtpTestResult(null); };
 
 const handleSave = async () => {
   updateData("settings", form);
@@ -6290,6 +6292,30 @@ const handleSave = async () => {
   }
 };
 
+const handleTestSmtp = async () => {
+  setSmtpTesting(true);
+  setSmtpTestResult(null);
+  try {
+    const res = await fetch(apiUrl("/api/email-connection-test"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        smtpHost: form.smtpHost || "",
+        smtpPort: form.smtpPort || "465",
+        smtpSecure: "true",
+        smtpUser: form.smtpUser || "",
+        smtpPass: form.smtpPass || "",
+      }),
+    });
+    const result = await res.json();
+    setSmtpTestResult(result);
+  } catch (err) {
+    setSmtpTestResult({ ok: false, error: err.message || "Connection failed" });
+  } finally {
+    setSmtpTesting(false);
+  }
+};
+
 return (
 <div>
 <h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold, marginBottom: 16 }}>{uiText("Settings")}</h1>
@@ -6310,10 +6336,24 @@ return (
 <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 4, color: CL.gold }}>{uiText("Email Sending (SMTP)")}</h3>
 <p style={{ fontSize: 12, color: CL.muted, marginBottom: 12 }}>{uiText("Configure SMTP to send invoices by email. Use your email provider credentials (e.g. Infomaniak).")}</p>
 <div className="form-grid">
-<Field label="SMTP Host"><TextInput value={form.smtpHost || ""} onChange={ev => set("smtpHost", ev.target.value)} placeholder="mail.infomaniak.com" /></Field>
+<Field label="SMTP Host"><TextInput value={form.smtpHost || ""} onChange={ev => set("smtpHost", ev.target.value)} placeholder="smtp.zoho.eu" /></Field>
 <Field label="SMTP Port"><TextInput type="number" value={form.smtpPort || "465"} onChange={ev => set("smtpPort", ev.target.value)} style={{ width: 100 }} /></Field>
 <Field label="SMTP User (email)"><TextInput value={form.smtpUser || ""} onChange={ev => set("smtpUser", ev.target.value)} placeholder="info@yourdomain.lu" /></Field>
 <Field label="SMTP Password"><TextInput type="password" value={form.smtpPass || ""} onChange={ev => set("smtpPass", ev.target.value)} placeholder="••••••••" /></Field>
+</div>
+<div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+  <button
+    style={{ ...btnSec, opacity: smtpTesting ? 0.7 : 1, cursor: smtpTesting ? "wait" : "pointer" }}
+    onClick={handleTestSmtp}
+    disabled={smtpTesting || !form.smtpUser || !form.smtpPass}
+  >
+    {smtpTesting ? "⏳ Testing..." : "🔌 Test Connection"}
+  </button>
+  {smtpTestResult && (
+    <span style={{ fontSize: 13, color: smtpTestResult.ok ? CL.green : CL.red, fontWeight: 500 }}>
+      {smtpTestResult.ok ? `✓ ${smtpTestResult.message}` : `✗ ${smtpTestResult.error}`}
+    </span>
+  )}
 </div>
 </div>
 <div style={{ ...cardSt, marginTop: 14 }}>

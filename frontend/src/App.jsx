@@ -6153,6 +6153,10 @@ const handleSave = async () => {
         vatNumber: form.vatNumber,
         bankIban: form.bankIban,
         defaultVatRate: String(form.defaultVatRate),
+        smtpHost: form.smtpHost || "",
+        smtpPort: form.smtpPort || "465",
+        smtpUser: form.smtpUser || "",
+        smtpPass: form.smtpPass || "",
       }),
     });
     showToast(uiText("Saved") + " — synced to server");
@@ -6176,6 +6180,16 @@ return (
 </div>
 <Field label="Address"><TextInput value={form.companyAddress} onChange={ev => set("companyAddress", ev.target.value)} /></Field>
 <Field label="Email Signature"><TextArea value={form.emailSignature || ""} onChange={ev => set("emailSignature", ev.target.value)} placeholder={"Best regards,\nYour Company Name\nemail@example.com"} style={{ minHeight: 72, fontFamily: "monospace", fontSize: 13 }} /></Field>
+</div>
+<div style={{ ...cardSt, marginTop: 14 }}>
+<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 4, color: CL.gold }}>{uiText("Email Sending (SMTP)")}</h3>
+<p style={{ fontSize: 12, color: CL.muted, marginBottom: 12 }}>{uiText("Configure SMTP to send invoices by email. Use your email provider credentials (e.g. Infomaniak).")}</p>
+<div className="form-grid">
+<Field label="SMTP Host"><TextInput value={form.smtpHost || ""} onChange={ev => set("smtpHost", ev.target.value)} placeholder="mail.infomaniak.com" /></Field>
+<Field label="SMTP Port"><TextInput type="number" value={form.smtpPort || "465"} onChange={ev => set("smtpPort", ev.target.value)} style={{ width: 100 }} /></Field>
+<Field label="SMTP User (email)"><TextInput value={form.smtpUser || ""} onChange={ev => set("smtpUser", ev.target.value)} placeholder="info@yourdomain.lu" /></Field>
+<Field label="SMTP Password"><TextInput type="password" value={form.smtpPass || ""} onChange={ev => set("smtpPass", ev.target.value)} placeholder="••••••••" /></Field>
+</div>
 </div>
 <div style={{ ...cardSt, marginTop: 14 }}>
 <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: CL.gold }}>{uiText("Access Credentials")}</h3>

@@ -4215,6 +4215,7 @@ const { t, lang } = useI18n();
 const [modal, setModal] = useState(null);
 const [preview, setPreview] = useState(null);
 const [quoteForPdf, setQuoteForPdf] = useState(null);
+const [quoteEmailDraft, setQuoteEmailDraft] = useState(null);
 const previewRef = useRef(null);
 const hiddenQuoteRef = useRef(null);
 
@@ -4299,45 +4300,68 @@ if (!currentPreview) setQuoteForPdf(null);
 showToast("Quote PDF downloaded");
 };
 
-const sendQuote = async (q) => {
-const client = data.clients.find(c => c.id === q.clientId);
-if (!client?.email) { showToast("Client email missing", "error"); return; }
-const currentPreview = preview?.id === q.id ? preview : null;
-if (!currentPreview) {
-setQuoteForPdf(toQuotePreviewShape(q));
-await waitForPaint();
-}
-const target = currentPreview ? previewRef.current : hiddenQuoteRef.current;
-if (!target) { showToast("Quote preview unavailable", "error"); return; }
-const pdfBlob = await buildPdfFromElement(target, `${q.quoteNumber || "quote"}.pdf`, false);
-if (!currentPreview) setQuoteForPdf(null);
-const pdfFile = new File([pdfBlob], `${q.quoteNumber || "quote"}.pdf`, { type: "application/pdf" });
-const bodyText = `Dear ${client.contactPerson || client.name},
+const buildQuoteEmailBody = (q, client, template, emailLang) => {
+const l = emailLang || lang;
+const sig = data.settings.emailSignature
+  ? `\n\n--\n${data.settings.emailSignature}`
+  : `\n\n${l === "fr" ? "Cordialement" : "Best regards"},\n${data.settings.companyName}\n${data.settings.companyEmail || ""}${data.settings.companyPhone ? ` | ${data.settings.companyPhone}` : ""}`;
+const name = client.contactPerson || client.name;
+const amount = `€${(q.total || 0).toFixed(2)}`;
+const qNum = q.quoteNumber;
+const dateStr = fmtDate(q.date);
+const validStr = q.validUntil ? fmtDate(q.validUntil) : null;
 
-Please find quote ${q.quoteNumber}.
-Date: ${fmtDate(q.date)}
-Total: €${(q.total || 0).toFixed(2)}
-
-Best regards,
-${data.settings.companyName}`;
-
-if (navigator.canShare && navigator.canShare({ files: [pdfFile] }) && navigator.share) {
-try {
-await navigator.share({ title: `Quote ${q.quoteNumber}`, text: bodyText, files: [pdfFile] });
-showToast("Quote shared with PDF attachment");
-return;
-} catch {
-}
+if (l === "fr") {
+  if (template === "followup") {
+    return `Bonjour ${name},\n\nNous revenons vers vous concernant notre devis ${qNum} du ${dateStr}.\nMontant : ${amount}${validStr ? `\nValable jusqu'au : ${validStr}` : ""}\n\nN'hésitez pas à nous contacter pour toute question ou pour confirmer votre accord.${sig}`;
+  }
+  if (template === "reminder") {
+    return `Bonjour ${name},\n\nNous vous rappelons que notre devis ${qNum}${validStr ? ` expire le ${validStr}` : " est en attente de votre réponse"}.\nMontant : ${amount}\n\nMerci de nous faire part de votre décision dès que possible.${sig}`;
+  }
+  // standard
+  return `Bonjour ${name},\n\nVeuillez trouver ci-joint notre devis ${qNum}.\nDate : ${dateStr}\nMontant : ${amount}${validStr ? `\nValidité : ${validStr}` : ""}\n\nNous restons disponibles pour toute question ou ajustement.${sig}`;
 }
 
-triggerPdfDownload(pdfBlob, `${q.quoteNumber || "quote"}.pdf`);
-const subject = encodeURIComponent(`Quote ${q.quoteNumber}`);
-const body = encodeURIComponent(`${bodyText}
-
-PDF downloaded automatically. Please attach it to this email.`);
-window.open(`mailto:${client.email}?subject=${subject}&body=${body}`);
-showToast("Email draft opened. PDF downloaded for attachment.");
+if (template === "followup") {
+  return `Hello ${name},\n\nWe are following up on our quote ${qNum} dated ${dateStr}.\nAmount: ${amount}${validStr ? `\nValid until: ${validStr}` : ""}\n\nPlease feel free to contact us for any questions or to confirm your acceptance.${sig}`;
+}
+if (template === "reminder") {
+  return `Hello ${name},\n\nThis is a reminder that our quote ${qNum}${validStr ? ` expires on ${validStr}` : " is awaiting your response"}.\nAmount: ${amount}\n\nKindly let us know your decision at your earliest convenience.${sig}`;
+}
+return `Dear ${name},\n\nPlease find our quote ${qNum}.\nDate: ${dateStr}\nAmount: ${amount}${validStr ? `\nValid until: ${validStr}` : ""}\n\nDo not hesitate to contact us for any questions or adjustments.${sig}`;
 };
+
+const emailQuote = (q) => {
+const client = data.clients.find(c => c.id === q.clientId);
+if (!client?.email) { showToast(lang === "fr" ? "Email client manquant" : "Client email missing", "error"); return; }
+const template = "standard";
+const subject = lang === "fr" ? `Devis ${q.quoteNumber}` : `Quote ${q.quoteNumber}`;
+const body = buildQuoteEmailBody(q, client, template, lang);
+const from = data.settings.companyEmail;
+setQuoteEmailDraft({ to: client.email, subject, body, from, template, q });
+};
+
+const sendQuoteEmailDraft = async () => {
+if (!quoteEmailDraft) return;
+try {
+const response = await fetch(apiUrl('/api/notifications/email'), {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ to: quoteEmailDraft.to, subject: quoteEmailDraft.subject, body: quoteEmailDraft.body, from: quoteEmailDraft.from }),
+});
+if (!response.ok) {
+const errPayload = await response.json().catch(() => ({}));
+throw new Error(errPayload.error || 'Unable to send email');
+}
+showToast(lang === "fr" ? "Email envoyé" : "Email sent");
+setQuoteEmailDraft(null);
+} catch (err) {
+console.error(err);
+showToast(err.message || (lang === "fr" ? "Impossible d'envoyer l'email" : "Unable to send email"), "error");
+}
+};
+
+const sendQuote = (q) => emailQuote(q);
 
 const saveQuote = (q) => {
 const subtotal = (q.items || []).reduce((sum, it) => sum + (Number(it.total) || 0), 0);
@@ -4446,6 +4470,39 @@ return (
 {preview && <ModalBox title={t("quote") + " — Aperçu"} onClose={() => setPreview(null)} wide><div ref={previewRef}><InvoicePreviewContent invoice={preview} data={data} isQuote={true} /></div><div className="no-print" style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 12, flexWrap: "wrap" }}><button style={btnSec} onClick={() => setPreview(null)}>{uiText("Close")}</button><button style={btnPri} onClick={() => downloadQuotePdf(preview)}>{ICN.download} PDF</button><button style={{ ...btnSec, color: CL.blue }} onClick={() => sendQuote(preview)}>{ICN.mail} {t("sendEmail")}</button></div></ModalBox>}
 {modal && <ModalBox title={modal.id ? t("editQuote") : t("newQuote")} onClose={() => setModal(null)} wide><QuoteForm quote={{ pricingMode: "hours", visibleColumns: { ...defaultQuoteColumns }, ...modal }} data={data} onSave={saveQuote} onCancel={() => setModal(null)} generateQuoteNumber={quoteNumber} /></ModalBox>}
 {quoteForPdf && <div style={{ position: "fixed", left: -10000, top: 0, width: 1200, background: "#fff", zIndex: -1 }}><div ref={hiddenQuoteRef}><InvoicePreviewContent invoice={quoteForPdf} data={data} isQuote={true} /></div></div>}
+
+{quoteEmailDraft && (
+<ModalBox title={lang === "fr" ? "Aperçu de l'email — Devis" : "Email Preview — Quote"} onClose={() => setQuoteEmailDraft(null)}>
+<div style={{ marginBottom: 14 }}>
+  <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
+    {["standard", "followup", "reminder"].map(tpl => (
+      <button key={tpl} style={{ ...btnSec, ...btnSm, fontWeight: quoteEmailDraft.template === tpl ? 700 : 400, borderColor: quoteEmailDraft.template === tpl ? CL.gold : CL.bd, color: quoteEmailDraft.template === tpl ? CL.gold : CL.muted }}
+        onClick={() => {
+          const client = data.clients.find(c => c.id === quoteEmailDraft.q.clientId);
+          const newBody = buildQuoteEmailBody(quoteEmailDraft.q, client, tpl, lang);
+          const subjectMap = lang === "fr"
+            ? { standard: `Devis ${quoteEmailDraft.q.quoteNumber}`, followup: `Relance devis ${quoteEmailDraft.q.quoteNumber}`, reminder: `Rappel — Devis ${quoteEmailDraft.q.quoteNumber}` }
+            : { standard: `Quote ${quoteEmailDraft.q.quoteNumber}`, followup: `Follow-up: Quote ${quoteEmailDraft.q.quoteNumber}`, reminder: `Reminder — Quote ${quoteEmailDraft.q.quoteNumber}` };
+          setQuoteEmailDraft(prev => ({ ...prev, template: tpl, body: newBody, subject: subjectMap[tpl] }));
+        }}>
+        {tpl === "standard" ? (lang === "fr" ? "Standard" : "Standard") : tpl === "followup" ? (lang === "fr" ? "Relance" : "Follow-up") : (lang === "fr" ? "Rappel" : "Reminder")}
+      </button>
+    ))}
+  </div>
+  <div style={{ fontSize: 12, color: CL.muted, marginBottom: 4 }}>{lang === "fr" ? "À" : "To"}</div>
+  <div style={{ fontWeight: 600, marginBottom: 10, color: CL.text }}>{quoteEmailDraft.to}</div>
+  <div style={{ fontSize: 12, color: CL.muted, marginBottom: 4 }}>{lang === "fr" ? "Objet" : "Subject"}</div>
+  <input value={quoteEmailDraft.subject} onChange={ev => setQuoteEmailDraft(prev => ({ ...prev, subject: ev.target.value }))} style={{ ...inputSt, width: "100%", marginBottom: 10 }} />
+  <div style={{ fontSize: 12, color: CL.muted, marginBottom: 4 }}>{lang === "fr" ? "Corps de l'email" : "Email Body"}</div>
+  <textarea value={quoteEmailDraft.body} onChange={ev => setQuoteEmailDraft(prev => ({ ...prev, body: ev.target.value }))} style={{ ...inputSt, width: "100%", minHeight: 220, fontFamily: "monospace", fontSize: 13, resize: "vertical", whiteSpace: "pre-wrap" }} />
+  <div style={{ fontSize: 11, color: CL.muted, marginTop: 6 }}>{lang === "fr" ? "Expéditeur" : "From"}: {quoteEmailDraft.from}</div>
+</div>
+<div style={{ display: "flex", gap: 10, justifyContent: "flex-end", paddingTop: 14, borderTop: `1px solid ${CL.bd}` }}>
+  <button style={{ ...btnSec, padding: "10px 24px" }} onClick={() => setQuoteEmailDraft(null)}>{t("cancel")}</button>
+  <button style={{ ...btnPri, padding: "10px 28px" }} onClick={sendQuoteEmailDraft}>{ICN.mail} {lang === "fr" ? "Envoyer" : "Send"}</button>
+</div>
+</ModalBox>
+)}
 </div>
 );
 }
@@ -4834,28 +4891,51 @@ if (y < imgHeight) pdf.addPage();
 pdf.save(`${inv.invoiceNumber || "invoice"}.pdf`);
 };
 
-const buildEmailBody = (inv, client, template) => {
-const sig = data.settings.emailSignature ? `\n\n--\n${data.settings.emailSignature}` : `\n\nRegards,\n${data.settings.companyName}`;
+const buildEmailBody = (inv, client, template, emailLang) => {
+const l = emailLang || lang;
+const sig = data.settings.emailSignature
+  ? `\n\n--\n${data.settings.emailSignature}`
+  : `\n\n${l === "fr" ? "Cordialement" : "Best regards"},\n${data.settings.companyName}\n${data.settings.companyEmail || ""}${data.settings.companyPhone ? ` | ${data.settings.companyPhone}` : ""}`;
 const name = client.contactPerson || client.name;
+const amount = `€${(inv.total || 0).toFixed(2)}`;
+const invNum = inv.invoiceNumber;
+const dateStr = fmtDate(inv.date);
+const dueStr = inv.dueDate ? fmtDate(inv.dueDate) : null;
+
+if (l === "fr") {
+  if (template === "friendly") {
+    return `Bonjour ${name},\n\nVeuillez trouver ci-joint votre facture ${invNum} pour les services de nettoyage du ${dateStr}.\nMontant dû : ${amount}${dueStr ? `\nDate d'échéance : ${dueStr}` : ""}\n\nN'hésitez pas à nous contacter si vous avez des questions.${sig}`;
+  }
+  if (template === "thank_you") {
+    return `Chère/Cher ${name},\n\nNous vous remercions de votre confiance envers Lux Angels Cleaning !\n\nVeuillez trouver ci-joint la facture ${invNum} du ${dateStr}.\nTotal : ${amount}\n\nNous vous remercions et restons à votre disposition pour toute question.${sig}`;
+  }
+  if (template === "overdue") {
+    return `Chère/Cher ${name},\n\nNous vous rappelons que la facture ${invNum} du ${dateStr} est toujours en attente de règlement.\nMontant restant dû : ${amount}${dueStr ? `\nDate d'échéance dépassée : ${dueStr}` : ""}\n\nNous vous prions de bien vouloir procéder au paiement dans les meilleurs délais. Contactez-nous si vous avez déjà effectué ce virement.${sig}`;
+  }
+  return `Chère/Cher ${name},\n\nVeuillez trouver ci-dessous les détails de votre facture :\n\nFacture : ${invNum}\nDate : ${dateStr}${dueStr ? `\nÉchéance : ${dueStr}` : ""}\nTotal : ${amount}\n\nNous restons disponibles pour toute question.${sig}`;
+}
+
 if (template === "friendly") {
-return `Hello ${name},\n\nPlease find your invoice ${inv.invoiceNumber} for cleaning services on ${fmtDate(inv.date)}.\nAmount due: €${(inv.total || 0).toFixed(2)}\n\nFeel free to reach out if you have any questions.${sig}`;
+  return `Hello ${name},\n\nPlease find your invoice ${invNum} for cleaning services on ${dateStr}.\nAmount due: ${amount}${dueStr ? `\nDue date: ${dueStr}` : ""}\n\nFeel free to reach out if you have any questions.${sig}`;
 }
 if (template === "thank_you") {
-return `Dear ${name},\n\nThank you for choosing Lux Angels Cleaning!\n\nPlease find attached invoice ${inv.invoiceNumber} dated ${fmtDate(inv.date)}.\nTotal: €${(inv.total || 0).toFixed(2)}\n\nWe appreciate your trust and look forward to serving you again.${sig}`;
+  return `Dear ${name},\n\nThank you for choosing Lux Angels Cleaning!\n\nPlease find attached invoice ${invNum} dated ${dateStr}.\nTotal: ${amount}\n\nWe appreciate your trust and look forward to serving you again.${sig}`;
 }
 if (template === "overdue") {
-return `Dear ${name},\n\nThis is a reminder that invoice ${inv.invoiceNumber} dated ${fmtDate(inv.date)} is now overdue.\nOutstanding amount: €${(inv.total || 0).toFixed(2)}\n\nPlease arrange payment at your earliest convenience. Contact us if you have already settled this invoice.${sig}`;
+  return `Dear ${name},\n\nThis is a reminder that invoice ${invNum} dated ${dateStr} is now overdue.\nOutstanding amount: ${amount}${dueStr ? `\nDue date: ${dueStr}` : ""}\n\nPlease arrange payment at your earliest convenience. Contact us if you have already settled this invoice.${sig}`;
 }
-// standard
-return `Dear ${name},\n\nInvoice: ${inv.invoiceNumber}\nDate: ${fmtDate(inv.date)}\nTotal: €${(inv.total || 0).toFixed(2)}\n\nPlease find your invoice details above.${sig}`;
+return `Dear ${name},\n\nInvoice: ${invNum}\nDate: ${dateStr}${dueStr ? `\nDue date: ${dueStr}` : ""}\nTotal: ${amount}\n\nPlease find your invoice details above. Do not hesitate to contact us for any questions.${sig}`;
 };
 
 const emailInvoice = (inv) => {
 const client = data.clients.find(c => c.id === inv.clientId);
-if (!client?.email) { showToast("Client email missing", "error"); return; }
+if (!client?.email) { showToast(lang === "fr" ? "Email client manquant" : "Client email missing", "error"); return; }
 const template = inv.emailTemplate || "standard";
-const subject = `Invoice ${inv.invoiceNumber}`;
-const body = buildEmailBody(inv, client, template);
+const subjectMap = lang === "fr"
+  ? { standard: `Facture ${inv.invoiceNumber}`, friendly: `Facture ${inv.invoiceNumber}`, thank_you: `Merci — Facture ${inv.invoiceNumber}`, overdue: `Relance — Facture ${inv.invoiceNumber}` }
+  : { standard: `Invoice ${inv.invoiceNumber}`, friendly: `Invoice ${inv.invoiceNumber}`, thank_you: `Thank you — Invoice ${inv.invoiceNumber}`, overdue: `Overdue: Invoice ${inv.invoiceNumber}` };
+const subject = subjectMap[template] || subjectMap.standard;
+const body = buildEmailBody(inv, client, template, lang);
 const from = inv.zohoEmail || data.settings.companyEmail;
 setEmailDraft({ to: client.email, subject, body, from, template, inv });
 };
@@ -4992,8 +5072,10 @@ return (
       <button key={tpl} style={{ ...btnSec, ...btnSm, fontWeight: emailDraft.template === tpl ? 700 : 400, borderColor: emailDraft.template === tpl ? CL.gold : CL.bd, color: emailDraft.template === tpl ? CL.gold : CL.muted }}
         onClick={() => {
           const client = data.clients.find(c => c.id === emailDraft.inv.clientId);
-          const newBody = buildEmailBody(emailDraft.inv, client, tpl);
-          const subjectMap = { standard: `Invoice ${emailDraft.inv.invoiceNumber}`, friendly: `Invoice ${emailDraft.inv.invoiceNumber}`, thank_you: `Thank you — Invoice ${emailDraft.inv.invoiceNumber}`, overdue: `Overdue: Invoice ${emailDraft.inv.invoiceNumber}` };
+          const newBody = buildEmailBody(emailDraft.inv, client, tpl, lang);
+          const subjectMap = lang === "fr"
+            ? { standard: `Facture ${emailDraft.inv.invoiceNumber}`, friendly: `Facture ${emailDraft.inv.invoiceNumber}`, thank_you: `Merci — Facture ${emailDraft.inv.invoiceNumber}`, overdue: `Relance — Facture ${emailDraft.inv.invoiceNumber}` }
+            : { standard: `Invoice ${emailDraft.inv.invoiceNumber}`, friendly: `Invoice ${emailDraft.inv.invoiceNumber}`, thank_you: `Thank you — Invoice ${emailDraft.inv.invoiceNumber}`, overdue: `Overdue: Invoice ${emailDraft.inv.invoiceNumber}` };
           setEmailDraft(prev => ({ ...prev, template: tpl, body: newBody, subject: subjectMap[tpl] }));
         }}>
         {tpl === "standard" ? (lang === "fr" ? "Standard" : "Standard") : tpl === "friendly" ? (lang === "fr" ? "Amical" : "Friendly") : tpl === "thank_you" ? (lang === "fr" ? "Merci" : "Thank You") : (lang === "fr" ? "Relance" : "Overdue")}
@@ -5772,15 +5854,15 @@ return (
 // REMINDERS PAGE
 // ==============================================
 function RemindersPage({ data, showToast }) {
-const { t } = useI18n();
+const { t, lang } = useI18n();
 const [channel, setChannel] = useState("email");
 const [workflowType, setWorkflowType] = useState("all");
 const [selectedOnly, setSelectedOnly] = useState(false);
 const [selectedClientIds, setSelectedClientIds] = useState([]);
 const [campaignFrequency, setCampaignFrequency] = useState("weekly");
 const [campaignChannel, setCampaignChannel] = useState("email");
-const [campaignSubject, setCampaignSubject] = useState("Lux Angels update");
-const [campaignBody, setCampaignBody] = useState("Hello, this is your scheduled client communication from Lux Angels.");
+const [campaignSubject, setCampaignSubject] = useState(lang === "fr" ? "Actualités Lux Angels" : "Lux Angels update");
+const [campaignBody, setCampaignBody] = useState(lang === "fr" ? "Bonjour, voici notre communication périodique de la part de Lux Angels Cleaning." : "Hello, this is your scheduled client communication from Lux Angels.");
 
 const clients = data.clients.filter(c => c.status === "active");
 
@@ -5854,11 +5936,20 @@ kind: "work",
 client,
 title: `Upcoming shift reminder · ${client.name}`,
 details: `${fmtDate(sched.date)} ${sched.startTime}-${sched.endTime} · ${employee?.name || "TBA"}`,
-buildPayload: () => ({
-to: client.email,
-subject: `Appointment reminder - ${fmtDate(sched.date)}`,
-body: `Dear ${client.contactPerson || client.name},\n\nReminder for your cleaning appointment:\nDate: ${fmtDate(sched.date)}\nTime: ${sched.startTime}-${sched.endTime}\nCleaner: ${employee?.name || "TBA"}\n\nRegards,\n${data.settings.companyName}`,
-}),
+buildPayload: () => {
+const sig = data.settings.emailSignature
+  ? `\n\n--\n${data.settings.emailSignature}`
+  : `\n\n${lang === "fr" ? "Cordialement" : "Best regards"},\n${data.settings.companyName}${data.settings.companyEmail ? `\n${data.settings.companyEmail}` : ""}${data.settings.companyPhone ? ` | ${data.settings.companyPhone}` : ""}`;
+const cname = client.contactPerson || client.name;
+return lang === "fr" ? {
+  to: client.email,
+  subject: `Rappel de rendez-vous — ${fmtDate(sched.date)}`,
+  body: `Bonjour ${cname},\n\nNous vous rappelons votre rendez-vous de nettoyage :\nDate : ${fmtDate(sched.date)}\nHoraire : ${sched.startTime}–${sched.endTime}\nAgent : ${employee?.name || "À définir"}${sig}`,
+} : {
+  to: client.email,
+  subject: `Appointment reminder — ${fmtDate(sched.date)}`,
+  body: `Hello ${cname},\n\nThis is a reminder for your upcoming cleaning appointment:\nDate: ${fmtDate(sched.date)}\nTime: ${sched.startTime}–${sched.endTime}\nCleaner: ${employee?.name || "TBA"}${sig}`,
+};},
 };
 }).filter(Boolean);
 
@@ -5873,11 +5964,20 @@ kind: "followup",
 client,
 title: `Invoice sent notification · ${client.name}`,
 details: `${inv.invoiceNumber} · ${fmtDate(inv.date)} · €${(inv.total || 0).toFixed(2)}`,
-buildPayload: () => ({
-to: client.email,
-subject: `Invoice ${inv.invoiceNumber} sent`,
-body: `Dear ${client.contactPerson || client.name},\n\nYour invoice ${inv.invoiceNumber} has been sent.\nAmount: €${(inv.total || 0).toFixed(2)}\nDate: ${fmtDate(inv.date)}\n\nRegards,\n${data.settings.companyName}`,
-}),
+buildPayload: () => {
+const sig = data.settings.emailSignature
+  ? `\n\n--\n${data.settings.emailSignature}`
+  : `\n\n${lang === "fr" ? "Cordialement" : "Best regards"},\n${data.settings.companyName}${data.settings.companyEmail ? `\n${data.settings.companyEmail}` : ""}${data.settings.companyPhone ? ` | ${data.settings.companyPhone}` : ""}`;
+const cname = client.contactPerson || client.name;
+return lang === "fr" ? {
+  to: client.email,
+  subject: `Facture ${inv.invoiceNumber} transmise`,
+  body: `Bonjour ${cname},\n\nNous vous informons que votre facture ${inv.invoiceNumber} vous a été transmise.\nMontant : €${(inv.total || 0).toFixed(2)}\nDate : ${fmtDate(inv.date)}${sig}`,
+} : {
+  to: client.email,
+  subject: `Invoice ${inv.invoiceNumber} sent`,
+  body: `Hello ${cname},\n\nYour invoice ${inv.invoiceNumber} has been sent to you.\nAmount: €${(inv.total || 0).toFixed(2)}\nDate: ${fmtDate(inv.date)}${sig}`,
+};},
 };
 }).filter(Boolean);
 
@@ -5892,11 +5992,20 @@ kind: "followup",
 client,
 title: `Payment follow-up · ${client.name}`,
 details: `${inv.invoiceNumber} due ${fmtDate(inv.dueDate)} · €${(inv.total || 0).toFixed(2)}`,
-buildPayload: () => ({
-to: client.email,
-subject: `Payment follow-up - ${inv.invoiceNumber}`,
-body: `Dear ${client.contactPerson || client.name},\n\nThis is a friendly follow-up for invoice ${inv.invoiceNumber}.\nDue date: ${fmtDate(inv.dueDate)}\nOutstanding amount: €${(inv.total || 0).toFixed(2)}\n\nPlease let us know if payment has already been made.\n\nRegards,\n${data.settings.companyName}`,
-}),
+buildPayload: () => {
+const sig = data.settings.emailSignature
+  ? `\n\n--\n${data.settings.emailSignature}`
+  : `\n\n${lang === "fr" ? "Cordialement" : "Best regards"},\n${data.settings.companyName}${data.settings.companyEmail ? `\n${data.settings.companyEmail}` : ""}${data.settings.companyPhone ? ` | ${data.settings.companyPhone}` : ""}`;
+const cname = client.contactPerson || client.name;
+return lang === "fr" ? {
+  to: client.email,
+  subject: `Relance paiement — ${inv.invoiceNumber}`,
+  body: `Bonjour ${cname},\n\nNous vous contactons concernant la facture ${inv.invoiceNumber} toujours en attente de règlement.\nDate d'échéance : ${fmtDate(inv.dueDate)}\nMontant dû : €${(inv.total || 0).toFixed(2)}\n\nMerci de nous confirmer si ce paiement a déjà été effectué.${sig}`,
+} : {
+  to: client.email,
+  subject: `Payment follow-up — ${inv.invoiceNumber}`,
+  body: `Hello ${cname},\n\nThis is a friendly follow-up regarding invoice ${inv.invoiceNumber}.\nDue date: ${fmtDate(inv.dueDate)}\nOutstanding amount: €${(inv.total || 0).toFixed(2)}\n\nPlease let us know if payment has already been made.${sig}`,
+};},
 };
 }).filter(Boolean);
 
@@ -5912,12 +6021,16 @@ if (ok) showToast(`${uiText("Reminder opened via")} ${channel}`);
 const sendCampaign = async () => {
 const recipients = clients.filter(c => selectedClientIds.includes(c.id));
 if (!recipients.length) { showToast(uiText("Select at least one client for campaign"), "error"); return; }
+const sig = data.settings.emailSignature
+  ? `\n\n--\n${data.settings.emailSignature}`
+  : `\n\n${lang === "fr" ? "Cordialement" : "Best regards"},\n${data.settings.companyName}${data.settings.companyEmail ? `\n${data.settings.companyEmail}` : ""}${data.settings.companyPhone ? ` | ${data.settings.companyPhone}` : ""}`;
 let sentCount = 0;
 for (const client of recipients) {
+const greeting = lang === "fr" ? `Bonjour ${client.contactPerson || client.name},` : `Hello ${client.contactPerson || client.name},`;
 const payload = {
 to: client.email,
-subject: `[${campaignFrequency.toUpperCase()}] ${campaignSubject}`,
-body: `Dear ${client.contactPerson || client.name},\n\n${campaignBody}\n\nRegards,\n${data.settings.companyName}`,
+subject: campaignSubject,
+body: `${greeting}\n\n${campaignBody}${sig}`,
 };
 const ok = await dispatch(campaignChannel, payload, client);
 if (ok) sentCount += 1;

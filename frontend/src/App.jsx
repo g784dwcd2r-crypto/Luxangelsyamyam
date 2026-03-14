@@ -2057,27 +2057,39 @@ if (view === "admin") return (
 // ── AGENT PICK: choose name ───────────────────────────────────────────────
 if (view === "agent-pick") return (
   <LoginShell>
-    <div style={{ animation: "fadeIn .4s ease", width: 500, maxWidth: "100%" }}>
+    <div style={{ animation: "fadeIn .4s ease", width: 420, maxWidth: "100%" }}>
       <LoginLogo lang={lang} />
-      <div style={{ ...cardSt, padding: 24 }}>
+      <div style={{ ...cardSt, padding: 28 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
           <button onClick={goBack} style={{ background: "none", border: "none", color: CL.muted, cursor: "pointer", padding: 4, lineHeight: 0 }}>
             <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
           </button>
-          <h3 style={{ margin: 0, fontFamily: "'Cormorant Garamond', serif", color: CL.gold, fontSize: 21 }}>{lang === "en" ? "Select Your Name" : "Sélectionnez votre nom"}</h3>
+          <h3 style={{ margin: 0, fontFamily: "'Cormorant Garamond', serif", color: CL.gold, fontSize: 21 }}>{lang === "en" ? "Agent Login" : "Connexion Agent"}</h3>
         </div>
-        <p style={{ margin: "0 0 16px", fontSize: 13, color: CL.muted }}>{lang === "en" ? "Tap your name to continue" : "Appuyez sur votre nom pour continuer"}</p>
-        {agentList.length === 0
-          ? <p style={{ color: CL.muted, fontSize: 13, textAlign: "center" }}>{lang === "en" ? "No agents found." : "Aucun agent trouvé."}</p>
-          : <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-              {agentList.map(agent => (
-                <button key={agent.id} className="login-agent-btn" onClick={() => { setSelectedAgent(agent); setPassword(""); setError(""); setView("agent-pw"); }}
-                  style={{ padding: "12px 20px", background: CL.s2, border: `1px solid ${CL.bd}`, borderRadius: 12, color: CL.text, fontSize: 15, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ width: 32, height: 32, borderRadius: "50%", background: `${CL.gold}22`, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 14, color: CL.gold, fontWeight: 700, flexShrink: 0 }}>{(agent.display_name || agent.name || "?").charAt(0).toUpperCase()}</span>
-                  {agent.display_name || agent.name}
-                </button>
-              ))}
-            </div>}
+        <label style={{ display: "block", fontSize: 12, color: CL.muted, marginBottom: 6, fontWeight: 600, letterSpacing: ".05em", textTransform: "uppercase" }}>
+          {lang === "en" ? "Select your username" : "Sélectionnez votre nom d'utilisateur"}
+        </label>
+        <select
+          value={selectedAgent ? selectedAgent.id : ""}
+          onChange={e => {
+            const agent = agentList.find(a => a.id === e.target.value);
+            setSelectedAgent(agent || null);
+            setError("");
+          }}
+          style={{ width: "100%", padding: "11px 14px", background: CL.s2, border: `1px solid ${CL.bd}`, borderRadius: 10, color: selectedAgent ? CL.text : CL.muted, fontSize: 15, fontWeight: 500, cursor: "pointer", outline: "none", appearance: "none", backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")`, backgroundRepeat: "no-repeat", backgroundPosition: "calc(100% - 14px) center" }}
+        >
+          <option value="" disabled style={{ color: CL.muted }}>{lang === "en" ? "— Choose your username —" : "— Choisissez votre nom d'utilisateur —"}</option>
+          {agentList.map(agent => (
+            <option key={agent.id} value={agent.id}>{agent.display_name || agent.name}</option>
+          ))}
+        </select>
+        <button
+          onClick={() => { if (selectedAgent) { setPassword(""); setError(""); setView("agent-pw"); } }}
+          disabled={!selectedAgent}
+          style={{ marginTop: 18, width: "100%", padding: "13px", background: selectedAgent ? CL.gold : `${CL.gold}44`, border: "none", borderRadius: 10, color: selectedAgent ? "#0a0c12" : CL.muted, fontSize: 15, fontWeight: 700, cursor: selectedAgent ? "pointer" : "not-allowed", transition: "background .2s" }}
+        >
+          {lang === "en" ? "Continue" : "Continuer"}
+        </button>
         {error && <div style={{ color: CL.red, fontSize: 13, marginTop: 12, textAlign: "center" }}>{error}</div>}
       </div>
     </div>
@@ -2125,10 +2137,9 @@ const LoginShell = ({ children }) => (
   <div style={{ minHeight: "100vh", background: `linear-gradient(160deg, ${CL.bg} 0%, #0d0f18 100%)`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: "'Outfit', sans-serif", padding: "24px 16px" }}>
     <style>{globalCSS}</style>
     <style>{`
-      .login-agent-btn { transition: background .15s, transform .1s, box-shadow .15s; }
-      .login-agent-btn:hover { background: ${CL.gold}22 !important; transform: translateY(-2px); box-shadow: 0 6px 20px ${CL.gold}25; }
       .login-role-card { transition: transform .15s, box-shadow .15s; cursor: pointer; }
       .login-role-card:hover { transform: translateY(-4px); box-shadow: 0 12px 36px rgba(0,0,0,.45); }
+      .login-agent-select:focus { border-color: ${CL.gold} !important; box-shadow: 0 0 0 3px ${CL.gold}22; }
     `}</style>
     <div style={{ position: "fixed", top: 16, right: 16, zIndex: 100 }}><LanguageSwitcher /></div>
     {children}

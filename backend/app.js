@@ -1136,6 +1136,28 @@ app.put('/api/settings', async (req, res) => {
 });
 
 
+// Test SMTP connection using credentials supplied in the request body.
+// No PIN required — only verifies connectivity, no data is accessed or sent.
+// Body: { host, port, secure, user, pass }
+app.post('/api/email/test-connection', async (req, res) => {
+  try {
+    const { host, port, secure, user, pass } = req.body || {};
+    if (!host || !user || !pass) {
+      return res.status(400).json({ ok: false, error: 'host, user and pass are required' });
+    }
+    const transporter = nodemailer.createTransport({
+      host: String(host).trim(),
+      port: parseInt(port, 10) || 465,
+      secure: String(secure).trim().toLowerCase() !== 'false',
+      auth: { user: String(user).trim(), pass: String(pass).trim() },
+    });
+    await transporter.verify();
+    return res.json({ ok: true });
+  } catch (err) {
+    return res.json({ ok: false, error: err.message || 'Connection failed' });
+  }
+});
+
 // Diagnostic endpoint — returns email config status and optionally sends a test email.
 // Usage: POST /api/admin/test-email  { "to": "you@example.com" }
 // Protected by owner PIN: pass ?pin=YOUR_PIN or body.pin

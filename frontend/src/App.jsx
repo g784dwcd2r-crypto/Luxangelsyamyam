@@ -4671,10 +4671,117 @@ return (
 );
 }
 
+const EMAIL_TEMPLATES = [
+  { value: "standard", label: "Standard", labelFr: "Standard" },
+  { value: "friendly", label: "Friendly", labelFr: "Convivial" },
+  { value: "followup", label: "Follow-up Reminder", labelFr: "Rappel de paiement" },
+  { value: "thankyou", label: "Thank You", labelFr: "Remerciement" },
+];
+
+function EmailPreviewModal({ draft, onClose, onSend, settings, lang }) {
+const [tmpl, setTmpl] = useState(draft.template);
+const [subject, setSubject] = useState(draft.subject);
+const [body, setBody] = useState(draft.body);
+const [sending, setSending] = useState(false);
+
+const applyTemplate = (newTmpl) => {
+  setTmpl(newTmpl);
+  setBody(buildEmailBody(newTmpl, draft.client, draft.inv, settings));
+};
+
+const handleSend = async () => {
+  setSending(true);
+  await onSend({ ...draft, template: tmpl, subject, body });
+  setSending(false);
+};
+
+const sig = [
+  settings.companyName,
+  settings.companyPhone ? `Tel: ${settings.companyPhone}` : null,
+  settings.companyEmail || null,
+  settings.companyAddress || null,
+].filter(Boolean);
+
+return (
+<ModalBox title={lang === "fr" ? "Aperçu de l'e-mail" : "Email Preview"} onClose={onClose} wide>
+  <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+
+    {/* To */}
+    <div style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13 }}>
+      <span style={{ color: "#888", minWidth: 52 }}>{lang === "fr" ? "À :" : "To:"}</span>
+      <span style={{ fontWeight: 600 }}>{draft.client.email}</span>
+    </div>
+
+    {/* Template selector */}
+    <div>
+      <div style={{ fontSize: 12, color: "#888", marginBottom: 6 }}>{lang === "fr" ? "Modèle" : "Template"}</div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        {EMAIL_TEMPLATES.map(tp => (
+          <button key={tp.value} onClick={() => applyTemplate(tp.value)}
+            style={{ padding: "6px 14px", borderRadius: 20, border: `1.5px solid ${tmpl === tp.value ? "#C9A84C" : "#ddd"}`, background: tmpl === tp.value ? "#C9A84C" : "#fff", color: tmpl === tp.value ? "#fff" : "#444", fontSize: 13, cursor: "pointer", fontWeight: tmpl === tp.value ? 700 : 400 }}>
+            {lang === "fr" ? tp.labelFr : tp.label}
+          </button>
+        ))}
+      </div>
+    </div>
+
+    {/* Subject */}
+    <div>
+      <div style={{ fontSize: 12, color: "#888", marginBottom: 4 }}>{lang === "fr" ? "Objet" : "Subject"}</div>
+      <input value={subject} onChange={e => setSubject(e.target.value)}
+        style={{ width: "100%", padding: "8px 12px", border: "1px solid #ddd", borderRadius: 8, fontSize: 13, boxSizing: "border-box" }} />
+    </div>
+
+    {/* Body preview / editable */}
+    <div>
+      <div style={{ fontSize: 12, color: "#888", marginBottom: 4 }}>{lang === "fr" ? "Message" : "Message"}</div>
+      <textarea value={body} onChange={e => setBody(e.target.value)}
+        style={{ width: "100%", minHeight: 220, padding: "10px 12px", border: "1px solid #ddd", borderRadius: 8, fontSize: 13, lineHeight: 1.6, resize: "vertical", boxSizing: "border-box", fontFamily: "inherit" }} />
+    </div>
+
+    {/* Electronic signature preview */}
+    <div style={{ background: "#f9f7f2", border: "1px solid #e8dfc8", borderRadius: 10, padding: "12px 16px" }}>
+      <div style={{ fontSize: 11, color: "#aaa", marginBottom: 6, textTransform: "uppercase", letterSpacing: 1 }}>{lang === "fr" ? "Signature électronique" : "Electronic Signature"}</div>
+      <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 20, color: "#C9A84C", fontWeight: 700, fontStyle: "italic" }}>{settings.companyName}</div>
+      {sig.slice(1).map((line, i) => <div key={i} style={{ fontSize: 12, color: "#666", marginTop: 2 }}>{line}</div>)}
+      <div style={{ borderTop: "1px solid #C9A84C", marginTop: 8, paddingTop: 6, fontSize: 11, color: "#aaa" }}>{lang === "fr" ? "Signature numérique autorisée — " : "Authorised electronic signature — "}{settings.companyName}</div>
+    </div>
+
+    {/* Actions */}
+    <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", paddingTop: 4 }}>
+      <button style={{ padding: "10px 22px", borderRadius: 8, border: "1px solid #ddd", background: "#fff", color: "#444", cursor: "pointer", fontSize: 14 }} onClick={onClose}>
+        {lang === "fr" ? "Annuler" : "Cancel"}
+      </button>
+      <button style={{ padding: "10px 26px", borderRadius: 8, border: "none", background: sending ? "#aaa" : "#C9A84C", color: "#fff", cursor: sending ? "not-allowed" : "pointer", fontSize: 14, fontWeight: 700 }} disabled={sending} onClick={handleSend}>
+        {sending ? (lang === "fr" ? "Envoi…" : "Sending…") : (lang === "fr" ? "Envoyer" : "Send Email")}
+      </button>
+    </div>
+  </div>
+</ModalBox>
+);
+}
+
+function buildEmailBody(template, client, inv, settings) {
+const clientName = client.contactPerson || client.name;
+const sig = [
+  settings.companyName,
+  settings.companyPhone ? `Tel: ${settings.companyPhone}` : null,
+  settings.companyEmail ? settings.companyEmail : null,
+  settings.companyAddress || null,
+].filter(Boolean).join("\n");
+
+if (template === "friendly") return `Hello ${clientName},\n\nPlease find your invoice ${inv.invoiceNumber} for cleaning services on ${fmtDate(inv.date)}.\nAmount due: €${(inv.total || 0).toFixed(2)}\n\nDon't hesitate to reach out if you have any questions!\n\nBest regards,\n${sig}`;
+if (template === "followup") return `Dear ${clientName},\n\nThis is a friendly reminder that invoice ${inv.invoiceNumber} dated ${fmtDate(inv.date)} for €${(inv.total || 0).toFixed(2)} remains outstanding.\n\nPlease let us know if you have any questions or need assistance.\n\nKind regards,\n${sig}`;
+if (template === "thankyou") return `Dear ${clientName},\n\nThank you for choosing ${settings.companyName}! Please find attached invoice ${inv.invoiceNumber} for services rendered on ${fmtDate(inv.date)}.\n\nTotal due: €${(inv.total || 0).toFixed(2)}\n\nWe truly appreciate your continued trust in us.\n\nWarm regards,\n${sig}`;
+// standard (default)
+return `Dear ${clientName},\n\nInvoice: ${inv.invoiceNumber}\nDate: ${fmtDate(inv.date)}\nTotal: €${(inv.total || 0).toFixed(2)}\n${inv.paymentTerms ? `\n${inv.paymentTerms}` : ""}\n\nRegards,\n${sig}`;
+}
+
 function InvoicesPage({ data, updateData, showToast, emailConfigured = true }) {
 const { t, lang } = useI18n();
 const [modal, setModal] = useState(null);
 const [preview, setPreview] = useState(null);
+const [emailDraft, setEmailDraft] = useState(null);
 const [filters, setFilters] = useState({ invoiceNumber: "", clientId: "", status: "", dateFrom: "", dateTo: "" });
 
 const nextInvoiceNum = (dateStr = getToday()) => {
@@ -4832,44 +4939,32 @@ if (y < imgHeight) pdf.addPage();
 pdf.save(`${inv.invoiceNumber || "invoice"}.pdf`);
 };
 
-const emailInvoice = async (inv) => {
+const openEmailDraft = (inv) => {
 const client = data.clients.find(c => c.id === inv.clientId);
 if (!client?.email) { showToast("Client email missing", "error"); return; }
 const template = inv.emailTemplate || "standard";
-const subject = `Invoice ${inv.invoiceNumber}`;
-const bodyPlain = template === "friendly"
-? `Hello ${client.contactPerson || client.name},
+setEmailDraft({
+  inv,
+  client,
+  template,
+  subject: `Invoice ${inv.invoiceNumber}`,
+  body: buildEmailBody(template, client, inv, data.settings),
+  from: inv.zohoEmail || data.settings.companyEmail || "",
+});
+};
 
-Please find your invoice ${inv.invoiceNumber} for cleaning services on ${fmtDate(inv.date)}.
-Amount due: €${(inv.total || 0).toFixed(2)}
-
-Best regards,
-${data.settings.companyName}`
-: `Dear ${client.contactPerson || client.name},
-
-Invoice: ${inv.invoiceNumber}
-Date: ${fmtDate(inv.date)}
-Total: €${(inv.total || 0).toFixed(2)}
-
-Regards,
-${data.settings.companyName}`;
-const senderEmail = inv.zohoEmail || data.settings.companyEmail;
-
+const sendEmailDraft = async (draft) => {
 try {
 const response = await fetch(apiUrl('/api/notifications/email'), {
 method: 'POST',
 headers: { 'Content-Type': 'application/json' },
-body: JSON.stringify({
-to: client.email,
-subject,
-body: bodyPlain,
-from: senderEmail,
-}),
+body: JSON.stringify({ to: draft.client.email, subject: draft.subject, body: draft.body, from: draft.from }),
 });
 if (!response.ok) {
 const errPayload = await response.json().catch(() => ({}));
 throw new Error(errPayload.error || 'Unable to send email');
 }
+setEmailDraft(null);
 showToast("Email sent from platform");
 } catch (err) {
 console.error(err);
@@ -4970,7 +5065,7 @@ return (
 <button style={btnSec} onClick={() => setPreview(null)}>{lang === "en" ? "Close" : "Fermer"}</button>
 <button style={btnSec} onClick={() => downloadInvoicePng(preview)}>{ICN.download} PNG</button>
 <button style={btnPri} onClick={() => downloadInvoicePdf(preview)}>{ICN.download} PDF</button>
-<button style={{ ...btnSec, color: emailConfigured ? CL.blue : CL.muted, ...(emailConfigured ? {} : { opacity: 0.45, cursor: "not-allowed" }) }} title={emailConfigured ? undefined : (lang === "fr" ? "Email non configuré — contactez votre administrateur" : "Email not configured — contact your administrator")} disabled={!emailConfigured} onClick={() => emailInvoice(preview)}>{ICN.mail} {t("sendEmail")}</button>
+<button style={{ ...btnSec, color: emailConfigured ? CL.blue : CL.muted, ...(emailConfigured ? {} : { opacity: 0.45, cursor: "not-allowed" }) }} title={emailConfigured ? undefined : (lang === "fr" ? "Email non configuré — contactez votre administrateur" : "Email not configured — contact your administrator")} disabled={!emailConfigured} onClick={() => openEmailDraft(preview)}>{ICN.mail} {t("sendEmail")}</button>
 </div>
 </ModalBox>
 )}
@@ -4979,6 +5074,15 @@ return (
 <ModalBox title={modal.id ? t("editInvoice") : t("newInvoice")} onClose={() => setModal(null)} wide>
 <InvoiceFormContent invoice={modal} data={data} onSave={handleSave} nextInvoiceNum={nextInvoiceNum} buildPrestationOptions={buildPrestationOptions} onCancel={() => setModal(null)} />
 </ModalBox>
+)}
+{emailDraft && (
+<EmailPreviewModal
+  draft={emailDraft}
+  onClose={() => setEmailDraft(null)}
+  onSend={sendEmailDraft}
+  settings={data.settings}
+  lang={lang}
+/>
 )}
 </div>
 );

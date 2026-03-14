@@ -1796,7 +1796,7 @@ showToast(uiText("Use browser menu > Install app"), "info");
 };
 
 const renderSection = () => {
-const props = { data, updateData, showToast, setData, auth, setSection, setDevisSeed, devisSeed, emailConfigured };
+const props = { data, updateData, showToast, setData, auth, setSection, setDevisSeed, devisSeed, emailConfigured, setEmailConfigured };
 switch (section) {
 case "dashboard": return <DashboardPage data={data} auth={auth} />;
 case "employees": return <EmployeesPage {...props} />;
@@ -6232,7 +6232,7 @@ return (
 // ==============================================
 // SETTINGS PAGE
 // ==============================================
-function SettingsPage({ data, updateData, setData, showToast, auth }) {
+function SettingsPage({ data, updateData, setData, showToast, auth, setEmailConfigured }) {
 const [form, setForm] = useState(data.settings);
 const [ownerUsername, setOwnerUsername] = useState(data.ownerUsername || "");
 const [pin, setPin] = useState(data.ownerPin || "");
@@ -6266,12 +6266,24 @@ const handleSave = async () => {
         vatNumber: form.vatNumber,
         bankIban: form.bankIban,
         defaultVatRate: String(form.defaultVatRate),
+        emailSignature: form.emailSignature || "",
+        emailProvider: (form.smtpUser?.trim() && form.smtpPass?.trim()) ? "smtp" : "",
         smtpHost: form.smtpHost || "",
         smtpPort: form.smtpPort || "465",
+        smtpSecure: "true",
         smtpUser: form.smtpUser || "",
         smtpPass: form.smtpPass || "",
       }),
     });
+    if (setEmailConfigured) {
+      try {
+        const statusRes = await fetch(apiUrl("/api/email-status"), { cache: "no-store" });
+        if (statusRes.ok) {
+          const status = await statusRes.json().catch(() => null);
+          if (status) setEmailConfigured(!!status.configured);
+        }
+      } catch { /* ignore */ }
+    }
     showToast(uiText("Saved") + " — synced to server");
   } catch {
     showToast("Saved locally only — server unreachable. Credentials may not work on other devices until the server is back online.", "error");

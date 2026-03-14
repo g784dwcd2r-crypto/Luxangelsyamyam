@@ -5401,7 +5401,7 @@ return (
         {cols.description && <th style={{ textAlign: "left", padding: "6px 4px", fontSize: 10, color: "#999", fontWeight: 600 }}>Désignation</th>}
         {cols.quantity && <th style={{ textAlign: "right", padding: "6px 4px", fontSize: 10, color: "#999", fontWeight: 600 }}>Quantité</th>}
         {cols.hours && <th style={{ textAlign: "right", padding: "6px 4px", fontSize: 10, color: "#999", fontWeight: 600 }}>Heures</th>}
-        {cols.unitPrice && <th style={{ textAlign: "right", padding: "6px 4px", fontSize: 10, color: "#999", fontWeight: 600 }}>PU (€)</th>}
+        {cols.unitPrice && <th style={{ textAlign: "right", padding: "6px 4px", fontSize: 10, color: "#999", fontWeight: 600 }}>PU</th>}
         {cols.total && <th style={{ textAlign: "right", padding: "6px 0 6px 4px", fontSize: 10, color: "#999", fontWeight: 600 }}>Montant HT</th>}
       </tr>
     </thead>

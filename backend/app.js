@@ -1218,6 +1218,7 @@ async function initDb() {
     "ALTER TABLE employees ADD COLUMN IF NOT EXISTS country TEXT DEFAULT 'Luxembourg'",
     "ALTER TABLE employees ADD COLUMN IF NOT EXISTS start_date DATE",
     "ALTER TABLE employees ADD COLUMN IF NOT EXISTS contract_type TEXT DEFAULT 'CDI'",
+    "ALTER TABLE employees ADD COLUMN IF NOT EXISTS contract_end_date DATE",
     "ALTER TABLE employees ADD COLUMN IF NOT EXISTS bank_iban TEXT",
     "ALTER TABLE employees ADD COLUMN IF NOT EXISTS social_sec_number TEXT",
     "ALTER TABLE employees ADD COLUMN IF NOT EXISTS date_of_birth DATE",

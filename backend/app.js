@@ -1224,6 +1224,456 @@ app.post('/api/notifications/sms', async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// QUOTES
+// ---------------------------------------------------------------------------
+app.get('/api/quotes', async (_req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM quotes ORDER BY date DESC');
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
+app.post('/api/quotes', async (req, res) => {
+  try {
+    const b = req.body;
+    if (!b.id || !b.quoteNumber || !b.date) return res.status(400).json({ error: 'Missing required fields: id, quoteNumber, date' });
+    const result = await pool.query(
+      `INSERT INTO quotes (id, quote_number, date, client_id, status, items, subtotal, vat_rate, vat_amount, total, notes, pricing_mode, job_schedule, visible_columns)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
+      [b.id, b.quoteNumber, b.date, b.clientId || null, b.status || 'draft',
+       JSON.stringify(b.items || []), b.subtotal || 0, b.vatRate || 17,
+       b.vatAmount || 0, b.total || 0, b.notes || '',
+       b.pricingMode || 'hours', JSON.stringify(b.jobSchedule || {}), JSON.stringify(b.visibleColumns || {})]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
+app.put('/api/quotes/:id', async (req, res) => {
+  try {
+    const b = req.body;
+    const result = await pool.query(
+      `UPDATE quotes SET quote_number=$1, date=$2, client_id=$3, status=$4, items=$5, subtotal=$6,
+       vat_rate=$7, vat_amount=$8, total=$9, notes=$10, pricing_mode=$11, job_schedule=$12, visible_columns=$13
+       WHERE id=$14 RETURNING *`,
+      [b.quoteNumber, b.date, b.clientId || null, b.status || 'draft',
+       JSON.stringify(b.items || []), b.subtotal || 0, b.vatRate || 17,
+       b.vatAmount || 0, b.total || 0, b.notes || '',
+       b.pricingMode || 'hours', JSON.stringify(b.jobSchedule || {}), JSON.stringify(b.visibleColumns || {}),
+       req.params.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Quote not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
+app.delete('/api/quotes/:id', async (req, res) => {
+  try {
+    const result = await pool.query('DELETE FROM quotes WHERE id=$1 RETURNING id', [req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Quote not found' });
+    res.json({ deleted: result.rows[0].id });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// PHOTO UPLOADS
+// ---------------------------------------------------------------------------
+app.get('/api/photo-uploads', async (_req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM photo_uploads ORDER BY created_at DESC');
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
+app.post('/api/photo-uploads', async (req, res) => {
+  try {
+    const b = req.body;
+    if (!b.id) return res.status(400).json({ error: 'Missing required field: id' });
+    const result = await pool.query(
+      `INSERT INTO photo_uploads (id, employee_id, client_id, clock_entry_id, file_name, image_data, note, type, seen_by_owner)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+      [b.id, b.employeeId || null, b.clientId || null, b.clockEntryId || null,
+       b.fileName || '', b.imageData || '', b.note || '', b.type || 'issue', b.seenByOwner || false]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
+app.patch('/api/photo-uploads/seen', async (_req, res) => {
+  try {
+    await pool.query('UPDATE photo_uploads SET seen_by_owner=TRUE WHERE seen_by_owner=FALSE');
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
+app.delete('/api/photo-uploads/:id', async (req, res) => {
+  try {
+    const result = await pool.query('DELETE FROM photo_uploads WHERE id=$1 RETURNING id', [req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Photo upload not found' });
+    res.json({ deleted: result.rows[0].id });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// TIME OFF REQUESTS
+// ---------------------------------------------------------------------------
+app.get('/api/time-off-requests', async (_req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM time_off_requests ORDER BY created_at DESC');
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
+app.post('/api/time-off-requests', async (req, res) => {
+  try {
+    const b = req.body;
+    if (!b.id || !b.startDate || !b.endDate) return res.status(400).json({ error: 'Missing required fields: id, startDate, endDate' });
+    const result = await pool.query(
+      `INSERT INTO time_off_requests (id, employee_id, start_date, end_date, requested_days, reason, leave_type, status)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [b.id, b.employeeId || null, b.startDate, b.endDate,
+       b.requestedDays || 1, b.reason || '', b.leaveType || 'conge', b.status || 'pending']
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
+app.patch('/api/time-off-requests/:id', async (req, res) => {
+  try {
+    const { status, reviewedBy, reviewNote } = req.body;
+    const result = await pool.query(
+      `UPDATE time_off_requests SET status=$1, reviewed_at=NOW(), reviewed_by=$2, review_note=$3 WHERE id=$4 RETURNING *`,
+      [status, reviewedBy || null, reviewNote || '', req.params.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Time-off request not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
+app.delete('/api/time-off-requests/:id', async (req, res) => {
+  try {
+    const result = await pool.query('DELETE FROM time_off_requests WHERE id=$1 RETURNING id', [req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Time-off request not found' });
+    res.json({ deleted: result.rows[0].id });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// INVENTORY PRODUCTS
+// ---------------------------------------------------------------------------
+app.get('/api/inventory-products', async (_req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM inventory_products ORDER BY name');
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
+app.post('/api/inventory-products', async (req, res) => {
+  try {
+    const b = req.body;
+    if (!b.id || !b.name) return res.status(400).json({ error: 'Missing required fields: id, name' });
+    const result = await pool.query(
+      `INSERT INTO inventory_products (id, name, unit, stock, min_stock, note, active)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      [b.id, b.name, b.unit || 'bottles', b.stock || 0, b.minStock || 0, b.note || '', b.active !== false]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
+app.put('/api/inventory-products/:id', async (req, res) => {
+  try {
+    const b = req.body;
+    const result = await pool.query(
+      `UPDATE inventory_products SET name=$1, unit=$2, stock=$3, min_stock=$4, note=$5, active=$6 WHERE id=$7 RETURNING *`,
+      [b.name, b.unit || 'bottles', b.stock || 0, b.minStock || 0, b.note || '', b.active !== false, req.params.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Product not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
+app.delete('/api/inventory-products/:id', async (req, res) => {
+  try {
+    const result = await pool.query('DELETE FROM inventory_products WHERE id=$1 RETURNING id', [req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Product not found' });
+    res.json({ deleted: result.rows[0].id });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// PRODUCT REQUESTS
+// ---------------------------------------------------------------------------
+app.get('/api/product-requests', async (_req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM product_requests ORDER BY created_at DESC');
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
+app.post('/api/product-requests', async (req, res) => {
+  try {
+    const b = req.body;
+    if (!b.id || !b.productId) return res.status(400).json({ error: 'Missing required fields: id, productId' });
+    const result = await pool.query(
+      `INSERT INTO product_requests (id, employee_id, product_id, quantity, note, delivery_at, status, approved_qty, delivered_qty)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+      [b.id, b.employeeId || null, b.productId, b.quantity || 1,
+       b.note || '', b.deliveryAt || '', b.status || 'pending', b.approvedQty || 0, b.deliveredQty || 0]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
+app.patch('/api/product-requests/:id', async (req, res) => {
+  try {
+    const b = req.body;
+    const result = await pool.query(
+      `UPDATE product_requests SET status=$1, approved_qty=$2, delivered_qty=$3 WHERE id=$4 RETURNING *`,
+      [b.status, b.approvedQty || 0, b.deliveredQty || 0, req.params.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Product request not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
+app.delete('/api/product-requests/:id', async (req, res) => {
+  try {
+    const result = await pool.query('DELETE FROM product_requests WHERE id=$1 RETURNING id', [req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Product request not found' });
+    res.json({ deleted: result.rows[0].id });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// CLEANER PRODUCT HOLDINGS
+// ---------------------------------------------------------------------------
+app.get('/api/cleaner-product-holdings', async (_req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM cleaner_product_holdings ORDER BY created_at DESC');
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
+app.post('/api/cleaner-product-holdings', async (req, res) => {
+  try {
+    const b = req.body;
+    if (!b.id) return res.status(400).json({ error: 'Missing required field: id' });
+    const result = await pool.query(
+      `INSERT INTO cleaner_product_holdings (id, employee_id, product_id, qty_in_hand, updated_at)
+       VALUES ($1,$2,$3,$4,NOW()) RETURNING *`,
+      [b.id, b.employeeId || null, b.productId || null, b.qtyInHand || 0]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
+app.put('/api/cleaner-product-holdings/:id', async (req, res) => {
+  try {
+    const { qtyInHand } = req.body;
+    const result = await pool.query(
+      `UPDATE cleaner_product_holdings SET qty_in_hand=$1, updated_at=NOW() WHERE id=$2 RETURNING *`,
+      [qtyInHand || 0, req.params.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Holding not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
+app.delete('/api/cleaner-product-holdings/:id', async (req, res) => {
+  try {
+    const result = await pool.query('DELETE FROM cleaner_product_holdings WHERE id=$1 RETURNING id', [req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Holding not found' });
+    res.json({ deleted: result.rows[0].id });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// PROSPECT VISITS
+// ---------------------------------------------------------------------------
+app.get('/api/prospect-visits', async (_req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM prospect_visits ORDER BY visit_date DESC');
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
+app.post('/api/prospect-visits', async (req, res) => {
+  try {
+    const b = req.body;
+    if (!b.id || !b.visitDate) return res.status(400).json({ error: 'Missing required fields: id, visitDate' });
+    const result = await pool.query(
+      `INSERT INTO prospect_visits (id, client_id, visit_date, visit_time, address, notes, status, photos)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [b.id, b.clientId || null, b.visitDate, b.visitTime || '',
+       b.address || '', b.notes || '', b.status || 'planned', JSON.stringify(b.photos || [])]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
+app.patch('/api/prospect-visits/:id', async (req, res) => {
+  try {
+    const { status } = req.body;
+    const result = await pool.query(
+      `UPDATE prospect_visits SET status=$1, updated_at=NOW() WHERE id=$2 RETURNING *`,
+      [status, req.params.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Visit not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
+app.delete('/api/prospect-visits/:id', async (req, res) => {
+  try {
+    const result = await pool.query('DELETE FROM prospect_visits WHERE id=$1 RETURNING id', [req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Visit not found' });
+    res.json({ deleted: result.rows[0].id });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// EXPENSES
+// ---------------------------------------------------------------------------
+app.get('/api/expenses', async (_req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM expenses ORDER BY name');
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
+app.post('/api/expenses', async (req, res) => {
+  try {
+    const b = req.body;
+    if (!b.id || !b.name) return res.status(400).json({ error: 'Missing required fields: id, name' });
+    const result = await pool.query(
+      `INSERT INTO expenses (id, name, amount, due_day, category, note, is_active, payments)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [b.id, b.name, b.amount || 0, b.dueDay || 1, b.category || 'other',
+       b.note || b.notes || '', b.isActive !== false, JSON.stringify(b.payments || [])]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
+app.put('/api/expenses/:id', async (req, res) => {
+  try {
+    const b = req.body;
+    const result = await pool.query(
+      `UPDATE expenses SET name=$1, amount=$2, due_day=$3, category=$4, note=$5, is_active=$6, payments=$7 WHERE id=$8 RETURNING *`,
+      [b.name, b.amount || 0, b.dueDay || 1, b.category || 'other',
+       b.note || b.notes || '', b.isActive !== false, JSON.stringify(b.payments || []), req.params.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Expense not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
+app.delete('/api/expenses/:id', async (req, res) => {
+  try {
+    const result = await pool.query('DELETE FROM expenses WHERE id=$1 RETURNING id', [req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Expense not found' });
+    res.json({ deleted: result.rows[0].id });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
+// ---------------------------------------------------------------------------
 // Start server — initialize schema on first boot if tables are missing
 // ---------------------------------------------------------------------------
 async function initDb() {
@@ -1327,6 +1777,65 @@ async function initDb() {
     await pool.query("INSERT INTO settings (key, value) VALUES ('ownerEmail', 'owner@luxangels.lu') ON CONFLICT (key) DO NOTHING");
   } catch (err) {
     console.error('Settings seed failed:', err.message);
+  }
+
+  // New tables for data previously stored only in browser memory
+  const newTables = [
+    `CREATE TABLE IF NOT EXISTS quotes (
+      id TEXT PRIMARY KEY, quote_number TEXT NOT NULL UNIQUE, date DATE NOT NULL,
+      client_id TEXT REFERENCES clients(id) ON DELETE SET NULL,
+      status TEXT NOT NULL DEFAULT 'draft', items JSONB NOT NULL DEFAULT '[]',
+      subtotal NUMERIC(10,2) NOT NULL DEFAULT 0, vat_rate NUMERIC(5,2) NOT NULL DEFAULT 17,
+      vat_amount NUMERIC(10,2) NOT NULL DEFAULT 0, total NUMERIC(10,2) NOT NULL DEFAULT 0,
+      notes TEXT, pricing_mode TEXT DEFAULT 'hours', job_schedule JSONB DEFAULT '{}',
+      visible_columns JSONB DEFAULT '{}', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`,
+    `CREATE TABLE IF NOT EXISTS photo_uploads (
+      id TEXT PRIMARY KEY, employee_id TEXT REFERENCES employees(id) ON DELETE SET NULL,
+      client_id TEXT REFERENCES clients(id) ON DELETE SET NULL, clock_entry_id TEXT,
+      file_name TEXT, image_data TEXT, note TEXT, type TEXT DEFAULT 'issue',
+      seen_by_owner BOOLEAN NOT NULL DEFAULT FALSE, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`,
+    `CREATE TABLE IF NOT EXISTS time_off_requests (
+      id TEXT PRIMARY KEY, employee_id TEXT REFERENCES employees(id) ON DELETE SET NULL,
+      start_date DATE NOT NULL, end_date DATE NOT NULL, requested_days NUMERIC(6,2) NOT NULL DEFAULT 1,
+      reason TEXT, leave_type TEXT DEFAULT 'conge', status TEXT NOT NULL DEFAULT 'pending',
+      reviewed_at TIMESTAMPTZ, reviewed_by TEXT, review_note TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`,
+    `CREATE TABLE IF NOT EXISTS inventory_products (
+      id TEXT PRIMARY KEY, name TEXT NOT NULL, unit TEXT DEFAULT 'bottles',
+      stock NUMERIC(10,2) NOT NULL DEFAULT 0, min_stock NUMERIC(10,2) NOT NULL DEFAULT 0,
+      note TEXT, active BOOLEAN NOT NULL DEFAULT TRUE, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`,
+    `CREATE TABLE IF NOT EXISTS product_requests (
+      id TEXT PRIMARY KEY, employee_id TEXT REFERENCES employees(id) ON DELETE SET NULL,
+      product_id TEXT REFERENCES inventory_products(id) ON DELETE SET NULL,
+      quantity NUMERIC(10,2) NOT NULL DEFAULT 1, note TEXT, delivery_at TEXT,
+      status TEXT NOT NULL DEFAULT 'pending', approved_qty NUMERIC(10,2) DEFAULT 0,
+      delivered_qty NUMERIC(10,2) DEFAULT 0, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`,
+    `CREATE TABLE IF NOT EXISTS cleaner_product_holdings (
+      id TEXT PRIMARY KEY, employee_id TEXT REFERENCES employees(id) ON DELETE SET NULL,
+      product_id TEXT REFERENCES inventory_products(id) ON DELETE SET NULL,
+      qty_in_hand NUMERIC(10,2) NOT NULL DEFAULT 0,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`,
+    `CREATE TABLE IF NOT EXISTS prospect_visits (
+      id TEXT PRIMARY KEY, client_id TEXT REFERENCES clients(id) ON DELETE SET NULL,
+      visit_date DATE NOT NULL, visit_time TEXT, address TEXT, notes TEXT,
+      status TEXT NOT NULL DEFAULT 'planned', photos JSONB DEFAULT '[]',
+      updated_at TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`,
+    `CREATE TABLE IF NOT EXISTS expenses (
+      id TEXT PRIMARY KEY, name TEXT NOT NULL, amount NUMERIC(10,2) NOT NULL DEFAULT 0,
+      due_day INTEGER NOT NULL DEFAULT 1, category TEXT DEFAULT 'other', note TEXT,
+      is_active BOOLEAN NOT NULL DEFAULT TRUE, payments JSONB NOT NULL DEFAULT '[]',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`,
+  ];
+  for (const sql of newTables) {
+    try { await pool.query(sql); } catch (err) { console.error('New table creation failed:', err.message); }
   }
 }
 

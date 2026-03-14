@@ -145,6 +145,110 @@ CREATE TABLE IF NOT EXISTS settings (
   value TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS quotes (
+  id             TEXT PRIMARY KEY,
+  quote_number   TEXT NOT NULL UNIQUE,
+  date           DATE NOT NULL,
+  client_id      TEXT REFERENCES clients(id) ON DELETE SET NULL,
+  status         TEXT NOT NULL DEFAULT 'draft',
+  items          JSONB NOT NULL DEFAULT '[]',
+  subtotal       NUMERIC(10,2) NOT NULL DEFAULT 0,
+  vat_rate       NUMERIC(5,2) NOT NULL DEFAULT 17,
+  vat_amount     NUMERIC(10,2) NOT NULL DEFAULT 0,
+  total          NUMERIC(10,2) NOT NULL DEFAULT 0,
+  notes          TEXT,
+  pricing_mode   TEXT DEFAULT 'hours',
+  job_schedule   JSONB DEFAULT '{}',
+  visible_columns JSONB DEFAULT '{}',
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS photo_uploads (
+  id             TEXT PRIMARY KEY,
+  employee_id    TEXT REFERENCES employees(id) ON DELETE SET NULL,
+  client_id      TEXT REFERENCES clients(id) ON DELETE SET NULL,
+  clock_entry_id TEXT,
+  file_name      TEXT,
+  image_data     TEXT,
+  note           TEXT,
+  type           TEXT DEFAULT 'issue',
+  seen_by_owner  BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS time_off_requests (
+  id             TEXT PRIMARY KEY,
+  employee_id    TEXT REFERENCES employees(id) ON DELETE SET NULL,
+  start_date     DATE NOT NULL,
+  end_date       DATE NOT NULL,
+  requested_days NUMERIC(6,2) NOT NULL DEFAULT 1,
+  reason         TEXT,
+  leave_type     TEXT DEFAULT 'conge',
+  status         TEXT NOT NULL DEFAULT 'pending',
+  reviewed_at    TIMESTAMPTZ,
+  reviewed_by    TEXT,
+  review_note    TEXT,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS inventory_products (
+  id        TEXT PRIMARY KEY,
+  name      TEXT NOT NULL,
+  unit      TEXT DEFAULT 'bottles',
+  stock     NUMERIC(10,2) NOT NULL DEFAULT 0,
+  min_stock NUMERIC(10,2) NOT NULL DEFAULT 0,
+  note      TEXT,
+  active    BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS product_requests (
+  id           TEXT PRIMARY KEY,
+  employee_id  TEXT REFERENCES employees(id) ON DELETE SET NULL,
+  product_id   TEXT REFERENCES inventory_products(id) ON DELETE SET NULL,
+  quantity     NUMERIC(10,2) NOT NULL DEFAULT 1,
+  note         TEXT,
+  delivery_at  TEXT,
+  status       TEXT NOT NULL DEFAULT 'pending',
+  approved_qty NUMERIC(10,2) DEFAULT 0,
+  delivered_qty NUMERIC(10,2) DEFAULT 0,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS cleaner_product_holdings (
+  id          TEXT PRIMARY KEY,
+  employee_id TEXT REFERENCES employees(id) ON DELETE SET NULL,
+  product_id  TEXT REFERENCES inventory_products(id) ON DELETE SET NULL,
+  qty_in_hand NUMERIC(10,2) NOT NULL DEFAULT 0,
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS prospect_visits (
+  id          TEXT PRIMARY KEY,
+  client_id   TEXT REFERENCES clients(id) ON DELETE SET NULL,
+  visit_date  DATE NOT NULL,
+  visit_time  TEXT,
+  address     TEXT,
+  notes       TEXT,
+  status      TEXT NOT NULL DEFAULT 'planned',
+  photos      JSONB DEFAULT '[]',
+  updated_at  TIMESTAMPTZ,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS expenses (
+  id         TEXT PRIMARY KEY,
+  name       TEXT NOT NULL,
+  amount     NUMERIC(10,2) NOT NULL DEFAULT 0,
+  due_day    INTEGER NOT NULL DEFAULT 1,
+  category   TEXT DEFAULT 'other',
+  note       TEXT,
+  is_active  BOOLEAN NOT NULL DEFAULT TRUE,
+  payments   JSONB NOT NULL DEFAULT '[]',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- Indexes for frequently-queried foreign keys and filter columns
 CREATE INDEX IF NOT EXISTS idx_schedules_employee_id  ON schedules(employee_id);
 CREATE INDEX IF NOT EXISTS idx_schedules_client_id    ON schedules(client_id);
@@ -160,6 +264,17 @@ CREATE INDEX IF NOT EXISTS idx_employees_email        ON employees(LOWER(email))
 CREATE INDEX IF NOT EXISTS idx_employees_name         ON employees(LOWER(name));
 CREATE UNIQUE INDEX IF NOT EXISTS idx_employees_email_unique ON employees(LOWER(email));
 CREATE INDEX IF NOT EXISTS idx_account_requests_status ON account_requests(approval_status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_quotes_client_id ON quotes(client_id);
+CREATE INDEX IF NOT EXISTS idx_quotes_date ON quotes(date DESC);
+CREATE INDEX IF NOT EXISTS idx_photo_uploads_employee ON photo_uploads(employee_id);
+CREATE INDEX IF NOT EXISTS idx_photo_uploads_seen ON photo_uploads(seen_by_owner);
+CREATE INDEX IF NOT EXISTS idx_time_off_requests_employee ON time_off_requests(employee_id);
+CREATE INDEX IF NOT EXISTS idx_time_off_requests_status ON time_off_requests(status);
+CREATE INDEX IF NOT EXISTS idx_product_requests_employee ON product_requests(employee_id);
+CREATE INDEX IF NOT EXISTS idx_product_requests_status ON product_requests(status);
+CREATE INDEX IF NOT EXISTS idx_cleaner_holdings_employee ON cleaner_product_holdings(employee_id);
+CREATE INDEX IF NOT EXISTS idx_prospect_visits_client ON prospect_visits(client_id);
+CREATE INDEX IF NOT EXISTS idx_prospect_visits_date ON prospect_visits(visit_date DESC);
 
 -- Seed default settings
 INSERT INTO settings (key, value) VALUES

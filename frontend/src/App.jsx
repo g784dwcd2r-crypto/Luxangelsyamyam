@@ -6239,6 +6239,32 @@ const [pin, setPin] = useState(data.ownerPin || "");
 const [managerUsername, setManagerUsername] = useState(data.managerUsername || "");
 const [managerPin, setManagerPin] = useState(data.managerPin || "");
 const set = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
+const [smtpTestStatus, setSmtpTestStatus] = useState(null); // null | { ok, msg }
+const [smtpTesting, setSmtpTesting] = useState(false);
+
+const handleTestSmtp = async () => {
+  setSmtpTesting(true);
+  setSmtpTestStatus(null);
+  try {
+    const res = await fetch(apiUrl("/api/email/test-connection"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        host: form.smtpHost || "mail.infomaniak.com",
+        port: form.smtpPort || "465",
+        secure: "true",
+        user: form.smtpUser || "",
+        pass: form.smtpPass || "",
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setSmtpTestStatus({ ok: data.ok, msg: data.ok ? "Connection successful" : (data.error || "Connection failed") });
+  } catch {
+    setSmtpTestStatus({ ok: false, msg: "Unable to reach server" });
+  } finally {
+    setSmtpTesting(false);
+  }
+};
 
 const handleSave = async () => {
   updateData("settings", form);
@@ -6314,6 +6340,16 @@ return (
 <Field label="SMTP Port"><TextInput type="number" value={form.smtpPort || "465"} onChange={ev => set("smtpPort", ev.target.value)} style={{ width: 100 }} /></Field>
 <Field label="SMTP User (email)"><TextInput value={form.smtpUser || ""} onChange={ev => set("smtpUser", ev.target.value)} placeholder="info@yourdomain.lu" /></Field>
 <Field label="SMTP Password"><TextInput type="password" value={form.smtpPass || ""} onChange={ev => set("smtpPass", ev.target.value)} placeholder="••••••••" /></Field>
+</div>
+<div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 12 }}>
+  <button style={{ ...btnPri, background: CL.blue || "#3b82f6", opacity: smtpTesting ? 0.7 : 1, cursor: smtpTesting ? "wait" : "pointer" }} onClick={handleTestSmtp} disabled={smtpTesting}>
+    {smtpTesting ? "Testing…" : "Test Connection"}
+  </button>
+  {smtpTestStatus && (
+    <span style={{ fontSize: 13, color: smtpTestStatus.ok ? CL.green : CL.red, fontWeight: 500 }}>
+      {smtpTestStatus.ok ? "✓" : "✗"} {smtpTestStatus.msg}
+    </span>
+  )}
 </div>
 </div>
 <div style={{ ...cardSt, marginTop: 14 }}>

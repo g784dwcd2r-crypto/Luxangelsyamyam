@@ -4523,24 +4523,11 @@ const from = data.settings.companyEmail;
 setQuoteEmailDraft({ to: client.email, subject, body, from, template, q });
 };
 
-const sendQuoteEmailDraft = async () => {
+const sendQuoteEmailDraft = () => {
 if (!quoteEmailDraft) return;
-try {
-const response = await fetch(apiUrl('/api/notifications/email'), {
-method: 'POST',
-headers: { 'Content-Type': 'application/json' },
-body: JSON.stringify({ to: quoteEmailDraft.to, subject: quoteEmailDraft.subject, body: quoteEmailDraft.body, from: quoteEmailDraft.from }),
-});
-if (!response.ok) {
-const errPayload = await response.json().catch(() => ({}));
-throw new Error(errPayload.error || 'Unable to send email');
-}
-showToast(lang === "fr" ? "Email envoyé" : "Email sent");
+const zohoUrl = `https://mail.zoho.eu/zm/#compose?to=${encodeURIComponent(quoteEmailDraft.to)}&subject=${encodeURIComponent(quoteEmailDraft.subject)}&body=${encodeURIComponent(quoteEmailDraft.body)}`;
+window.open(zohoUrl, "_blank");
 setQuoteEmailDraft(null);
-} catch (err) {
-console.error(err);
-showToast(err.message || (lang === "fr" ? "Impossible d'envoyer l'email" : "Unable to send email"), "error");
-}
 };
 
 const sendQuote = (q) => emailQuote(q);
@@ -5133,25 +5120,11 @@ const from = inv.zohoEmail || data.settings.companyEmail;
 setEmailDraft({ to: client.email, subject, body, from, template, inv });
 };
 
-const sendEmailDraft = async () => {
+const sendEmailDraft = () => {
 if (!emailDraft) return;
-try {
-const response = await fetch(apiUrl('/api/notifications/email'), {
-method: 'POST',
-headers: { 'Content-Type': 'application/json' },
-body: JSON.stringify({ to: emailDraft.to, subject: emailDraft.subject, body: emailDraft.body, from: emailDraft.from }),
-});
-if (!response.ok) {
-const errPayload = await response.json().catch(() => ({}));
-throw new Error(errPayload.error || 'Unable to send email');
-}
-showToast("Email sent from platform");
+const zohoUrl = `https://mail.zoho.eu/zm/#compose?to=${encodeURIComponent(emailDraft.to)}&subject=${encodeURIComponent(emailDraft.subject)}&body=${encodeURIComponent(emailDraft.body)}`;
+window.open(zohoUrl, "_blank");
 setEmailDraft(null);
-} catch (err) {
-console.error(err);
-const fallbackEmailError = !err?.message || /load failed|failed to fetch/i.test(err.message);
-showToast(fallbackEmailError ? uiText("Unable to send email") : err.message, "error");
-}
 };
 
 const filteredInvoices = data.invoices
@@ -5169,12 +5142,6 @@ const hasFilters = filters.invoiceNumber || filters.clientId || filters.status |
 
 return (
 <div>
-{!emailConfigured && (
-  <div style={{ background: "#fff3cd", border: "1px solid #ffc107", borderRadius: 8, padding: "10px 14px", marginBottom: 14, fontSize: 13, color: "#856404", display: "flex", alignItems: "center", gap: 8 }}>
-    <span>&#9888;</span>
-    <span>{lang === "fr" ? "L'envoi d'e-mails n'est pas configuré. Configurez un fournisseur d'e-mail (SMTP, ZeptoMail ou Resend) dans les variables d'environnement du serveur pour activer l'envoi de factures par e-mail." : "Email sending is not configured. Set up an email provider (SMTP, ZeptoMail, or Resend) in the server environment variables to enable invoice emailing."}</span>
-  </div>
-)}
 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
 <h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold }}>{t("invoices")}</h1>
 <button style={btnPri} onClick={() => setModal({ clientId: "", date: getToday(), dueDate: "", invoiceNumber: nextInvoiceNum(), items: [{ prestationDate: getToday(), description: "", hours: "", quantity: 1, unitPrice: 0, total: 0 }], visibleColumns: { prestationDate: true, description: true, hours: true, quantity: false, unitPrice: true, total: true, tva: true }, subtotal: 0, vatRate: data.settings.defaultVatRate, vatAmount: 0, total: 0, status: "draft", notes: "", paymentTerms: "Payment due within 30 days.", emailTemplate: "standard", zohoEmail: "" })}>{ICN.plus} {t("newInvoice")}</button>
@@ -5232,7 +5199,7 @@ return (
 <thead><tr><th style={thSt}>#</th><th style={thSt}>{t("client")}</th><th style={thSt}>{t("date")}</th><th style={thSt}>{t("total")}</th><th style={thSt}>{t("status")}</th><th style={thSt}>{t("actions")}</th></tr></thead>
 <tbody>
 {filteredInvoices.map(inv => { const client = data.clients.find(c => c.id === inv.clientId); const effStatus = effectiveInvoiceStatus(inv); return (
-<tr key={inv.id}><td style={tdSt}><strong>{inv.invoiceNumber}</strong></td><td style={tdSt}>{client?.name || "-"}</td><td style={tdSt}>{fmtDate(inv.date)}{inv.dueDate ? <div style={{ fontSize: 11, color: effStatus === "overdue" ? CL.red : CL.muted }}>{lang === "fr" ? "Échéance:" : "Due:"} {fmtDate(inv.dueDate)}</div> : null}</td><td style={{ ...tdSt, fontWeight: 600 }}>€{(inv.total || 0).toFixed(2)}</td><td style={tdSt}>{(() => { const statusColor = effStatus === "paid" ? CL.green : effStatus === "overdue" ? CL.red : effStatus === "sent" ? CL.blue : CL.muted; return <select value={effStatus} onChange={e => handleStatusChange(inv, e.target.value)} style={{ background: statusColor + "22", color: statusColor, border: `1.5px solid ${statusColor}`, borderRadius: 20, padding: "3px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer", appearance: "none", WebkitAppearance: "none", outline: "none" }}><option value="draft">{lang === "fr" ? "Brouillon" : "Draft"}</option><option value="sent">{lang === "fr" ? "Envoyée" : "Sent"}</option><option value="paid">{lang === "fr" ? "Payée ✓" : "Paid ✓"}</option><option value="overdue">{lang === "fr" ? "En retard" : "Overdue"}</option></select>; })()}</td><td style={tdSt}><div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}><button style={{ ...btnSec, ...btnSm }} onClick={() => setPreview(inv)}>{t("view")}</button><button style={{ ...btnSec, ...btnSm }} onClick={() => setModal({ ...inv })}>{ICN.edit}</button><button style={{ ...btnSec, ...btnSm, ...(emailConfigured ? {} : { opacity: 0.45, cursor: "not-allowed" }) }} title={emailConfigured ? undefined : (lang === "fr" ? "Email non configuré — contactez votre administrateur" : "Email not configured — contact your administrator")} disabled={!emailConfigured} onClick={() => emailInvoice(inv)}>{ICN.mail}</button><button style={{ ...btnSec, ...btnSm, color: CL.red }} onClick={() => handleDelete(inv.id)}>{ICN.trash}</button></div></td></tr>
+<tr key={inv.id}><td style={tdSt}><strong>{inv.invoiceNumber}</strong></td><td style={tdSt}>{client?.name || "-"}</td><td style={tdSt}>{fmtDate(inv.date)}{inv.dueDate ? <div style={{ fontSize: 11, color: effStatus === "overdue" ? CL.red : CL.muted }}>{lang === "fr" ? "Échéance:" : "Due:"} {fmtDate(inv.dueDate)}</div> : null}</td><td style={{ ...tdSt, fontWeight: 600 }}>€{(inv.total || 0).toFixed(2)}</td><td style={tdSt}>{(() => { const statusColor = effStatus === "paid" ? CL.green : effStatus === "overdue" ? CL.red : effStatus === "sent" ? CL.blue : CL.muted; return <select value={effStatus} onChange={e => handleStatusChange(inv, e.target.value)} style={{ background: statusColor + "22", color: statusColor, border: `1.5px solid ${statusColor}`, borderRadius: 20, padding: "3px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer", appearance: "none", WebkitAppearance: "none", outline: "none" }}><option value="draft">{lang === "fr" ? "Brouillon" : "Draft"}</option><option value="sent">{lang === "fr" ? "Envoyée" : "Sent"}</option><option value="paid">{lang === "fr" ? "Payée ✓" : "Paid ✓"}</option><option value="overdue">{lang === "fr" ? "En retard" : "Overdue"}</option></select>; })()}</td><td style={tdSt}><div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}><button style={{ ...btnSec, ...btnSm }} onClick={() => setPreview(inv)}>{t("view")}</button><button style={{ ...btnSec, ...btnSm }} onClick={() => setModal({ ...inv })}>{ICN.edit}</button><button style={{ ...btnSec, ...btnSm }} onClick={() => emailInvoice(inv)}>{ICN.mail}</button><button style={{ ...btnSec, ...btnSm, color: CL.red }} onClick={() => handleDelete(inv.id)}>{ICN.trash}</button></div></td></tr>
 ); })}
 {filteredInvoices.length === 0 && <tr><td colSpan={6} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>{hasFilters ? (lang === "fr" ? "Aucune facture trouvée" : "No invoices match filters") : uiText("No invoices")}</td></tr>}
 </tbody>
@@ -5246,7 +5213,7 @@ return (
 <button style={btnSec} onClick={() => setPreview(null)}>{lang === "en" ? "Close" : "Fermer"}</button>
 <button style={btnSec} onClick={() => downloadInvoicePng(preview)}>{ICN.download} PNG</button>
 <button style={btnPri} onClick={() => downloadInvoicePdf(preview)}>{ICN.download} PDF</button>
-<button style={{ ...btnSec, color: emailConfigured ? CL.blue : CL.muted, ...(emailConfigured ? {} : { opacity: 0.45, cursor: "not-allowed" }) }} title={emailConfigured ? undefined : (lang === "fr" ? "Email non configuré — contactez votre administrateur" : "Email not configured — contact your administrator")} disabled={!emailConfigured} onClick={() => emailInvoice(preview)}>{ICN.mail} {t("sendEmail")}</button>
+<button style={{ ...btnSec, color: CL.blue }} onClick={() => emailInvoice(preview)}>{ICN.mail} {t("sendEmail")}</button>
 </div>
 </ModalBox>
 )}
@@ -6077,25 +6044,11 @@ const clients = data.clients.filter(c => c.status === "active");
 
 const toggleClient = (id) => setSelectedClientIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
-const sendPlatformEmail = async ({ to, subject, body, from }) => {
+const sendPlatformEmail = ({ to, subject, body }) => {
 if (!to) { showToast(uiText("Client email missing"), "error"); return false; }
-try {
-const response = await fetch(apiUrl('/api/notifications/email'), {
-method: 'POST',
-headers: { 'Content-Type': 'application/json' },
-body: JSON.stringify({ to, subject, body, from }),
-});
-if (!response.ok) {
-const errPayload = await response.json().catch(() => ({}));
-throw new Error(errPayload.error || 'Unable to send email');
-}
+const zohoUrl = `https://mail.zoho.eu/zm/#compose?to=${encodeURIComponent(to)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+window.open(zohoUrl, "_blank");
 return true;
-} catch (err) {
-console.error(err);
-const fallbackEmailError = !err?.message || /load failed|failed to fetch/i.test(err.message);
-showToast(fallbackEmailError ? uiText("Unable to send email") : err.message, "error");
-return false;
-}
 };
 const openWhatsApp = ({ phone, message }) => {
 if (!phone) { showToast(uiText("Client phone missing"), "error"); return false; }

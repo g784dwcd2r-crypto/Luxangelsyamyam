@@ -361,7 +361,7 @@ app.get('/api/auth/agent-list', async (req, res) => {
     res.json(result.rows);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: err.message || 'Internal server error' });
   }
 });
 
@@ -468,7 +468,7 @@ app.post('/api/auth/pin-login', async (req, res) => {
     return res.status(400).json({ error: 'Invalid role' });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: err.message || 'Internal server error' });
   }
 });
 
@@ -515,7 +515,7 @@ app.post('/api/auth/register-employee', async (req, res) => {
     res.status(201).json({ success: true, requestId: requestResult.rows[0].id, message: 'Verification email sent' });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: err.message || 'Internal server error' });
   }
 });
 
@@ -539,7 +539,7 @@ app.post('/api/auth/verify-email', async (req, res) => {
     return res.json({ success: true, message: 'Email verified, waiting for owner approval' });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: err.message || 'Internal server error' });
   }
 });
 
@@ -562,7 +562,7 @@ app.get('/api/account-requests', async (req, res) => {
     return res.json(result.rows);
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: err.message || 'Internal server error' });
   }
 });
 
@@ -608,7 +608,7 @@ app.patch('/api/account-requests/:id/decision', async (req, res) => {
     return res.json({ success: true, status: 'approved', employeeId: employeeInsert.rows[0].id });
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: err.message || 'Internal server error' });
   }
 });
 
@@ -621,7 +621,7 @@ app.get('/api/employees', async (req, res) => {
     res.json(result.rows);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: err.message || 'Internal server error' });
   }
 });
 
@@ -658,7 +658,7 @@ app.post('/api/employees', async (req, res) => {
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: err.message || 'Internal server error' });
   }
 });
 
@@ -689,7 +689,7 @@ app.put('/api/employees/:id', async (req, res) => {
     res.json(result.rows[0]);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: err.message || 'Internal server error' });
   }
 });
 
@@ -700,7 +700,7 @@ app.delete('/api/employees/:id', async (req, res) => {
     res.json({ deleted: result.rows[0].id });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: err.message || 'Internal server error' });
   }
 });
 
@@ -721,7 +721,7 @@ app.put('/api/employees/:id/pin', async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: err.message || 'Internal server error' });
   }
 });
 
@@ -734,7 +734,7 @@ app.get('/api/clients', async (req, res) => {
     res.json(result.rows);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: err.message || 'Internal server error' });
   }
 });
 
@@ -764,7 +764,7 @@ app.post('/api/clients', async (req, res) => {
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: err.message || 'Internal server error' });
   }
 });
 
@@ -792,7 +792,7 @@ app.put('/api/clients/:id', async (req, res) => {
     res.json(result.rows[0]);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: err.message || 'Internal server error' });
   }
 });
 
@@ -803,7 +803,7 @@ app.delete('/api/clients/:id', async (req, res) => {
     res.json({ deleted: result.rows[0].id });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: err.message || 'Internal server error' });
   }
 });
 
@@ -825,7 +825,7 @@ app.get('/api/schedules', async (req, res) => {
     res.json(result.rows);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: err.message || 'Internal server error' });
   }
 });
 
@@ -845,7 +845,7 @@ app.post('/api/schedules', async (req, res) => {
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: err.message || 'Internal server error' });
   }
 });
 
@@ -864,7 +864,7 @@ app.put('/api/schedules/:id', async (req, res) => {
     res.json(result.rows[0]);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: err.message || 'Internal server error' });
   }
 });
 
@@ -875,7 +875,7 @@ app.delete('/api/schedules/:id', async (req, res) => {
     res.json({ deleted: result.rows[0].id });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: err.message || 'Internal server error' });
   }
 });
 
@@ -896,7 +896,7 @@ app.get('/api/clock-entries', async (req, res) => {
     res.json(result.rows);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: err.message || 'Internal server error' });
   }
 });
 
@@ -914,7 +914,7 @@ app.post('/api/clock-entries', async (req, res) => {
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: err.message || 'Internal server error' });
   }
 });
 
@@ -929,7 +929,7 @@ app.put('/api/clock-entries/:id', async (req, res) => {
     res.json(result.rows[0]);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: err.message || 'Internal server error' });
   }
 });
 
@@ -940,7 +940,7 @@ app.delete('/api/clock-entries/:id', async (req, res) => {
     res.json({ deleted: result.rows[0].id });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: err.message || 'Internal server error' });
   }
 });
 
@@ -953,7 +953,7 @@ app.get('/api/invoices', async (req, res) => {
     res.json(result.rows);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: err.message || 'Internal server error' });
   }
 });
 
@@ -974,7 +974,7 @@ app.post('/api/invoices', async (req, res) => {
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: err.message || 'Internal server error' });
   }
 });
 
@@ -993,7 +993,7 @@ app.put('/api/invoices/:id', async (req, res) => {
     res.json(result.rows[0]);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: err.message || 'Internal server error' });
   }
 });
 
@@ -1010,7 +1010,7 @@ app.patch('/api/invoices/:id/status', async (req, res) => {
     res.json(result.rows[0]);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: err.message || 'Internal server error' });
   }
 });
 
@@ -1021,7 +1021,7 @@ app.delete('/api/invoices/:id', async (req, res) => {
     res.json({ deleted: result.rows[0].id });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: err.message || 'Internal server error' });
   }
 });
 
@@ -1034,7 +1034,7 @@ app.get('/api/payslips', async (req, res) => {
     res.json(result.rows);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: err.message || 'Internal server error' });
   }
 });
 
@@ -1054,7 +1054,7 @@ app.post('/api/payslips', async (req, res) => {
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: err.message || 'Internal server error' });
   }
 });
 
@@ -1073,7 +1073,7 @@ app.put('/api/payslips/:id', async (req, res) => {
     res.json(result.rows[0]);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: err.message || 'Internal server error' });
   }
 });
 
@@ -1084,7 +1084,7 @@ app.delete('/api/payslips/:id', async (req, res) => {
     res.json({ deleted: result.rows[0].id });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: err.message || 'Internal server error' });
   }
 });
 
@@ -1098,7 +1098,7 @@ app.get('/api/settings', async (req, res) => {
     res.json(settings);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: err.message || 'Internal server error' });
   }
 });
 
@@ -1122,7 +1122,7 @@ app.put('/api/settings', async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: err.message || 'Internal server error' });
   }
 });
 
@@ -1192,6 +1192,7 @@ app.post('/api/notifications/sms', async (req, res) => {
 // Start server — initialize schema on first boot if tables are missing
 // ---------------------------------------------------------------------------
 async function initDb() {
+  // Initial schema bootstrap — only runs if tables don't exist yet
   try {
     const { rows } = await pool.query(
       "SELECT to_regclass('public.settings') AS exists"
@@ -1202,57 +1203,72 @@ async function initDb() {
       await pool.query(schema);
       console.log('Schema initialized successfully.');
     }
-    // Migrations for legacy databases
-    const schemaUpgrades = [
-      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS phone_mobile TEXT",
-      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS address TEXT",
-      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS city TEXT",
-      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS postal_code TEXT",
-      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS country TEXT DEFAULT 'Luxembourg'",
-      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS start_date DATE",
-      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS contract_type TEXT DEFAULT 'CDI'",
-      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS bank_iban TEXT",
-      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS social_sec_number TEXT",
-      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS date_of_birth DATE",
-      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS nationality TEXT",
-      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS languages TEXT",
-      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS transport TEXT",
-      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS work_permit TEXT",
-      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS emergency_name TEXT",
-      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS emergency_phone TEXT",
-      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS notes TEXT",
-      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS username TEXT DEFAULT ''",
-      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS password_hash TEXT",
-      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT false",
-      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS account_status TEXT NOT NULL DEFAULT 'approved'",
+  } catch (err) {
+    console.error('Schema bootstrap failed:', err.message);
+    // Can't proceed without tables — but don't crash the server
+  }
 
-      "ALTER TABLE clients ADD COLUMN IF NOT EXISTS contact_person TEXT",
-      "ALTER TABLE clients ADD COLUMN IF NOT EXISTS phone_mobile TEXT",
-      "ALTER TABLE clients ADD COLUMN IF NOT EXISTS apartment_floor TEXT",
-      "ALTER TABLE clients ADD COLUMN IF NOT EXISTS billing_type TEXT DEFAULT 'hourly'",
-      "ALTER TABLE clients ADD COLUMN IF NOT EXISTS price_fixed NUMERIC(10,2) DEFAULT 0",
-      "ALTER TABLE clients ADD COLUMN IF NOT EXISTS language TEXT DEFAULT 'FR'",
-      "ALTER TABLE clients ADD COLUMN IF NOT EXISTS access_code TEXT",
-      "ALTER TABLE clients ADD COLUMN IF NOT EXISTS key_location TEXT",
-      "ALTER TABLE clients ADD COLUMN IF NOT EXISTS parking_info TEXT",
-      "ALTER TABLE clients ADD COLUMN IF NOT EXISTS pet_info TEXT",
-      "ALTER TABLE clients ADD COLUMN IF NOT EXISTS preferred_day TEXT",
-      "ALTER TABLE clients ADD COLUMN IF NOT EXISTS preferred_time TEXT",
-      "ALTER TABLE clients ADD COLUMN IF NOT EXISTS contract_start DATE",
-      "ALTER TABLE clients ADD COLUMN IF NOT EXISTS contract_end DATE",
-      "ALTER TABLE clients ADD COLUMN IF NOT EXISTS square_meters NUMERIC(10,2)",
-      "ALTER TABLE clients ADD COLUMN IF NOT EXISTS tax_id TEXT",
-      "ALTER TABLE clients ADD COLUMN IF NOT EXISTS special_instructions TEXT",
-      "ALTER TABLE clients ADD COLUMN IF NOT EXISTS notes TEXT",
-      "ALTER TABLE schedules ADD COLUMN IF NOT EXISTS payment_status TEXT NOT NULL DEFAULT 'unpaid'",
-    ];
+  // Migrations for legacy databases — each runs independently so one failure
+  // doesn't prevent the rest from executing.
+  const schemaUpgrades = [
+    "ALTER TABLE employees ADD COLUMN IF NOT EXISTS phone_mobile TEXT",
+    "ALTER TABLE employees ADD COLUMN IF NOT EXISTS address TEXT",
+    "ALTER TABLE employees ADD COLUMN IF NOT EXISTS city TEXT",
+    "ALTER TABLE employees ADD COLUMN IF NOT EXISTS postal_code TEXT",
+    "ALTER TABLE employees ADD COLUMN IF NOT EXISTS country TEXT DEFAULT 'Luxembourg'",
+    "ALTER TABLE employees ADD COLUMN IF NOT EXISTS start_date DATE",
+    "ALTER TABLE employees ADD COLUMN IF NOT EXISTS contract_type TEXT DEFAULT 'CDI'",
+    "ALTER TABLE employees ADD COLUMN IF NOT EXISTS bank_iban TEXT",
+    "ALTER TABLE employees ADD COLUMN IF NOT EXISTS social_sec_number TEXT",
+    "ALTER TABLE employees ADD COLUMN IF NOT EXISTS date_of_birth DATE",
+    "ALTER TABLE employees ADD COLUMN IF NOT EXISTS nationality TEXT",
+    "ALTER TABLE employees ADD COLUMN IF NOT EXISTS languages TEXT",
+    "ALTER TABLE employees ADD COLUMN IF NOT EXISTS transport TEXT",
+    "ALTER TABLE employees ADD COLUMN IF NOT EXISTS work_permit TEXT",
+    "ALTER TABLE employees ADD COLUMN IF NOT EXISTS emergency_name TEXT",
+    "ALTER TABLE employees ADD COLUMN IF NOT EXISTS emergency_phone TEXT",
+    "ALTER TABLE employees ADD COLUMN IF NOT EXISTS notes TEXT",
+    "ALTER TABLE employees ADD COLUMN IF NOT EXISTS username TEXT DEFAULT ''",
+    "ALTER TABLE employees ADD COLUMN IF NOT EXISTS password_hash TEXT",
+    "ALTER TABLE employees ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT false",
+    "ALTER TABLE employees ADD COLUMN IF NOT EXISTS account_status TEXT NOT NULL DEFAULT 'approved'",
 
-    for (const sql of schemaUpgrades) {
+    "ALTER TABLE clients ADD COLUMN IF NOT EXISTS contact_person TEXT",
+    "ALTER TABLE clients ADD COLUMN IF NOT EXISTS phone_mobile TEXT",
+    "ALTER TABLE clients ADD COLUMN IF NOT EXISTS apartment_floor TEXT",
+    "ALTER TABLE clients ADD COLUMN IF NOT EXISTS billing_type TEXT DEFAULT 'hourly'",
+    "ALTER TABLE clients ADD COLUMN IF NOT EXISTS price_fixed NUMERIC(10,2) DEFAULT 0",
+    "ALTER TABLE clients ADD COLUMN IF NOT EXISTS language TEXT DEFAULT 'FR'",
+    "ALTER TABLE clients ADD COLUMN IF NOT EXISTS access_code TEXT",
+    "ALTER TABLE clients ADD COLUMN IF NOT EXISTS key_location TEXT",
+    "ALTER TABLE clients ADD COLUMN IF NOT EXISTS parking_info TEXT",
+    "ALTER TABLE clients ADD COLUMN IF NOT EXISTS pet_info TEXT",
+    "ALTER TABLE clients ADD COLUMN IF NOT EXISTS preferred_day TEXT",
+    "ALTER TABLE clients ADD COLUMN IF NOT EXISTS preferred_time TEXT",
+    "ALTER TABLE clients ADD COLUMN IF NOT EXISTS contract_start DATE",
+    "ALTER TABLE clients ADD COLUMN IF NOT EXISTS contract_end DATE",
+    "ALTER TABLE clients ADD COLUMN IF NOT EXISTS square_meters NUMERIC(10,2)",
+    "ALTER TABLE clients ADD COLUMN IF NOT EXISTS tax_id TEXT",
+    "ALTER TABLE clients ADD COLUMN IF NOT EXISTS special_instructions TEXT",
+    "ALTER TABLE clients ADD COLUMN IF NOT EXISTS notes TEXT",
+    "ALTER TABLE schedules ADD COLUMN IF NOT EXISTS payment_status TEXT NOT NULL DEFAULT 'unpaid'",
+  ];
+
+  for (const sql of schemaUpgrades) {
+    try {
       await pool.query(sql);
+    } catch (err) {
+      console.error('Migration skipped (will retry on next restart):', err.message, '|', sql);
     }
+  }
 
+  try {
     await pool.query("CREATE UNIQUE INDEX IF NOT EXISTS idx_employees_email_unique ON employees(LOWER(email))");
+  } catch (err) {
+    console.error('Email unique index creation failed (possible duplicate emails in DB):', err.message);
+  }
 
+  try {
     await pool.query(`CREATE TABLE IF NOT EXISTS account_requests (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -1266,10 +1282,14 @@ async function initDb() {
       decided_at TIMESTAMPTZ,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )`);
+  } catch (err) {
+    console.error('account_requests table creation failed:', err.message);
+  }
 
+  try {
     await pool.query("INSERT INTO settings (key, value) VALUES ('ownerEmail', 'owner@luxangels.lu') ON CONFLICT (key) DO NOTHING");
   } catch (err) {
-    console.error('Schema initialization failed:', err.message);
+    console.error('Settings seed failed:', err.message);
   }
 }
 

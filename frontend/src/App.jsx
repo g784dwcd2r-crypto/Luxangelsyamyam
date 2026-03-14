@@ -3559,11 +3559,11 @@ return (
 
 <div className="stat-row" style={{ marginBottom: 16 }}>
 <StatCard label={uiText("This Month")} value={`${monthSchedules.length}`} icon={ICN.cal} color={CL.blue} />
-<StatCard label={uiText("In Progress")} value={monthSchedules.filter(s => s.status === "in-progress").length} icon={ICN.clock} color={CL.orange} />
+<StatCard label={uiText("In Progress")} value={monthSchedules.filter(s => s.status === "in-progress").length} icon={<span style={{ color: "#ffffff" }}>{ICN.clock}</span>} color={CL.orange} />
 <StatCard label={uiText("Completed")} value={monthSchedules.filter(s => s.status === "completed").length} icon={ICN.check} color={CL.green} />
 </div>
 
-<div style={{ ...cardSt, marginBottom: 16 }}>
+{viewMode !== "calendar" && <div style={{ ...cardSt, marginBottom: 16 }}>
   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
     <h3 style={{ margin: 0, fontSize: 16, color: CL.gold }}>{focused.label} ({focusedJobs.length})</h3>
     <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -3590,7 +3590,7 @@ return (
       {job.notes ? <div style={{ fontSize: 11, color: CL.dim, marginTop: 3 }}>{uiText("Details:")} {job.notes}</div> : null}
     </div>;
   })}
-</div>
+</div>}
 
 {viewMode === "calendar" ? (
 <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
@@ -3616,7 +3616,7 @@ return (
 {dayScheds.slice(0, 3).map(sched => {
 const client = data.clients.find(c => c.id === sched.clientId);
 const statusColor = scheduleStatusColor(sched.status);
-return <div key={sched.id} onClick={ev => { ev.stopPropagation(); setModal({ ...sched }); }} style={{ padding: "2px 4px", marginBottom: 1, borderRadius: 3, fontSize: 9, background: statusColor + "20", borderLeft: `3px solid ${statusColor}`, cursor: "pointer", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}><span style={{ fontWeight: 600, color: CL.text }}>{sched.startTime} </span><span style={{ color: CL.muted }}>{client?.name?.slice(0, 10) || "?"}</span></div>;
+return <div key={sched.id} style={{ padding: "2px 4px", marginBottom: 1, borderRadius: 3, fontSize: 9, background: statusColor + "20", borderLeft: `3px solid ${statusColor}`, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2 }}><div onClick={ev => { ev.stopPropagation(); setModal({ ...sched }); }} style={{ cursor: "pointer", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis", flex: 1, minWidth: 0 }}><span style={{ fontWeight: 600, color: CL.text }}>{sched.startTime} </span><span style={{ color: CL.muted }}>{client?.name?.slice(0, 10) || "?"}</span></div><button onClick={ev => { ev.stopPropagation(); handleDelete(sched.id); }} style={{ background: "transparent", border: "none", cursor: "pointer", color: CL.red, padding: "0 1px", fontSize: 9, lineHeight: 1, flexShrink: 0, opacity: 0.7, display: "flex", alignItems: "center" }} title="Supprimer">✕</button></div>;
 })}
 {dayScheds.length > 3 && <div style={{ fontSize: 8, color: CL.muted, textAlign: "center" }}>+{dayScheds.length - 3} more</div>}
 </div>

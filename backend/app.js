@@ -650,14 +650,14 @@ app.post('/api/employees', async (req, res) => {
     const passwordHash = b.password_hash || (explicitPassword ? hashPassword(explicitPassword) : null);
 
     const result = await pool.query(
-      `INSERT INTO employees (id, name, email, phone, phone_mobile, role, hourly_rate, address, city,
+      `INSERT INTO employees (id, name, email, phone, phone_mobile, role, hourly_rate, weekly_hours, address, city,
         postal_code, country, start_date, status, contract_type, contract_end_date, bank_iban, social_sec_number,
         date_of_birth, nationality, languages, transport, work_permit, emergency_name, emergency_phone,
         pin, notes, username, password_hash, email_verified, account_status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31)
        RETURNING *`,
       [b.id || makeEmployeeId(), b.name, email, b.phone||'', b.phone_mobile||'', b.role||'Cleaner',
-       b.hourly_rate||15, b.address||'', b.city||'', b.postal_code||'', b.country||'Luxembourg',
+       b.hourly_rate||15, b.weekly_hours||0, b.address||'', b.city||'', b.postal_code||'', b.country||'Luxembourg',
        b.start_date||null, b.status||'active', b.contract_type||'CDI', b.contract_end_date||null,
        b.bank_iban||'', b.social_sec_number||'', b.date_of_birth||null, b.nationality||'', b.languages||'',
        b.transport||'', b.work_permit||'', b.emergency_name||'', b.emergency_phone||'',
@@ -682,13 +682,13 @@ app.put('/api/employees/:id', async (req, res) => {
 
     const result = await pool.query(
       `UPDATE employees SET name=$1, email=$2, phone=$3, phone_mobile=$4, role=$5, hourly_rate=$6,
-        address=$7, city=$8, postal_code=$9, country=$10, start_date=$11, status=$12,
-        contract_type=$13, contract_end_date=$14, bank_iban=$15, social_sec_number=$16, date_of_birth=$17,
-        nationality=$18, languages=$19, transport=$20, work_permit=$21, emergency_name=$22,
-        emergency_phone=$23, notes=$24, username=$25
-       WHERE id=$26 RETURNING *`,
+        weekly_hours=$7, address=$8, city=$9, postal_code=$10, country=$11, start_date=$12, status=$13,
+        contract_type=$14, contract_end_date=$15, bank_iban=$16, social_sec_number=$17, date_of_birth=$18,
+        nationality=$19, languages=$20, transport=$21, work_permit=$22, emergency_name=$23,
+        emergency_phone=$24, notes=$25, username=$26
+       WHERE id=$27 RETURNING *`,
       [b.name, email, b.phone||'', b.phone_mobile||'', b.role||'Cleaner',
-       b.hourly_rate||15, b.address||'', b.city||'', b.postal_code||'', b.country||'Luxembourg',
+       b.hourly_rate||15, b.weekly_hours||0, b.address||'', b.city||'', b.postal_code||'', b.country||'Luxembourg',
        b.start_date||null, b.status||'active', b.contract_type||'CDI', b.contract_end_date||null,
        b.bank_iban||'', b.social_sec_number||'', b.date_of_birth||null, b.nationality||'', b.languages||'',
        b.transport||'', b.work_permit||'', b.emergency_name||'', b.emergency_phone||'',
@@ -1268,6 +1268,7 @@ async function initDb() {
     "ALTER TABLE employees ADD COLUMN IF NOT EXISTS password_hash TEXT",
     "ALTER TABLE employees ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT false",
     "ALTER TABLE employees ADD COLUMN IF NOT EXISTS account_status TEXT NOT NULL DEFAULT 'approved'",
+    "ALTER TABLE employees ADD COLUMN IF NOT EXISTS weekly_hours NUMERIC(10,2) DEFAULT 0",
 
     "ALTER TABLE clients ADD COLUMN IF NOT EXISTS contact_person TEXT",
     "ALTER TABLE clients ADD COLUMN IF NOT EXISTS phone_mobile TEXT",

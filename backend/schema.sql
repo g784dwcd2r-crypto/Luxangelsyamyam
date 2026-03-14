@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS employees (
   phone_mobile     TEXT,
   role             TEXT NOT NULL DEFAULT 'Cleaner',
   hourly_rate      NUMERIC(10,2) NOT NULL DEFAULT 15,
+  weekly_hours     NUMERIC(10,2) DEFAULT 0,
   address          TEXT,
   city             TEXT,
   postal_code      TEXT,

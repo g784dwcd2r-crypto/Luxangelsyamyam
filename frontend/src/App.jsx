@@ -11,10 +11,10 @@ LUX ANGELS CLEANING - Management System v3 (Bug-free)
 // Data is sourced from the backend DB; no browser localStorage cache is used.
 const loadStore = () => null;
 const saveStore = () => {};
-const loadLang = () => "fr";
-const saveLang = () => {};
-const loadTheme = () => "dark";
-const saveTheme = () => {};
+const loadLang = () => { try { return localStorage.getItem("lux_lang") || "fr"; } catch { return "fr"; } };
+const saveLang = (l) => { try { localStorage.setItem("lux_lang", l); } catch {} };
+const loadTheme = () => { try { return localStorage.getItem("lux_theme") || "dark"; } catch { return "dark"; } };
+const saveTheme = (t) => { try { localStorage.setItem("lux_theme", t); } catch {} };
 
 const I18N = {
 fr: {
@@ -210,6 +210,7 @@ const UI_FR = {
 "Add": "Ajouter",
 "Search by name, role, email, phone...": "Rechercher par nom, rôle, email, téléphone...",
 "All Statuses": "Tous les statuts",
+"All Locations": "Toutes les zones",
 "Active": "Actif",
 "Inactive": "Inactif",
 "No employees": "Aucun employé",
@@ -222,7 +223,21 @@ const UI_FR = {
 "Basic Info": "Infos de base",
 "Personal": "Personnel",
 "Work & Pay": "Travail & Paie",
+"Operations": "Opérations",
 "Emergency": "Urgence",
+"Location Group": "Groupe / Zone",
+"Stage": "Statut embauche",
+"Assigned Clients": "Clients assignés",
+"No city": "Pas de ville",
+"Standby": "En attente",
+"Hired": "Embauché",
+"(email/full name)": "(email/nom complet)",
+"Cleaner Location Group": "Groupe / Zone de travail",
+"Hiring Stage": "Statut d'embauche",
+"Standby / Potential": "En attente / Potentiel",
+"Tip: use Standby for potential cleaners you want to keep in your contact pipeline.": "Conseil : utilisez En attente pour les agents potentiels que vous souhaitez garder dans votre pipeline de contacts.",
+"Weekly hours (contract)": "Heures par semaine (contrat)",
+"e.g. 38": "ex. 38",
 "Cleaner": "Agent",
 "Senior Cleaner": "Agent senior",
 "Team Lead": "Chef d'équipe",
@@ -339,6 +354,12 @@ const UI_FR = {
 "Weekly (12 weeks)": "Hebdomadaire (12 semaines)",
 "Bi-weekly (12x)": "Bihebdomadaire (12x)",
 "Monthly (12 months)": "Mensuel (12 mois)",
+"Every day": "Chaque jour",
+"Interval in range": "Intervalle dans la plage",
+"Date From": "Date de début",
+"Date To (optional)": "Date de fin (optionnelle)",
+"Select employees *": "Sélectionner les employés *",
+"No active employees": "Aucun employé actif",
 "This job is marked as completed and can no longer be edited.": "Ce travail est marqué comme terminé et ne peut plus être modifié.",
 "Client Info": "Infos client",
 "Delete Job": "Supprimer le travail",
@@ -669,6 +690,13 @@ if (typeof text !== "string") return text;
 return UI_FR[text] || text;
 };
 
+const effectiveInvoiceStatus = (inv) => {
+if (!inv) return "draft";
+if (inv.status === "paid") return "paid";
+if (inv.dueDate && inv.dueDate < getToday()) return "overdue";
+return inv.status || "draft";
+};
+
 
 const LU_PUBLIC_HOLIDAYS = [
   "1 Janvier — Jour de l'An",
@@ -789,6 +817,7 @@ const toApiEmployee = (emp, pin, username) => ({
   emergency_phone: emp.emergencyPhone || "",
   notes: emp.notes || "",
   username: (username !== undefined ? username : emp.username) || "",
+  weekly_hours: emp.weeklyHours || 0,
   ...(pin !== undefined ? { pin } : {}),
 });
 
@@ -1565,6 +1594,7 @@ useEffect(() => {
     emergencyName: e.emergency_name || "",
     emergencyPhone: e.emergency_phone || "",
     notes: e.notes || "",
+    weeklyHours: Number(e.weekly_hours) || 0,
   });
   const mapClient = (c) => ({
     id: c.id,
@@ -2551,7 +2581,7 @@ const activeEmployees = data.employees.filter(e => e.status === "active").length
 const monthStr = todayStr.slice(0, 7);
 const monthRev = data.invoices.filter(inv => inv.date?.startsWith(monthStr)).reduce((sum, inv) => sum + (inv.total || 0), 0);
 const unpaidTotal = data.invoices.filter(inv => inv.status === "sent" || inv.status === "overdue").reduce((sum, inv) => sum + (inv.total || 0), 0);
-const overdueInvoices = data.invoices.filter(inv => inv.status === "overdue");
+const overdueInvoices = data.invoices.filter(inv => effectiveInvoiceStatus(inv) === "overdue");
 const pendingLeave = (data.timeOffRequests || []).filter(r => r.status === "pending").length;
 const pendingProducts = (data.productRequests || []).filter(r => r.status === "pending").length;
 const unseenUploads = (data.photoUploads || []).filter(u => !u.seenByOwner).length;
@@ -2686,7 +2716,7 @@ const [groupFilter, setGroupFilter] = useState("all");
 
 const emptyEmployee = {
 name: "", email: "", phone: "", phoneMobile: "", address: "", city: "Luxembourg", postalCode: "", country: "Luxembourg",
-role: "Cleaner", hourlyRate: 15, startDate: getToday(), contractEndDate: "", status: "active", notes: "", bankIban: "", socialSecNumber: "",
+role: "Cleaner", hourlyRate: 15, weeklyHours: 0, startDate: getToday(), contractEndDate: "", status: "active", notes: "", bankIban: "", socialSecNumber: "",
 pin: "0000", dateOfBirth: "", nationality: "", contractType: "CDI", workPermit: "", emergencyName: "", emergencyPhone: "",
 username: "",
 languages: "", transport: "", leaveAllowance: 26, cleanerGroup: "", hiringStage: "hired",
@@ -2780,26 +2810,26 @@ return (
 </SelectInput>
 
 <SelectInput value={groupFilter} onChange={ev => setGroupFilter(ev.target.value)} style={{ width: 190 }}>
-  <option value="all">All Locations</option>
+  <option value="all">{uiText("All Locations")}</option>
   {locationGroups.map(group => <option key={group} value={group}>{group}</option>)}
 </SelectInput>
 </div>
 <div style={cardSt} className="tbl-wrap">
 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
 <thead>
-<tr><th style={thSt}>{uiText("Name")}</th><th style={thSt}>Location Group</th><th style={thSt}>{uiText("Role")}</th><th style={thSt}>{uiText("Rate")}</th><th style={thSt}>{uiText("Contact")}</th><th style={thSt}>Stage</th><th style={thSt}>Assigned Clients</th><th style={thSt}>{uiText("Username")}</th><th style={thSt}>{uiText("Password")}</th><th style={thSt}>{uiText("Status")}</th><th style={thSt}>{uiText("Actions")}</th></tr>
+<tr><th style={thSt}>{uiText("Name")}</th><th style={thSt}>{uiText("Location Group")}</th><th style={thSt}>{uiText("Role")}</th><th style={thSt}>{uiText("Rate")}</th><th style={thSt}>{uiText("Contact")}</th><th style={thSt}>{uiText("Stage")}</th><th style={thSt}>{uiText("Assigned Clients")}</th><th style={thSt}>{uiText("Username")}</th><th style={thSt}>{uiText("Password")}</th><th style={thSt}>{uiText("Status")}</th><th style={thSt}>{uiText("Actions")}</th></tr>
 </thead>
 <tbody>
 {filtered.map(emp => (
 <tr key={emp.id}>
 <td style={tdSt}><div style={{ fontWeight: 600 }}>{emp.name}</div><div style={{ fontSize: 11, color: CL.muted }}>{emp.nationality ? `${emp.nationality} · ` : ""}{emp.languages || ""}</div></td>
-<td style={tdSt}><div style={{ fontWeight: 600 }}>{emp.cleanerGroup || emp.city || "-"}</div><div style={{ fontSize: 11, color: CL.muted }}>{emp.city || "No city"}</div></td>
+<td style={tdSt}><div style={{ fontWeight: 600 }}>{emp.cleanerGroup || emp.city || "-"}</div><div style={{ fontSize: 11, color: CL.muted }}>{emp.city || uiText("No city")}</div></td>
 <td style={tdSt}>{emp.role}</td>
 <td style={tdSt}>€{Number(emp.hourlyRate).toFixed(2)}/hr</td>
 <td style={tdSt}><div style={{ fontSize: 12 }}>{emp.phone}</div><div style={{ fontSize: 11, color: CL.muted }}>{emp.email}</div></td>
-<td style={tdSt}><Badge color={(emp.hiringStage || "hired") === "standby" ? CL.orange : CL.green}>{(emp.hiringStage || "hired") === "standby" ? "Standby" : "Hired"}</Badge></td>
+<td style={tdSt}><Badge color={(emp.hiringStage || "hired") === "standby" ? CL.orange : CL.green}>{(emp.hiringStage || "hired") === "standby" ? uiText("Standby") : uiText("Hired")}</Badge></td>
 <td style={tdSt}>{preferredCountByEmployee[emp.id] || 0}</td>
-<td style={tdSt}><code style={{ background: CL.s2, padding: "2px 5px", borderRadius: 4, fontSize: 12 }}>{data.employeeUsernames?.[emp.id] || "(email/full name)"}</code></td>
+<td style={tdSt}><code style={{ background: CL.s2, padding: "2px 5px", borderRadius: 4, fontSize: 12 }}>{data.employeeUsernames?.[emp.id] || uiText("(email/full name)")}</code></td>
 <td style={tdSt}><code style={{ background: CL.s2, padding: "2px 5px", borderRadius: 4, fontSize: 12 }}>{data.employeePins?.[emp.id] || "0000"}</code></td>
 <td style={tdSt}><Badge color={emp.status === "active" ? CL.green : CL.red}>{emp.status}</Badge></td>
 <td style={tdSt}>
@@ -2845,7 +2875,7 @@ const tabs = [
 { id: "basic", label: uiText("Basic Info") },
 { id: "personal", label: uiText("Personal") },
 { id: "work", label: uiText("Work & Pay") },
-{ id: "operations", label: "Operations" },
+{ id: "operations", label: uiText("Operations") },
 { id: "emergency", label: uiText("Emergency") },
 ];
 
@@ -2889,8 +2919,9 @@ return (
 
   {activeTab === "work" && (
     <div className="form-grid">
-      <Field label="Hourly Rate (€)"><TextInput type="number" step=".5" value={form.hourlyRate} onChange={ev => set("hourlyRate", parseFloat(ev.target.value) || 0)} /></Field>
-      <Field label="Vacation allowance (days/year)"><TextInput type="number" min={0} value={form.leaveAllowance ?? 26} onChange={ev => set("leaveAllowance", Math.max(0, parseInt(ev.target.value || "0", 10) || 0))} /></Field>
+      <Field label={uiText("Hourly Rate (€)")}><TextInput type="number" step=".5" value={form.hourlyRate} onChange={ev => set("hourlyRate", parseFloat(ev.target.value) || 0)} /></Field>
+      <Field label={uiText("Weekly hours (contract)")}><TextInput type="number" step="0.5" min={0} value={form.weeklyHours ?? 0} onChange={ev => set("weeklyHours", parseFloat(ev.target.value) || 0)} placeholder={uiText("e.g. 38")} /></Field>
+      <Field label={uiText("Vacation allowance (days/year)")}><TextInput type="number" min={0} value={form.leaveAllowance ?? 26} onChange={ev => set("leaveAllowance", Math.max(0, parseInt(ev.target.value || "0", 10) || 0))} /></Field>
       <Field label="Contract Type">
         <SelectInput value={form.contractType || "CDI"} onChange={ev => set("contractType", ev.target.value)}>
           <option value="CDI">CDI</option><option value="CDD">CDD</option><option value="Mini-job">{uiText("Mini-job")}</option><option value="Freelance">{uiText("Freelance")}</option><option value="Student">{uiText("Student")}</option>
@@ -2910,14 +2941,14 @@ return (
 
   {activeTab === "operations" && (
     <div className="form-grid">
-      <Field label="Cleaner Location Group"><TextInput value={form.cleanerGroup || ""} onChange={ev => set("cleanerGroup", ev.target.value)} placeholder="Luxembourg City Team" /></Field>
-      <Field label="Hiring Stage">
+      <Field label={uiText("Cleaner Location Group")}><TextInput value={form.cleanerGroup || ""} onChange={ev => set("cleanerGroup", ev.target.value)} placeholder="Luxembourg City Team" /></Field>
+      <Field label={uiText("Hiring Stage")}>
         <SelectInput value={form.hiringStage || "hired"} onChange={ev => set("hiringStage", ev.target.value)}>
-          <option value="hired">Hired</option>
-          <option value="standby">Standby / Potential</option>
+          <option value="hired">{uiText("Hired")}</option>
+          <option value="standby">{uiText("Standby / Potential")}</option>
         </SelectInput>
       </Field>
-      <div style={{ gridColumn: "1/-1", fontSize: 12, color: CL.muted }}>Tip: use Standby for potential cleaners you want to keep in your contact pipeline.</div>
+      <div style={{ gridColumn: "1/-1", fontSize: 12, color: CL.muted }}>{uiText("Tip: use Standby for potential cleaners you want to keep in your contact pipeline.")}</div>
     </div>
   )}
 
@@ -3295,7 +3326,7 @@ const now = new Date();
 const [viewYear, setViewYear] = useState(now.getFullYear());
 const [viewMonth, setViewMonth] = useState(now.getMonth());
 
-const emptySchedule = { clientId: "", employeeId: "", date: getToday(), dateTo: "", startTime: "08:00", endTime: "12:00", status: "scheduled", paymentStatus: "unpaid", notes: "", recurrence: "none" };
+const emptySchedule = { clientId: "", employeeId: "", employeeIds: [], date: getToday(), dateTo: "", startTime: "08:00", endTime: "12:00", status: "scheduled", paymentStatus: "unpaid", notes: "", recurrence: "none" };
 const dayHeaders = [uiText("Mon"), uiText("Tue"), uiText("Wed"), uiText("Thu"), uiText("Fri"), uiText("Sat"), uiText("Sun")];
 
 const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
@@ -3377,7 +3408,12 @@ showToast(err?.message || "Unable to update schedule", "error");
 return;
 } else {
 const stamp = new Date().toISOString();
-const base = { ...schedData, dateTo: undefined };
+// Determine employee IDs to use (multi or single)
+const selectedEmpIds = (schedData.employeeIds && schedData.employeeIds.length > 0)
+  ? schedData.employeeIds
+  : (schedData.employeeId ? [schedData.employeeId] : []);
+if (selectedEmpIds.length === 0) { showToast(uiText("Employee *") + " requis", "error"); return; }
+const base = { ...schedData, dateTo: undefined, employeeIds: undefined };
 const items = [];
 const hasRange = schedData.dateTo && schedData.dateTo > schedData.date;
 
@@ -3449,10 +3485,14 @@ if (hasRange) {
     }
   }
 }
+// Multiply items for each selected employee
+const allItems = selectedEmpIds.flatMap(empId =>
+  items.map(item => ({ ...item, id: makeId(), employeeId: empId }))
+);
 try {
-await Promise.all(items.map(item => createScheduleInApi(item)));
-updateData("schedules", prev => [...prev, ...items]);
-showToast(`${items.length} job(s) scheduled`);
+await Promise.all(allItems.map(item => createScheduleInApi(item)));
+updateData("schedules", prev => [...prev, ...allItems]);
+showToast(`${allItems.length} job(s) ${uiText("scheduled") || "scheduled"}`);
 setModal(null);
 } catch (err) {
 console.error(err);
@@ -3676,14 +3716,36 @@ return (
 {data.clients.filter(c => c.status === "active").map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
 </SelectInput>
 </Field>
-<Field label="Employee *">
-<SelectInput value={form.employeeId} onChange={ev => set("employeeId", ev.target.value)} disabled={isCompletedLocked}>
-<option value="">Select...</option>
-{data.employees.filter(emp => emp.status === "active").map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
-</SelectInput>
-{suggestedCleaner && !form.employeeId && <div style={{ fontSize: 11, color: CL.green, marginTop: 4 }}>{uiText("Suggested:")} {suggestedCleaner.name} ({suggestedCleaner.cleanerGroup || suggestedCleaner.city || uiText("No group")})</div>}
-{suggestedCleaner && form.employeeId !== suggestedCleaner.id && <button type="button" style={{ ...btnSec, ...btnSm, marginTop: 6 }} onClick={() => set("employeeId", suggestedCleaner.id)} disabled={isCompletedLocked}>{uiText("Use suggested cleaner")}</button>}
-{selectedClient && selectedEmployee && <div style={{ fontSize: 11, color: cityMatchLabel(selectedEmployee, selectedClient).startsWith("✅") ? CL.green : CL.orange, marginTop: 4 }}>{cityMatchLabel(selectedEmployee, selectedClient)}</div>}
+<Field label={form.id ? uiText("Employee *") : uiText("select employees *")}>
+{form.id ? (
+  <>
+  <SelectInput value={form.employeeId} onChange={ev => set("employeeId", ev.target.value)} disabled={isCompletedLocked}>
+    <option value="">{uiText("Select...")}</option>
+    {data.employees.filter(emp => emp.status === "active").map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
+  </SelectInput>
+  {selectedClient && selectedEmployee && <div style={{ fontSize: 11, color: cityMatchLabel(selectedEmployee, selectedClient).startsWith("✅") ? CL.green : CL.orange, marginTop: 4 }}>{cityMatchLabel(selectedEmployee, selectedClient)}</div>}
+  </>
+) : (
+  <div style={{ border: `1px solid ${CL.bd}`, borderRadius: 10, padding: "8px 12px", background: CL.sf, maxHeight: 180, overflowY: "auto" }}>
+    {data.employees.filter(emp => emp.status === "active").length === 0
+      ? <div style={{ color: CL.muted, fontSize: 13 }}>{uiText("No active employees")}</div>
+      : data.employees.filter(emp => emp.status === "active").map(emp => {
+          const checked = (form.employeeIds || []).includes(emp.id);
+          return (
+            <label key={emp.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", cursor: "pointer", fontSize: 13, color: CL.text }}>
+              <input type="checkbox" checked={checked} onChange={() => {
+                const ids = form.employeeIds || [];
+                set("employeeIds", checked ? ids.filter(id => id !== emp.id) : [...ids, emp.id]);
+              }} style={{ accentColor: CL.gold, width: 15, height: 15 }} />
+              <span style={{ fontWeight: checked ? 600 : 400 }}>{emp.name}</span>
+              {emp.cleanerGroup || emp.city ? <span style={{ fontSize: 11, color: CL.muted }}>· {emp.cleanerGroup || emp.city}</span> : null}
+            </label>
+          );
+        })
+    }
+  </div>
+)}
+{suggestedCleaner && !form.id && (form.employeeIds || []).length === 0 && <div style={{ fontSize: 11, color: CL.green, marginTop: 4 }}>{uiText("Suggested:")} {suggestedCleaner.name} ({suggestedCleaner.cleanerGroup || suggestedCleaner.city || uiText("No group")})</div>}
 </Field>
 <Field label={form.id ? uiText("Date") : uiText("Date From")}><DatePicker value={form.date} onChange={ev => set("date", ev.target.value)} /></Field>
 {!form.id && (
@@ -3697,20 +3759,15 @@ return (
     )}
   </Field>
 )}
-<Field label="Status">
+<Field label={uiText("Status")}>
 <SelectInput value={form.status} onChange={ev => set("status", ev.target.value)} disabled={isCompletedLocked}>
 <option value="scheduled">{uiText("Scheduled")}</option><option value="in-progress">{uiText("In Progress")}</option><option value="completed">{uiText("Completed")}</option><option value="cancelled">{uiText("Cancelled")}</option>
 </SelectInput>
 </Field>
-<Field label={uiText("Payment Status")}>
-<SelectInput value={form.paymentStatus || "unpaid"} onChange={ev => set("paymentStatus", ev.target.value)}>
-<option value="unpaid">{uiText("Unpaid")}</option><option value="paid">{uiText("Paid")}</option>
-</SelectInput>
-</Field>
-<Field label="Start"><TextInput type="time" value={form.startTime} onChange={ev => set("startTime", ev.target.value)} disabled={isCompletedLocked} /></Field>
-<Field label="End"><TextInput type="time" value={form.endTime} onChange={ev => set("endTime", ev.target.value)} disabled={isCompletedLocked} /></Field>
+<Field label={uiText("Start")}><TextInput type="time" value={form.startTime} onChange={ev => set("startTime", ev.target.value)} disabled={isCompletedLocked} /></Field>
+<Field label={uiText("End")}><TextInput type="time" value={form.endTime} onChange={ev => set("endTime", ev.target.value)} disabled={isCompletedLocked} /></Field>
 {!form.id && !hasDateRange && (
-<Field label="Recurrence">
+<Field label={uiText("Recurrence")}>
 <SelectInput value={form.recurrence} onChange={ev => set("recurrence", ev.target.value)} disabled={isCompletedLocked}>
 <option value="none">{uiText("One-time")}</option><option value="daily">{uiText("Daily (weekends included)")}</option><option value="daily-weekdays">{uiText("Daily (weekdays only)")}</option><option value="weekly">{uiText("Weekly (12 weeks)")}</option><option value="biweekly">{uiText("Bi-weekly (12x)")}</option><option value="monthly">{uiText("Monthly (12 months)")}</option>
 </SelectInput>
@@ -3747,7 +3804,10 @@ return (
     <div>{form.id && <button style={{ ...btnDng, ...btnSm }} disabled={isCompletedLocked} onClick={() => { onCancel(); onDelete(form.id); }}>{uiText("Delete Job")}</button>}</div>
     <div style={{ display: "flex", gap: 10 }}>
       <button style={btnSec} onClick={onCancel}>{uiText("Cancel")}</button>
-      <button style={btnPri} disabled={isCompletedLocked} onClick={() => form.clientId && form.employeeId && onSave(form)}>{isCompletedLocked ? uiText("Completed") : uiText("Save Job")}</button>
+      <button style={btnPri} disabled={isCompletedLocked} onClick={() => {
+        const hasEmployee = form.id ? !!form.employeeId : ((form.employeeIds || []).length > 0);
+        if (form.clientId && hasEmployee) onSave(form);
+      }}>{isCompletedLocked ? uiText("Completed") : uiText("Save Job")}</button>
     </div>
   </div>
 </div>
@@ -4965,7 +5025,7 @@ const filteredInvoices = data.invoices
 .filter(inv => {
   if (filters.invoiceNumber && !String(inv.invoiceNumber || "").toLowerCase().includes(filters.invoiceNumber.toLowerCase())) return false;
   if (filters.clientId && inv.clientId !== filters.clientId) return false;
-  if (filters.status && inv.status !== filters.status) return false;
+  if (filters.status && effectiveInvoiceStatus(inv) !== filters.status) return false;
   if (filters.dateFrom && (inv.date || "") < filters.dateFrom) return false;
   if (filters.dateTo && (inv.date || "") > filters.dateTo) return false;
   return true;
@@ -5038,8 +5098,8 @@ return (
 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
 <thead><tr><th style={thSt}>#</th><th style={thSt}>{t("client")}</th><th style={thSt}>{t("date")}</th><th style={thSt}>{t("total")}</th><th style={thSt}>{t("status")}</th><th style={thSt}>{t("actions")}</th></tr></thead>
 <tbody>
-{filteredInvoices.map(inv => { const client = data.clients.find(c => c.id === inv.clientId); return (
-<tr key={inv.id}><td style={tdSt}><strong>{inv.invoiceNumber}</strong></td><td style={tdSt}>{client?.name || "-"}</td><td style={tdSt}>{fmtDate(inv.date)}</td><td style={{ ...tdSt, fontWeight: 600 }}>€{(inv.total || 0).toFixed(2)}</td><td style={tdSt}>{(() => { const statusColor = inv.status === "paid" ? CL.green : inv.status === "overdue" ? CL.red : inv.status === "sent" ? CL.blue : CL.muted; return <select value={inv.status} onChange={e => handleStatusChange(inv, e.target.value)} style={{ background: statusColor + "22", color: statusColor, border: `1.5px solid ${statusColor}`, borderRadius: 20, padding: "3px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer", appearance: "none", WebkitAppearance: "none", outline: "none" }}><option value="draft">{lang === "fr" ? "Brouillon" : "Draft"}</option><option value="sent">{lang === "fr" ? "Envoyée" : "Sent"}</option><option value="paid">{lang === "fr" ? "Payée ✓" : "Paid ✓"}</option><option value="overdue">{lang === "fr" ? "En retard" : "Overdue"}</option></select>; })()}</td><td style={tdSt}><div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}><button style={{ ...btnSec, ...btnSm }} onClick={() => setPreview(inv)}>{t("view")}</button><button style={{ ...btnSec, ...btnSm }} onClick={() => setModal({ ...inv })}>{ICN.edit}</button><button style={{ ...btnSec, ...btnSm, ...(emailConfigured ? {} : { opacity: 0.45, cursor: "not-allowed" }) }} title={emailConfigured ? undefined : (lang === "fr" ? "Email non configuré — contactez votre administrateur" : "Email not configured — contact your administrator")} disabled={!emailConfigured} onClick={() => emailInvoice(inv)}>{ICN.mail}</button><button style={{ ...btnSec, ...btnSm, color: CL.red }} onClick={() => handleDelete(inv.id)}>{ICN.trash}</button></div></td></tr>
+{filteredInvoices.map(inv => { const client = data.clients.find(c => c.id === inv.clientId); const effStatus = effectiveInvoiceStatus(inv); return (
+<tr key={inv.id}><td style={tdSt}><strong>{inv.invoiceNumber}</strong></td><td style={tdSt}>{client?.name || "-"}</td><td style={tdSt}>{fmtDate(inv.date)}{inv.dueDate ? <div style={{ fontSize: 11, color: effStatus === "overdue" ? CL.red : CL.muted }}>{lang === "fr" ? "Échéance:" : "Due:"} {fmtDate(inv.dueDate)}</div> : null}</td><td style={{ ...tdSt, fontWeight: 600 }}>€{(inv.total || 0).toFixed(2)}</td><td style={tdSt}>{(() => { const statusColor = effStatus === "paid" ? CL.green : effStatus === "overdue" ? CL.red : effStatus === "sent" ? CL.blue : CL.muted; return <select value={effStatus} onChange={e => handleStatusChange(inv, e.target.value)} style={{ background: statusColor + "22", color: statusColor, border: `1.5px solid ${statusColor}`, borderRadius: 20, padding: "3px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer", appearance: "none", WebkitAppearance: "none", outline: "none" }}><option value="draft">{lang === "fr" ? "Brouillon" : "Draft"}</option><option value="sent">{lang === "fr" ? "Envoyée" : "Sent"}</option><option value="paid">{lang === "fr" ? "Payée ✓" : "Paid ✓"}</option><option value="overdue">{lang === "fr" ? "En retard" : "Overdue"}</option></select>; })()}</td><td style={tdSt}><div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}><button style={{ ...btnSec, ...btnSm }} onClick={() => setPreview(inv)}>{t("view")}</button><button style={{ ...btnSec, ...btnSm }} onClick={() => setModal({ ...inv })}>{ICN.edit}</button><button style={{ ...btnSec, ...btnSm, ...(emailConfigured ? {} : { opacity: 0.45, cursor: "not-allowed" }) }} title={emailConfigured ? undefined : (lang === "fr" ? "Email non configuré — contactez votre administrateur" : "Email not configured — contact your administrator")} disabled={!emailConfigured} onClick={() => emailInvoice(inv)}>{ICN.mail}</button><button style={{ ...btnSec, ...btnSm, color: CL.red }} onClick={() => handleDelete(inv.id)}>{ICN.trash}</button></div></td></tr>
 ); })}
 {filteredInvoices.length === 0 && <tr><td colSpan={6} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>{hasFilters ? (lang === "fr" ? "Aucune facture trouvée" : "No invoices match filters") : uiText("No invoices")}</td></tr>}
 </tbody>

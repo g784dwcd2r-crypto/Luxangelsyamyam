@@ -1684,7 +1684,8 @@ useEffect(() => {
     const base = API_BASE_CANDIDATES[0] || "";
     if (!base) return;
     try {
-      const [employeesRes, clientsRes, schedulesRes, clocksRes, invoicesRes, payslipsRes, settingsRes, emailStatusRes] = await Promise.all([
+      const [employeesRes, clientsRes, schedulesRes, clocksRes, invoicesRes, payslipsRes, settingsRes, emailStatusRes,
+             quotesRes, photoUploadsRes, timeOffRes, inventoryRes, productRequestsRes, holdingsRes, visitsRes, expensesRes] = await Promise.all([
         fetch(apiUrl('/api/employees', base), { cache: 'no-store' }),
         fetch(apiUrl('/api/clients', base), { cache: 'no-store' }),
         fetch(apiUrl('/api/schedules', base), { cache: 'no-store' }),
@@ -1693,6 +1694,14 @@ useEffect(() => {
         fetch(apiUrl('/api/payslips', base), { cache: 'no-store' }),
         fetch(apiUrl('/api/settings', base), { cache: 'no-store' }),
         fetch(apiUrl('/api/email-status', base), { cache: 'no-store' }).catch(() => null),
+        fetch(apiUrl('/api/quotes', base), { cache: 'no-store' }).catch(() => null),
+        fetch(apiUrl('/api/photo-uploads', base), { cache: 'no-store' }).catch(() => null),
+        fetch(apiUrl('/api/time-off-requests', base), { cache: 'no-store' }).catch(() => null),
+        fetch(apiUrl('/api/inventory-products', base), { cache: 'no-store' }).catch(() => null),
+        fetch(apiUrl('/api/product-requests', base), { cache: 'no-store' }).catch(() => null),
+        fetch(apiUrl('/api/cleaner-product-holdings', base), { cache: 'no-store' }).catch(() => null),
+        fetch(apiUrl('/api/prospect-visits', base), { cache: 'no-store' }).catch(() => null),
+        fetch(apiUrl('/api/expenses', base), { cache: 'no-store' }).catch(() => null),
       ]);
 
       if (![employeesRes, clientsRes, schedulesRes, clocksRes, invoicesRes, payslipsRes, settingsRes].every(r => r.ok)) return;
@@ -1712,6 +1721,66 @@ useEffect(() => {
         settingsRes.json(),
       ]);
 
+      const safeJson = async (res) => { try { return res && res.ok ? await res.json() : []; } catch { return []; } };
+      const [quotesRows, photoRows, timeOffRows, inventoryRows, productReqRows, holdingsRows, visitsRows, expensesRows] = await Promise.all([
+        safeJson(quotesRes), safeJson(photoUploadsRes), safeJson(timeOffRes),
+        safeJson(inventoryRes), safeJson(productRequestsRes), safeJson(holdingsRes),
+        safeJson(visitsRes), safeJson(expensesRes),
+      ]);
+
+      const mapQuote = (q) => ({
+        id: q.id, quoteNumber: q.quote_number, date: q.date, clientId: q.client_id || "",
+        status: q.status || "draft", items: Array.isArray(q.items) ? q.items : [],
+        subtotal: Number(q.subtotal) || 0, vatRate: Number(q.vat_rate) || 17,
+        vatAmount: Number(q.vat_amount) || 0, total: Number(q.total) || 0,
+        notes: q.notes || "", pricingMode: q.pricing_mode || "hours",
+        jobSchedule: q.job_schedule || {}, visibleColumns: q.visible_columns || {},
+      });
+      const mapPhotoUpload = (p) => ({
+        id: p.id, employeeId: p.employee_id || "", clientId: p.client_id || "",
+        clockEntryId: p.clock_entry_id || "", fileName: p.file_name || "",
+        imageData: p.image_data || "", note: p.note || "",
+        type: p.type || "issue", seenByOwner: !!p.seen_by_owner,
+        createdAt: p.created_at || "",
+      });
+      const mapTimeOff = (r) => ({
+        id: r.id, employeeId: r.employee_id || "", startDate: r.start_date || "",
+        endDate: r.end_date || "", requestedDays: Number(r.requested_days) || 1,
+        reason: r.reason || "", leaveType: r.leave_type || "conge",
+        status: r.status || "pending", reviewedAt: r.reviewed_at || null,
+        reviewedBy: r.reviewed_by || null, reviewNote: r.review_note || "",
+        createdAt: r.created_at || "",
+      });
+      const mapInventoryProduct = (p) => ({
+        id: p.id, name: p.name, unit: p.unit || "bottles",
+        stock: Number(p.stock) || 0, minStock: Number(p.min_stock) || 0,
+        note: p.note || "", active: p.active !== false,
+      });
+      const mapProductRequest = (r) => ({
+        id: r.id, employeeId: r.employee_id || "", productId: r.product_id || "",
+        quantity: Number(r.quantity) || 1, note: r.note || "",
+        deliveryAt: r.delivery_at || "", status: r.status || "pending",
+        approvedQty: Number(r.approved_qty) || 0, deliveredQty: Number(r.delivered_qty) || 0,
+        createdAt: r.created_at || "",
+      });
+      const mapHolding = (h) => ({
+        id: h.id, employeeId: h.employee_id || "", productId: h.product_id || "",
+        qtyInHand: Number(h.qty_in_hand) || 0, updatedAt: h.updated_at || "",
+      });
+      const mapVisit = (v) => ({
+        id: v.id, clientId: v.client_id || "", visitDate: v.visit_date || "",
+        visitTime: v.visit_time || "", address: v.address || "",
+        notes: v.notes || "", status: v.status || "planned",
+        photos: Array.isArray(v.photos) ? v.photos : [],
+        createdAt: v.created_at || "",
+      });
+      const mapExpense = (e) => ({
+        id: e.id, name: e.name, amount: Number(e.amount) || 0,
+        dueDay: Number(e.due_day) || 1, category: e.category || "other",
+        notes: e.note || e.notes || "", isActive: e.is_active !== false,
+        payments: Array.isArray(e.payments) ? e.payments : [],
+      });
+
       const employeePins = Object.fromEntries((employeesRows || []).map(e => [e.id, String(e.pin || '0000')]));
       const employeeUsernames = Object.fromEntries((employeesRows || []).map(e => [e.id, String(e.username || '').toLowerCase()]));
 
@@ -1725,6 +1794,14 @@ useEffect(() => {
         clockEntries: mappedClocks,
         invoices: (invoicesRows || []).map(mapInvoice),
         payslips: (payslipsRows || []).map(mapPayslip),
+        quotes: (quotesRows || []).map(mapQuote),
+        photoUploads: (photoRows || []).map(mapPhotoUpload),
+        timeOffRequests: (timeOffRows || []).map(mapTimeOff),
+        inventoryProducts: (inventoryRows || []).map(mapInventoryProduct),
+        productRequests: (productReqRows || []).map(mapProductRequest),
+        cleanerProductHoldings: (holdingsRows || []).map(mapHolding),
+        prospectVisits: (visitsRows || []).map(mapVisit),
+        expenses: (expensesRows || []).map(mapExpense),
         employeePins,
         employeeUsernames,
         settings: {
@@ -2268,14 +2345,16 @@ if (!file.type?.startsWith("image/")) { showToast("Please upload an image file",
 if (!activeClock) { showToast("Clock in to a job before uploading photos", "error"); return; }
 try {
 const imageData = await readAsDataUrl(file);
-updateData("photoUploads", (prev = []) => [...prev, {
-id: makeId(), employeeId: auth.employeeId, createdAt: new Date().toISOString(),
-fileName: file.name, imageData, note: uploadNote.trim(),
-type: uploadType,
-seenByOwner: false,
-clockEntryId: activeClock.id,
-clientId: activeClock.clientId,
-}]);
+const newPhoto = {
+  id: makeId(), employeeId: auth.employeeId, createdAt: new Date().toISOString(),
+  fileName: file.name, imageData, note: uploadNote.trim(),
+  type: uploadType, seenByOwner: false,
+  clockEntryId: activeClock.id, clientId: activeClock.clientId,
+};
+try {
+  await fetch(apiUrl("/api/photo-uploads"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(newPhoto) });
+} catch { /* local fallback */ }
+updateData("photoUploads", (prev = []) => [...prev, newPhoto]);
 setUploadNote("");
 setUploadType("issue");
 showToast("Photo uploaded");
@@ -2284,31 +2363,38 @@ showToast("Upload failed", "error");
 }
 };
 
-const submitTimeOff = () => {
+const submitTimeOff = async () => {
 if (!timeOffForm.startDate || !timeOffForm.endDate) { showToast(uiText("Select start and end dates"), "error"); return; }
 if (timeOffForm.endDate < timeOffForm.startDate) { showToast(uiText("End date must be after start date"), "error"); return; }
 const requestedDays = leaveDaysInclusive(timeOffForm.startDate, timeOffForm.endDate);
 if (!requestedDays) { showToast(uiText("Invalid leave dates"), "error"); return; }
 if (requestedDays > leaveSummary.remaining) { showToast(uiText("Request exceeds remaining leave balance"), "error"); return; }
-updateData("timeOffRequests", (prev = []) => [...prev, {
-id: makeId(), employeeId: auth.employeeId, ...timeOffForm,
-requestedDays,
-reason: timeOffForm.reason.trim(), status: "pending", createdAt: new Date().toISOString(),
-reviewedAt: null, reviewedBy: null, reviewNote: "",
-}]);
+const newReq = {
+  id: makeId(), employeeId: auth.employeeId, ...timeOffForm,
+  requestedDays, reason: timeOffForm.reason.trim(), status: "pending",
+  createdAt: new Date().toISOString(), reviewedAt: null, reviewedBy: null, reviewNote: "",
+};
+try {
+  await fetch(apiUrl("/api/time-off-requests"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(newReq) });
+} catch { /* local fallback */ }
+updateData("timeOffRequests", (prev = []) => [...prev, newReq]);
 setTimeOffForm({ startDate: "", endDate: "", reason: "", leaveType: "conge" });
 showToast(uiText("Leave request sent"));
 };
 
-const submitProductRequest = () => {
+const submitProductRequest = async () => {
 if (!productForm.productId) { showToast("Select a product", "error"); return; }
 if (!productForm.quantity || Number(productForm.quantity) <= 0) { showToast("Enter quantity", "error"); return; }
-updateData("productRequests", (prev = []) => [...prev, {
-id: makeId(), employeeId: auth.employeeId,
-productId: productForm.productId, quantity: Number(productForm.quantity),
-note: productForm.note.trim(), deliveryAt: productForm.deliveryAt || "",
-status: "pending", approvedQty: 0, deliveredQty: 0, createdAt: new Date().toISOString(),
-}]);
+const newReq = {
+  id: makeId(), employeeId: auth.employeeId,
+  productId: productForm.productId, quantity: Number(productForm.quantity),
+  note: productForm.note.trim(), deliveryAt: productForm.deliveryAt || "",
+  status: "pending", approvedQty: 0, deliveredQty: 0, createdAt: new Date().toISOString(),
+};
+try {
+  await fetch(apiUrl("/api/product-requests"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(newReq) });
+} catch { /* local fallback */ }
+updateData("productRequests", (prev = []) => [...prev, newReq]);
 setProductForm({ productId: "", quantity: 1, note: "", deliveryAt: "" });
 showToast("Product request sent");
 };
@@ -4146,52 +4232,88 @@ const products = (data.inventoryProducts || []).sort((a, b) => a.name.localeComp
 const requests = (data.productRequests || []).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 const holdings = (data.cleanerProductHoldings || []);
 
-const saveProduct = () => {
+const saveProduct = async () => {
 if (!productForm.name.trim()) { showToast(uiText("Product name required"), "error"); return; }
-updateData("inventoryProducts", (prev = []) => [...prev, { id: makeId(), active: true, ...productForm, name: productForm.name.trim(), stock: Number(productForm.stock) || 0, minStock: Number(productForm.minStock) || 0 }]);
+const newProd = { id: makeId(), active: true, ...productForm, name: productForm.name.trim(), stock: Number(productForm.stock) || 0, minStock: Number(productForm.minStock) || 0 };
+try {
+  await fetch(apiUrl("/api/inventory-products"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(newProd) });
+} catch { /* local fallback */ }
+updateData("inventoryProducts", (prev = []) => [...prev, newProd]);
 setProductForm({ name: "", unit: "bottles", stock: 0, minStock: 0, note: "" });
 showToast(uiText("Product added"));
 };
 
-const handleDeleteProduct = (id) => {
+const handleDeleteProduct = async (id) => {
+try {
+  await fetch(apiUrl(`/api/inventory-products/${id}`), { method: "DELETE" });
+} catch { /* local fallback */ }
 updateData("inventoryProducts", prev => (prev || []).filter(p => p.id !== id));
 setDeleteProductId(null);
 showToast(uiText("Product deleted"));
 };
 
-const adjustStock = (id, delta) => {
-updateData("inventoryProducts", prev => (prev || []).map(p => p.id === id ? { ...p, stock: Math.max(0, (Number(p.stock) || 0) + delta) } : p));
+const adjustStock = async (id, delta) => {
+const product = (data.inventoryProducts || []).find(p => p.id === id);
+if (!product) return;
+const newStock = Math.max(0, (Number(product.stock) || 0) + delta);
+try {
+  await fetch(apiUrl(`/api/inventory-products/${id}`), { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...product, stock: newStock }) });
+} catch { /* local fallback */ }
+updateData("inventoryProducts", prev => (prev || []).map(p => p.id === id ? { ...p, stock: newStock } : p));
 };
 
-const setRequestStatus = (id, status) => {
+const setRequestStatus = async (id, status) => {
+const req = (data.productRequests || []).find(r => r.id === id);
+try {
+  await fetch(apiUrl(`/api/product-requests/${id}`), { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status, approvedQty: req?.approvedQty || 0, deliveredQty: req?.deliveredQty || 0 }) });
+} catch { /* local fallback */ }
 updateData("productRequests", prev => (prev || []).map(r => r.id === id ? { ...r, status } : r));
 };
 
-const approveRequest = (req, qty) => {
+const approveRequest = async (req, qty) => {
 const approved = Math.max(0, Number(qty) || 0);
+try {
+  await fetch(apiUrl(`/api/product-requests/${req.id}`), { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "approved", approvedQty: approved, deliveredQty: req.deliveredQty || 0 }) });
+} catch { /* local fallback */ }
 updateData("productRequests", prev => (prev || []).map(r => r.id === req.id ? { ...r, status: "approved", approvedQty: approved } : r));
 showToast("Request approved");
 };
 
-const upsertHolding = (employeeId, productId, deliveredQty) => {
-updateData("cleanerProductHoldings", (prev = []) => {
-const idx = prev.findIndex(h => h.employeeId === employeeId && h.productId === productId);
-if (idx === -1) return [...prev, { id: makeId(), employeeId, productId, qtyAssigned: deliveredQty, qtyInHand: deliveredQty, updatedAt: new Date().toISOString() }];
-const next = [...prev];
-next[idx] = { ...next[idx], qtyAssigned: (Number(next[idx].qtyAssigned) || 0) + deliveredQty, qtyInHand: (Number(next[idx].qtyInHand) || 0) + deliveredQty, updatedAt: new Date().toISOString() };
-return next;
-});
+const upsertHolding = async (employeeId, productId, deliveredQty) => {
+const prev = data.cleanerProductHoldings || [];
+const existing = prev.find(h => h.employeeId === employeeId && h.productId === productId);
+if (!existing) {
+  const newH = { id: makeId(), employeeId, productId, qtyAssigned: deliveredQty, qtyInHand: deliveredQty, updatedAt: new Date().toISOString() };
+  try { await fetch(apiUrl("/api/cleaner-product-holdings"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(newH) }); } catch { /* local fallback */ }
+  updateData("cleanerProductHoldings", (h = []) => [...h, newH]);
+} else {
+  const newQty = (Number(existing.qtyInHand) || 0) + deliveredQty;
+  try { await fetch(apiUrl(`/api/cleaner-product-holdings/${existing.id}`), { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ qtyInHand: newQty }) }); } catch { /* local fallback */ }
+  updateData("cleanerProductHoldings", (h = []) => h.map(x => x.id === existing.id ? { ...x, qtyInHand: newQty, updatedAt: new Date().toISOString() } : x));
+}
 };
 
-const updateHoldingInHand = (holdingId, qtyInHand) => {
-updateData("cleanerProductHoldings", prev => (prev || []).map(h => h.id === holdingId ? { ...h, qtyInHand: Math.max(0, Number(qtyInHand) || 0), updatedAt: new Date().toISOString() } : h));
+const updateHoldingInHand = async (holdingId, qtyInHand) => {
+const newQty = Math.max(0, Number(qtyInHand) || 0);
+try {
+  await fetch(apiUrl(`/api/cleaner-product-holdings/${holdingId}`), { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ qtyInHand: newQty }) });
+} catch { /* local fallback */ }
+updateData("cleanerProductHoldings", prev => (prev || []).map(h => h.id === holdingId ? { ...h, qtyInHand: newQty, updatedAt: new Date().toISOString() } : h));
 };
 
-const deliverRequest = (req, qty) => {
+const deliverRequest = async (req, qty) => {
 const delivered = Math.max(0, Number(qty) || 0);
+try {
+  await fetch(apiUrl(`/api/product-requests/${req.id}`), { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "delivered", approvedQty: req.approvedQty || 0, deliveredQty: delivered }) });
+} catch { /* local fallback */ }
+const product = (data.inventoryProducts || []).find(p => p.id === req.productId);
+if (product) {
+  const newStock = Math.max(0, (Number(product.stock) || 0) - delivered);
+  try { await fetch(apiUrl(`/api/inventory-products/${req.productId}`), { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...product, stock: newStock }) }); } catch { /* local fallback */ }
+  updateData("inventoryProducts", prev => (prev || []).map(p => p.id === req.productId ? { ...p, stock: newStock } : p));
+}
 updateData("productRequests", prev => (prev || []).map(r => r.id === req.id ? { ...r, status: "delivered", deliveredQty: delivered } : r));
-updateData("inventoryProducts", prev => (prev || []).map(p => p.id === req.productId ? { ...p, stock: Math.max(0, (Number(p.stock) || 0) - delivered) } : p));
-upsertHolding(req.employeeId, req.productId, delivered);
+await upsertHolding(req.employeeId, req.productId, delivered);
 showToast("Products delivered");
 };
 
@@ -4423,18 +4545,28 @@ showToast(err.message || (lang === "fr" ? "Impossible d'envoyer l'email" : "Unab
 
 const sendQuote = (q) => emailQuote(q);
 
-const saveQuote = (q) => {
+const saveQuote = async (q) => {
 const subtotal = (q.items || []).reduce((sum, it) => sum + (Number(it.total) || 0), 0);
 const vatAmount = Math.round(subtotal * (Number(q.vatRate) || 0) / 100 * 100) / 100;
 const hasValidFormat = /^DEV-\d{4}-\d{2}-\d{2}-\d+$/.test(q.quoteNumber || "");
 const final = { ...q, quoteNumber: hasValidFormat ? q.quoteNumber : quoteNumber(q.date || getToday()), subtotal, vatAmount, total: subtotal + vatAmount };
-if (final.id) updateData("quotes", prev => (prev || []).map(x => x.id === final.id ? final : x));
-else updateData("quotes", prev => [...(prev || []), { ...final, id: makeId() }]);
+if (final.id) {
+  try { await fetch(apiUrl(`/api/quotes/${final.id}`), { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(final) }); } catch { /* local fallback */ }
+  updateData("quotes", prev => (prev || []).map(x => x.id === final.id ? final : x));
+} else {
+  const newQuote = { ...final, id: makeId() };
+  try { await fetch(apiUrl("/api/quotes"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(newQuote) }); } catch { /* local fallback */ }
+  updateData("quotes", prev => [...(prev || []), newQuote]);
+}
 showToast(final.id ? "Quote updated" : "Quote created");
 setModal(null);
 };
 
-const deleteQuote = (id) => { updateData("quotes", prev => (prev || []).filter(q => q.id !== id)); showToast("Quote deleted", "error"); };
+const deleteQuote = async (id) => {
+  try { await fetch(apiUrl(`/api/quotes/${id}`), { method: "DELETE" }); } catch { /* local fallback */ }
+  updateData("quotes", prev => (prev || []).filter(q => q.id !== id));
+  showToast("Quote deleted", "error");
+};
 
 const toInvoiceNum = () => {
 const [year, month, day] = getToday().split("-");
@@ -4491,6 +4623,7 @@ showToast(err?.message || "Unable to save invoice", "error");
 return;
 }
 updateData("invoices", prev => [...prev, invoice]);
+try { await fetch(apiUrl(`/api/quotes/${q.id}`), { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...q, status: "converted", convertedInvoiceId: invoice.id }) }); } catch { /* local fallback */ }
 updateData("quotes", prev => (prev || []).map(x => x.id === q.id ? { ...x, status: "converted", convertedInvoiceId: invoice.id } : x));
 const js = q.jobSchedule;
 if (js && js.employeeId && js.startDate) {
@@ -5616,17 +5749,26 @@ const handlePhotoUpload = (e) => {
   reader.readAsDataURL(file);
 };
 
-const saveVisit = () => {
+const saveVisit = async () => {
 if (!form.clientId || !form.visitDate) { showToast(uiText("Select client and date"), "error"); return; }
 const client = data.clients.find(c => c.id === form.clientId);
 const payload = { ...form, id: makeId(), createdAt: new Date().toISOString(), address: form.address || client?.address || "" };
+try {
+  await fetch(apiUrl("/api/prospect-visits"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...payload, visitDate: payload.visitDate }) });
+} catch { /* local fallback */ }
 updateData("prospectVisits", prev => [payload, ...(prev || [])]);
 setForm({ clientId: "", visitDate: getToday(), visitTime: "10:00", address: "", notes: "", status: "planned", photos: [] });
 showToast(uiText("Visit added"));
 };
 
-const markStatus = (id, status) => updateData("prospectVisits", prev => (prev || []).map(v => v.id === id ? { ...v, status, updatedAt: new Date().toISOString() } : v));
-const removeVisit = (id) => updateData("prospectVisits", prev => (prev || []).filter(v => v.id !== id));
+const markStatus = async (id, status) => {
+  try { await fetch(apiUrl(`/api/prospect-visits/${id}`), { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }) }); } catch { /* local fallback */ }
+  updateData("prospectVisits", prev => (prev || []).map(v => v.id === id ? { ...v, status, updatedAt: new Date().toISOString() } : v));
+};
+const removeVisit = async (id) => {
+  try { await fetch(apiUrl(`/api/prospect-visits/${id}`), { method: "DELETE" }); } catch { /* local fallback */ }
+  updateData("prospectVisits", prev => (prev || []).filter(v => v.id !== id));
+};
 
 return (
 <div>
@@ -5753,7 +5895,10 @@ const filteredUploads = !searched ? [] : uploads.filter(u => {
   return true;
 });
 
-const markAllSeen = () => updateData("photoUploads", prev => (prev || []).map(u => ({ ...u, seenByOwner: true })));
+const markAllSeen = async () => {
+  try { await fetch(apiUrl("/api/photo-uploads/seen"), { method: "PATCH" }); } catch { /* local fallback */ }
+  updateData("photoUploads", prev => (prev || []).map(u => ({ ...u, seenByOwner: true })));
+};
 
 return (
 <div>
@@ -5832,13 +5977,17 @@ const pendingCount = requests.filter(r => r.status === "pending").length;
 const approvedCount = requests.filter(r => r.status === "approved").length;
 const rejectedCount = requests.filter(r => r.status === "rejected").length;
 
-const reviewRequest = (id, status) => {
+const reviewRequest = async (id, status) => {
+const note = (reviewNote[id] || "").trim();
+try {
+  await fetch(apiUrl(`/api/time-off-requests/${id}`), {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status, reviewedBy: "owner", reviewNote: note }),
+  });
+} catch { /* local fallback */ }
 updateData("timeOffRequests", prev => prev.map(r => r.id === id ? {
-...r,
-status,
-reviewedAt: new Date().toISOString(),
-reviewedBy: "owner",
-reviewNote: (reviewNote[id] || "").trim(),
+  ...r, status, reviewedAt: new Date().toISOString(), reviewedBy: "owner", reviewNote: note,
 } : r));
 setReviewNote(prev => ({ ...prev, [id]: "" }));
 showToast(status === "approved" ? "Leave approved" : "Leave rejected", status === "approved" ? "success" : "error");
@@ -6533,18 +6682,17 @@ function ExpensesPage({ data, updateData, showToast }) {
     return uiText("Pending");
   };
 
-  const deleteExpense = (id) => {
+  const deleteExpense = async (id) => {
     if (!confirm(uiText("Delete this expense? All payment history will be lost."))) return;
+    try { await fetch(apiUrl(`/api/expenses/${id}`), { method: "DELETE" }); } catch { /* local fallback */ }
     updateData("expenses", prev => (prev || []).filter(e => e.id !== id));
     showToast(uiText("Expense deleted"), "success");
   };
 
-  const markUnpaid = (expense) => {
-    updateData("expenses", prev => (prev || []).map(e =>
-      e.id === expense.id
-        ? { ...e, payments: (e.payments || []).filter(p => p.month !== viewMonth) }
-        : e
-    ));
+  const markUnpaid = async (expense) => {
+    const updated = { ...expense, payments: (expense.payments || []).filter(p => p.month !== viewMonth) };
+    try { await fetch(apiUrl(`/api/expenses/${expense.id}`), { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(updated) }); } catch { /* local fallback */ }
+    updateData("expenses", prev => (prev || []).map(e => e.id === expense.id ? updated : e));
     showToast(uiText("Marked as unpaid"), "success");
   };
 
@@ -6778,11 +6926,13 @@ function ExpensesPage({ data, updateData, showToast }) {
           categories={CATEGORIES}
           paymentMethods={PAYMENT_METHODS}
           categoryColors={CATEGORY_COLORS}
-          onSave={(exp) => {
+          onSave={async (exp) => {
             if (editExpense) {
+              try { await fetch(apiUrl(`/api/expenses/${exp.id}`), { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(exp) }); } catch { /* local fallback */ }
               updateData("expenses", prev => (prev || []).map(e => e.id === exp.id ? exp : e));
               showToast(uiText("Expense updated"), "success");
             } else {
+              try { await fetch(apiUrl("/api/expenses"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(exp) }); } catch { /* local fallback */ }
               updateData("expenses", prev => [...(prev || []), exp]);
               showToast(uiText("Expense added"), "success");
             }
@@ -6798,7 +6948,12 @@ function ExpensesPage({ data, updateData, showToast }) {
         <MarkPaidModal
           expense={showPayModal}
           viewMonth={viewMonth}
-          onSave={(payment) => {
+          onSave={async (payment) => {
+            const exp = (data.expenses || []).find(e => e.id === showPayModal.id);
+            if (exp) {
+              const updated = { ...exp, payments: [...(exp.payments || []).filter(p => p.month !== viewMonth), payment] };
+              try { await fetch(apiUrl(`/api/expenses/${exp.id}`), { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(updated) }); } catch { /* local fallback */ }
+            }
             updateData("expenses", prev => (prev || []).map(e =>
               e.id === showPayModal.id
                 ? { ...e, payments: [...(e.payments || []).filter(p => p.month !== viewMonth), payment] }

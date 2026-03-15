@@ -284,6 +284,16 @@ DO $$ BEGIN
   END IF;
 END $$;
 
+-- Migration: add lang and theme preference columns to employees
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='employees' AND column_name='lang') THEN
+    ALTER TABLE employees ADD COLUMN lang TEXT NOT NULL DEFAULT 'fr';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='employees' AND column_name='theme') THEN
+    ALTER TABLE employees ADD COLUMN theme TEXT NOT NULL DEFAULT 'dark';
+  END IF;
+END $$;
+
 -- Seed default settings
 INSERT INTO settings (key, value) VALUES
   ('companyName',    'Lux Angels Cleaning'),
@@ -297,5 +307,9 @@ INSERT INTO settings (key, value) VALUES
   ('ownerEmail',     'owner@luxangels.lu'),
   ('ownerPin',       'LuxAngels@2025'),
   ('managerUsername','manager'),
-  ('managerPin',     'Manager@2025')
+  ('managerPin',     'Manager@2025'),
+  ('owner_lang',     'fr'),
+  ('owner_theme',    'dark'),
+  ('manager_lang',   'fr'),
+  ('manager_theme',  'dark')
 ON CONFLICT (key) DO NOTHING;

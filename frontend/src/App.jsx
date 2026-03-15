@@ -2358,6 +2358,8 @@ scheduledStart: lateMeta.scheduledStart,
 try {
 await createClockEntryInApi(newEntry);
 updateData("clockEntries", prev => [...prev, newEntry]);
+const schedToSyncIn = (data.schedules || []).find(s => s.employeeId === auth.employeeId && s.clientId === clientId && s.date === lateMeta.workDate && s.status === "scheduled");
+if (schedToSyncIn) syncScheduleToApi({ ...schedToSyncIn, status: "in-progress" }).catch(console.error);
 updateData("schedules", prev => updateScheduleStatusForJob(prev, { employeeId: auth.employeeId, clientId, date: lateMeta.workDate, from: "scheduled", to: "in-progress" }));
 setClockInNote("");
 showToast(lateMeta.isLate ? `Clocked in (Late by ${lateMeta.lateMinutes} min)` : "Clocked in!");
@@ -2373,6 +2375,8 @@ const updatedEntry = { ...activeClock, clockOut: new Date().toISOString() };
 try {
 await syncClockEntryToApi(updatedEntry);
 updateData("clockEntries", prev => prev.map(c => c.id === activeClock.id ? updatedEntry : c));
+const schedToSyncOut = (data.schedules || []).find(s => s.employeeId === auth.employeeId && s.clientId === activeClock.clientId && s.date === today && s.status === "in-progress");
+if (schedToSyncOut) syncScheduleToApi({ ...schedToSyncOut, status: "completed" }).catch(console.error);
 updateData("schedules", prev => updateScheduleStatusForJob(prev, { employeeId: auth.employeeId, clientId: activeClock.clientId, date: today, from: "in-progress", to: "completed" }));
 showToast("Clocked out!");
 } catch (err) {
@@ -4069,6 +4073,8 @@ scheduledStart: lateMeta.scheduledStart,
 try {
 await createClockEntryInApi(newEntry);
 updateData("clockEntries", prev => [...prev, newEntry]);
+const adminSchedToSyncIn = (data.schedules || []).find(s => s.employeeId === selectedEmp && s.clientId === selectedCli && s.date === lateMeta.workDate && s.status === "scheduled");
+if (adminSchedToSyncIn) syncScheduleToApi({ ...adminSchedToSyncIn, status: "in-progress" }).catch(console.error);
 updateData("schedules", prev => updateScheduleStatusForJob(prev, { employeeId: selectedEmp, clientId: selectedCli, date: lateMeta.workDate, from: "scheduled", to: "in-progress" }));
 setClockInNote("");
 showToast(lateMeta.isLate ? `Clocked in (Late by ${lateMeta.lateMinutes} min)` : "Clocked in!");
@@ -4086,6 +4092,8 @@ try {
 await syncClockEntryToApi(updatedEntry);
 updateData("clockEntries", prev => prev.map(c => c.id === id ? updatedEntry : c));
 const workDate = entry.clockIn?.slice(0, 10) || getToday();
+const adminSchedToSyncOut = (data.schedules || []).find(s => s.employeeId === entry.employeeId && s.clientId === entry.clientId && s.date === workDate && s.status === "in-progress");
+if (adminSchedToSyncOut) syncScheduleToApi({ ...adminSchedToSyncOut, status: "completed" }).catch(console.error);
 updateData("schedules", prev => updateScheduleStatusForJob(prev, { employeeId: entry.employeeId, clientId: entry.clientId, date: workDate, from: "in-progress", to: "completed" }));
 showToast("Clocked out!");
 } catch (err) {
@@ -4128,12 +4136,15 @@ scheduledStart: lateMeta.scheduledStart,
 try {
 await createClockEntryInApi(newManualEntry);
 updateData("clockEntries", prev => [...prev, newManualEntry]);
+const manualNewStatus = clockOutISO ? "completed" : "in-progress";
+const manualSchedToSync = (data.schedules || []).find(s => s.employeeId === manualEntry.employeeId && s.clientId === manualEntry.clientId && s.date === manualEntry.clockInDate && s.status === "scheduled");
+if (manualSchedToSync) syncScheduleToApi({ ...manualSchedToSync, status: manualNewStatus }).catch(console.error);
 updateData("schedules", prev => updateScheduleStatusForJob(prev, {
 employeeId: manualEntry.employeeId,
 clientId: manualEntry.clientId,
 date: manualEntry.clockInDate,
 from: "scheduled",
-to: clockOutISO ? "completed" : "in-progress",
+to: manualNewStatus,
 }));
 setManualEntry({
 employeeId: "",
@@ -4763,6 +4774,7 @@ if (js && js.employeeId && js.startDate) {
       await Promise.all(newSchedules.map(s => createScheduleInApi(s)));
     } catch (err) {
       console.error(err);
+      showToast("Plannings créés localement mais non sauvegardés en base de données", "error");
     }
     updateData("schedules", prev => [...(prev || []), ...newSchedules]);
     showToast(`Devis converti en facture · ${newSchedules.length} entrée(s) ajoutée(s) au planning`);

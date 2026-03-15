@@ -742,6 +742,136 @@ const UI_FR = {
 "Failed to update profile picture": "Échec de la mise à jour de la photo de profil",
 "Failed to remove picture": "Échec de la suppression de la photo",
 "Profile picture removed": "Photo de profil supprimée",
+// Notifications / Toast messages
+"Excel imported!": "Importation Excel réussie !",
+"Import failed": "Échec de l'importation",
+"Already clocked in!": "Déjà pointé !",
+"This job is already completed and locked": "Ce travail est déjà terminé et verrouillé",
+"Clocked in!": "Pointage entrée effectué !",
+"Late:": "En retard :",
+"Unable to clock in": "Impossible de pointer l'entrée",
+"Clocked out!": "Pointage sortie effectué !",
+"Unable to clock out": "Impossible de pointer la sortie",
+"Please upload an image file": "Veuillez téléverser un fichier image",
+"Clock in to a job before uploading photos": "Pointez une entrée avant de téléverser des photos",
+"Photo uploaded": "Photo téléversée",
+"Upload failed": "Téléversement échoué",
+"Select a product": "Sélectionnez un produit",
+"Enter quantity": "Saisissez la quantité",
+"Product request sent": "Demande de produit envoyée",
+"Employee updated": "Employé mis à jour",
+"Employee added": "Employé ajouté",
+"Unable to save employee": "Impossible d'enregistrer l'employé",
+"Deleted": "Supprimé",
+"Unable to delete employee": "Impossible de supprimer l'employé",
+"Client updated": "Client mis à jour",
+"Client added": "Client ajouté",
+"Unable to save client": "Impossible d'enregistrer le client",
+"Unable to delete client": "Impossible de supprimer le client",
+"Updated": "Mis à jour",
+"Unable to update schedule": "Impossible de mettre à jour le planning",
+"No available slots in this range": "Aucun créneau dans cette plage",
+"Employee is required": "Employé requis",
+"Unable to save schedules": "Impossible d'enregistrer les plannings",
+"Removed": "Supprimé",
+"Unable to delete schedule": "Impossible de supprimer le planning",
+"Unable to update payment status": "Impossible de mettre à jour le statut de paiement",
+"Select both": "Sélectionnez les deux",
+"Already in!": "Déjà pointé !",
+"Job already completed for today": "Travail déjà terminé pour aujourd'hui",
+"Select employee and client": "Sélectionnez un employé et un client",
+"Set clock-in date/time": "Définissez la date/heure de pointage",
+"Clock-out must be after clock-in": "La sortie doit être après l'entrée",
+"Manual clock entry added": "Entrée manuelle ajoutée",
+"Unable to add manual clock entry": "Impossible d'ajouter l'entrée manuelle",
+"Unable to update clock entry": "Impossible de mettre à jour l'entrée",
+"Unable to delete clock entry": "Impossible de supprimer l'entrée",
+"Request approved": "Demande approuvée",
+"Products delivered": "Produits livrés",
+"Quote preview unavailable": "Aperçu du devis indisponible",
+"Quote PDF downloaded": "PDF du devis téléchargé",
+"Email sent": "Email envoyé",
+"Quote updated": "Devis mis à jour",
+"Quote created": "Devis créé",
+"Quote deleted": "Devis supprimé",
+"Unable to save invoice": "Impossible d'enregistrer la facture",
+"Schedules created locally but not saved to database": "Plannings créés localement mais non sauvegardés en base de données",
+"entries added to schedule": "entrée(s) ajoutée(s) au planning",
+"Quote converted to invoice": "Devis converti en facture",
+"Status updated": "Statut mis à jour",
+"Unable to update status": "Impossible de mettre à jour le statut",
+"Created": "Créé(e)",
+"Unable to delete invoice": "Impossible de supprimer la facture",
+"Email sent from platform": "Email envoyé depuis la plateforme",
+"generated": "généré(s)",
+"Unable to generate payslips": "Impossible de générer les fiches de paie",
+"Marked paid": "Marqué comme payé",
+"Unable to update payslip": "Impossible de mettre à jour la fiche de paie",
+"Leave approved": "Congé approuvé",
+"Leave rejected": "Congé refusé",
+"Saved locally only — server unreachable. Credentials may not work on other devices until the server is back online.": "Sauvegardé localement — serveur inaccessible. Les identifiants peuvent ne pas fonctionner sur d'autres appareils.",
+"Role already exists": "Ce rôle existe déjà",
+"Add Role": "Ajouter un rôle",
+"To Invoice": "Vers facture",
+"synced to server": "synchronisé avec le serveur",
+// Email preview labels
+"Email Preview — Quote": "Aperçu de l'email — Devis",
+"Email Preview": "Aperçu de l'email",
+"To": "À",
+"Subject": "Objet",
+"Email Body": "Corps de l'email",
+"From": "Expéditeur",
+"Send": "Envoyer",
+"Friendly": "Amical",
+"Follow-up": "Relance",
+"Thank You": "Merci",
+// Invoice page
+"All statuses": "Tous les statuts",
+"Invoice #…": "N° facture…",
+"Date from": "Date de début",
+"Date to": "Date de fin",
+"No invoices match filters": "Aucune facture ne correspond aux filtres",
+"Due:": "Échéance :",
+"Email not configured — contact your administrator": "Email non configuré — contactez votre administrateur",
+"Email sending is not configured. Set up an email provider (SMTP, ZeptoMail, or Resend) in the server environment variables to enable invoice emailing.": "L'envoi d'e-mails n'est pas configuré. Configurez un fournisseur d'e-mail (SMTP, ZeptoMail ou Resend) dans les variables d'environnement du serveur pour activer l'envoi de factures par e-mail.",
+// Payslips page
+"Generate": "Générer",
+"Month": "Mois",
+"Gross": "Brut",
+"View": "Voir",
+// Login and portal
+"Management Portal": "Portail de gestion",
+// Email templates
+"Reminder": "Rappel",
+// Payslips
+"Payslips": "Fiches de paie",
+// Expense actions
+"Expense updated": "Dépense mise à jour",
+"Expense added": "Dépense ajoutée",
+"Payment recorded ✓": "Paiement enregistré ✓",
+// Login / Auth
+"Pick a date...": "Choisir une date...",
+"Server is starting up — please wait and try again.": "Le serveur démarre — réessayez dans un moment.",
+"Could not load agent list.": "Impossible de charger la liste des agents.",
+"Enter username and password": "Saisissez identifiant et mot de passe",
+"Server is starting up — please wait 30s and retry.": "Le serveur démarre — attendez 30 secondes et réessayez.",
+"Incorrect username or password": "Identifiant ou mot de passe incorrect",
+"Connection error. Please try again.": "Erreur de connexion. Veuillez réessayer.",
+"Enter your password": "Saisissez votre mot de passe",
+"Incorrect password": "Mot de passe incorrect",
+"Owner & manager access": "Accès propriétaire & manager",
+"Loading…": "Chargement…",
+"Agent Login": "Connexion Agent",
+"Cleaning agents — tap to continue": "Agents de nettoyage — appuyez pour continuer",
+"Admin / Manager Login": "Connexion Admin / Manager",
+"username or email": "identifiant ou email",
+"Connecting…": "Connexion…",
+"Sign In": "Se connecter",
+"Server may need a moment to wake up…": "Le serveur démarre, merci de patienter…",
+"Select your username": "Sélectionnez votre nom d'utilisateur",
+"— Choose your username —": "— Choisissez votre nom d'utilisateur —",
+"Continue": "Continuer",
+"Cleaning Agent": "Agent de nettoyage",
 };
 
 const uiText = (text) => {
@@ -1372,7 +1502,7 @@ return (
     onClick={openCalendar}
     style={{ ...inputSt, display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", userSelect: "none" }}
   >
-    <span style={{ color: displayValue ? CL.text : CL.dim }}>{displayValue || (placeholder || (lang === "en" ? "Pick a date..." : "Choisir une date..."))}</span>
+    <span style={{ color: displayValue ? CL.text : CL.dim }}>{displayValue || (placeholder || uiText("Pick a date..."))}</span>
     <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={CL.muted} strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
   </div>
   {open && (
@@ -1398,7 +1528,7 @@ return (
       </div>
       {value && (
         <button onClick={() => { onChange({ target: { value: "" } }); setOpen(false); }} style={{ marginTop: 8, width: "100%", padding: "6px", background: "none", border: `1px solid ${CL.bd}`, borderRadius: 6, color: CL.muted, fontSize: 12, cursor: "pointer" }}>
-          {lang === "en" ? "Clear" : "Effacer"}
+          {uiText("Clear")}
         </button>
       )}
     </div>
@@ -1531,8 +1661,8 @@ const sheet = (name) => {
     managerPin: sett["Manager Password"] || sett["Manager PIN"] || prev.managerPin || "",
     settings: { ...prev.settings, companyName: sett["Company Name"] || prev.settings.companyName, companyAddress: sett["Address"] || prev.settings.companyAddress, companyEmail: sett["Email"] || prev.settings.companyEmail, companyPhone: sett["Phone"] || prev.settings.companyPhone, vatNumber: sett["VAT Number"] || prev.settings.vatNumber, bankIban: sett["Bank IBAN"] || prev.settings.bankIban, defaultVatRate: parseFloat(sett["VAT Rate"]) || prev.settings.defaultVatRate },
   }));
-  showToast("Excel imported!", "success");
-} catch (err) { console.error(err); showToast("Import failed", "error"); }
+  showToast(uiText("Excel imported!"), "success");
+} catch (err) { console.error(err); showToast(uiText("Import failed"), "error"); }
 };
 
 // ==============================================
@@ -2138,7 +2268,7 @@ const loadAgentList = async () => {
   setError("");
   const base = await getWarmBase();
   if (!base) {
-    setError(lang === "en" ? "Server is starting up — please wait and try again." : "Le serveur démarre — réessayez dans un moment.");
+    setError(uiText("Server is starting up — please wait and try again."));
     setAgentListLoading(false);
     return;
   }
@@ -2148,7 +2278,7 @@ const loadAgentList = async () => {
     setAgentList(rows);
     setView("agent-pick");
   } else {
-    setError(lang === "en" ? "Could not load agent list." : "Impossible de charger la liste des agents.");
+    setError(uiText("Could not load agent list."));
   }
   setAgentListLoading(false);
 };
@@ -2179,7 +2309,7 @@ const loginWithServer = async ({ user, pass, roleHints }) => {
 const doAdminLogin = async () => {
   const rawUser = String(username || "").trim();
   const pass = String(password || "").trim();
-  if (!rawUser || !pass) { setError(lang === "en" ? "Enter username and password" : "Saisissez identifiant et mot de passe"); return; }
+  if (!rawUser || !pass) { setError(uiText("Enter username and password")); return; }
   setIsSubmitting(true); setError("");
   try {
     const result = await loginWithServer({ user: rawUser, pass, roleHints: [
@@ -2187,25 +2317,25 @@ const doAdminLogin = async () => {
       { role: "manager", employeeId: rawUser },
     ]});
     if (result.status === "success") return;
-    if (result.status === "unreachable") setError(lang === "en" ? "Server is starting up — please wait 30s and retry." : "Le serveur démarre — attendez 30 secondes et réessayez.");
-    else setError(lang === "en" ? "Incorrect username or password" : "Identifiant ou mot de passe incorrect");
-  } catch { setError(lang === "en" ? "Connection error. Please try again." : "Erreur de connexion. Veuillez réessayer."); }
+    if (result.status === "unreachable") setError(uiText("Server is starting up — please wait 30s and retry."));
+    else setError(uiText("Incorrect username or password"));
+  } catch { setError(uiText("Connection error. Please try again.")); }
   finally { setIsSubmitting(false); }
 };
 
 // Agent login (after picking name)
 const doAgentLogin = async () => {
   const pass = String(password || "").trim();
-  if (!pass) { setError(lang === "en" ? "Enter your password" : "Saisissez votre mot de passe"); return; }
+  if (!pass) { setError(uiText("Enter your password")); return; }
   setIsSubmitting(true); setError("");
   try {
     const result = await loginWithServer({ pass, roleHints: [
       { role: "cleaner", employeeId: selectedAgent.id },
     ]});
     if (result.status === "success") return;
-    if (result.status === "unreachable") setError(lang === "en" ? "Server is starting up — please wait 30s and retry." : "Le serveur démarre — attendez 30 secondes et réessayez.");
-    else setError(lang === "en" ? "Incorrect password" : "Mot de passe incorrect");
-  } catch { setError(lang === "en" ? "Connection error. Please try again." : "Erreur de connexion. Veuillez réessayer."); }
+    if (result.status === "unreachable") setError(uiText("Server is starting up — please wait 30s and retry."));
+    else setError(uiText("Incorrect password"));
+  } catch { setError(uiText("Connection error. Please try again.")); }
   finally { setIsSubmitting(false); }
 };
 
@@ -2220,17 +2350,17 @@ if (view === "home") return (
         {/* Admin / Manager card */}
         <div className="login-role-card" onClick={() => { setView("admin"); setError(""); }} style={{ flex: 1, minWidth: 180, background: CL.sf, border: `1px solid ${CL.bd}`, borderRadius: 18, padding: "28px 20px", textAlign: "center" }}>
           <div style={{ width: 52, height: 52, borderRadius: 16, background: CL.s2, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px", color: CL.muted, fontSize: 24 }}>🔐</div>
-          <div style={{ fontWeight: 700, fontSize: 16, color: CL.text, marginBottom: 6 }}>{lang === "en" ? "Admin / Manager" : "Admin / Manager"}</div>
-          <div style={{ fontSize: 12, color: CL.muted, lineHeight: 1.5 }}>{lang === "en" ? "Owner & manager access" : "Accès propriétaire & manager"}</div>
+          <div style={{ fontWeight: 700, fontSize: 16, color: CL.text, marginBottom: 6 }}>"Admin / Manager"</div>
+          <div style={{ fontSize: 12, color: CL.muted, lineHeight: 1.5 }}>{uiText("Owner & manager access")}</div>
         </div>
         {/* Agent Login card */}
         <div className="login-role-card" onClick={() => { loadAgentList(); }} style={{ flex: 1, minWidth: 180, background: `linear-gradient(135deg, ${CL.gold}18, ${CL.goldDark}10)`, border: `1.5px solid ${CL.gold}60`, borderRadius: 18, padding: "28px 20px", textAlign: "center" }}>
           {agentListLoading
-            ? <div style={{ color: CL.gold, fontSize: 13, paddingTop: 12 }}>{lang === "en" ? "Loading…" : "Chargement…"}</div>
+            ? <div style={{ color: CL.gold, fontSize: 13, paddingTop: 12 }}>{uiText("Loading…")}</div>
             : <>
               <div style={{ width: 52, height: 52, borderRadius: 16, background: `${CL.gold}20`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px", fontSize: 24 }}>✨</div>
-              <div style={{ fontWeight: 700, fontSize: 16, color: CL.gold, marginBottom: 6 }}>{lang === "en" ? "Agent Login" : "Connexion Agent"}</div>
-              <div style={{ fontSize: 12, color: CL.muted, lineHeight: 1.5 }}>{lang === "en" ? "Cleaning agents — tap to continue" : "Agents de nettoyage — appuyez pour continuer"}</div>
+              <div style={{ fontWeight: 700, fontSize: 16, color: CL.gold, marginBottom: 6 }}>{uiText("Agent Login")}</div>
+              <div style={{ fontSize: 12, color: CL.muted, lineHeight: 1.5 }}>{uiText("Cleaning agents — tap to continue")}</div>
             </>}
         </div>
       </div>
@@ -2249,19 +2379,19 @@ if (view === "admin") return (
           <button onClick={goBack} style={{ background: "none", border: "none", color: CL.muted, cursor: "pointer", padding: 4, lineHeight: 0 }}>
             <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
           </button>
-          <h3 style={{ margin: 0, fontFamily: "'Cormorant Garamond', serif", color: CL.gold, fontSize: 21 }}>{lang === "en" ? "Admin / Manager Login" : "Connexion Admin / Manager"}</h3>
+          <h3 style={{ margin: 0, fontFamily: "'Cormorant Garamond', serif", color: CL.gold, fontSize: 21 }}>{uiText("Admin / Manager Login")}</h3>
         </div>
-        <Field label={lang === "en" ? "Username" : "Identifiant"}>
-          <TextInput value={username} onChange={ev => { setUsername(ev.target.value); setError(""); }} placeholder={lang === "en" ? "username or email" : "identifiant ou email"} onKeyDown={ev => ev.key === "Enter" && doAdminLogin()} />
+        <Field label={uiText("Username")}>
+          <TextInput value={username} onChange={ev => { setUsername(ev.target.value); setError(""); }} placeholder={uiText("username or email")} onKeyDown={ev => ev.key === "Enter" && doAdminLogin()} />
         </Field>
-        <Field label={lang === "en" ? "Password" : "Mot de passe"}>
+        <Field label={uiText("Password")}>
           <TextInput type="password" maxLength={32} value={password} onChange={ev => { setPassword(ev.target.value); setError(""); }} placeholder="••••••••" onKeyDown={ev => ev.key === "Enter" && doAdminLogin()} />
         </Field>
         {error && <div style={{ color: CL.red, fontSize: 13, marginBottom: 10, textAlign: "center" }}>{error}</div>}
         <button disabled={isSubmitting} onClick={() => void doAdminLogin()} style={{ ...btnPri, width: "100%", justifyContent: "center", opacity: isSubmitting ? 0.7 : 1, cursor: isSubmitting ? "not-allowed" : "pointer" }}>
-          {isSubmitting ? (lang === "en" ? "Connecting…" : "Connexion…") : (lang === "en" ? "Sign In" : "Se connecter")}
+          {isSubmitting ? uiText("Connecting…") : uiText("Sign In")}
         </button>
-        {isSubmitting && <p style={{ marginTop: 6, fontSize: 11, color: CL.muted, textAlign: "center" }}>{lang === "en" ? "Server may need a moment to wake up…" : "Le serveur démarre, merci de patienter…"}</p>}
+        {isSubmitting && <p style={{ marginTop: 6, fontSize: 11, color: CL.muted, textAlign: "center" }}>{uiText("Server may need a moment to wake up…")}</p>}
       </div>
     </div>
   </LoginShell>
@@ -2277,10 +2407,10 @@ if (view === "agent-pick") return (
           <button onClick={goBack} style={{ background: "none", border: "none", color: CL.muted, cursor: "pointer", padding: 4, lineHeight: 0 }}>
             <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
           </button>
-          <h3 style={{ margin: 0, fontFamily: "'Cormorant Garamond', serif", color: CL.gold, fontSize: 21 }}>{lang === "en" ? "Agent Login" : "Connexion Agent"}</h3>
+          <h3 style={{ margin: 0, fontFamily: "'Cormorant Garamond', serif", color: CL.gold, fontSize: 21 }}>{uiText("Agent Login")}</h3>
         </div>
         <label style={{ display: "block", fontSize: 12, color: CL.muted, marginBottom: 6, fontWeight: 600, letterSpacing: ".05em", textTransform: "uppercase" }}>
-          {lang === "en" ? "Select your username" : "Sélectionnez votre nom d'utilisateur"}
+          {uiText("Select your username")}
         </label>
         <select
           value={selectedAgent ? selectedAgent.id : ""}
@@ -2291,7 +2421,7 @@ if (view === "agent-pick") return (
           }}
           style={{ width: "100%", padding: "11px 14px", background: CL.s2, border: `1px solid ${CL.bd}`, borderRadius: 10, color: selectedAgent ? CL.text : CL.muted, fontSize: 15, fontWeight: 500, cursor: "pointer", outline: "none", appearance: "none", backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")`, backgroundRepeat: "no-repeat", backgroundPosition: "calc(100% - 14px) center" }}
         >
-          <option value="" disabled style={{ color: CL.muted }}>{lang === "en" ? "— Choose your username —" : "— Choisissez votre nom d'utilisateur —"}</option>
+          <option value="" disabled style={{ color: CL.muted }}>{uiText("— Choose your username —")}</option>
           {agentList.map(agent => (
             <option key={agent.id} value={agent.id}>{agent.display_name || agent.name}</option>
           ))}
@@ -2301,7 +2431,7 @@ if (view === "agent-pick") return (
           disabled={!selectedAgent}
           style={{ marginTop: 18, width: "100%", padding: "13px", background: selectedAgent ? CL.gold : `${CL.gold}44`, border: "none", borderRadius: 10, color: selectedAgent ? "#0a0c12" : CL.muted, fontSize: 15, fontWeight: 700, cursor: selectedAgent ? "pointer" : "not-allowed", transition: "background .2s" }}
         >
-          {lang === "en" ? "Continue" : "Continuer"}
+          {uiText("Continue")}
         </button>
         {error && <div style={{ color: CL.red, fontSize: 13, marginTop: 12, textAlign: "center" }}>{error}</div>}
       </div>
@@ -2319,24 +2449,24 @@ if (view === "agent-pw") return (
           <button onClick={() => { setView("agent-pick"); setError(""); setPassword(""); }} style={{ background: "none", border: "none", color: CL.muted, cursor: "pointer", padding: 4, lineHeight: 0 }}>
             <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
           </button>
-          <h3 style={{ margin: 0, fontFamily: "'Cormorant Garamond', serif", color: CL.gold, fontSize: 21 }}>{lang === "en" ? "Agent Login" : "Connexion Agent"}</h3>
+          <h3 style={{ margin: 0, fontFamily: "'Cormorant Garamond', serif", color: CL.gold, fontSize: 21 }}>{uiText("Agent Login")}</h3>
         </div>
         {/* Show the selected agent's name/avatar */}
         <div style={{ display: "flex", alignItems: "center", gap: 14, background: `${CL.gold}12`, border: `1px solid ${CL.gold}30`, borderRadius: 12, padding: "14px 16px", marginBottom: 20 }}>
           <div style={{ width: 44, height: 44, borderRadius: "50%", background: `${CL.gold}28`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, color: CL.gold, fontWeight: 700, flexShrink: 0 }}>{(selectedAgent?.display_name || selectedAgent?.name || "?").charAt(0).toUpperCase()}</div>
           <div>
             <div style={{ fontWeight: 700, fontSize: 16, color: CL.text }}>{selectedAgent?.display_name || selectedAgent?.name}</div>
-            <div style={{ fontSize: 12, color: CL.muted }}>{lang === "en" ? "Cleaning Agent" : "Agent de nettoyage"}</div>
+            <div style={{ fontSize: 12, color: CL.muted }}>{uiText("Cleaning Agent")}</div>
           </div>
         </div>
-        <Field label={lang === "en" ? "Password" : "Mot de passe"}>
+        <Field label={uiText("Password")}>
           <TextInput type="password" maxLength={32} value={password} autoFocus onChange={ev => { setPassword(ev.target.value); setError(""); }} placeholder="••••••••" onKeyDown={ev => ev.key === "Enter" && doAgentLogin()} />
         </Field>
         {error && <div style={{ color: CL.red, fontSize: 13, marginBottom: 10, textAlign: "center" }}>{error}</div>}
         <button disabled={isSubmitting} onClick={() => void doAgentLogin()} style={{ ...btnPri, width: "100%", justifyContent: "center", opacity: isSubmitting ? 0.7 : 1, cursor: isSubmitting ? "not-allowed" : "pointer" }}>
-          {isSubmitting ? (lang === "en" ? "Connecting…" : "Connexion…") : (lang === "en" ? "Sign In" : "Se connecter")}
+          {isSubmitting ? uiText("Connecting…") : uiText("Sign In")}
         </button>
-        {isSubmitting && <p style={{ marginTop: 6, fontSize: 11, color: CL.muted, textAlign: "center" }}>{lang === "en" ? "Server may need a moment to wake up…" : "Le serveur démarre, merci de patienter…"}</p>}
+        {isSubmitting && <p style={{ marginTop: 6, fontSize: 11, color: CL.muted, textAlign: "center" }}>{uiText("Server may need a moment to wake up…")}</p>}
       </div>
     </div>
   </LoginShell>
@@ -2363,7 +2493,7 @@ const LoginLogo = ({ lang }) => (
   <div style={{ textAlign: "center", marginBottom: 32 }}>
     <div style={{ width: 90, height: 90, borderRadius: 28, background: `linear-gradient(135deg, ${CL.gold}, ${CL.goldDark})`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px", fontSize: 34, fontWeight: 700, color: "#0d0e15", fontFamily: "'Cormorant Garamond', serif", boxShadow: `0 8px 32px ${CL.gold}40` }}>LAC</div>
     <h1 style={{ margin: 0, fontFamily: "'Cormorant Garamond', serif", fontSize: 26, color: CL.gold, letterSpacing: "0.06em" }}>Lux Angels Cleaning</h1>
-    <p style={{ margin: "6px 0 0", fontSize: 13, color: CL.muted, letterSpacing: "0.08em", textTransform: "uppercase" }}>{lang === "en" ? "Management Portal" : "Portail de gestion"}</p>
+    <p style={{ margin: "6px 0 0", fontSize: 13, color: CL.muted, letterSpacing: "0.08em", textTransform: "uppercase" }}>{uiText("Management Portal")}</p>
   </div>
 );
 
@@ -2399,9 +2529,9 @@ const hasPendingProductRequest = myProductRequests.some(r => r.status === "pendi
 const hasPendingTimeOffRequest = myTimeOffRequests.some(r => r.status === "pending");
 
 const doClockIn = async (clientId) => {
-if (activeClock) { showToast("Already clocked in!", "error"); return; }
+if (activeClock) { showToast(uiText("Already clocked in!"), "error"); return; }
 const isCompletedToday = data.schedules.some(sc => sc.employeeId === auth.employeeId && sc.clientId === clientId && sc.date === getToday() && sc.status === "completed");
-if (isCompletedToday) { showToast("This job is already completed and locked", "error"); return; }
+if (isCompletedToday) { showToast(uiText("This job is already completed and locked"), "error"); return; }
 const nowAt = new Date();
 const lateMeta = getLateMeta(data.schedules, { employeeId: auth.employeeId, clientId, clockInAt: nowAt });
 const newEntry = {
@@ -2418,10 +2548,10 @@ const schedToSyncIn = (data.schedules || []).find(s => s.employeeId === auth.emp
 if (schedToSyncIn) syncScheduleToApi({ ...schedToSyncIn, status: "in-progress" }).catch(console.error);
 updateData("schedules", prev => updateScheduleStatusForJob(prev, { employeeId: auth.employeeId, clientId, date: lateMeta.workDate, from: "scheduled", to: "in-progress" }));
 setClockInNote("");
-showToast(lateMeta.isLate ? `Clocked in (Late by ${lateMeta.lateMinutes} min)` : "Clocked in!");
+showToast(lateMeta.isLate ? `${uiText("Clocked in!")} (${uiText("Late:")} ${lateMeta.lateMinutes} min)` : uiText("Clocked in!"));
 } catch (err) {
 console.error(err);
-showToast(err?.message || "Unable to clock in", "error");
+showToast(err?.message || uiText("Unable to clock in"), "error");
 }
 };
 const doClockOut = async () => {
@@ -2434,10 +2564,10 @@ updateData("clockEntries", prev => prev.map(c => c.id === activeClock.id ? updat
 const schedToSyncOut = (data.schedules || []).find(s => s.employeeId === auth.employeeId && s.clientId === activeClock.clientId && s.date === today && s.status === "in-progress");
 if (schedToSyncOut) syncScheduleToApi({ ...schedToSyncOut, status: "completed" }).catch(console.error);
 updateData("schedules", prev => updateScheduleStatusForJob(prev, { employeeId: auth.employeeId, clientId: activeClock.clientId, date: today, from: "in-progress", to: "completed" }));
-showToast("Clocked out!");
+showToast(uiText("Clocked out!"));
 } catch (err) {
 console.error(err);
-showToast(err?.message || "Unable to clock out", "error");
+showToast(err?.message || uiText("Unable to clock out"), "error");
 }
 };
 
@@ -2450,8 +2580,8 @@ fr.readAsDataURL(file);
 
 const onUploadPhoto = async (file) => {
 if (!file) return;
-if (!file.type?.startsWith("image/")) { showToast("Please upload an image file", "error"); return; }
-if (!activeClock) { showToast("Clock in to a job before uploading photos", "error"); return; }
+if (!file.type?.startsWith("image/")) { showToast(uiText("Please upload an image file"), "error"); return; }
+if (!activeClock) { showToast(uiText("Clock in to a job before uploading photos"), "error"); return; }
 try {
 const imageData = await readAsDataUrl(file);
 const newPhoto = {
@@ -2466,9 +2596,9 @@ try {
 updateData("photoUploads", (prev = []) => [...prev, newPhoto]);
 setUploadNote("");
 setUploadType("issue");
-showToast("Photo uploaded");
+showToast(uiText("Photo uploaded"));
 } catch {
-showToast("Upload failed", "error");
+showToast(uiText("Upload failed"), "error");
 }
 };
 
@@ -2492,8 +2622,8 @@ showToast(uiText("Leave request sent"));
 };
 
 const submitProductRequest = async () => {
-if (!productForm.productId) { showToast("Select a product", "error"); return; }
-if (!productForm.quantity || Number(productForm.quantity) <= 0) { showToast("Enter quantity", "error"); return; }
+if (!productForm.productId) { showToast(uiText("Select a product"), "error"); return; }
+if (!productForm.quantity || Number(productForm.quantity) <= 0) { showToast(uiText("Enter quantity"), "error"); return; }
 const newReq = {
   id: makeId(), employeeId: auth.employeeId,
   productId: productForm.productId, quantity: Number(productForm.quantity),
@@ -2505,7 +2635,7 @@ try {
 } catch { /* local fallback */ }
 updateData("productRequests", (prev = []) => [...prev, newReq]);
 setProductForm({ productId: "", quantity: 1, note: "", deliveryAt: "" });
-showToast("Product request sent");
+showToast(uiText("Product request sent"));
 };
 
 const [profilePicSaving, setProfilePicSaving] = useState(false);
@@ -3034,7 +3164,7 @@ if (profilePicture !== undefined) await syncProfilePictureToApi(empData.id, prof
 updateData("employees", prev => prev.map(e => e.id === empData.id ? { ...empFields, profilePicture: profilePicture || e.profilePicture } : e));
 updateData("employeePins", prev => ({ ...prev, [empData.id]: pinValue }));
 updateData("employeeUsernames", prev => ({ ...prev, [empData.id]: normalizedUsername }));
-showToast("Employee updated", "success");
+showToast(uiText("Employee updated"), "success");
 } else {
 const newId = makeId();
 const newEmp = { ...empFields, id: newId, profilePicture: profilePicture || "" };
@@ -3043,12 +3173,12 @@ if (profilePicture) await syncProfilePictureToApi(newId, profilePicture).catch((
 updateData("employees", prev => [...prev, newEmp]);
 updateData("employeePins", prev => ({ ...prev, [newId]: pinValue }));
 updateData("employeeUsernames", prev => ({ ...prev, [newId]: normalizedUsername }));
-showToast("Employee added", "success");
+showToast(uiText("Employee added"), "success");
 }
 setModal(null);
 } catch (err) {
 console.error(err);
-showToast(apiErrorMessage(err, "Unable to save employee"), "error");
+showToast(apiErrorMessage(err, uiText("Unable to save employee")), "error");
 }
 };
 
@@ -3066,12 +3196,12 @@ updateData("employeeUsernames", prev => {
   delete next[id];
   return next;
 });
-showToast("Deleted", "success");
+showToast(uiText("Deleted"), "success");
 setDeleteId(null);
 } catch (err) {
 console.error(err);
 const msg = err?.message;
-showToast(!msg || /load failed|failed to fetch/i.test(msg) ? "Unable to delete employee" : msg, "error");
+showToast(!msg || /load failed|failed to fetch/i.test(msg) ? uiText("Unable to delete employee") : msg, "error");
 }
 };
 
@@ -3326,17 +3456,17 @@ try {
 if (clientData.id) {
 await syncClientToApi(clientData);
 updateData("clients", prev => prev.map(c => c.id === clientData.id ? clientData : c));
-showToast("Client updated");
+showToast(uiText("Client updated"));
 } else {
 const newClient = { ...clientData, id: makeId() };
 await createClientInApi(newClient);
 updateData("clients", prev => [...prev, newClient]);
-showToast("Client added");
+showToast(uiText("Client added"));
 }
 setModal(null);
 } catch (err) {
 console.error(err);
-showToast(err?.message || "Unable to save client", "error");
+showToast(err?.message || uiText("Unable to save client"), "error");
 }
 };
 
@@ -3344,11 +3474,11 @@ const handleDelete = async (id) => {
 try {
 await deleteClientFromApi(id);
 updateData("clients", prev => prev.filter(c => c.id !== id));
-showToast("Deleted", "error");
+showToast(uiText("Deleted"), "error");
 setDeleteId(null);
 } catch (err) {
 console.error(err);
-showToast(err?.message || "Unable to delete client", "error");
+showToast(err?.message || uiText("Unable to delete client"), "error");
 }
 };
 
@@ -3757,11 +3887,11 @@ if (schedData.id) {
 try {
 await syncScheduleToApi({ ...schedData, updatedAt: new Date().toISOString() });
 updateData("schedules", prev => prev.map(s => s.id === schedData.id ? { ...schedData, updatedAt: new Date().toISOString() } : s));
-showToast("Updated");
+showToast(uiText("Updated"));
 setModal(null);
 } catch (err) {
 console.error(err);
-showToast(err?.message || "Unable to update schedule", "error");
+showToast(err?.message || uiText("Unable to update schedule"), "error");
 }
 return;
 } else {
@@ -3770,7 +3900,7 @@ const stamp = new Date().toISOString();
 const selectedEmpIds = (schedData.employeeIds && schedData.employeeIds.length > 0)
   ? schedData.employeeIds
   : (schedData.employeeId ? [schedData.employeeId] : []);
-if (selectedEmpIds.length === 0) { showToast(uiText("Employee *") + " requis", "error"); return; }
+if (selectedEmpIds.length === 0) { showToast(uiText("Employee is required"), "error"); return; }
 const base = { ...schedData, dateTo: undefined, employeeIds: undefined };
 const items = [];
 const hasRange = schedData.dateTo && schedData.dateTo > schedData.date;
@@ -3816,7 +3946,7 @@ if (hasRange) {
     while (cur <= end) { items.push({ ...base, id: makeId(), date: cur.toISOString().slice(0, 10), updatedAt: stamp }); cur.setDate(cur.getDate() + 1); }
   }
 
-  if (items.length === 0) { showToast("Aucun créneau dans cette plage", "error"); return; }
+  if (items.length === 0) { showToast(uiText("No available slots in this range"), "error"); return; }
 } else {
   // Single date or classic recurrence
   items.push({ ...base, id: makeId(), updatedAt: stamp });
@@ -3868,7 +3998,7 @@ showToast(`${allItems.length} job(s) ${uiText("scheduled") || "scheduled"}`);
 setModal(null);
 } catch (err) {
 console.error(err);
-showToast(err?.message || "Unable to save schedules", "error");
+showToast(err?.message || uiText("Unable to save schedules"), "error");
 }
 }
 };
@@ -3877,10 +4007,10 @@ const handleDelete = async (id) => {
 try {
 await deleteScheduleFromApi(id);
 updateData("schedules", prev => prev.filter(s => s.id !== id));
-showToast("Removed", "error");
+showToast(uiText("Removed"), "error");
 } catch (err) {
 console.error(err);
-showToast(err?.message || "Unable to delete schedule", "error");
+showToast(err?.message || uiText("Unable to delete schedule"), "error");
 }
 };
 
@@ -3893,7 +4023,7 @@ updateData("schedules", prev => prev.map(s => s.id === next.id ? next : s));
 showToast(next.paymentStatus === "paid" ? uiText("Marked as paid") : uiText("Marked as unpaid"), "success");
 } catch (err) {
 console.error(err);
-showToast(err?.message || "Unable to update payment status", "error");
+showToast(err?.message || uiText("Unable to update payment status"), "error");
 }
 };
 
@@ -4247,10 +4377,10 @@ const [editEntry, setEditEntry] = useState(null);
 const setManual = (key, value) => setManualEntry(prev => ({ ...prev, [key]: value }));
 
 const doClockIn = async () => {
-if (!selectedEmp || !selectedCli) { showToast("Select both", "error"); return; }
-if (data.clockEntries.find(c => c.employeeId === selectedEmp && !c.clockOut)) { showToast("Already in!", "error"); return; }
+if (!selectedEmp || !selectedCli) { showToast(uiText("Select both"), "error"); return; }
+if (data.clockEntries.find(c => c.employeeId === selectedEmp && !c.clockOut)) { showToast(uiText("Already in!"), "error"); return; }
 const isCompletedToday = data.schedules.some(sc => sc.employeeId === selectedEmp && sc.clientId === selectedCli && sc.date === getToday() && sc.status === "completed");
-if (isCompletedToday) { showToast("Job already completed for today", "error"); return; }
+if (isCompletedToday) { showToast(uiText("Job already completed for today"), "error"); return; }
 const nowAt = new Date();
 const lateMeta = getLateMeta(data.schedules, { employeeId: selectedEmp, clientId: selectedCli, clockInAt: nowAt });
 const newEntry = {
@@ -4267,10 +4397,10 @@ const adminSchedToSyncIn = (data.schedules || []).find(s => s.employeeId === sel
 if (adminSchedToSyncIn) syncScheduleToApi({ ...adminSchedToSyncIn, status: "in-progress" }).catch(console.error);
 updateData("schedules", prev => updateScheduleStatusForJob(prev, { employeeId: selectedEmp, clientId: selectedCli, date: lateMeta.workDate, from: "scheduled", to: "in-progress" }));
 setClockInNote("");
-showToast(lateMeta.isLate ? `Clocked in (Late by ${lateMeta.lateMinutes} min)` : "Clocked in!");
+showToast(lateMeta.isLate ? `${uiText("Clocked in!")} (${uiText("Late:")} ${lateMeta.lateMinutes} min)` : uiText("Clocked in!"));
 } catch (err) {
 console.error(err);
-showToast(err?.message || "Unable to clock in", "error");
+showToast(err?.message || uiText("Unable to clock in"), "error");
 }
 };
 
@@ -4285,23 +4415,23 @@ const workDate = entry.clockIn?.slice(0, 10) || getToday();
 const adminSchedToSyncOut = (data.schedules || []).find(s => s.employeeId === entry.employeeId && s.clientId === entry.clientId && s.date === workDate && s.status === "in-progress");
 if (adminSchedToSyncOut) syncScheduleToApi({ ...adminSchedToSyncOut, status: "completed" }).catch(console.error);
 updateData("schedules", prev => updateScheduleStatusForJob(prev, { employeeId: entry.employeeId, clientId: entry.clientId, date: workDate, from: "in-progress", to: "completed" }));
-showToast("Clocked out!");
+showToast(uiText("Clocked out!"));
 } catch (err) {
 console.error(err);
-showToast(err?.message || "Unable to clock out", "error");
+showToast(err?.message || uiText("Unable to clock out"), "error");
 }
 };
 
 const addManualEntry = async () => {
-if (!manualEntry.employeeId || !manualEntry.clientId) { showToast("Select employee and client", "error"); return; }
-if (!manualEntry.clockInDate || !manualEntry.clockInTime) { showToast("Set clock-in date/time", "error"); return; }
+if (!manualEntry.employeeId || !manualEntry.clientId) { showToast(uiText("Select employee and client"), "error"); return; }
+if (!manualEntry.clockInDate || !manualEntry.clockInTime) { showToast(uiText("Set clock-in date/time"), "error"); return; }
 
 const clockInISO = makeISO(manualEntry.clockInDate, manualEntry.clockInTime);
 const hasClockOut = Boolean(manualEntry.clockOutDate && manualEntry.clockOutTime);
 const clockOutISO = hasClockOut ? makeISO(manualEntry.clockOutDate, manualEntry.clockOutTime) : null;
 
 if (clockOutISO && new Date(clockOutISO) < new Date(clockInISO)) {
-showToast("Clock-out must be after clock-in", "error");
+showToast(uiText("Clock-out must be after clock-in"), "error");
 return;
 }
 
@@ -4345,10 +4475,10 @@ clockOutDate: "",
 clockOutTime: "",
 notes: "",
 });
-showToast("Manual clock entry added");
+showToast(uiText("Manual clock entry added"));
 } catch (err) {
 console.error(err);
-showToast(err?.message || "Unable to add manual clock entry", "error");
+showToast(err?.message || uiText("Unable to add manual clock entry"), "error");
 }
 };
 
@@ -4356,11 +4486,11 @@ const saveEntry = async (entry) => {
 try {
 await syncClockEntryToApi(entry);
 updateData("clockEntries", prev => prev.map(c => c.id === entry.id ? entry : c));
-showToast("Updated");
+showToast(uiText("Updated"));
 setEditEntry(null);
 } catch (err) {
 console.error(err);
-showToast(err?.message || "Unable to update clock entry", "error");
+showToast(err?.message || uiText("Unable to update clock entry"), "error");
 }
 };
 
@@ -4369,10 +4499,10 @@ try {
 const response = await fetch(apiUrl(`/api/clock-entries/${id}`), { method: "DELETE" });
 await ensureApiOk(response, "Failed to delete clock entry");
 updateData("clockEntries", prev => prev.filter(c => c.id !== id));
-showToast("Deleted", "error");
+showToast(uiText("Deleted"), "error");
 } catch (err) {
 console.error(err);
-showToast(err?.message || "Unable to delete clock entry", "error");
+showToast(err?.message || uiText("Unable to delete clock entry"), "error");
 }
 };
 
@@ -4607,7 +4737,7 @@ try {
   await fetch(apiUrl(`/api/product-requests/${req.id}`), { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "approved", approvedQty: approved, deliveredQty: req.deliveredQty || 0 }) });
 } catch { /* local fallback */ }
 updateData("productRequests", prev => (prev || []).map(r => r.id === req.id ? { ...r, status: "approved", approvedQty: approved } : r));
-showToast("Request approved");
+showToast(uiText("Request approved"));
 };
 
 const upsertHolding = async (employeeId, productId, deliveredQty) => {
@@ -4645,7 +4775,7 @@ if (product) {
 }
 updateData("productRequests", prev => (prev || []).map(r => r.id === req.id ? { ...r, status: "delivered", deliveredQty: delivered } : r));
 await upsertHolding(req.employeeId, req.productId, delivered);
-showToast("Products delivered");
+showToast(uiText("Products delivered"));
 };
 
 return (
@@ -4807,10 +4937,10 @@ setQuoteForPdf(toQuotePreviewShape(q));
 await waitForPaint();
 }
 const target = currentPreview ? previewRef.current : hiddenQuoteRef.current;
-if (!target) { showToast("Quote preview unavailable", "error"); return; }
+if (!target) { showToast(uiText("Quote preview unavailable"), "error"); return; }
 await buildPdfFromElement(target, fileName, true);
 if (!currentPreview) setQuoteForPdf(null);
-showToast("Quote PDF downloaded");
+showToast(uiText("Quote PDF downloaded"));
 };
 
 const buildQuoteEmailBody = (q, client, template, emailLang) => {
@@ -4846,7 +4976,7 @@ return `Dear ${name},\n\nPlease find our quote ${qNum}.\nDate: ${dateStr}\nAmoun
 
 const emailQuote = (q) => {
 const client = data.clients.find(c => c.id === q.clientId);
-if (!client?.email) { showToast(lang === "fr" ? "Email client manquant" : "Client email missing", "error"); return; }
+if (!client?.email) { showToast(uiText("Client email missing"), "error"); return; }
 const template = "standard";
 const subject = lang === "fr" ? `Devis ${q.quoteNumber}` : `Quote ${q.quoteNumber}`;
 const body = buildQuoteEmailBody(q, client, template, lang);
@@ -4866,11 +4996,11 @@ if (!response.ok) {
 const errPayload = await response.json().catch(() => ({}));
 throw new Error(errPayload.error || 'Unable to send email');
 }
-showToast(lang === "fr" ? "Email envoyé" : "Email sent");
+showToast(uiText("Email sent"));
 setQuoteEmailDraft(null);
 } catch (err) {
 console.error(err);
-showToast(err.message || (lang === "fr" ? "Impossible d'envoyer l'email" : "Unable to send email"), "error");
+showToast(err.message || uiText("Unable to send email"), "error");
 }
 };
 
@@ -4889,14 +5019,14 @@ if (final.id) {
   try { await fetch(apiUrl("/api/quotes"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(newQuote) }); } catch { /* local fallback */ }
   updateData("quotes", prev => [...(prev || []), newQuote]);
 }
-showToast(final.id ? "Quote updated" : "Quote created");
+showToast(final.id ? uiText("Quote updated") : uiText("Quote created"));
 setModal(null);
 };
 
 const deleteQuote = async (id) => {
   try { await fetch(apiUrl(`/api/quotes/${id}`), { method: "DELETE" }); } catch { /* local fallback */ }
   updateData("quotes", prev => (prev || []).filter(q => q.id !== id));
-  showToast("Quote deleted", "error");
+  showToast(uiText("Quote deleted"), "error");
 };
 
 const toInvoiceNum = () => {
@@ -4950,7 +5080,7 @@ try {
 await createInvoiceInApi(invoice);
 } catch (err) {
 console.error(err);
-showToast(err?.message || "Unable to save invoice", "error");
+showToast(err?.message || uiText("Unable to save invoice"), "error");
 return;
 }
 updateData("invoices", prev => [...prev, invoice]);
@@ -4964,14 +5094,14 @@ if (js && js.employeeId && js.startDate) {
       await Promise.all(newSchedules.map(s => createScheduleInApi(s)));
     } catch (err) {
       console.error(err);
-      showToast("Plannings créés localement mais non sauvegardés en base de données", "error");
+      showToast(uiText("Schedules created locally but not saved to database"), "error");
     }
     updateData("schedules", prev => [...(prev || []), ...newSchedules]);
-    showToast(`Devis converti en facture · ${newSchedules.length} entrée(s) ajoutée(s) au planning`);
+    showToast(`${uiText("Quote converted to invoice")} · ${newSchedules.length} ${uiText("entries added to schedule")}`);
     return;
   }
 }
-showToast("Devis converti en facture");
+showToast(uiText("Quote converted to invoice"));
 };
 
 return (
@@ -4985,7 +5115,7 @@ return (
 <thead><tr><th style={thSt}>{t("quote")} #</th><th style={thSt}>{t("client")}</th><th style={thSt}>{t("date")}</th><th style={thSt}>{t("total")}</th><th style={thSt}>{t("status")}</th><th style={thSt}>{t("actions")}</th></tr></thead>
 <tbody>
 {(data.quotes || []).sort((a,b)=>(b.date||"").localeCompare(a.date||"")).map(q => { const client = data.clients.find(c => c.id === q.clientId); return (
-<tr key={q.id}><td style={tdSt}><strong>{q.quoteNumber}</strong></td><td style={tdSt}>{client?.name || "-"}</td><td style={tdSt}>{fmtDate(q.date)}</td><td style={{ ...tdSt, fontWeight: 600 }}>€{(q.total || 0).toFixed(2)}</td><td style={tdSt}><Badge color={q.status === "accepted" || q.status === "converted" ? CL.green : q.status === "rejected" ? CL.red : CL.blue}>{q.status || t("draft")}</Badge></td><td style={tdSt}><div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}><button style={{ ...btnSec, ...btnSm }} onClick={() => setPreview({ ...q, invoiceNumber: q.quoteNumber, dueDate: q.validUntil })}>{t("view")}</button><button style={{ ...btnSec, ...btnSm }} onClick={() => setModal({ ...q })}>{ICN.edit}</button><button style={{ ...btnSec, ...btnSm }} onClick={() => downloadQuotePdf(q)}>{ICN.download} PDF</button><button style={{ ...btnSec, ...btnSm }} onClick={() => sendQuote(q)}>{ICN.mail}</button>{q.status !== "converted" && <button style={{ ...btnSec, ...btnSm, color: CL.green }} onClick={() => convertToInvoice(q)}>{lang === "en" ? "To Invoice" : "Vers facture"}</button>}<button style={{ ...btnSec, ...btnSm, color: CL.red }} onClick={() => deleteQuote(q.id)}>{ICN.trash}</button></div></td></tr>
+<tr key={q.id}><td style={tdSt}><strong>{q.quoteNumber}</strong></td><td style={tdSt}>{client?.name || "-"}</td><td style={tdSt}>{fmtDate(q.date)}</td><td style={{ ...tdSt, fontWeight: 600 }}>€{(q.total || 0).toFixed(2)}</td><td style={tdSt}><Badge color={q.status === "accepted" || q.status === "converted" ? CL.green : q.status === "rejected" ? CL.red : CL.blue}>{q.status || t("draft")}</Badge></td><td style={tdSt}><div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}><button style={{ ...btnSec, ...btnSm }} onClick={() => setPreview({ ...q, invoiceNumber: q.quoteNumber, dueDate: q.validUntil })}>{t("view")}</button><button style={{ ...btnSec, ...btnSm }} onClick={() => setModal({ ...q })}>{ICN.edit}</button><button style={{ ...btnSec, ...btnSm }} onClick={() => downloadQuotePdf(q)}>{ICN.download} PDF</button><button style={{ ...btnSec, ...btnSm }} onClick={() => sendQuote(q)}>{ICN.mail}</button>{q.status !== "converted" && <button style={{ ...btnSec, ...btnSm, color: CL.green }} onClick={() => convertToInvoice(q)}>{uiText("To Invoice")}</button>}<button style={{ ...btnSec, ...btnSm, color: CL.red }} onClick={() => deleteQuote(q.id)}>{ICN.trash}</button></div></td></tr>
 ); })}
 {(data.quotes || []).length === 0 && <tr><td colSpan={6} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>{uiText("No quotes")}</td></tr>}
 </tbody>
@@ -4997,7 +5127,7 @@ return (
 {quoteForPdf && <div style={{ position: "fixed", left: -10000, top: 0, width: 1200, background: "#fff", zIndex: -1 }}><div ref={hiddenQuoteRef}><InvoicePreviewContent invoice={quoteForPdf} data={data} isQuote={true} /></div></div>}
 
 {quoteEmailDraft && (
-<ModalBox title={lang === "fr" ? "Aperçu de l'email — Devis" : "Email Preview — Quote"} onClose={() => setQuoteEmailDraft(null)}>
+<ModalBox title={uiText("Email Preview — Quote")} onClose={() => setQuoteEmailDraft(null)}>
 <div style={{ marginBottom: 14 }}>
   <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
     {["standard", "followup", "reminder"].map(tpl => (
@@ -5010,21 +5140,21 @@ return (
             : { standard: `Quote ${quoteEmailDraft.q.quoteNumber}`, followup: `Follow-up: Quote ${quoteEmailDraft.q.quoteNumber}`, reminder: `Reminder — Quote ${quoteEmailDraft.q.quoteNumber}` };
           setQuoteEmailDraft(prev => ({ ...prev, template: tpl, body: newBody, subject: subjectMap[tpl] }));
         }}>
-        {tpl === "standard" ? (lang === "fr" ? "Standard" : "Standard") : tpl === "followup" ? (lang === "fr" ? "Relance" : "Follow-up") : (lang === "fr" ? "Rappel" : "Reminder")}
+        {tpl === "standard" ? "Standard" : tpl === "followup" ? uiText("Follow-up") : uiText("Reminder")}
       </button>
     ))}
   </div>
-  <div style={{ fontSize: 12, color: CL.muted, marginBottom: 4 }}>{lang === "fr" ? "À" : "To"}</div>
+  <div style={{ fontSize: 12, color: CL.muted, marginBottom: 4 }}>{uiText("To")}</div>
   <div style={{ fontWeight: 600, marginBottom: 10, color: CL.text }}>{quoteEmailDraft.to}</div>
-  <div style={{ fontSize: 12, color: CL.muted, marginBottom: 4 }}>{lang === "fr" ? "Objet" : "Subject"}</div>
+  <div style={{ fontSize: 12, color: CL.muted, marginBottom: 4 }}>{uiText("Subject")}</div>
   <input value={quoteEmailDraft.subject} onChange={ev => setQuoteEmailDraft(prev => ({ ...prev, subject: ev.target.value }))} style={{ ...inputSt, width: "100%", marginBottom: 10 }} />
-  <div style={{ fontSize: 12, color: CL.muted, marginBottom: 4 }}>{lang === "fr" ? "Corps de l'email" : "Email Body"}</div>
+  <div style={{ fontSize: 12, color: CL.muted, marginBottom: 4 }}>{uiText("Email Body")}</div>
   <textarea value={quoteEmailDraft.body} onChange={ev => setQuoteEmailDraft(prev => ({ ...prev, body: ev.target.value }))} style={{ ...inputSt, width: "100%", minHeight: 220, fontFamily: "monospace", fontSize: 13, resize: "vertical", whiteSpace: "pre-wrap" }} />
-  <div style={{ fontSize: 11, color: CL.muted, marginTop: 6 }}>{lang === "fr" ? "Expéditeur" : "From"}: {quoteEmailDraft.from}</div>
+  <div style={{ fontSize: 11, color: CL.muted, marginTop: 6 }}>{uiText("From")}: {quoteEmailDraft.from}</div>
 </div>
 <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", paddingTop: 14, borderTop: `1px solid ${CL.bd}` }}>
   <button style={{ ...btnSec, padding: "10px 24px" }} onClick={() => setQuoteEmailDraft(null)}>{t("cancel")}</button>
-  <button style={{ ...btnPri, padding: "10px 28px" }} onClick={sendQuoteEmailDraft}>{ICN.mail} {lang === "fr" ? "Envoyer" : "Send"}</button>
+  <button style={{ ...btnPri, padding: "10px 28px" }} onClick={sendQuoteEmailDraft}>{ICN.mail} {uiText("Send")}</button>
 </div>
 </ModalBox>
 )}
@@ -5325,10 +5455,10 @@ body: JSON.stringify({ status: newStatus }),
 });
 if (!res.ok) throw new Error("Failed to update status");
 updateData("invoices", prev => prev.map(i => i.id === inv.id ? { ...i, status: newStatus } : i));
-showToast(lang === "fr" ? "Statut mis à jour" : "Status updated");
+showToast(uiText("Status updated"));
 } catch (err) {
 console.error(err);
-showToast(lang === "fr" ? "Impossible de mettre à jour le statut" : "Unable to update status", "error");
+showToast(uiText("Unable to update status"), "error");
 }
 };
 
@@ -5346,11 +5476,11 @@ const newInv = { ...final, id: makeId() };
 await createInvoiceInApi(newInv);
 updateData("invoices", prev => [...prev, newInv]);
 }
-showToast(final.id ? "Updated" : "Created");
+showToast(final.id ? uiText("Updated") : uiText("Created"));
 setModal(null);
 } catch (err) {
 console.error(err);
-showToast(err?.message || "Unable to save invoice", "error");
+showToast(err?.message || uiText("Unable to save invoice"), "error");
 }
 };
 
@@ -5358,10 +5488,10 @@ const handleDelete = async (id) => {
 try {
 await deleteInvoiceFromApi(id);
 updateData("invoices", prev => prev.filter(i => i.id !== id));
-showToast("Deleted", "error");
+showToast(uiText("Deleted"), "error");
 } catch (err) {
 console.error(err);
-showToast(err?.message || "Unable to delete invoice", "error");
+showToast(err?.message || uiText("Unable to delete invoice"), "error");
 }
 };
 
@@ -5454,7 +5584,7 @@ return `Dear ${name},\n\nInvoice: ${invNum}\nDate: ${dateStr}${dueStr ? `\nDue d
 
 const emailInvoice = (inv) => {
 const client = data.clients.find(c => c.id === inv.clientId);
-if (!client?.email) { showToast(lang === "fr" ? "Email client manquant" : "Client email missing", "error"); return; }
+if (!client?.email) { showToast(uiText("Client email missing"), "error"); return; }
 const template = inv.emailTemplate || "standard";
 const subjectMap = lang === "fr"
   ? { standard: `Facture ${inv.invoiceNumber}`, friendly: `Facture ${inv.invoiceNumber}`, thank_you: `Merci — Facture ${inv.invoiceNumber}`, overdue: `Relance — Facture ${inv.invoiceNumber}` }
@@ -5477,7 +5607,7 @@ if (!response.ok) {
 const errPayload = await response.json().catch(() => ({}));
 throw new Error(errPayload.error || 'Unable to send email');
 }
-showToast("Email sent from platform");
+showToast(uiText("Email sent from platform"));
 setEmailDraft(null);
 } catch (err) {
 console.error(err);
@@ -5504,7 +5634,7 @@ return (
 {!emailConfigured && (
   <div style={{ background: "#fff3cd", border: "1px solid #ffc107", borderRadius: 8, padding: "10px 14px", marginBottom: 14, fontSize: 13, color: "#856404", display: "flex", alignItems: "center", gap: 8 }}>
     <span>&#9888;</span>
-    <span>{lang === "fr" ? "L'envoi d'e-mails n'est pas configuré. Configurez un fournisseur d'e-mail (SMTP, ZeptoMail ou Resend) dans les variables d'environnement du serveur pour activer l'envoi de factures par e-mail." : "Email sending is not configured. Set up an email provider (SMTP, ZeptoMail, or Resend) in the server environment variables to enable invoice emailing."}</span>
+    <span>{uiText("Email sending is not configured. Set up an email provider (SMTP, ZeptoMail, or Resend) in the server environment variables to enable invoice emailing.")}</span>
   </div>
 )}
 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
@@ -5513,7 +5643,7 @@ return (
 </div>
 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12, alignItems: "flex-end" }}>
 <input
-  placeholder={lang === "fr" ? "N° facture…" : "Invoice #…"}
+  placeholder={uiText("Invoice #…")}
   value={filters.invoiceNumber}
   onChange={e => setFilters(f => ({ ...f, invoiceNumber: e.target.value }))}
   style={{ ...inputSt, width: 140, fontSize: 13 }}
@@ -5523,7 +5653,7 @@ return (
   onChange={e => setFilters(f => ({ ...f, clientId: e.target.value }))}
   style={{ ...inputSt, width: 180, fontSize: 13 }}
 >
-  <option value="">{lang === "fr" ? "Tous les clients" : "All clients"}</option>
+  <option value="">{uiText("All clients")}</option>
   {[...data.clients].sort((a, b) => (a.name || "").localeCompare(b.name || "")).map(c => (
     <option key={c.id} value={c.id}>{c.name}</option>
   ))}
@@ -5533,29 +5663,29 @@ return (
   onChange={e => setFilters(f => ({ ...f, status: e.target.value }))}
   style={{ ...inputSt, width: 140, fontSize: 13 }}
 >
-  <option value="">{lang === "fr" ? "Tous les statuts" : "All statuses"}</option>
-  <option value="draft">{lang === "fr" ? "Brouillon" : "Draft"}</option>
-  <option value="sent">{lang === "fr" ? "Envoyée" : "Sent"}</option>
-  <option value="paid">{lang === "fr" ? "Payée" : "Paid"}</option>
-  <option value="overdue">{lang === "fr" ? "En retard" : "Overdue"}</option>
+  <option value="">{uiText("All statuses")}</option>
+  <option value="draft">{uiText("Draft")}</option>
+  <option value="sent">{uiText("Sent")}</option>
+  <option value="paid">{uiText("Paid")}</option>
+  <option value="overdue">{uiText("Overdue")}</option>
 </select>
 <input
   type="date"
   value={filters.dateFrom}
   onChange={e => setFilters(f => ({ ...f, dateFrom: e.target.value }))}
   style={{ ...inputSt, width: 150, fontSize: 13 }}
-  title={lang === "fr" ? "Date de début" : "Date from"}
+  title={uiText("Date from")}
 />
 <input
   type="date"
   value={filters.dateTo}
   onChange={e => setFilters(f => ({ ...f, dateTo: e.target.value }))}
   style={{ ...inputSt, width: 150, fontSize: 13 }}
-  title={lang === "fr" ? "Date de fin" : "Date to"}
+  title={uiText("Date to")}
 />
 {hasFilters && (
   <button style={{ ...btnSec, fontSize: 13 }} onClick={() => setFilters({ invoiceNumber: "", clientId: "", status: "", dateFrom: "", dateTo: "" })}>
-    {lang === "fr" ? "Effacer" : "Clear"}
+    {uiText("Clear")}
   </button>
 )}
 </div>
@@ -5564,9 +5694,9 @@ return (
 <thead><tr><th style={thSt}>#</th><th style={thSt}>{t("client")}</th><th style={thSt}>{t("date")}</th><th style={thSt}>{t("total")}</th><th style={thSt}>{t("status")}</th><th style={thSt}>{t("actions")}</th></tr></thead>
 <tbody>
 {filteredInvoices.map(inv => { const client = data.clients.find(c => c.id === inv.clientId); const effStatus = effectiveInvoiceStatus(inv); return (
-<tr key={inv.id}><td style={tdSt}><strong>{inv.invoiceNumber}</strong></td><td style={tdSt}>{client?.name || "-"}</td><td style={tdSt}>{fmtDate(inv.date)}{inv.dueDate ? <div style={{ fontSize: 11, color: effStatus === "overdue" ? CL.red : CL.muted }}>{lang === "fr" ? "Échéance:" : "Due:"} {fmtDate(inv.dueDate)}</div> : null}</td><td style={{ ...tdSt, fontWeight: 600 }}>€{(inv.total || 0).toFixed(2)}</td><td style={tdSt}>{(() => { const statusColor = effStatus === "paid" ? CL.green : effStatus === "overdue" ? CL.red : effStatus === "sent" ? CL.blue : CL.muted; return <select value={effStatus} onChange={e => handleStatusChange(inv, e.target.value)} style={{ background: statusColor + "22", color: statusColor, border: `1.5px solid ${statusColor}`, borderRadius: 20, padding: "3px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer", appearance: "none", WebkitAppearance: "none", outline: "none" }}><option value="draft">{lang === "fr" ? "Brouillon" : "Draft"}</option><option value="sent">{lang === "fr" ? "Envoyée" : "Sent"}</option><option value="paid">{lang === "fr" ? "Payée ✓" : "Paid ✓"}</option><option value="overdue">{lang === "fr" ? "En retard" : "Overdue"}</option></select>; })()}</td><td style={tdSt}><div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}><button style={{ ...btnSec, ...btnSm }} onClick={() => setPreview(inv)}>{t("view")}</button><button style={{ ...btnSec, ...btnSm }} onClick={() => setModal({ ...inv })}>{ICN.edit}</button><button style={{ ...btnSec, ...btnSm, ...(emailConfigured ? {} : { opacity: 0.45, cursor: "not-allowed" }) }} title={emailConfigured ? undefined : (lang === "fr" ? "Email non configuré — contactez votre administrateur" : "Email not configured — contact your administrator")} disabled={!emailConfigured} onClick={() => emailInvoice(inv)}>{ICN.mail}</button><button style={{ ...btnSec, ...btnSm, color: CL.red }} onClick={() => handleDelete(inv.id)}>{ICN.trash}</button></div></td></tr>
+<tr key={inv.id}><td style={tdSt}><strong>{inv.invoiceNumber}</strong></td><td style={tdSt}>{client?.name || "-"}</td><td style={tdSt}>{fmtDate(inv.date)}{inv.dueDate ? <div style={{ fontSize: 11, color: effStatus === "overdue" ? CL.red : CL.muted }}>{uiText("Due:")} {fmtDate(inv.dueDate)}</div> : null}</td><td style={{ ...tdSt, fontWeight: 600 }}>€{(inv.total || 0).toFixed(2)}</td><td style={tdSt}>{(() => { const statusColor = effStatus === "paid" ? CL.green : effStatus === "overdue" ? CL.red : effStatus === "sent" ? CL.blue : CL.muted; return <select value={effStatus} onChange={e => handleStatusChange(inv, e.target.value)} style={{ background: statusColor + "22", color: statusColor, border: `1.5px solid ${statusColor}`, borderRadius: 20, padding: "3px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer", appearance: "none", WebkitAppearance: "none", outline: "none" }}><option value="draft">{uiText("Draft")}</option><option value="sent">{uiText("Sent")}</option><option value="paid">{uiText("Paid") + " ✓"}</option><option value="overdue">{uiText("Overdue")}</option></select>; })()}</td><td style={tdSt}><div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}><button style={{ ...btnSec, ...btnSm }} onClick={() => setPreview(inv)}>{t("view")}</button><button style={{ ...btnSec, ...btnSm }} onClick={() => setModal({ ...inv })}>{ICN.edit}</button><button style={{ ...btnSec, ...btnSm, ...(emailConfigured ? {} : { opacity: 0.45, cursor: "not-allowed" }) }} title={emailConfigured ? undefined : uiText("Email not configured — contact your administrator")} disabled={!emailConfigured} onClick={() => emailInvoice(inv)}>{ICN.mail}</button><button style={{ ...btnSec, ...btnSm, color: CL.red }} onClick={() => handleDelete(inv.id)}>{ICN.trash}</button></div></td></tr>
 ); })}
-{filteredInvoices.length === 0 && <tr><td colSpan={6} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>{hasFilters ? (lang === "fr" ? "Aucune facture trouvée" : "No invoices match filters") : uiText("No invoices")}</td></tr>}
+{filteredInvoices.length === 0 && <tr><td colSpan={6} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>{hasFilters ? uiText("No invoices match filters") : uiText("No invoices")}</td></tr>}
 </tbody>
 </table>
 </div>
@@ -5575,10 +5705,10 @@ return (
 <ModalBox title="" onClose={() => setPreview(null)} wide>
 <div ref={previewRef}><InvoicePreviewContent invoice={preview} data={data} /></div>
 <div className="no-print" style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 12, flexWrap: "wrap" }}>
-<button style={btnSec} onClick={() => setPreview(null)}>{lang === "en" ? "Close" : "Fermer"}</button>
+<button style={btnSec} onClick={() => setPreview(null)}>{uiText("Close")}</button>
 <button style={btnSec} onClick={() => downloadInvoicePng(preview)}>{ICN.download} PNG</button>
 <button style={btnPri} onClick={() => downloadInvoicePdf(preview)}>{ICN.download} PDF</button>
-<button style={{ ...btnSec, color: emailConfigured ? CL.blue : CL.muted, ...(emailConfigured ? {} : { opacity: 0.45, cursor: "not-allowed" }) }} title={emailConfigured ? undefined : (lang === "fr" ? "Email non configuré — contactez votre administrateur" : "Email not configured — contact your administrator")} disabled={!emailConfigured} onClick={() => emailInvoice(preview)}>{ICN.mail} {t("sendEmail")}</button>
+<button style={{ ...btnSec, color: emailConfigured ? CL.blue : CL.muted, ...(emailConfigured ? {} : { opacity: 0.45, cursor: "not-allowed" }) }} title={emailConfigured ? undefined : uiText("Email not configured — contact your administrator")} disabled={!emailConfigured} onClick={() => emailInvoice(preview)}>{ICN.mail} {t("sendEmail")}</button>
 </div>
 </ModalBox>
 )}
@@ -5590,7 +5720,7 @@ return (
 )}
 
 {emailDraft && (
-<ModalBox title={lang === "fr" ? "Aperçu de l'email" : "Email Preview"} onClose={() => setEmailDraft(null)}>
+<ModalBox title={uiText("Email Preview")} onClose={() => setEmailDraft(null)}>
 <div style={{ marginBottom: 14 }}>
   <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
     {["standard","friendly","thank_you","overdue"].map(tpl => (
@@ -5603,21 +5733,21 @@ return (
             : { standard: `Invoice ${emailDraft.inv.invoiceNumber}`, friendly: `Invoice ${emailDraft.inv.invoiceNumber}`, thank_you: `Thank you — Invoice ${emailDraft.inv.invoiceNumber}`, overdue: `Overdue: Invoice ${emailDraft.inv.invoiceNumber}` };
           setEmailDraft(prev => ({ ...prev, template: tpl, body: newBody, subject: subjectMap[tpl] }));
         }}>
-        {tpl === "standard" ? (lang === "fr" ? "Standard" : "Standard") : tpl === "friendly" ? (lang === "fr" ? "Amical" : "Friendly") : tpl === "thank_you" ? (lang === "fr" ? "Merci" : "Thank You") : (lang === "fr" ? "Relance" : "Overdue")}
+        {tpl === "standard" ? "Standard" : tpl === "friendly" ? uiText("Friendly") : tpl === "thank_you" ? uiText("Thank You") : uiText("Overdue")}
       </button>
     ))}
   </div>
-  <div style={{ fontSize: 12, color: CL.muted, marginBottom: 4 }}>{lang === "fr" ? "À" : "To"}</div>
+  <div style={{ fontSize: 12, color: CL.muted, marginBottom: 4 }}>{uiText("To")}</div>
   <div style={{ fontWeight: 600, marginBottom: 10, color: CL.text }}>{emailDraft.to}</div>
-  <div style={{ fontSize: 12, color: CL.muted, marginBottom: 4 }}>{lang === "fr" ? "Objet" : "Subject"}</div>
+  <div style={{ fontSize: 12, color: CL.muted, marginBottom: 4 }}>{uiText("Subject")}</div>
   <input value={emailDraft.subject} onChange={ev => setEmailDraft(prev => ({ ...prev, subject: ev.target.value }))} style={{ ...inputSt, width: "100%", marginBottom: 10 }} />
-  <div style={{ fontSize: 12, color: CL.muted, marginBottom: 4 }}>{lang === "fr" ? "Corps de l'email" : "Email Body"}</div>
+  <div style={{ fontSize: 12, color: CL.muted, marginBottom: 4 }}>{uiText("Email Body")}</div>
   <textarea value={emailDraft.body} onChange={ev => setEmailDraft(prev => ({ ...prev, body: ev.target.value }))} style={{ ...inputSt, width: "100%", minHeight: 220, fontFamily: "monospace", fontSize: 13, resize: "vertical", whiteSpace: "pre-wrap" }} />
-  <div style={{ fontSize: 11, color: CL.muted, marginTop: 6 }}>{lang === "fr" ? "Expéditeur" : "From"}: {emailDraft.from}</div>
+  <div style={{ fontSize: 11, color: CL.muted, marginTop: 6 }}>{uiText("From")}: {emailDraft.from}</div>
 </div>
 <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", paddingTop: 14, borderTop: `1px solid ${CL.bd}` }}>
   <button style={{ ...btnSec, padding: "10px 24px" }} onClick={() => setEmailDraft(null)}>{t("cancel")}</button>
-  <button style={{ ...btnPri, padding: "10px 28px" }} onClick={sendEmailDraft}>{ICN.mail} {lang === "fr" ? "Envoyer" : "Send"}</button>
+  <button style={{ ...btnPri, padding: "10px 28px" }} onClick={sendEmailDraft}>{ICN.mail} {uiText("Send")}</button>
 </div>
 </ModalBox>
 )}
@@ -5924,7 +6054,7 @@ function PayslipsPage({ data, updateData, showToast, auth }) {
 const [preview, setPreview] = useState(null);
 const [month, setMonth] = useState(getToday().slice(0, 7));
 
-if (auth?.role !== "owner") return <div style={cardSt}>{t("Payroll access is restricted.")}</div>;
+if (auth?.role !== "owner") return <div style={cardSt}>{uiText("Payroll access is restricted.")}</div>;
 
 const generatePayslips = async () => {
 const payslips = data.employees.filter(emp => emp.status === "active").map(emp => {
@@ -5941,10 +6071,10 @@ payslipNumber: `PS-${month.replace("-", "")}-${emp.name.slice(0, 3).toUpperCase(
 try {
 await Promise.all(payslips.map(ps => createPayslipInApi(ps)));
 updateData("payslips", prev => [...prev, ...payslips]);
-showToast(`${payslips.length} generated`);
+showToast(`${payslips.length} ${uiText("generated")}`);
 } catch (err) {
 console.error(err);
-showToast(err?.message || "Unable to generate payslips", "error");
+showToast(err?.message || uiText("Unable to generate payslips"), "error");
 }
 };
 
@@ -5954,25 +6084,25 @@ if (!ps) return;
 try {
 await syncPayslipToApi({ ...ps, status: "paid" });
 updateData("payslips", prev => prev.map(p => p.id === id ? { ...p, status: "paid" } : p));
-showToast("Marked paid");
+showToast(uiText("Marked paid"));
 } catch (err) {
 console.error(err);
-showToast(err?.message || "Unable to update payslip", "error");
+showToast(err?.message || uiText("Unable to update payslip"), "error");
 }
 };
 
 return (
 <div>
 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
-<h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold }}>Payslips</h1>
+<h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold }}>{uiText("Payslips")}</h1>
 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
 <TextInput type="month" value={month} onChange={ev => setMonth(ev.target.value)} style={{ width: 160 }} />
-<button style={btnPri} onClick={generatePayslips}>{ICN.plus} Generate</button>
+<button style={btnPri} onClick={generatePayslips}>{ICN.plus} {uiText("Generate")}</button>
 </div>
 </div>
 <div style={cardSt} className="tbl-wrap">
 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-<thead><tr><th style={thSt}>#</th><th style={thSt}>Employee</th><th style={thSt}>Month</th><th style={thSt}>Hours</th><th style={thSt}>Gross</th><th style={thSt}>Status</th><th style={thSt}>Actions</th></tr></thead>
+<thead><tr><th style={thSt}>#</th><th style={thSt}>{uiText("Employee")}</th><th style={thSt}>{uiText("Month")}</th><th style={thSt}>{uiText("Hours")}</th><th style={thSt}>{uiText("Gross")}</th><th style={thSt}>{uiText("Status")}</th><th style={thSt}>{uiText("Actions")}</th></tr></thead>
 <tbody>
 {data.payslips.sort((a, b) => b.month.localeCompare(a.month)).map(ps => {
 const employee = data.employees.find(e => e.id === ps.employeeId);
@@ -5986,7 +6116,7 @@ return (
 <td style={tdSt}><Badge color={ps.status === "paid" ? CL.green : CL.muted}>{ps.status}</Badge></td>
 <td style={tdSt}>
 <div style={{ display: "flex", gap: 4 }}>
-<button style={{ ...btnSec, ...btnSm }} onClick={() => setPreview(ps)}>View</button>
+<button style={{ ...btnSec, ...btnSm }} onClick={() => setPreview(ps)}{uiText("View")}</button>
 {ps.status !== "paid" && <button style={{ ...btnSec, ...btnSm, color: CL.green }} onClick={() => markPaid(ps.id)}>{ICN.check}</button>}
 </div>
 </td>
@@ -6326,7 +6456,7 @@ updateData("timeOffRequests", prev => prev.map(r => r.id === id ? {
   ...r, status, reviewedAt: new Date().toISOString(), reviewedBy: "owner", reviewNote: note,
 } : r));
 setReviewNote(prev => ({ ...prev, [id]: "" }));
-showToast(status === "approved" ? "Leave approved" : "Leave rejected", status === "approved" ? "success" : "error");
+showToast(status === "approved" ? uiText("Leave approved") : uiText("Leave rejected"), status === "approved" ? "success" : "error");
 };
 
 const summaryRows = data.employees.filter(emp => emp.status === "active").map(emp => ({ emp, ...getLeaveSummary(data, emp.id, yearFilter) }));
@@ -6857,9 +6987,9 @@ const handleSave = async () => {
         }
       } catch { /* ignore */ }
     }
-    showToast(uiText("Saved") + " — synced to server");
+    showToast(uiText("Saved") + " — " + uiText("synced to server"));
   } catch {
-    showToast("Saved locally only — server unreachable. Credentials may not work on other devices until the server is back online.", "error");
+    showToast(uiText("Saved locally only — server unreachable. Credentials may not work on other devices until the server is back online."), "error");
   }
 };
 
@@ -6939,10 +7069,10 @@ return (
   <button style={btnPri} onClick={() => {
     const trimmed = newRoleInput.trim();
     if (!trimmed) return;
-    if (BUILTIN_ROLES.includes(trimmed) || (form.customRoles || []).includes(trimmed)) { showToast("Role already exists", "error"); return; }
+    if (BUILTIN_ROLES.includes(trimmed) || (form.customRoles || []).includes(trimmed)) { showToast(uiText("Role already exists"), "error"); return; }
     set("customRoles", [...(form.customRoles || []), trimmed]);
     setNewRoleInput("");
-  }}>Add Role</button>
+  }}>{uiText("Add Role")}</button>
 </div>
 </div>
 <div style={{ ...cardSt, marginTop: 14 }}>

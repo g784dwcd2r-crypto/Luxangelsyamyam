@@ -8,13 +8,32 @@ LUX ANGELS CLEANING - Management System v3 (Bug-free)
 =========================================================== */
 
 // -- Persistence --
-// Data is sourced from the backend DB; no browser localStorage cache is used.
+// All data (including UI preferences) is stored in the backend DB.
+// sessionStorage is used only as a runtime cache for the active session.
 const loadStore = () => null;
 const saveStore = () => {};
-const loadLang = () => { try { return localStorage.getItem("lux_lang") || "fr"; } catch { return "fr"; } };
-const saveLang = (l) => { try { localStorage.setItem("lux_lang", l); } catch {} };
-const loadTheme = () => { try { return localStorage.getItem("lux_theme") || "dark"; } catch { return "dark"; } };
-const saveTheme = (t) => { try { localStorage.setItem("lux_theme", t); } catch {} };
+const loadLang = () => { try { const a = JSON.parse(sessionStorage.getItem("lux_auth") || "null"); return a?.lang || "fr"; } catch { return "fr"; } };
+const saveLang = (l) => {
+  try {
+    const raw = sessionStorage.getItem("lux_auth");
+    if (!raw) return;
+    const a = JSON.parse(raw);
+    a.lang = l;
+    sessionStorage.setItem("lux_auth", JSON.stringify(a));
+    fetch(`${API_BASE_CANDIDATES[0] || ""}/api/preferences`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ role: a.role, userId: a.employeeId, lang: l }) }).catch(() => {});
+  } catch {}
+};
+const loadTheme = () => { try { const a = JSON.parse(sessionStorage.getItem("lux_auth") || "null"); return a?.theme || "dark"; } catch { return "dark"; } };
+const saveTheme = (t) => {
+  try {
+    const raw = sessionStorage.getItem("lux_auth");
+    if (!raw) return;
+    const a = JSON.parse(raw);
+    a.theme = t;
+    sessionStorage.setItem("lux_auth", JSON.stringify(a));
+    fetch(`${API_BASE_CANDIDATES[0] || ""}/api/preferences`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ role: a.role, userId: a.employeeId, theme: t }) }).catch(() => {});
+  } catch {}
+};
 
 const I18N = {
 fr: {
@@ -1901,10 +1920,17 @@ CURRENT_LANG = lang; // sync before any child render
 useEffect(() => { saveLang(lang); }, [lang]);
 useEffect(() => {
   try {
-    if (auth) sessionStorage.setItem("lux_auth", JSON.stringify(auth));
-    else sessionStorage.removeItem("lux_auth");
+    if (auth) {
+      sessionStorage.setItem("lux_auth", JSON.stringify(auth));
+      // Sync lang preference from DB value returned at login
+      if (auth.lang && auth.lang !== lang) setLang(auth.lang);
+      // If theme from DB differs from current, reload to apply it
+      if (auth.theme && auth.theme !== INIT_THEME) window.location.reload();
+    } else {
+      sessionStorage.removeItem("lux_auth");
+    }
   } catch {}
-}, [auth]);
+}, [auth]); // eslint-disable-line react-hooks/exhaustive-deps
 const t = useCallback((key, fallback) => tr(lang, key, fallback), [lang]);
 
 const showToast = useCallback((msg, type = "success") => {
@@ -2142,9 +2168,9 @@ const loginWithServer = async ({ user, pass, roleHints }) => {
     if (!res.ok) continue;
     let body = null;
     try { body = await res.json(); } catch { continue; }
-    if (body?.success && body?.role === "owner") { onAuth({ role: "owner" }); return { status: "success" }; }
-    if (body?.success && body?.role === "manager") { onAuth({ role: "manager" }); return { status: "success" }; }
-    if (body?.success && body?.role === "cleaner" && body?.employeeId) { onAuth({ role: "cleaner", employeeId: body.employeeId }); return { status: "success" }; }
+    if (body?.success && body?.role === "owner") { onAuth({ role: "owner", lang: body.lang || "fr", theme: body.theme || "dark" }); return { status: "success" }; }
+    if (body?.success && body?.role === "manager") { onAuth({ role: "manager", lang: body.lang || "fr", theme: body.theme || "dark" }); return { status: "success" }; }
+    if (body?.success && body?.role === "cleaner" && body?.employeeId) { onAuth({ role: "cleaner", employeeId: body.employeeId, lang: body.lang || "fr", theme: body.theme || "dark" }); return { status: "success" }; }
   }
   return { status: reachedServer ? "invalid" : "unreachable" };
 };

@@ -395,7 +395,7 @@ app.post('/api/auth/pin-login', async (req, res) => {
 
     if (requestedRole === 'owner') {
       const result = await pool.query(
-        "SELECT key, value FROM settings WHERE key IN ('ownerPin', 'ownerUsername')"
+        "SELECT key, value FROM settings WHERE key IN ('ownerPin', 'ownerUsername', 'owner_lang', 'owner_theme')"
       );
       const ownerSettings = Object.fromEntries(result.rows.map(r => [r.key, String(r.value || '').trim()]));
       const ownerPin = (ownerSettings.ownerPin || '1234').trim();
@@ -406,12 +406,12 @@ app.post('/api/auth/pin-login', async (req, res) => {
         return res.status(401).json({ error: 'Invalid credentials' });
       }
       if (submittedPin !== ownerPin) return res.status(401).json({ error: 'Invalid credentials' });
-      return res.json({ success: true, role: 'owner' });
+      return res.json({ success: true, role: 'owner', lang: ownerSettings.owner_lang || 'fr', theme: ownerSettings.owner_theme || 'dark' });
     }
 
     if (requestedRole === 'manager') {
       const settingsResult = await pool.query(
-        "SELECT key, value FROM settings WHERE key IN ('managerPin', 'managerUsername', 'companyEmail')"
+        "SELECT key, value FROM settings WHERE key IN ('managerPin', 'managerUsername', 'companyEmail', 'manager_lang', 'manager_theme')"
       );
       const settings = Object.fromEntries(settingsResult.rows.map(r => [r.key, String(r.value || '').trim()]));
       const managerPin = (settings.managerPin || '4321').trim();
@@ -421,7 +421,7 @@ app.post('/api/auth/pin-login', async (req, res) => {
         return res.status(401).json({ error: 'Manager not found' });
       }
       if (submittedPin !== managerPin) return res.status(401).json({ error: 'Invalid PIN' });
-      return res.json({ success: true, role: 'manager' });
+      return res.json({ success: true, role: 'manager', lang: settings.manager_lang || 'fr', theme: settings.manager_theme || 'dark' });
     }
 
     if (requestedRole === 'cleaner' || requestedRole === 'employee') {
@@ -432,7 +432,8 @@ app.post('/api/auth/pin-login', async (req, res) => {
       if (shouldUseEmployeeId) {
         // Login via employee ID selected from the agent list
         result = await pool.query(
-          `SELECT id, pin, password_hash, account_status, email_verified
+          `SELECT id, pin, password_hash, account_status, email_verified,
+                  COALESCE(lang, 'fr') AS lang, COALESCE(theme, 'dark') AS theme
            FROM employees
            WHERE LOWER(COALESCE(status, 'active')) = 'active'
              AND id = $1
@@ -446,7 +447,8 @@ app.post('/api/auth/pin-login', async (req, res) => {
           return res.status(400).json({ error: 'A valid email or agent ID is required for employee login' });
         }
         result = await pool.query(
-          `SELECT id, pin, password_hash, account_status, email_verified
+          `SELECT id, pin, password_hash, account_status, email_verified,
+                  COALESCE(lang, 'fr') AS lang, COALESCE(theme, 'dark') AS theme
            FROM employees
            WHERE LOWER(COALESCE(status, 'active')) = 'active'
              AND LOWER(email) = $1
@@ -471,9 +473,47 @@ app.post('/api/auth/pin-login', async (req, res) => {
       } else if (submittedPin !== String(employee.pin).trim()) {
         return res.status(401).json({ error: 'Invalid credentials' });
       }
-      return res.json({ success: true, role: 'cleaner', employeeId: employee.id });
+      return res.json({ success: true, role: 'cleaner', employeeId: employee.id, lang: employee.lang || 'fr', theme: employee.theme || 'dark' });
     }
 
+    return res.status(400).json({ error: 'Invalid role' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
+
+// Save language/theme preference to DB for any user type
+app.put('/api/preferences', async (req, res) => {
+  try {
+    const role = String(req.body?.role || '').toLowerCase();
+    const lang = req.body?.lang ? String(req.body.lang).trim() : null;
+    const theme = req.body?.theme ? String(req.body.theme).trim() : null;
+    if (!role) return res.status(400).json({ error: 'role is required' });
+    if (!lang && !theme) return res.status(400).json({ error: 'lang or theme is required' });
+
+    if (role === 'owner') {
+      if (lang) await pool.query("INSERT INTO settings (key, value) VALUES ('owner_lang', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [lang]);
+      if (theme) await pool.query("INSERT INTO settings (key, value) VALUES ('owner_theme', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [theme]);
+      return res.json({ success: true });
+    }
+    if (role === 'manager') {
+      if (lang) await pool.query("INSERT INTO settings (key, value) VALUES ('manager_lang', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [lang]);
+      if (theme) await pool.query("INSERT INTO settings (key, value) VALUES ('manager_theme', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [theme]);
+      return res.json({ success: true });
+    }
+    if (role === 'cleaner' || role === 'employee') {
+      const userId = String(req.body?.userId || '').trim();
+      if (!userId) return res.status(400).json({ error: 'userId is required for employee preferences' });
+      const fields = [];
+      const values = [];
+      if (lang) { fields.push(`lang = $${fields.length + 1}`); values.push(lang); }
+      if (theme) { fields.push(`theme = $${fields.length + 1}`); values.push(theme); }
+      values.push(userId);
+      await pool.query(`UPDATE employees SET ${fields.join(', ')} WHERE id = $${values.length}`, values);
+      return res.json({ success: true });
+    }
     return res.status(400).json({ error: 'Invalid role' });
   } catch (err) {
     console.error(err);

@@ -710,6 +710,19 @@ const UI_FR = {
 "Inactive Expenses": "Dépenses inactives",
 "Edit / Reactivate": "Modifier / Réactiver",
 "Notes / Reference": "Notes / Référence",
+"Profile": "Profil",
+"My Profile": "Mon profil",
+"Profile Picture": "Photo de profil",
+"Upload Photo": "Télécharger une photo",
+"Remove": "Supprimer",
+"Saving...": "Enregistrement...",
+"Upload a photo to personalise your profile.": "Téléchargez une photo pour personnaliser votre profil.",
+"Personal Information": "Informations personnelles",
+"Your information is managed by the owner. Contact them to make changes.": "Vos informations sont gérées par le propriétaire. Contactez-le pour apporter des modifications.",
+"Profile picture updated": "Photo de profil mise à jour",
+"Failed to update profile picture": "Échec de la mise à jour de la photo de profil",
+"Failed to remove picture": "Échec de la suppression de la photo",
+"Profile picture removed": "Photo de profil supprimée",
 };
 
 const uiText = (text) => {
@@ -889,6 +902,15 @@ const createEmployeeInApi = async (emp, pin, username) => {
     body: JSON.stringify(payload),
   });
   await ensureApiOk(response, "Failed to create employee");
+};
+
+const syncProfilePictureToApi = async (id, imageData) => {
+  const response = await fetch(apiUrl(`/api/employees/${id}/profile-picture`), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ imageData: imageData || null }),
+  });
+  await ensureApiOk(response, "Failed to update profile picture");
 };
 
 const syncEmployeePinToApi = async (id, pin) => {
@@ -1638,6 +1660,7 @@ useEffect(() => {
     emergencyPhone: e.emergency_phone || "",
     notes: e.notes || "",
     weeklyHours: Number(e.weekly_hours) || 0,
+    profilePicture: e.profile_picture || "",
   });
   const mapClient = (c) => ({
     id: c.id,
@@ -2452,12 +2475,52 @@ setProductForm({ productId: "", quantity: 1, note: "", deliveryAt: "" });
 showToast("Product request sent");
 };
 
+const [profilePicSaving, setProfilePicSaving] = useState(false);
+
+const handleCleanerProfilePicChange = async (file) => {
+  if (!file || !file.type?.startsWith("image/")) return;
+  if (!emp) return;
+  setProfilePicSaving(true);
+  try {
+    const fr = new FileReader();
+    const imageData = await new Promise((res, rej) => { fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(file); });
+    const response = await fetch(apiUrl(`/api/employees/${emp.id}/profile-picture`), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ imageData }),
+    });
+    if (response.ok) {
+      updateData("employees", prev => prev.map(e => e.id === emp.id ? { ...e, profilePicture: imageData } : e));
+      showToast(uiText("Profile picture updated"));
+    } else {
+      showToast(uiText("Failed to update profile picture"), "error");
+    }
+  } catch { showToast(uiText("Upload failed"), "error"); }
+  finally { setProfilePicSaving(false); }
+};
+
+const handleRemoveCleanerProfilePic = async () => {
+  if (!emp) return;
+  setProfilePicSaving(true);
+  try {
+    await fetch(apiUrl(`/api/employees/${emp.id}/profile-picture`), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ imageData: null }),
+    });
+    updateData("employees", prev => prev.map(e => e.id === emp.id ? { ...e, profilePicture: "" } : e));
+    showToast(uiText("Profile picture removed"));
+  } catch { showToast(uiText("Failed to remove picture"), "error"); }
+  finally { setProfilePicSaving(false); }
+};
+
 const tabItems = [
 { id: "schedule", label: t("mySchedule"), icon: ICN.cal },
 { id: "clock", label: t("clockInOut"), icon: ICN.clock },
 { id: "photos", label: t("photoUploads"), icon: ICN.doc },
 { id: "products", label: t("products"), icon: ICN.doc, hasAlert: hasPendingProductRequest },
 { id: "timeoff", label: t("conges"), icon: ICN.cal, hasAlert: hasPendingTimeOffRequest },
+{ id: "profile", label: uiText("Profile"), icon: ICN.user },
 ];
 
 return (
@@ -2467,7 +2530,9 @@ return (
 {/* Header */}
 <div style={{ background: CL.sf, borderBottom: `1px solid ${CL.bd}`, padding: "11px 18px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-<div style={{ width: 32, height: 32, borderRadius: 9, background: CL.blue + "20", display: "flex", alignItems: "center", justifyContent: "center", color: CL.blue }}>{ICN.user}</div>
+<div style={{ width: 36, height: 36, borderRadius: "50%", background: CL.blue + "20", display: "flex", alignItems: "center", justifyContent: "center", color: CL.blue, overflow: "hidden", flexShrink: 0 }}>
+  {emp?.profilePicture ? <img src={emp.profilePicture} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ICN.user}
+</div>
 <div><div style={{ fontWeight: 600, fontSize: 14 }}>{emp?.name || "Cleaner"}</div><div style={{ fontSize: 10, color: CL.muted }}>{emp?.role}</div></div>
 </div>
 <div style={{ display: "flex", alignItems: "center", gap: 8 }}><LanguageSwitcher compact /><button onClick={onLogout} style={{ ...btnSec, ...btnSm, color: CL.red }}>{ICN.logout} {t("logout")}</button></div>
@@ -2700,6 +2765,64 @@ return (
         </div>
       </div>
     )}
+
+    {tab === "profile" && (
+      <div>
+        <h2 style={{ fontFamily: "'Cormorant Garamond', serif", color: CL.blue, fontSize: 22, marginBottom: 14 }}>{uiText("My Profile")}</h2>
+        {/* Profile Picture Card */}
+        <div style={{ ...cardSt, marginBottom: 14 }}>
+          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 14, color: CL.blue }}>{uiText("Profile Picture")}</h3>
+          <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
+            <div style={{ width: 100, height: 100, borderRadius: "50%", background: CL.s2, border: `2px solid ${CL.bd}`, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              {emp?.profilePicture
+                ? <img src={emp.profilePicture} alt="Profile" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                : <span style={{ fontSize: 38, color: CL.muted }}>{ICN.user}</span>}
+            </div>
+            <div>
+              <p style={{ fontSize: 13, color: CL.muted, marginBottom: 10 }}>{uiText("Upload a photo to personalise your profile.")}</p>
+              <label style={{ ...btnPri, cursor: "pointer", display: "inline-block", opacity: profilePicSaving ? 0.6 : 1 }}>
+                {profilePicSaving ? uiText("Saving...") : uiText("Upload Photo")}
+                <input type="file" accept="image/*" style={{ display: "none" }} disabled={profilePicSaving} onChange={ev => handleCleanerProfilePicChange(ev.target.files?.[0])} />
+              </label>
+              {emp?.profilePicture && (
+                <button style={{ ...btnSec, ...btnSm, color: CL.red, marginLeft: 8 }} onClick={handleRemoveCleanerProfilePic} disabled={profilePicSaving}>
+                  {uiText("Remove")}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+        {/* Personal Info Card (read-only, from DB) */}
+        <div style={cardSt}>
+          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 4, color: CL.blue }}>{uiText("Personal Information")}</h3>
+          <p style={{ fontSize: 11, color: CL.muted, marginBottom: 14 }}>{uiText("Your information is managed by the owner. Contact them to make changes.")}</p>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: "10px 20px" }}>
+            {[
+              ["Full Name", emp?.name],
+              ["Role", emp?.role],
+              ["Email", emp?.email],
+              ["Phone", emp?.phone],
+              ["Mobile", emp?.phoneMobile],
+              ["Address", emp?.address],
+              ["City", emp?.city],
+              ["Postal Code", emp?.postalCode],
+              ["Country", emp?.country],
+              ["Date of Birth", emp?.dateOfBirth ? fmtDate(emp.dateOfBirth) : null],
+              ["Nationality", emp?.nationality],
+              ["Languages", emp?.languages],
+              ["Transport", emp?.transport],
+              ["Emergency Contact", emp?.emergencyName],
+              ["Emergency Phone", emp?.emergencyPhone],
+            ].filter(([, v]) => v).map(([label, value]) => (
+              <div key={label} style={{ padding: "8px 0", borderBottom: `1px solid ${CL.bd}` }}>
+                <div style={{ fontSize: 11, color: CL.muted, marginBottom: 2 }}>{uiText(label)}</div>
+                <div style={{ fontSize: 14, fontWeight: 500 }}>{value}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    )}
   </div>
 </div>
 
@@ -2859,10 +2982,11 @@ role: "Cleaner", hourlyRate: 15, weeklyHours: 0, startDate: getToday(), contract
 pin: "0000", dateOfBirth: "", nationality: "", contractType: "CDI", workPermit: "", emergencyName: "", emergencyPhone: "",
 username: "",
 languages: "", transport: "", leaveAllowance: 26, cleanerGroup: "", hiringStage: "hired",
+profilePicture: "",
 };
 
 const handleSave = async (empData) => {
-const { pin: empPin, username: empUsername, ...empFields } = empData;
+const { pin: empPin, username: empUsername, profilePicture, ...empFields } = empData;
 const pinValue = empPin || "0000";
 const normalizedUsername = String(empUsername || "").trim().toLowerCase();
 const apiErrorMessage = (err, fallback) => {
@@ -2873,14 +2997,16 @@ try {
 if (empData.id) {
 await syncEmployeeToApi(empFields, pinValue, normalizedUsername);
 await syncEmployeePinToApi(empData.id, pinValue);
-updateData("employees", prev => prev.map(e => e.id === empData.id ? empFields : e));
+if (profilePicture !== undefined) await syncProfilePictureToApi(empData.id, profilePicture).catch(() => {});
+updateData("employees", prev => prev.map(e => e.id === empData.id ? { ...empFields, profilePicture: profilePicture || e.profilePicture } : e));
 updateData("employeePins", prev => ({ ...prev, [empData.id]: pinValue }));
 updateData("employeeUsernames", prev => ({ ...prev, [empData.id]: normalizedUsername }));
 showToast("Employee updated", "success");
 } else {
 const newId = makeId();
-const newEmp = { ...empFields, id: newId };
+const newEmp = { ...empFields, id: newId, profilePicture: profilePicture || "" };
 await createEmployeeInApi(newEmp, pinValue, normalizedUsername);
+if (profilePicture) await syncProfilePictureToApi(newId, profilePicture).catch(() => {});
 updateData("employees", prev => [...prev, newEmp]);
 updateData("employeePins", prev => ({ ...prev, [newId]: pinValue }));
 updateData("employeeUsernames", prev => ({ ...prev, [newId]: normalizedUsername }));
@@ -2961,7 +3087,7 @@ return (
 <tbody>
 {filtered.map(emp => (
 <tr key={emp.id}>
-<td style={tdSt}><div style={{ fontWeight: 600 }}>{emp.name}</div><div style={{ fontSize: 11, color: CL.muted }}>{emp.nationality ? `${emp.nationality} · ` : ""}{emp.languages || ""}</div></td>
+<td style={tdSt}><div style={{ display: "flex", alignItems: "center", gap: 8 }}>{emp.profilePicture ? <img src={emp.profilePicture} alt="" style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} /> : <div style={{ width: 32, height: 32, borderRadius: "50%", background: CL.s2, display: "flex", alignItems: "center", justifyContent: "center", color: CL.muted, flexShrink: 0 }}>{ICN.user}</div>}<div><div style={{ fontWeight: 600 }}>{emp.name}</div><div style={{ fontSize: 11, color: CL.muted }}>{emp.nationality ? `${emp.nationality} · ` : ""}{emp.languages || ""}</div></div></div></td>
 <td style={tdSt}><div style={{ fontWeight: 600 }}>{emp.cleanerGroup || emp.city || "-"}</div><div style={{ fontSize: 11, color: CL.muted }}>{emp.city || uiText("No city")}</div></td>
 <td style={tdSt}>{emp.role}</td>
 <td style={tdSt}>€{Number(emp.hourlyRate).toFixed(2)}/hr</td>
@@ -3010,6 +3136,14 @@ const [activeTab, setActiveTab] = useState("basic");
 
 const set = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
 
+const handleProfilePicChange = async (file) => {
+  if (!file) return;
+  if (!file.type?.startsWith("image/")) return;
+  const fr = new FileReader();
+  fr.onload = () => set("profilePicture", fr.result);
+  fr.readAsDataURL(file);
+};
+
 const tabs = [
 { id: "basic", label: uiText("Basic Info") },
 { id: "personal", label: uiText("Personal") },
@@ -3024,6 +3158,25 @@ return (
 
   {activeTab === "basic" && (
     <div className="form-grid">
+      <div style={{ gridColumn: "1/-1", display: "flex", alignItems: "center", gap: 16, marginBottom: 8 }}>
+        <div style={{ width: 80, height: 80, borderRadius: "50%", background: CL.s2, border: `2px solid ${CL.bd}`, overflow: "hidden", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          {form.profilePicture
+            ? <img src={form.profilePicture} alt="Profile" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            : <span style={{ fontSize: 28, color: CL.muted }}>{ICN.user}</span>}
+        </div>
+        <div>
+          <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>{uiText("Profile Picture")}</div>
+          <label style={{ ...btnSec, ...btnSm, cursor: "pointer", display: "inline-block" }}>
+            {uiText("Upload Photo")}
+            <input type="file" accept="image/*" style={{ display: "none" }} onChange={ev => handleProfilePicChange(ev.target.files?.[0])} />
+          </label>
+          {form.profilePicture && (
+            <button style={{ ...btnSec, ...btnSm, color: CL.red, marginLeft: 6 }} onClick={() => set("profilePicture", "")}>
+              {uiText("Remove")}
+            </button>
+          )}
+        </div>
+      </div>
       <Field label="Full Name *"><TextInput value={form.name} onChange={ev => set("name", ev.target.value)} /></Field>
       <Field label="Role">
         <SelectInput value={form.role} onChange={ev => set("role", ev.target.value)}>

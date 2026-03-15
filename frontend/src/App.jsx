@@ -20,7 +20,7 @@ const I18N = {
 fr: {
 language: "Langue", french: "Français", english: "Anglais", login: "Connexion", welcome: "Bienvenue", selectRole: "Rôle", pin: "Code PIN", loginBtn: "Se connecter",
 dashboard: "Tableau de bord", employees: "Employés", clients: "Clients", schedule: "Planning", timeclock: "Pointage", inventory: "Stock", devis: "Devis", invoices: "Factures", payslips: "Fiches de paie", expenses: "Dépenses", conges: "Congés", reminders: "Rappels", reports: "Rapports", database: "Base Excel", settings: "Paramètres",
-newQuote: "Nouveau devis", editQuote: "Modifier devis", newInvoice: "Nouvelle facture", editInvoice: "Modifier facture", save: "Enregistrer", cancel: "Annuler", actions: "Actions", status: "Statut", client: "Client", date: "Date", amount: "Montant", view: "Voir", sendEmail: "Envoyer email", draft: "Brouillon", sent: "Envoyée", paid: "Payée", overdue: "En retard", auto: "Auto", select: "Sélectionner...", prestationDate: "Date de prestation",
+newQuote: "Nouveau devis", editQuote: "Modifier devis", newInvoice: "Nouvelle facture", editInvoice: "Modifier facture", save: "Enregistrer", cancel: "Annuler", actions: "Actions", status: "Statut", client: "Client", date: "Date", amount: "Montant", view: "Voir", sendEmail: "Envoyer email", draft: "Brouillon", sent: "Envoyée", paid: "Payée", overdue: "En retard", auto: "Auto", select: "Sélectionner...", prestationDate: "Date de prestation", invoiceDate: "Date de facturation",
 invoice: "Facture", quote: "Devis", dueDate: "Date échéance", notes: "Notes", total: "Total", subtotal: "Sous-total", vat: "TVA", item: "Ligne", qty: "Qté", unitPrice: "Prix unitaire", description: "Description",
 managementSystem: "Système de gestion", ownerAccess: "Accès propriétaire", ownerAccessDesc: "Tableau de gestion complet", cleanerAccess: "Accès agent", cleanerAccessDesc: "Planning, heures, pointage et congés",
 back: "Retour", ownerLogin: "Connexion propriétaire", cleanerLogin: "Connexion agent", yourName: "Votre nom", choose: "Choisir...", logout: "Déconnexion", visitation: "Visites", history: "Historique", downloadApp: "Télécharger l'application", ownerPortal: "Portail propriétaire", managerPortal: "Portail manager", visitationSchedule: "Planning des visites", historyImages: "Historique & images", installIntro: "Installez cette app directement depuis votre navigateur (sans App Store / Play Store).", installOnIphone: "Installer sur iPhone", installOnAndroid: "Installer sur Android", installAndroidFallback: "Si rien ne se passe: menu ⋮ du navigateur > Installer l'application / Ajouter à l'écran d'accueil.", installIosHint: "Sur iPhone: bouton Partager (□↑) > Sur l'écran d'accueil.",
@@ -29,7 +29,7 @@ mySchedule: "Mon planning", clockInOut: "Pointage entrée/sortie", photoUploads:
 en: {
 language: "Language", french: "French", english: "English", login: "Login", welcome: "Welcome", selectRole: "Role", pin: "PIN", loginBtn: "Sign in",
 dashboard: "Dashboard", employees: "Employees", clients: "Clients", schedule: "Schedule", timeclock: "Time Clock", inventory: "Inventory", devis: "Quotes", invoices: "Invoices", payslips: "Payslips", expenses: "Expenses", conges: "Leave", reminders: "Reminders", reports: "Reports", database: "Excel DB", settings: "Settings",
-newQuote: "New quote", editQuote: "Edit quote", newInvoice: "New invoice", editInvoice: "Edit invoice", save: "Save", cancel: "Cancel", actions: "Actions", status: "Status", client: "Client", date: "Date", amount: "Amount", view: "View", sendEmail: "Send email", draft: "Draft", sent: "Sent", paid: "Paid", overdue: "Overdue", auto: "Auto", select: "Select...", prestationDate: "Service date",
+newQuote: "New quote", editQuote: "Edit quote", newInvoice: "New invoice", editInvoice: "Edit invoice", save: "Save", cancel: "Cancel", actions: "Actions", status: "Status", client: "Client", date: "Date", amount: "Amount", view: "View", sendEmail: "Send email", draft: "Draft", sent: "Sent", paid: "Paid", overdue: "Overdue", auto: "Auto", select: "Select...", prestationDate: "Service date", invoiceDate: "Invoice date",
 invoice: "Invoice", quote: "Quote", dueDate: "Due date", notes: "Notes", total: "Total", subtotal: "Subtotal", vat: "VAT", item: "Item", qty: "Qty", unitPrice: "Unit price", description: "Description",
 managementSystem: "Management System", ownerAccess: "Owner Access", ownerAccessDesc: "Full management dashboard", cleanerAccess: "Cleaner Access", cleanerAccessDesc: "Schedule, hours, clock & time-off",
 back: "Back", ownerLogin: "Owner Login", cleanerLogin: "Cleaner Login", yourName: "Your Name", choose: "Choose...", logout: "Logout", visitation: "Visitation", history: "History", downloadApp: "Download App", ownerPortal: "Owner Portal", managerPortal: "Manager Portal", visitationSchedule: "Visitation Schedule", historyImages: "History & Images", installIntro: "Install this app directly from your browser (no App Store / Play Store needed).", installOnIphone: "Install on iPhone", installOnAndroid: "Install on Android", installAndroidFallback: "If nothing happens: browser menu ⋮ > Install app / Add to Home screen.", installIosHint: "On iPhone: Share button (□↑) > Add to Home Screen.",
@@ -645,6 +645,34 @@ const UI_FR = {
 "expenses are overdue": "dépenses en retard",
 "expense is overdue": "dépense en retard",
 "action required": "action requise",
+// Dashboard clock strings
+"At": "Chez",
+"since": "depuis",
+"m elapsed": "min écoulées",
+// Invoice form strings
+"Billing period": "Période de facturation",
+"Start date": "Date de début",
+"End date": "Date de fin",
+"Load services from schedule": "Générer les prestations depuis le planning",
+"Services loaded from latest schedule.": "Prestations issues du dernier planning pour ce client et cette période.",
+"No services found for this period.": "Aucune prestation trouvée pour cette période.",
+"Invoice lines": "Lignes de facturation",
+"Columns:": "Colonnes :",
+"Global description (optional)": "Désignation globale (optionnel)",
+"Apply to all lines": "Appliquer à toutes les lignes",
+"Date": "Date",
+"Description": "Description",
+"Hours": "Heures",
+"Qty": "Qté",
+"Unit price": "Prix unit.",
+"Total": "Total",
+// Recurrence weekdays
+"Select days:": "Choisir les jours :",
+"4x per week": "4x par semaine",
+"Mon": "Lun", "Tue": "Mar", "Wed": "Mer", "Thu": "Jeu", "Fri": "Ven", "Sat": "Sam", "Sun": "Dim",
+// Visits
+"New prospect name or address": "Nom du prospect ou adresse",
+"Prospect / Client name": "Nom du prospect / client",
 // Expense page strings
 "Track and manage your monthly business expenses": "Suivez et gérez vos dépenses professionnelles mensuelles",
 "Add Expense": "Ajouter une dépense",
@@ -1248,6 +1276,7 @@ const DAYS_EN = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
 function DatePicker({ value, onChange, placeholder, style }) {
 const { lang } = useI18n();
 const [open, setOpen] = useState(false);
+const [dropPos, setDropPos] = useState({ top: 0, left: 0, width: 280 });
 const [viewDate, setViewDate] = useState(() => {
   if (value) { const d = new Date(value + "T00:00:00"); return { year: d.getFullYear(), month: d.getMonth() }; }
   const now = new Date(); return { year: now.getFullYear(), month: now.getMonth() };
@@ -1261,6 +1290,18 @@ useEffect(() => {
   document.addEventListener("mousedown", handler);
   return () => document.removeEventListener("mousedown", handler);
 }, []);
+
+const openCalendar = () => {
+  if (ref.current) {
+    const rect = ref.current.getBoundingClientRect();
+    const calW = 280;
+    const left = rect.left + calW > window.innerWidth ? Math.max(0, window.innerWidth - calW - 8) : rect.left;
+    const top = rect.bottom + calW > window.innerHeight ? Math.max(0, rect.top - calW - 4) : rect.bottom + 4;
+    setDropPos({ top, left, width: calW });
+  }
+  if (value) { const d = new Date(value + "T00:00:00"); setViewDate({ year: d.getFullYear(), month: d.getMonth() }); }
+  setOpen(o => !o);
+};
 
 const prevMonth = () => setViewDate(v => { const d = new Date(v.year, v.month - 1, 1); return { year: d.getFullYear(), month: d.getMonth() }; });
 const nextMonth = () => setViewDate(v => { const d = new Date(v.year, v.month + 1, 1); return { year: d.getFullYear(), month: d.getMonth() }; });
@@ -1286,14 +1327,14 @@ const displayValue = value ? (() => { const d = new Date(value + "T00:00:00"); r
 return (
 <div ref={ref} style={{ position: "relative", ...style }}>
   <div
-    onClick={() => { setOpen(o => !o); if (value) { const d = new Date(value + "T00:00:00"); setViewDate({ year: d.getFullYear(), month: d.getMonth() }); } }}
+    onClick={openCalendar}
     style={{ ...inputSt, display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", userSelect: "none" }}
   >
     <span style={{ color: displayValue ? CL.text : CL.dim }}>{displayValue || (placeholder || (lang === "en" ? "Pick a date..." : "Choisir une date..."))}</span>
     <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={CL.muted} strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
   </div>
   {open && (
-    <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, zIndex: 3000, background: CL.sf, border: `1px solid ${CL.bd}`, borderRadius: 12, padding: 12, width: 280, boxShadow: "0 8px 32px rgba(0,0,0,.35)" }}>
+    <div style={{ position: "fixed", top: dropPos.top, left: dropPos.left, zIndex: 9999, background: CL.sf, border: `1px solid ${CL.bd}`, borderRadius: 12, padding: 12, width: dropPos.width, boxShadow: "0 8px 32px rgba(0,0,0,.35)" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
         <button onClick={prevMonth} style={{ background: "none", border: "none", color: CL.text, cursor: "pointer", padding: "4px 8px", borderRadius: 6, fontSize: 18 }}>‹</button>
         <div style={{ fontWeight: 600, fontSize: 14, color: CL.gold }}>{MONTHS[viewDate.month]} {viewDate.year}</div>
@@ -1545,7 +1586,9 @@ return (
 export default function App() {
 const [data, setData] = useState(() => loadStore() || DEFAULTS);
 const [lang, setLang] = useState(() => loadLang());
-const [auth, setAuth] = useState(null);
+const [auth, setAuth] = useState(() => {
+  try { const s = sessionStorage.getItem("lux_auth"); return s ? JSON.parse(s) : null; } catch { return null; }
+});
 const [toast, setToast] = useState(null);
 const [section, setSection] = useState("dashboard");
 const [devisSeed, setDevisSeed] = useState(null);
@@ -1826,6 +1869,12 @@ useEffect(() => {
 
 CURRENT_LANG = lang; // sync before any child render
 useEffect(() => { saveLang(lang); }, [lang]);
+useEffect(() => {
+  try {
+    if (auth) sessionStorage.setItem("lux_auth", JSON.stringify(auth));
+    else sessionStorage.removeItem("lux_auth");
+  } catch {}
+}, [auth]);
 const t = useCallback((key, fallback) => tr(lang, key, fallback), [lang]);
 
 const showToast = useCallback((msg, type = "success") => {
@@ -2748,8 +2797,8 @@ const elapsed = Math.round((Date.now() - new Date(clk.clockIn)) / 60000);
 return (
 <div key={clk.id} style={{ padding: "7px 0", borderBottom: `1px solid ${CL.bd}` }}>
 <div style={{ fontWeight: 600, fontSize: 13 }}>{employee?.name || "?"}</div>
-<div style={{ fontSize: 11, color: CL.muted }}>At {client?.name || "?"} · since {fmtTime(clk.clockIn)}</div>
-<div style={{ fontSize: 11, color: CL.green }}>{elapsed}m elapsed</div>
+<div style={{ fontSize: 11, color: CL.muted }}>{uiText("At")} {client?.name || "?"} · {uiText("since")} {fmtTime(clk.clockIn)}</div>
+<div style={{ fontSize: 11, color: CL.green }}>{elapsed}{uiText("m elapsed")}</div>
 </div>
 );
 })
@@ -3399,6 +3448,35 @@ return (
 }
 
 // ==============================================
+// TIME PICKER - H24 (FR) / AM-PM (EN)
+// ==============================================
+function TimePicker({ value, onChange, disabled }) {
+const { lang } = useI18n();
+const options = [];
+for (let h = 0; h < 24; h++) {
+  for (let m = 0; m < 60; m += 30) {
+    const hStr = String(h).padStart(2, "0");
+    const mStr = String(m).padStart(2, "0");
+    const val = `${hStr}:${mStr}`;
+    let label;
+    if (lang === "en") {
+      const period = h < 12 ? "AM" : "PM";
+      const h12 = h % 12 === 0 ? 12 : h % 12;
+      label = `${h12}:${mStr} ${period}`;
+    } else {
+      label = val;
+    }
+    options.push({ val, label });
+  }
+}
+return (
+  <select value={value || ""} onChange={onChange} disabled={disabled} style={{ ...inputSt, appearance: "auto", WebkitAppearance: "auto" }}>
+    {options.map(o => <option key={o.val} value={o.val}>{o.label}</option>)}
+  </select>
+);
+}
+
+// ==============================================
 // SCHEDULE PAGE - Monthly Calendar
 // ==============================================
 function SchedulePage({ data, updateData, showToast }) {
@@ -3412,7 +3490,7 @@ const now = new Date();
 const [viewYear, setViewYear] = useState(now.getFullYear());
 const [viewMonth, setViewMonth] = useState(now.getMonth());
 
-const emptySchedule = { clientId: "", employeeId: "", employeeIds: [], date: getToday(), dateTo: "", startTime: "08:00", endTime: "12:00", status: "scheduled", paymentStatus: "unpaid", notes: "", recurrence: "none" };
+const emptySchedule = { clientId: "", employeeId: "", employeeIds: [], date: getToday(), dateTo: "", startTime: "08:00", endTime: "12:00", status: "scheduled", paymentStatus: "unpaid", notes: "", recurrence: "none", recurrenceDays: [] };
 const dayHeaders = [uiText("Mon"), uiText("Tue"), uiText("Wed"), uiText("Thu"), uiText("Fri"), uiText("Sat"), uiText("Sun")];
 
 const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
@@ -3561,6 +3639,20 @@ if (hasRange) {
         const d = new Date(baseDate); d.setDate(d.getDate() + offset);
         if (d.getDay() !== 0 && d.getDay() !== 6) { items.push({ ...base, id: makeId(), date: d.toISOString().slice(0, 10), updatedAt: stamp }); added++; }
         offset++;
+      }
+    } else if (["2x-weekly","3x-weekly","4x-weekly"].includes(schedData.recurrence)) {
+      // Specific days per week recurrence
+      const dayNames = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+      const selDays = (schedData.recurrenceDays || []).map(d => dayNames.indexOf(d));
+      if (selDays.length === 0) { showToast(uiText("Select days:"), "error"); return; }
+      for (let week = 0; week < 12; week++) {
+        selDays.forEach(dow => {
+          const d = new Date(baseDate);
+          const diff = (dow - d.getDay() + 7) % 7 + week * 7;
+          if (diff === 0 && week === 0) return; // skip start date itself (already added)
+          d.setDate(d.getDate() + diff);
+          items.push({ ...base, id: makeId(), date: d.toISOString().slice(0, 10), updatedAt: stamp });
+        });
       }
     } else {
       const interval = schedData.recurrence === "weekly" ? 7 : schedData.recurrence === "biweekly" ? 14 : 28;
@@ -3734,13 +3826,13 @@ return <div key={sched.id} onClick={() => setModal({ ...sched })} style={{ paddi
 <div style={{ fontSize: 12, color: CL.muted, marginBottom: 10 }}>{uiText("Monthly job list by date (readable after clocking/status changes).")}</div>
 <div className="tbl-wrap">
 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-<thead><tr><th style={thSt}>{uiText("Date")}</th><th style={thSt}>{uiText("Time")}</th><th style={thSt}>{uiText("Client")}</th><th style={thSt}>{uiText("Cleaner")}</th><th style={thSt}>{uiText("Status")}</th><th style={thSt}>{uiText("Payment")}</th></tr></thead>
+<thead><tr><th style={thSt}>{uiText("Date")}</th><th style={thSt}>{uiText("Time")}</th><th style={thSt}>{uiText("Client")}</th><th style={thSt}>{uiText("Cleaner")}</th><th style={thSt}>{uiText("Status")}</th><th style={thSt}>{uiText("Payment")}</th><th style={thSt}></th></tr></thead>
 <tbody>
 {orderedMonthSchedules.map(s => {
 const client = data.clients.find(c => c.id === s.clientId);
 const employee = data.employees.find(e => e.id === s.employeeId);
 const isPaid = s.paymentStatus === "paid";
-return <tr key={s.id} onClick={() => setModal({ ...s })} style={{ cursor: "pointer" }}><td style={tdSt}>{fmtDate(s.date)}</td><td style={tdSt}>{s.startTime} - {s.endTime}</td><td style={tdSt}>{client?.name || "-"}</td><td style={tdSt}><div>{employee?.name || uiText("Unassigned")}</div><div style={{ fontSize: 11, color: cityMatchLabel(employee, client).startsWith("✅") ? CL.green : CL.orange }}>{cityMatchLabel(employee, client)}</div></td><td style={tdSt}><Badge color={scheduleStatusColor(s.status)}>{uiText(s.status)}</Badge></td><td style={tdSt} onClick={ev => ev.stopPropagation()}><button onClick={ev => handleTogglePayment(s, ev)} style={{ ...btnSm, background: isPaid ? CL.green + "20" : CL.s2, color: isPaid ? CL.green : CL.muted, border: `1px solid ${isPaid ? CL.green : CL.bd}`, borderRadius: 6, padding: "3px 10px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>{isPaid ? uiText("Paid") : uiText("Unpaid")}</button></td></tr>;
+return <tr key={s.id} onClick={() => setModal({ ...s })} style={{ cursor: "pointer" }}><td style={tdSt}>{fmtDate(s.date)}</td><td style={tdSt}>{s.startTime} - {s.endTime}</td><td style={tdSt}>{client?.name || "-"}</td><td style={tdSt}><div>{employee?.name || uiText("Unassigned")}</div><div style={{ fontSize: 11, color: cityMatchLabel(employee, client).startsWith("✅") ? CL.green : CL.orange }}>{cityMatchLabel(employee, client)}</div></td><td style={tdSt}><Badge color={scheduleStatusColor(s.status)}>{uiText(s.status)}</Badge></td><td style={tdSt} onClick={ev => ev.stopPropagation()}><button onClick={ev => handleTogglePayment(s, ev)} style={{ ...btnSm, background: isPaid ? CL.green + "20" : CL.s2, color: isPaid ? CL.green : CL.muted, border: `1px solid ${isPaid ? CL.green : CL.bd}`, borderRadius: 6, padding: "3px 10px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>{isPaid ? uiText("Paid") : uiText("Unpaid")}</button></td><td style={tdSt} onClick={ev => ev.stopPropagation()}><button onClick={() => handleDelete(s.id)} style={{ background: "transparent", border: "none", color: CL.red, cursor: "pointer", padding: "4px 6px", borderRadius: 6, fontSize: 13, display: "flex", alignItems: "center" }} title={uiText("Delete Job")}>{ICN.trash}</button></td></tr>;
 })}
 {orderedMonthSchedules.length === 0 && <tr><td colSpan={6} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>{uiText("No jobs in this month")}</td></tr>}
 </tbody>
@@ -3760,6 +3852,7 @@ return <tr key={s.id} onClick={() => setModal({ ...s })} style={{ cursor: "point
 
 function ScheduleForm({ initialData, data, onSave, onDelete, onCancel }) {
 const [form, setForm] = useState(initialData);
+const [empSearch, setEmpSearch] = useState("");
 const set = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
 
 // Show client details when selected
@@ -3812,23 +3905,28 @@ return (
   {selectedClient && selectedEmployee && <div style={{ fontSize: 11, color: cityMatchLabel(selectedEmployee, selectedClient).startsWith("✅") ? CL.green : CL.orange, marginTop: 4 }}>{cityMatchLabel(selectedEmployee, selectedClient)}</div>}
   </>
 ) : (
-  <div style={{ border: `1px solid ${CL.bd}`, borderRadius: 10, padding: "8px 12px", background: CL.sf, maxHeight: 180, overflowY: "auto" }}>
+  <div style={{ border: `1px solid ${CL.bd}`, borderRadius: 10, padding: "8px 12px", background: CL.sf }}>
+    {data.employees.filter(emp => emp.status === "active").length > 4 && (
+      <input value={empSearch} onChange={e => setEmpSearch(e.target.value)} placeholder={uiText("Search") + "..."} style={{ width: "100%", marginBottom: 6, padding: "5px 8px", borderRadius: 6, border: `1px solid ${CL.bd}`, background: CL.bg, color: CL.text, fontSize: 12, boxSizing: "border-box", outline: "none" }} />
+    )}
+    <div style={{ maxHeight: 180, overflowY: "auto" }}>
     {data.employees.filter(emp => emp.status === "active").length === 0
       ? <div style={{ color: CL.muted, fontSize: 13 }}>{uiText("No active employees")}</div>
-      : data.employees.filter(emp => emp.status === "active").map(emp => {
+      : data.employees.filter(emp => emp.status === "active" && (!empSearch || emp.name.toLowerCase().includes(empSearch.toLowerCase()))).map(emp => {
           const checked = (form.employeeIds || []).includes(emp.id);
           return (
-            <label key={emp.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", cursor: "pointer", fontSize: 13, color: CL.text }}>
+            <label key={emp.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 2px", cursor: "pointer", fontSize: 13, color: CL.text, borderBottom: `1px solid ${CL.bd}20` }}>
               <input type="checkbox" checked={checked} onChange={() => {
                 const ids = form.employeeIds || [];
                 set("employeeIds", checked ? ids.filter(id => id !== emp.id) : [...ids, emp.id]);
-              }} style={{ accentColor: CL.gold, width: 15, height: 15 }} />
+              }} style={{ accentColor: CL.gold, width: 15, height: 15, flexShrink: 0 }} />
               <span style={{ fontWeight: checked ? 600 : 400 }}>{emp.name}</span>
               {emp.cleanerGroup || emp.city ? <span style={{ fontSize: 11, color: CL.muted }}>· {emp.cleanerGroup || emp.city}</span> : null}
             </label>
           );
         })
     }
+    </div>
   </div>
 )}
 {suggestedCleaner && !form.id && (form.employeeIds || []).length === 0 && <div style={{ fontSize: 11, color: CL.green, marginTop: 4 }}>{uiText("Suggested:")} {suggestedCleaner.name} ({suggestedCleaner.cleanerGroup || suggestedCleaner.city || uiText("No group")})</div>}
@@ -3850,16 +3948,48 @@ return (
 <option value="scheduled">{uiText("Scheduled")}</option><option value="in-progress">{uiText("In Progress")}</option><option value="completed">{uiText("Completed")}</option><option value="cancelled">{uiText("Cancelled")}</option>
 </SelectInput>
 </Field>
-<Field label={uiText("Start")}><TextInput type="time" value={form.startTime} onChange={ev => set("startTime", ev.target.value)} disabled={isCompletedLocked} /></Field>
-<Field label={uiText("End")}><TextInput type="time" value={form.endTime} onChange={ev => set("endTime", ev.target.value)} disabled={isCompletedLocked} /></Field>
+<Field label={uiText("Start")}><TimePicker value={form.startTime} onChange={ev => set("startTime", ev.target.value)} disabled={isCompletedLocked} /></Field>
+<Field label={uiText("End")}><TimePicker value={form.endTime} onChange={ev => set("endTime", ev.target.value)} disabled={isCompletedLocked} /></Field>
 {!form.id && !hasDateRange && (
 <Field label={uiText("Recurrence")}>
 <SelectInput value={form.recurrence} onChange={ev => set("recurrence", ev.target.value)} disabled={isCompletedLocked}>
-<option value="none">{uiText("One-time")}</option><option value="daily">{uiText("Daily (weekends included)")}</option><option value="daily-weekdays">{uiText("Daily (weekdays only)")}</option><option value="weekly">{uiText("Weekly (12 weeks)")}</option><option value="biweekly">{uiText("Bi-weekly (12x)")}</option><option value="monthly">{uiText("Monthly (12 months)")}</option>
+<option value="none">{uiText("One-time")}</option>
+<option value="daily">{uiText("Daily (weekends included)")}</option>
+<option value="daily-weekdays">{uiText("Daily (weekdays only)")}</option>
+<option value="weekly">{uiText("Weekly (12 weeks)")}</option>
+<option value="biweekly">{uiText("Bi-weekly (12x)")}</option>
+<option value="monthly">{uiText("Monthly (12 months)")}</option>
+<option value="2x-weekly">{uiText("2x per week")}</option>
+<option value="3x-weekly">{uiText("3x per week")}</option>
+<option value="4x-weekly">{uiText("4x per week")}</option>
 </SelectInput>
+{["2x-weekly","3x-weekly","4x-weekly"].includes(form.recurrence) && (
+  <div style={{ marginTop: 8 }}>
+    <div style={{ fontSize: 12, color: CL.muted, marginBottom: 6 }}>{uiText("Select days:")}</div>
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+      {["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"].map((day, i) => {
+        const shortLabels = [uiText("Mon"),uiText("Tue"),uiText("Wed"),uiText("Thu"),uiText("Fri"),uiText("Sat"),uiText("Sun")];
+        const maxDays = form.recurrence === "2x-weekly" ? 2 : form.recurrence === "3x-weekly" ? 3 : 4;
+        const selDays = form.recurrenceDays || [];
+        const isChecked = selDays.includes(day);
+        const canAdd = selDays.length < maxDays || isChecked;
+        return (
+          <label key={day} style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 20, border: `1px solid ${isChecked ? CL.gold : CL.bd}`, background: isChecked ? CL.gold + "20" : "transparent", cursor: canAdd ? "pointer" : "not-allowed", fontSize: 12, color: isChecked ? CL.gold : CL.text, fontWeight: isChecked ? 600 : 400 }}>
+            <input type="checkbox" checked={isChecked} disabled={!canAdd} onChange={() => {
+              const current = form.recurrenceDays || [];
+              set("recurrenceDays", isChecked ? current.filter(d => d !== day) : [...current, day]);
+            }} style={{ display: "none" }} />
+            {shortLabels[i]}
+          </label>
+        );
+      })}
+    </div>
+    {(form.recurrenceDays || []).length === 0 && <div style={{ fontSize: 11, color: CL.orange, marginTop: 4 }}>{uiText("Select days:")}</div>}
+  </div>
+)}
 </Field>
 )}
-{!form.id && hasDateRange && (selectedClient?.preferredDays || []).length === 0 && (
+{!form.id && hasDateRange && (
 <Field label={uiText("Interval in range")}>
 <SelectInput value={form.recurrence} onChange={ev => set("recurrence", ev.target.value)}>
 <option value="none">{uiText("Every day")}</option><option value="daily-weekdays">{uiText("Daily (weekdays only)")}</option><option value="weekly">{uiText("Weekly")}</option><option value="biweekly">{uiText("Bi-weekly")}</option><option value="monthly">{uiText("Monthly")}</option>
@@ -5322,7 +5452,7 @@ return { ...prev, items: [...(prev.items || []), row] };
 
 const loadPrestationsFromRange = () => {
 if (!form.clientId || !form.billingStart || !form.billingEnd) {
-setScheduleLoadMessage("No prestations found in this billing period.");
+setScheduleLoadMessage(uiText("No services found for this period."));
 return;
 }
 const unitPrice = Number(defaultUnitPrice || 0);
@@ -5331,7 +5461,7 @@ const quantity = p.hours && p.hours > 0 ? Math.round(p.hours * 100) / 100 : 1;
 return { prestationDate: p.prestationDate, description: "", hours: p.hours ? Math.round(p.hours * 100) / 100 : "", quantity, unitPrice, total: Math.round(quantity * unitPrice * 100) / 100 };
 });
 setForm(prev => ({ ...prev, items: nextItems }));
-setScheduleLoadMessage(nextItems.length ? "Prestations loaded from the latest client schedule." : "No prestations found in this billing period.");
+setScheduleLoadMessage(nextItems.length ? uiText("Services loaded from latest schedule.") : uiText("No services found for this period."));
 };
 
 const onClientChange = (clientId) => {
@@ -5380,7 +5510,7 @@ return (
         {data.clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
       </SelectInput>
     </Field>
-    <Field label={t("prestationDate")}>
+    <Field label={t("invoiceDate")}>
       <DatePicker value={form.date} onChange={ev => { const v = ev.target.value; set("date", v); if (!form.invoiceNumber || /^LA-\d{4}-\d{2}-\d{2}-\d+$/.test(form.invoiceNumber)) set("invoiceNumber", nextInvoiceNum(v)); }} />
     </Field>
     <Field label="TVA %">
@@ -5392,16 +5522,16 @@ return (
   </div>
 
   {/* ── Section 2: Billing period ── */}
-  <SectionHeader label="Période de facturation" />
+  <SectionHeader label={uiText("Billing period")} />
   <div style={{ background: CL.bg, border: `1px solid ${CL.bd}`, borderRadius: 12, padding: "20px 24px", marginBottom: 6 }}>
     <div className="form-grid" style={{ gap: 20, marginBottom: 16 }}>
-      <Field label="Date de début"><DatePicker value={form.billingStart || ""} onChange={ev => set("billingStart", ev.target.value)} /></Field>
-      <Field label="Date de fin"><DatePicker value={form.billingEnd || ""} onChange={ev => set("billingEnd", ev.target.value)} /></Field>
+      <Field label={uiText("Start date")}><DatePicker value={form.billingStart || ""} onChange={ev => set("billingStart", ev.target.value)} /></Field>
+      <Field label={uiText("End date")}><DatePicker value={form.billingEnd || ""} onChange={ev => set("billingEnd", ev.target.value)} /></Field>
     </div>
     <button style={{ ...btnPri, width: "100%", justifyContent: "center", marginBottom: 14 }} onClick={loadPrestationsFromRange} disabled={!form.clientId}>
-      Générer les prestations depuis le planning
+      {uiText("Load services from schedule")}
     </button>
-    <div style={{ fontSize: 12, color: CL.dim, marginBottom: 10 }}>Prestations issues du dernier planning pour ce client et cette période</div>
+    <div style={{ fontSize: 12, color: CL.dim, marginBottom: 10 }}>{uiText("Services loaded from latest schedule.")}</div>
     <div style={{ maxHeight: 160, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6 }}>
       {prestations.map(p => (
         <button key={p.id} style={{ ...btnSec, width: "100%", display: "flex", justifyContent: "space-between", padding: "10px 14px", textAlign: "left" }} onClick={() => addPrestation(p)}>
@@ -5409,18 +5539,18 @@ return (
           <span style={{ color: CL.gold, fontWeight: 600, flexShrink: 0, marginLeft: 8 }}>{p.hours ? `${p.hours.toFixed(2)}h` : ""}</span>
         </button>
       ))}
-      {prestations.length === 0 && <div style={{ fontSize: 12, color: CL.dim, padding: "6px 2px" }}>Aucune prestation trouvée pour cette période.</div>}
+      {prestations.length === 0 && <div style={{ fontSize: 12, color: CL.dim, padding: "6px 2px" }}>{uiText("No services found for this period.")}</div>}
     </div>
     {scheduleLoadMessage && <div style={{ fontSize: 12, color: CL.blue, marginTop: 8 }}>{scheduleLoadMessage}</div>}
   </div>
 
   {/* ── Section 3: Line items ── */}
-  <SectionHeader label="Lignes de facturation" />
+  <SectionHeader label={uiText("Invoice lines")} />
 
   {/* Visible columns toggle */}
   <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14, padding: "10px 14px", background: CL.bg, borderRadius: 8, border: `1px solid ${CL.bd}` }}>
-    <span style={{ fontSize: 11, color: CL.dim, fontWeight: 600, marginRight: 4, alignSelf: "center" }}>Colonnes :</span>
-    {[["prestationDate","Date"],["description","Description"],["hours","Heures"],["quantity","Quantité"],["unitPrice","Prix unit."],["total","Total"],["tva","TVA"]].map(([col, lbl]) => (
+    <span style={{ fontSize: 11, color: CL.dim, fontWeight: 600, marginRight: 4, alignSelf: "center" }}>{uiText("Columns:")}</span>
+    {[["prestationDate",uiText("Date")],["description",uiText("Description")],["hours",uiText("Hours")],["quantity",uiText("Qty")],["unitPrice",uiText("Unit price")],["total",uiText("Total")],["tva","TVA"]].map(([col, lbl]) => (
       <label key={col} style={{ fontSize: 12, color: CL.muted, display: "flex", alignItems: "center", gap: 4, cursor: "pointer", padding: "4px 8px", borderRadius: 6, background: form.visibleColumns?.[col] !== false ? CL.gold + "18" : "transparent" }}>
         <input type="checkbox" checked={form.visibleColumns?.[col] !== false} onChange={ev => setForm(prev => ({ ...prev, visibleColumns: { ...(prev.visibleColumns || {}), [col]: ev.target.checked } }))} style={{ accentColor: CL.gold }} /> {lbl}
       </label>
@@ -5429,18 +5559,18 @@ return (
 
   {/* Global description bar */}
   <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
-    <TextInput placeholder="Désignation globale (optionnel)" value={globalDescription} onChange={ev => setGlobalDescription(ev.target.value)} style={{ flex: 1 }} />
-    <button style={{ ...btnSec, whiteSpace: "nowrap", padding: "0 16px" }} onClick={applyDescriptionToAll}>Appliquer à toutes les lignes</button>
+    <TextInput placeholder={uiText("Global description (optional)")} value={globalDescription} onChange={ev => setGlobalDescription(ev.target.value)} style={{ flex: 1 }} />
+    <button style={{ ...btnSec, whiteSpace: "nowrap", padding: "0 16px" }} onClick={applyDescriptionToAll}>{uiText("Apply to all lines")}</button>
   </div>
 
   {/* Column headers */}
   <div style={{ display: "grid", gridTemplateColumns: `${form.visibleColumns?.prestationDate !== false ? "1.2fr " : ""}${form.visibleColumns?.description !== false ? "2.2fr " : ""}${form.visibleColumns?.hours !== false ? ".8fr " : ""}${form.visibleColumns?.quantity !== false ? ".8fr " : ""}${form.visibleColumns?.unitPrice !== false ? "1fr " : ""}${form.visibleColumns?.total !== false ? "1fr " : ""}28px`, gap: 8, marginBottom: 8, fontSize: 11, color: CL.dim, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "0 4px" }}>
-    {form.visibleColumns?.prestationDate !== false && <div>Date</div>}
-    {form.visibleColumns?.description !== false && <div>Description</div>}
-    {form.visibleColumns?.hours !== false && <div style={{ textAlign: "right" }}>Heures</div>}
-    {form.visibleColumns?.quantity !== false && <div style={{ textAlign: "right" }}>Qté</div>}
-    {form.visibleColumns?.unitPrice !== false && <div style={{ textAlign: "right" }}>Prix unit.</div>}
-    {form.visibleColumns?.total !== false && <div style={{ textAlign: "right" }}>Total</div>}
+    {form.visibleColumns?.prestationDate !== false && <div>{uiText("Date")}</div>}
+    {form.visibleColumns?.description !== false && <div>{uiText("Description")}</div>}
+    {form.visibleColumns?.hours !== false && <div style={{ textAlign: "right" }}>{uiText("Hours")}</div>}
+    {form.visibleColumns?.quantity !== false && <div style={{ textAlign: "right" }}>{uiText("Qty")}</div>}
+    {form.visibleColumns?.unitPrice !== false && <div style={{ textAlign: "right" }}>{uiText("Unit price")}</div>}
+    {form.visibleColumns?.total !== false && <div style={{ textAlign: "right" }}>{uiText("Total")}</div>}
     <div />
   </div>
 
@@ -5534,7 +5664,7 @@ return (
         {cols.description && <th style={{ textAlign: "left", padding: "6px 4px", fontSize: 10, color: "#999", fontWeight: 600 }}>Désignation</th>}
         {cols.quantity && <th style={{ textAlign: "right", padding: "6px 4px", fontSize: 10, color: "#999", fontWeight: 600 }}>Quantité</th>}
         {cols.hours && <th style={{ textAlign: "right", padding: "6px 4px", fontSize: 10, color: "#999", fontWeight: 600 }}>Heures</th>}
-        {cols.unitPrice && <th style={{ textAlign: "right", padding: "6px 4px", fontSize: 10, color: "#999", fontWeight: 600 }}>PU (€)</th>}
+        {cols.unitPrice && <th style={{ textAlign: "right", padding: "6px 4px", fontSize: 10, color: "#999", fontWeight: 600 }}>PU</th>}
         {cols.total && <th style={{ textAlign: "right", padding: "6px 0 6px 4px", fontSize: 10, color: "#999", fontWeight: 600 }}>Montant HT</th>}
       </tr>
     </thead>
@@ -5726,12 +5856,12 @@ return (
 // ==============================================
 function VisitationPage({ data, updateData, showToast, setSection, setDevisSeed }) {
 const { t } = useI18n();
-const [form, setForm] = useState({ clientId: "", visitDate: getToday(), visitTime: "10:00", address: "", notes: "", status: "planned", photos: [] });
+const [form, setForm] = useState({ clientId: "", clientName: "", visitDate: getToday(), visitTime: "10:00", address: "", notes: "", status: "planned", photos: [] });
 const [filterClient, setFilterClient] = useState("");
 const [viewVisit, setViewVisit] = useState(null);
 const [uploadingPhoto, setUploadingPhoto] = useState(false);
 const allVisits = (data.prospectVisits || []).slice().sort((a, b) => `${b.visitDate} ${b.visitTime}`.localeCompare(`${a.visitDate} ${a.visitTime}`));
-const visits = filterClient ? allVisits.filter(v => v.clientId === filterClient) : allVisits;
+const visits = filterClient ? allVisits.filter(v => v.clientId === filterClient || (v.clientName && data.clients.find(c => c.id === filterClient)?.name?.toLowerCase() === v.clientName?.toLowerCase())) : allVisits;
 const prospects = data.clients.filter(c => c.status === "prospect" || c.status === "active");
 const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
 
@@ -5750,14 +5880,15 @@ const handlePhotoUpload = (e) => {
 };
 
 const saveVisit = async () => {
-if (!form.clientId || !form.visitDate) { showToast(uiText("Select client and date"), "error"); return; }
+const nameOrId = form.clientName.trim() || form.clientId;
+if (!nameOrId || !form.visitDate) { showToast(uiText("Select client and date"), "error"); return; }
 const client = data.clients.find(c => c.id === form.clientId);
-const payload = { ...form, id: makeId(), createdAt: new Date().toISOString(), address: form.address || client?.address || "" };
+const payload = { ...form, id: makeId(), createdAt: new Date().toISOString(), address: form.address || client?.address || "", clientName: form.clientName.trim() || client?.name || "" };
 try {
   await fetch(apiUrl("/api/prospect-visits"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...payload, visitDate: payload.visitDate }) });
 } catch { /* local fallback */ }
 updateData("prospectVisits", prev => [payload, ...(prev || [])]);
-setForm({ clientId: "", visitDate: getToday(), visitTime: "10:00", address: "", notes: "", status: "planned", photos: [] });
+setForm({ clientId: "", clientName: "", visitDate: getToday(), visitTime: "10:00", address: "", notes: "", status: "planned", photos: [] });
 showToast(uiText("Visit added"));
 };
 
@@ -5775,7 +5906,9 @@ return (
 <h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold, marginBottom: 16 }}>{t("visitationSchedule")}</h1>
 <div style={{ ...cardSt, marginBottom: 14 }}>
   <div className="form-grid">
-    <Field label="Prospect / Client"><SelectInput value={form.clientId} onChange={ev => { const id = ev.target.value; const c = data.clients.find(x => x.id === id); setForm(v => ({ ...v, clientId: id, address: c?.address || "" })); }}><option value="">{uiText("Select...")}</option>{prospects.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</SelectInput></Field>
+    <Field label={uiText("Prospect / Client name")}>
+      <TextInput value={form.clientName} onChange={ev => { const name = ev.target.value; const c = data.clients.find(x => x.name.toLowerCase() === name.toLowerCase()); setForm(v => ({ ...v, clientName: name, clientId: c?.id || "", address: v.address || c?.address || "" })); }} placeholder={uiText("New prospect name or address")} />
+    </Field>
     <Field label="Address"><TextInput value={form.address} onChange={ev => set("address", ev.target.value)} placeholder={uiText("Visit address")} /></Field>
     <Field label="Visit date"><DatePicker value={form.visitDate} onChange={ev => set("visitDate", ev.target.value)} /></Field>
     <Field label="Visit time"><TextInput type="time" value={form.visitTime} onChange={ev => set("visitTime", ev.target.value)} /></Field>
@@ -5813,7 +5946,7 @@ return (
 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
 <thead><tr><th style={thSt}>{uiText("Date")}</th><th style={thSt}>{uiText("Client")}</th><th style={thSt}>{uiText("Address")}</th><th style={thSt}>{uiText("Notes")}</th><th style={thSt}>{uiText("Status")}</th><th style={thSt}>{uiText("Actions")}</th></tr></thead>
 <tbody>
-{visits.map(v => { const client = data.clients.find(c => c.id === v.clientId); const photoCount = (v.photos || []).length; return <tr key={v.id}><td style={tdSt}>{fmtDate(v.visitDate)} {v.visitTime || ""}</td><td style={tdSt}>{client?.name || "-"}</td><td style={tdSt}><a href={mapsUrl(v.address || client?.address || "")} target="_blank" rel="noreferrer" style={{ color: CL.blue, textDecoration: "underline" }}>{v.address || client?.address || "-"}</a></td><td style={tdSt}><span style={{ maxWidth: 180, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{v.notes || "-"}</span>{photoCount > 0 && <span style={{ fontSize: 11, color: CL.gold }}>📷 {photoCount}</span>}</td><td style={tdSt}><Badge color={v.status === "done" ? CL.green : v.status === "cancelled" ? CL.red : CL.orange}>{uiText(v.status)}</Badge></td><td style={tdSt}><div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}><button style={{ ...btnSec, ...btnSm, color: CL.blue }} onClick={() => setViewVisit(v)} title={uiText("View details")}>👁 {uiText("View")}</button><button style={{ ...btnSec, ...btnSm }} onClick={() => markStatus(v.id, "done")}>{uiText("Done")}</button><button style={{ ...btnSec, ...btnSm }} onClick={() => { setDevisSeed?.({ clientId: v.clientId, description: `Quote after visit on ${v.visitDate}` }); setSection?.("devis"); }}>{uiText("Create Devis")}</button><button style={{ ...btnSec, ...btnSm, color: CL.red }} onClick={() => removeVisit(v.id)}>{uiText("Delete")}</button></div></td></tr>; })}
+{visits.map(v => { const client = data.clients.find(c => c.id === v.clientId); const displayName = v.clientName || client?.name || "-"; const photoCount = (v.photos || []).length; return <tr key={v.id}><td style={tdSt}>{fmtDate(v.visitDate)} {v.visitTime || ""}</td><td style={tdSt}>{displayName}</td><td style={tdSt}><a href={mapsUrl(v.address || client?.address || "")} target="_blank" rel="noreferrer" style={{ color: CL.blue, textDecoration: "underline" }}>{v.address || client?.address || "-"}</a></td><td style={tdSt}><span style={{ maxWidth: 180, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{v.notes || "-"}</span>{photoCount > 0 && <span style={{ fontSize: 11, color: CL.gold }}>📷 {photoCount}</span>}</td><td style={tdSt}><Badge color={v.status === "done" ? CL.green : v.status === "cancelled" ? CL.red : CL.orange}>{uiText(v.status)}</Badge></td><td style={tdSt}><div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}><button style={{ ...btnSec, ...btnSm, color: CL.blue }} onClick={() => setViewVisit(v)} title={uiText("View details")}>👁 {uiText("View")}</button><button style={{ ...btnSec, ...btnSm }} onClick={() => markStatus(v.id, "done")}>{uiText("Done")}</button><button style={{ ...btnSec, ...btnSm }} onClick={() => { setDevisSeed?.({ clientId: v.clientId, description: `Quote after visit on ${v.visitDate}` }); setSection?.("devis"); }}>{uiText("Create Devis")}</button><button style={{ ...btnSec, ...btnSm, color: CL.red }} onClick={() => removeVisit(v.id)}>{uiText("Delete")}</button></div></td></tr>; })}
 {visits.length === 0 && <tr><td colSpan={6} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>{uiText("No visits scheduled yet")}</td></tr>}
 </tbody>
 </table>
@@ -5821,8 +5954,9 @@ return (
 
 {viewVisit && (() => {
   const client = data.clients.find(c => c.id === viewVisit.clientId);
+  const visitClientName = viewVisit.clientName || client?.name || "-";
   return (
-    <ModalBox title={`${uiText("Visit")} — ${client?.name || "-"} · ${fmtDate(viewVisit.visitDate)}`} onClose={() => setViewVisit(null)}>
+    <ModalBox title={`${uiText("Visit")} — ${visitClientName} · ${fmtDate(viewVisit.visitDate)}`} onClose={() => setViewVisit(null)}>
       <div>
         <div style={{ marginBottom: 14 }}>
           <div style={{ fontSize: 11, color: CL.muted, marginBottom: 4, textTransform: "uppercase", fontWeight: 600 }}>{uiText("Address")}</div>

@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS employees (
   email_verified   BOOLEAN NOT NULL DEFAULT FALSE,
   account_status   TEXT NOT NULL DEFAULT 'approved',
   notes            TEXT,
+  profile_picture  TEXT,
   created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -275,6 +276,13 @@ CREATE INDEX IF NOT EXISTS idx_product_requests_status ON product_requests(statu
 CREATE INDEX IF NOT EXISTS idx_cleaner_holdings_employee ON cleaner_product_holdings(employee_id);
 CREATE INDEX IF NOT EXISTS idx_prospect_visits_client ON prospect_visits(client_id);
 CREATE INDEX IF NOT EXISTS idx_prospect_visits_date ON prospect_visits(visit_date DESC);
+
+-- Migration: add profile_picture column if it doesn't exist (for existing databases)
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='employees' AND column_name='profile_picture') THEN
+    ALTER TABLE employees ADD COLUMN profile_picture TEXT;
+  END IF;
+END $$;
 
 -- Seed default settings
 INSERT INTO settings (key, value) VALUES

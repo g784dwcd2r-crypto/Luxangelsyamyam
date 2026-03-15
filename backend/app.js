@@ -713,6 +713,22 @@ app.delete('/api/employees/:id', async (req, res) => {
   }
 });
 
+app.put('/api/employees/:id/profile-picture', async (req, res) => {
+  try {
+    const { imageData } = req.body;
+    if (!imageData && imageData !== null) return res.status(400).json({ error: 'imageData is required' });
+    const result = await pool.query(
+      'UPDATE employees SET profile_picture=$1 WHERE id=$2 RETURNING id, profile_picture',
+      [imageData || null, req.params.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Employee not found' });
+    res.json({ success: true, profile_picture: result.rows[0].profile_picture });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
 app.put('/api/employees/:id/pin', async (req, res) => {
   try {
     const { pin, oldPin } = req.body;

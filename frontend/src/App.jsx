@@ -768,6 +768,7 @@ vatNumber: "LU12345678",
 bankIban: "LU12 3456 7890 1234 5678",
 defaultVatRate: 17,
 publicHolidays: [],
+customRoles: [],
 emailSignature: "Best regards,\nLux Angels Cleaning Team\ninfo@luxangels.lu | +352 123 456",
 },
 };
@@ -1879,6 +1880,12 @@ useEffect(() => {
             if (Array.isArray(value)) return value;
             if (!value) return prev.settings.publicHolidays;
             try { const parsed = JSON.parse(value); return Array.isArray(parsed) ? parsed : prev.settings.publicHolidays; } catch { return prev.settings.publicHolidays; }
+          })(),
+          customRoles: (() => {
+            const value = (settingsRows || {}).customRoles;
+            if (Array.isArray(value)) return value;
+            if (!value) return prev.settings.customRoles || [];
+            try { const parsed = JSON.parse(value); return Array.isArray(parsed) ? parsed : prev.settings.customRoles || []; } catch { return prev.settings.customRoles || []; }
           })(),
         },
       }));
@@ -3122,7 +3129,7 @@ return (
 
   {modal && (
     <ModalBox title={uiText(modal.id ? "Edit Employee" : "Add Employee")} onClose={() => setModal(null)}>
-      <EmployeeForm initialData={modal} onSave={handleSave} onCancel={() => setModal(null)} />
+      <EmployeeForm initialData={modal} onSave={handleSave} onCancel={() => setModal(null)} customRoles={data.settings?.customRoles || []} />
     </ModalBox>
   )}
 </div>
@@ -3130,7 +3137,9 @@ return (
 );
 }
 
-function EmployeeForm({ initialData, onSave, onCancel }) {
+const BUILTIN_ROLES = ["Manager", "Cleaning Agent", "Cleaner", "Senior Cleaner", "Team Lead", "Supervisor"];
+
+function EmployeeForm({ initialData, onSave, onCancel, customRoles }) {
 const [form, setForm] = useState(initialData);
 const [activeTab, setActiveTab] = useState("basic");
 
@@ -3180,7 +3189,9 @@ return (
       <Field label="Full Name *"><TextInput value={form.name} onChange={ev => set("name", ev.target.value)} /></Field>
       <Field label="Role">
         <SelectInput value={form.role} onChange={ev => set("role", ev.target.value)}>
-          <option value="Cleaner">{uiText("Cleaner")}</option><option value="Senior Cleaner">{uiText("Senior Cleaner")}</option><option value="Team Lead">{uiText("Team Lead")}</option><option value="Supervisor">{uiText("Supervisor")}</option>
+          {BUILTIN_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+          {(customRoles || []).length > 0 && <option disabled>──────────</option>}
+          {(customRoles || []).map(r => <option key={r} value={r}>{r}</option>)}
         </SelectInput>
       </Field>
       <Field label="Email"><TextInput type="email" value={form.email} onChange={ev => set("email", ev.target.value)} /></Field>
@@ -6749,6 +6760,7 @@ const [managerPin, setManagerPin] = useState(data.managerPin || "");
 const set = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
 const [smtpTestStatus, setSmtpTestStatus] = useState(null); // null | { ok, msg }
 const [smtpTesting, setSmtpTesting] = useState(false);
+const [newRoleInput, setNewRoleInput] = useState("");
 
 const handleTestSmtp = async () => {
   setSmtpTesting(true);
@@ -6807,6 +6819,7 @@ const handleSave = async () => {
         smtpSecure: "true",
         smtpUser: form.smtpUser || "",
         smtpPass: form.smtpPass || "",
+        customRoles: JSON.stringify(form.customRoles || []),
       }),
     });
     if (setEmailConfigured) {
@@ -6867,6 +6880,43 @@ return (
 <Field label="Owner Password"><TextInput maxLength={24} value={pin} onChange={ev => setPin(ev.target.value)} style={{ width: 180 }} /></Field>
 <Field label="Manager Username"><TextInput value={managerUsername} onChange={ev => setManagerUsername(ev.target.value)} style={{ width: 220 }} /></Field>
 <Field label="Manager Password"><TextInput maxLength={24} value={managerPin} onChange={ev => setManagerPin(ev.target.value)} style={{ width: 180 }} /></Field>
+</div>
+</div>
+<div style={{ ...cardSt, marginTop: 14 }}>
+<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 4, color: CL.gold }}>Employee Roles</h3>
+<p style={{ fontSize: 12, color: CL.muted, marginBottom: 12 }}>Built-in roles: {BUILTIN_ROLES.join(", ")}. Add custom roles below — they'll appear in the employee form.</p>
+<div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+  {(form.customRoles || []).map(role => (
+    <div key={role} style={{ display: "flex", alignItems: "center", gap: 6, background: CL.s2, border: `1px solid ${CL.bd}`, borderRadius: 20, padding: "4px 12px", fontSize: 13 }}>
+      <span>{role}</span>
+      <button onClick={() => set("customRoles", (form.customRoles || []).filter(r => r !== role))} style={{ background: "none", border: "none", cursor: "pointer", color: CL.muted, fontSize: 16, lineHeight: 1, padding: 0 }}>×</button>
+    </div>
+  ))}
+  {(form.customRoles || []).length === 0 && <span style={{ fontSize: 13, color: CL.muted }}>No custom roles yet.</span>}
+</div>
+<div style={{ display: "flex", gap: 8 }}>
+  <TextInput
+    value={newRoleInput}
+    onChange={ev => setNewRoleInput(ev.target.value)}
+    placeholder="e.g. Window Cleaner, Driver, Ironing Specialist..."
+    style={{ flex: 1 }}
+    onKeyDown={ev => {
+      if (ev.key === "Enter") {
+        const trimmed = newRoleInput.trim();
+        if (trimmed && !BUILTIN_ROLES.includes(trimmed) && !(form.customRoles || []).includes(trimmed)) {
+          set("customRoles", [...(form.customRoles || []), trimmed]);
+          setNewRoleInput("");
+        }
+      }
+    }}
+  />
+  <button style={btnPri} onClick={() => {
+    const trimmed = newRoleInput.trim();
+    if (!trimmed) return;
+    if (BUILTIN_ROLES.includes(trimmed) || (form.customRoles || []).includes(trimmed)) { showToast("Role already exists", "error"); return; }
+    set("customRoles", [...(form.customRoles || []), trimmed]);
+    setNewRoleInput("");
+  }}>Add Role</button>
 </div>
 </div>
 <div style={{ ...cardSt, marginTop: 14 }}>

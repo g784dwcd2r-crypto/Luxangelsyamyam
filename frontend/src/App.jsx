@@ -4888,24 +4888,11 @@ const url = `https://mail.zoho.com/zm/#compose?to=${encodeURIComponent(client.em
 window.open(url, '_blank');
 };
 
-const sendQuoteEmailDraft = async () => {
+const sendQuoteEmailDraft = () => {
 if (!quoteEmailDraft) return;
-try {
-const response = await fetch(apiUrl('/api/notifications/email'), {
-method: 'POST',
-headers: { 'Content-Type': 'application/json' },
-body: JSON.stringify({ to: quoteEmailDraft.to, subject: quoteEmailDraft.subject, body: quoteEmailDraft.body, from: quoteEmailDraft.from }),
-});
-if (!response.ok) {
-const errPayload = await response.json().catch(() => ({}));
-throw new Error(errPayload.error || 'Unable to send email');
-}
-showToast(lang === "fr" ? "Email envoyé" : "Email sent");
+const url = `https://mail.zoho.com/zm/#compose?to=${encodeURIComponent(quoteEmailDraft.to)}&subject=${encodeURIComponent(quoteEmailDraft.subject)}&body=${encodeURIComponent(quoteEmailDraft.body)}`;
+window.open(url, '_blank');
 setQuoteEmailDraft(null);
-} catch (err) {
-console.error(err);
-showToast(err.message || (lang === "fr" ? "Impossible d'envoyer l'email" : "Unable to send email"), "error");
-}
 };
 
 const sendQuote = (q) => emailQuote(q);
@@ -5498,25 +5485,11 @@ const url = `https://mail.zoho.com/zm/#compose?to=${encodeURIComponent(client.em
 window.open(url, '_blank');
 };
 
-const sendEmailDraft = async () => {
+const sendEmailDraft = () => {
 if (!emailDraft) return;
-try {
-const response = await fetch(apiUrl('/api/notifications/email'), {
-method: 'POST',
-headers: { 'Content-Type': 'application/json' },
-body: JSON.stringify({ to: emailDraft.to, subject: emailDraft.subject, body: emailDraft.body, from: emailDraft.from }),
-});
-if (!response.ok) {
-const errPayload = await response.json().catch(() => ({}));
-throw new Error(errPayload.error || 'Unable to send email');
-}
-showToast("Email sent from platform");
+const url = `https://mail.zoho.com/zm/#compose?to=${encodeURIComponent(emailDraft.to)}&subject=${encodeURIComponent(emailDraft.subject)}&body=${encodeURIComponent(emailDraft.body)}`;
+window.open(url, '_blank');
 setEmailDraft(null);
-} catch (err) {
-console.error(err);
-const fallbackEmailError = !err?.message || /load failed|failed to fetch/i.test(err.message);
-showToast(fallbackEmailError ? uiText("Unable to send email") : err.message, "error");
-}
 };
 
 const filteredInvoices = data.invoices
@@ -5534,12 +5507,6 @@ const hasFilters = filters.invoiceNumber || filters.clientId || filters.status |
 
 return (
 <div>
-{!emailConfigured && (
-  <div style={{ background: "#fff3cd", border: "1px solid #ffc107", borderRadius: 8, padding: "10px 14px", marginBottom: 14, fontSize: 13, color: "#856404", display: "flex", alignItems: "center", gap: 8 }}>
-    <span>&#9888;</span>
-    <span>{lang === "fr" ? "L'envoi d'e-mails n'est pas configuré. Configurez un fournisseur d'e-mail (SMTP, ZeptoMail ou Resend) dans les variables d'environnement du serveur pour activer l'envoi de factures par e-mail." : "Email sending is not configured. Set up an email provider (SMTP, ZeptoMail, or Resend) in the server environment variables to enable invoice emailing."}</span>
-  </div>
-)}
 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
 <h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold }}>{t("invoices")}</h1>
 <button style={btnPri} onClick={() => setModal({ clientId: "", date: getToday(), dueDate: "", invoiceNumber: nextInvoiceNum(), items: [{ prestationDate: getToday(), description: "", hours: "", quantity: 1, unitPrice: 0, total: 0 }], visibleColumns: { prestationDate: true, description: true, hours: true, quantity: false, unitPrice: true, total: true, tva: true }, subtotal: 0, vatRate: data.settings.defaultVatRate, vatAmount: 0, total: 0, status: "draft", notes: "", paymentTerms: "Payment due within 30 days.", emailTemplate: "standard", zohoEmail: "" })}>{ICN.plus} {t("newInvoice")}</button>
@@ -6494,11 +6461,18 @@ return false;
 }
 };
 
+const openZohoCompose = ({ to, subject, body }) => {
+if (!to) { showToast(uiText("Client email missing"), "error"); return false; }
+const url = `https://mail.zoho.com/zm/#compose?to=${encodeURIComponent(to)}&subject=${encodeURIComponent(subject || "")}&body=${encodeURIComponent(body || "")}`;
+window.open(url, '_blank');
+return true;
+};
+
 const dispatch = async (mode, payload, client) => {
 if (mode === "whatsapp") return openWhatsApp({ phone: client.phoneMobile || client.phone, message: payload.body });
 if (mode === "sms") return sendPlatformSMS({ to: client.phoneMobile || client.phone, body: payload.body });
-if (mode === "zoho") return sendPlatformEmail({ ...payload, subject: `[ZOHO] ${payload.subject}`, from: data.settings.companyEmail });
-return sendPlatformEmail(payload);
+if (mode === "email" || mode === "zoho") return openZohoCompose({ to: client.email, subject: payload.subject, body: payload.body });
+return openZohoCompose({ to: client.email, subject: payload.subject, body: payload.body });
 };
 
 const tomorrow = new Date(Date.now() + 864e5).toISOString().slice(0, 10);

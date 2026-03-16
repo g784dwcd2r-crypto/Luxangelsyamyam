@@ -4883,11 +4883,9 @@ return `Dear ${name},\n\nPlease find our quote ${qNum}.\nDate: ${dateStr}\nAmoun
 const emailQuote = (q) => {
 const client = data.clients.find(c => c.id === q.clientId);
 if (!client?.email) { showToast(lang === "fr" ? "Email client manquant" : "Client email missing", "error"); return; }
-const template = "standard";
 const subject = lang === "fr" ? `Devis ${q.quoteNumber}` : `Quote ${q.quoteNumber}`;
-const body = buildQuoteEmailBody(q, client, template, lang);
-const from = data.settings.companyEmail;
-setQuoteEmailDraft({ to: client.email, subject, body, from, template, q });
+const url = `https://mail.zoho.com/zm/#compose?to=${encodeURIComponent(client.email)}&subject=${encodeURIComponent(subject)}`;
+window.open(url, '_blank');
 };
 
 const sendQuoteEmailDraft = async () => {
@@ -5496,9 +5494,8 @@ const subjectMap = lang === "fr"
   ? { standard: `Facture ${inv.invoiceNumber}`, friendly: `Facture ${inv.invoiceNumber}`, thank_you: `Merci — Facture ${inv.invoiceNumber}`, overdue: `Relance — Facture ${inv.invoiceNumber}` }
   : { standard: `Invoice ${inv.invoiceNumber}`, friendly: `Invoice ${inv.invoiceNumber}`, thank_you: `Thank you — Invoice ${inv.invoiceNumber}`, overdue: `Overdue: Invoice ${inv.invoiceNumber}` };
 const subject = subjectMap[template] || subjectMap.standard;
-const body = buildEmailBody(inv, client, template, lang);
-const from = inv.zohoEmail || data.settings.companyEmail;
-setEmailDraft({ to: client.email, subject, body, from, template, inv });
+const url = `https://mail.zoho.com/zm/#compose?to=${encodeURIComponent(client.email)}&subject=${encodeURIComponent(subject)}`;
+window.open(url, '_blank');
 };
 
 const sendEmailDraft = async () => {
@@ -5600,7 +5597,7 @@ return (
 <thead><tr><th style={thSt}>#</th><th style={thSt}>{t("client")}</th><th style={thSt}>{t("date")}</th><th style={thSt}>{t("total")}</th><th style={thSt}>{t("status")}</th><th style={thSt}>{t("actions")}</th></tr></thead>
 <tbody>
 {filteredInvoices.map(inv => { const client = data.clients.find(c => c.id === inv.clientId); const effStatus = effectiveInvoiceStatus(inv); return (
-<tr key={inv.id}><td style={tdSt}><strong>{inv.invoiceNumber}</strong></td><td style={tdSt}>{client?.name || "-"}</td><td style={tdSt}>{fmtDate(inv.date)}{inv.dueDate ? <div style={{ fontSize: 11, color: effStatus === "overdue" ? CL.red : CL.muted }}>{lang === "fr" ? "Échéance:" : "Due:"} {fmtDate(inv.dueDate)}</div> : null}</td><td style={{ ...tdSt, fontWeight: 600 }}>€{(inv.total || 0).toFixed(2)}</td><td style={tdSt}>{(() => { const statusColor = effStatus === "paid" ? CL.green : effStatus === "overdue" ? CL.red : effStatus === "sent" ? CL.blue : CL.muted; return <select value={effStatus} onChange={e => handleStatusChange(inv, e.target.value)} style={{ background: statusColor + "22", color: statusColor, border: `1.5px solid ${statusColor}`, borderRadius: 20, padding: "3px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer", appearance: "none", WebkitAppearance: "none", outline: "none" }}><option value="draft">{lang === "fr" ? "Brouillon" : "Draft"}</option><option value="sent">{lang === "fr" ? "Envoyée" : "Sent"}</option><option value="paid">{lang === "fr" ? "Payée ✓" : "Paid ✓"}</option><option value="overdue">{lang === "fr" ? "En retard" : "Overdue"}</option></select>; })()}</td><td style={tdSt}><div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}><button style={{ ...btnSec, ...btnSm }} onClick={() => setPreview(inv)}>{t("view")}</button><button style={{ ...btnSec, ...btnSm }} onClick={() => setModal({ ...inv })}>{ICN.edit}</button><button style={{ ...btnSec, ...btnSm, ...(emailConfigured ? {} : { opacity: 0.45, cursor: "not-allowed" }) }} title={emailConfigured ? undefined : (lang === "fr" ? "Email non configuré — contactez votre administrateur" : "Email not configured — contact your administrator")} disabled={!emailConfigured} onClick={() => emailInvoice(inv)}>{ICN.mail}</button><button style={{ ...btnSec, ...btnSm, color: CL.red }} onClick={() => handleDelete(inv.id)}>{ICN.trash}</button></div></td></tr>
+<tr key={inv.id}><td style={tdSt}><strong>{inv.invoiceNumber}</strong></td><td style={tdSt}>{client?.name || "-"}</td><td style={tdSt}>{fmtDate(inv.date)}{inv.dueDate ? <div style={{ fontSize: 11, color: effStatus === "overdue" ? CL.red : CL.muted }}>{lang === "fr" ? "Échéance:" : "Due:"} {fmtDate(inv.dueDate)}</div> : null}</td><td style={{ ...tdSt, fontWeight: 600 }}>€{(inv.total || 0).toFixed(2)}</td><td style={tdSt}>{(() => { const statusColor = effStatus === "paid" ? CL.green : effStatus === "overdue" ? CL.red : effStatus === "sent" ? CL.blue : CL.muted; return <select value={effStatus} onChange={e => handleStatusChange(inv, e.target.value)} style={{ background: statusColor + "22", color: statusColor, border: `1.5px solid ${statusColor}`, borderRadius: 20, padding: "3px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer", appearance: "none", WebkitAppearance: "none", outline: "none" }}><option value="draft">{lang === "fr" ? "Brouillon" : "Draft"}</option><option value="sent">{lang === "fr" ? "Envoyée" : "Sent"}</option><option value="paid">{lang === "fr" ? "Payée ✓" : "Paid ✓"}</option><option value="overdue">{lang === "fr" ? "En retard" : "Overdue"}</option></select>; })()}</td><td style={tdSt}><div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}><button style={{ ...btnSec, ...btnSm }} onClick={() => setPreview(inv)}>{t("view")}</button><button style={{ ...btnSec, ...btnSm }} onClick={() => setModal({ ...inv })}>{ICN.edit}</button><button style={{ ...btnSec, ...btnSm }} onClick={() => emailInvoice(inv)}>{ICN.mail}</button><button style={{ ...btnSec, ...btnSm, color: CL.red }} onClick={() => handleDelete(inv.id)}>{ICN.trash}</button></div></td></tr>
 ); })}
 {filteredInvoices.length === 0 && <tr><td colSpan={6} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>{hasFilters ? (lang === "fr" ? "Aucune facture trouvée" : "No invoices match filters") : uiText("No invoices")}</td></tr>}
 </tbody>
@@ -5614,7 +5611,7 @@ return (
 <button style={btnSec} onClick={() => setPreview(null)}>{lang === "en" ? "Close" : "Fermer"}</button>
 <button style={btnSec} onClick={() => downloadInvoicePng(preview)}>{ICN.download} PNG</button>
 <button style={btnPri} onClick={() => downloadInvoicePdf(preview)}>{ICN.download} PDF</button>
-<button style={{ ...btnSec, color: emailConfigured ? CL.blue : CL.muted, ...(emailConfigured ? {} : { opacity: 0.45, cursor: "not-allowed" }) }} title={emailConfigured ? undefined : (lang === "fr" ? "Email non configuré — contactez votre administrateur" : "Email not configured — contact your administrator")} disabled={!emailConfigured} onClick={() => emailInvoice(preview)}>{ICN.mail} {t("sendEmail")}</button>
+<button style={{ ...btnSec, color: CL.blue }} onClick={() => emailInvoice(preview)}>{ICN.mail} {t("sendEmail")}</button>
 </div>
 </ModalBox>
 )}

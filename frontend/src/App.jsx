@@ -3780,14 +3780,14 @@ if (hasRange) {
   const client = data.clients.find(c => c.id === schedData.clientId);
   const preferredDays = client?.preferredDays || [];
   const dayNames = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-  let cur = new Date(schedData.date + "T00:00:00");
-  const end = new Date(schedData.dateTo + "T00:00:00");
+  let cur = new Date(schedData.date);
+  const end = new Date(schedData.dateTo);
 
   if (preferredDays.length > 0) {
     // Generate on preferred days of week within range
     const pdNums = preferredDays.map(pd => dayNames.indexOf(pd.day));
     while (cur <= end) {
-      const dow = cur.getDay();
+      const dow = cur.getUTCDay();
       if (pdNums.includes(dow)) {
         const pd = preferredDays.find(pd => dayNames.indexOf(pd.day) === dow);
         let endTime = schedData.endTime;
@@ -3798,22 +3798,22 @@ if (hasRange) {
         }
         items.push({ ...base, id: makeId(), date: cur.toISOString().slice(0, 10), endTime, updatedAt: stamp });
       }
-      cur.setDate(cur.getDate() + 1);
+      cur.setUTCDate(cur.getUTCDate() + 1);
     }
   } else if (schedData.recurrence === "daily-weekdays") {
     while (cur <= end) {
-      if (cur.getDay() !== 0 && cur.getDay() !== 6) items.push({ ...base, id: makeId(), date: cur.toISOString().slice(0, 10), updatedAt: stamp });
-      cur.setDate(cur.getDate() + 1);
+      if (cur.getUTCDay() !== 0 && cur.getUTCDay() !== 6) items.push({ ...base, id: makeId(), date: cur.toISOString().slice(0, 10), updatedAt: stamp });
+      cur.setUTCDate(cur.getUTCDate() + 1);
     }
   } else if (schedData.recurrence === "weekly") {
-    while (cur <= end) { items.push({ ...base, id: makeId(), date: cur.toISOString().slice(0, 10), updatedAt: stamp }); cur.setDate(cur.getDate() + 7); }
+    while (cur <= end) { items.push({ ...base, id: makeId(), date: cur.toISOString().slice(0, 10), updatedAt: stamp }); cur.setUTCDate(cur.getUTCDate() + 7); }
   } else if (schedData.recurrence === "biweekly") {
-    while (cur <= end) { items.push({ ...base, id: makeId(), date: cur.toISOString().slice(0, 10), updatedAt: stamp }); cur.setDate(cur.getDate() + 14); }
+    while (cur <= end) { items.push({ ...base, id: makeId(), date: cur.toISOString().slice(0, 10), updatedAt: stamp }); cur.setUTCDate(cur.getUTCDate() + 14); }
   } else if (schedData.recurrence === "monthly") {
-    while (cur <= end) { items.push({ ...base, id: makeId(), date: cur.toISOString().slice(0, 10), updatedAt: stamp }); cur.setMonth(cur.getMonth() + 1); }
+    while (cur <= end) { items.push({ ...base, id: makeId(), date: cur.toISOString().slice(0, 10), updatedAt: stamp }); cur.setUTCMonth(cur.getUTCMonth() + 1); }
   } else {
     // Every day
-    while (cur <= end) { items.push({ ...base, id: makeId(), date: cur.toISOString().slice(0, 10), updatedAt: stamp }); cur.setDate(cur.getDate() + 1); }
+    while (cur <= end) { items.push({ ...base, id: makeId(), date: cur.toISOString().slice(0, 10), updatedAt: stamp }); cur.setUTCDate(cur.getUTCDate() + 1); }
   }
 
   if (items.length === 0) { showToast("Aucun créneau dans cette plage", "error"); return; }
@@ -3824,14 +3824,14 @@ if (hasRange) {
     const baseDate = new Date(schedData.date);
     if (schedData.recurrence === "daily") {
       for (let i = 1; i <= 30; i++) {
-        const d = new Date(baseDate); d.setDate(d.getDate() + i);
+        const d = new Date(baseDate); d.setUTCDate(d.getUTCDate() + i);
         items.push({ ...base, id: makeId(), date: d.toISOString().slice(0, 10), updatedAt: stamp });
       }
     } else if (schedData.recurrence === "daily-weekdays") {
       let added = 0, offset = 1;
       while (added < 30) {
-        const d = new Date(baseDate); d.setDate(d.getDate() + offset);
-        if (d.getDay() !== 0 && d.getDay() !== 6) { items.push({ ...base, id: makeId(), date: d.toISOString().slice(0, 10), updatedAt: stamp }); added++; }
+        const d = new Date(baseDate); d.setUTCDate(d.getUTCDate() + offset);
+        if (d.getUTCDay() !== 0 && d.getUTCDay() !== 6) { items.push({ ...base, id: makeId(), date: d.toISOString().slice(0, 10), updatedAt: stamp }); added++; }
         offset++;
       }
     } else if (["2x-weekly","3x-weekly","4x-weekly"].includes(schedData.recurrence)) {
@@ -3842,9 +3842,9 @@ if (hasRange) {
       for (let week = 0; week < 12; week++) {
         selDays.forEach(dow => {
           const d = new Date(baseDate);
-          const diff = (dow - d.getDay() + 7) % 7 + week * 7;
+          const diff = (dow - d.getUTCDay() + 7) % 7 + week * 7;
           if (diff === 0 && week === 0) return; // skip start date itself (already added)
-          d.setDate(d.getDate() + diff);
+          d.setUTCDate(d.getUTCDate() + diff);
           items.push({ ...base, id: makeId(), date: d.toISOString().slice(0, 10), updatedAt: stamp });
         });
       }
@@ -3854,17 +3854,17 @@ if (hasRange) {
       if (selDays.length > 0) {
         const dayNames = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
         const dow = dayNames.indexOf(selDays[0]);
-        const firstDiff = (dow - baseDate.getDay() + 7) % 7;
+        const firstDiff = (dow - baseDate.getUTCDay() + 7) % 7;
         for (let i = 0; i < 12; i++) {
           const d = new Date(baseDate);
-          d.setDate(d.getDate() + firstDiff + interval * i);
+          d.setUTCDate(d.getUTCDate() + firstDiff + interval * i);
           if (d.toISOString().slice(0, 10) !== schedData.date) {
             items.push({ ...base, id: makeId(), date: d.toISOString().slice(0, 10), updatedAt: stamp });
           }
         }
       } else {
         for (let i = 1; i <= 12; i++) {
-          const d = new Date(baseDate); d.setDate(d.getDate() + interval * i);
+          const d = new Date(baseDate); d.setUTCDate(d.getUTCDate() + interval * i);
           items.push({ ...base, id: makeId(), date: d.toISOString().slice(0, 10), updatedAt: stamp });
         }
       }
@@ -3895,6 +3895,21 @@ showToast("Removed", "error");
 } catch (err) {
 console.error(err);
 showToast(err?.message || "Unable to delete schedule", "error");
+}
+};
+
+const handleBulkDelete = async () => {
+if (orderedMonthSchedules.length === 0) return;
+const confirmed = window.confirm(`${uiText("Delete")} ${orderedMonthSchedules.length} ${uiText("job(s)") || "job(s)"} ?`);
+if (!confirmed) return;
+const ids = orderedMonthSchedules.map(s => s.id);
+try {
+await Promise.all(ids.map(id => deleteScheduleFromApi(id)));
+updateData("schedules", prev => prev.filter(s => !ids.includes(s.id)));
+showToast(`${ids.length} ${uiText("job(s)") || "job(s)"} supprimé(s)`, "error");
+} catch (err) {
+console.error(err);
+showToast(err?.message || "Unable to delete schedules", "error");
 }
 };
 
@@ -4031,7 +4046,10 @@ return <div key={sched.id} onClick={() => setModal({ ...sched })} style={{ paddi
 </div>
 ) : (
 <div style={cardSt}>
-<div style={{ fontSize: 12, color: CL.muted, marginBottom: 10 }}>{uiText("Monthly job list by date (readable after clocking/status changes).")}</div>
+<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
+  <div style={{ fontSize: 12, color: CL.muted }}>{uiText("Monthly job list by date (readable after clocking/status changes).")}</div>
+  {orderedMonthSchedules.length > 0 && <button onClick={handleBulkDelete} style={{ background: "transparent", border: `1px solid ${CL.red}`, color: CL.red, cursor: "pointer", padding: "4px 10px", borderRadius: 6, fontSize: 12, display: "flex", alignItems: "center", gap: 4 }} title={uiText("Delete all filtered jobs")}>{ICN.trash} {uiText("Delete")} ({orderedMonthSchedules.length})</button>}
+</div>
 <div className="tbl-wrap">
 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
 <thead><tr><th style={thSt}>{uiText("Date")}</th><th style={thSt}>{uiText("Time")}</th><th style={thSt}>{uiText("Client")}</th><th style={thSt}>{uiText("Cleaner")}</th><th style={thSt}>{uiText("Status")}</th><th style={thSt}>{uiText("Payment")}</th><th style={thSt}></th></tr></thead>
@@ -4076,20 +4094,20 @@ const previewJobCount = (() => {
   const preferredDays = selectedClient?.preferredDays || [];
   const dayNames = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
   let count = 0;
-  let cur = new Date(form.date + "T00:00:00");
-  const end = new Date(form.dateTo + "T00:00:00");
+  let cur = new Date(form.date);
+  const end = new Date(form.dateTo);
   if (preferredDays.length > 0) {
     const pdNums = preferredDays.map(pd => dayNames.indexOf(pd.day));
-    while (cur <= end) { if (pdNums.includes(cur.getDay())) count++; cur.setDate(cur.getDate() + 1); }
+    while (cur <= end) { if (pdNums.includes(cur.getUTCDay())) count++; cur.setUTCDate(cur.getUTCDate() + 1); }
   } else if (form.recurrence !== "none") {
     const interval = form.recurrence === "daily" ? 1 : form.recurrence === "daily-weekdays" ? 1 : form.recurrence === "weekly" ? 7 : form.recurrence === "biweekly" ? 14 : 28;
     if (form.recurrence === "daily-weekdays") {
-      while (cur <= end) { if (cur.getDay() !== 0 && cur.getDay() !== 6) count++; cur.setDate(cur.getDate() + 1); }
+      while (cur <= end) { if (cur.getUTCDay() !== 0 && cur.getUTCDay() !== 6) count++; cur.setUTCDate(cur.getUTCDate() + 1); }
     } else {
-      while (cur <= end) { count++; cur.setDate(cur.getDate() + interval); }
+      while (cur <= end) { count++; cur.setUTCDate(cur.getUTCDate() + interval); }
     }
   } else {
-    while (cur <= end) { count++; cur.setDate(cur.getDate() + 1); }
+    while (cur <= end) { count++; cur.setUTCDate(cur.getUTCDate() + 1); }
   }
   return count;
 })();
@@ -4929,7 +4947,7 @@ const { startDate, dateFrom, dateTo, frequency, employeeId, startTime, endTime }
 if (!startDate || !employeeId) return [];
 const entries = [];
 const endDateStr = dateTo || dateFrom || startDate;
-const toDate = d => new Date(d + "T00:00:00");
+const toDate = d => new Date(d);
 const toISO = d => d.toISOString().slice(0, 10);
 const addEntry = (d) => entries.push({ id: makeId(), date: toISO(d), clientId, employeeId, startTime: startTime || "08:00", endTime: endTime || "12:00", status: "scheduled", notes: "Généré depuis devis", recurrence: frequency === "one-time" ? "none" : frequency });
 if (frequency === "one-time") {
@@ -4939,8 +4957,8 @@ if (frequency === "one-time") {
   const end = toDate(endDateStr);
   while (cur <= end) {
     addEntry(new Date(cur));
-    if (frequency === "monthly") { cur.setMonth(cur.getMonth() + 1); }
-    else { cur.setDate(cur.getDate() + (frequency === "biweekly" ? 14 : 7)); }
+    if (frequency === "monthly") { cur.setUTCMonth(cur.getUTCMonth() + 1); }
+    else { cur.setUTCDate(cur.getUTCDate() + (frequency === "biweekly" ? 14 : 7)); }
   }
 }
 return entries;

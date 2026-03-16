@@ -3850,9 +3850,23 @@ if (hasRange) {
       }
     } else {
       const interval = schedData.recurrence === "weekly" ? 7 : schedData.recurrence === "biweekly" ? 14 : 28;
-      for (let i = 1; i <= 12; i++) {
-        const d = new Date(baseDate); d.setDate(d.getDate() + interval * i);
-        items.push({ ...base, id: makeId(), date: d.toISOString().slice(0, 10), updatedAt: stamp });
+      const selDays = (["weekly","biweekly"].includes(schedData.recurrence)) ? (schedData.recurrenceDays || []) : [];
+      if (selDays.length > 0) {
+        const dayNames = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+        const dow = dayNames.indexOf(selDays[0]);
+        const firstDiff = (dow - baseDate.getDay() + 7) % 7;
+        for (let i = 0; i < 12; i++) {
+          const d = new Date(baseDate);
+          d.setDate(d.getDate() + firstDiff + interval * i);
+          if (d.toISOString().slice(0, 10) !== schedData.date) {
+            items.push({ ...base, id: makeId(), date: d.toISOString().slice(0, 10), updatedAt: stamp });
+          }
+        }
+      } else {
+        for (let i = 1; i <= 12; i++) {
+          const d = new Date(baseDate); d.setDate(d.getDate() + interval * i);
+          items.push({ ...base, id: makeId(), date: d.toISOString().slice(0, 10), updatedAt: stamp });
+        }
       }
     }
   }
@@ -4099,24 +4113,28 @@ return (
   {selectedClient && selectedEmployee && <div style={{ fontSize: 11, color: cityMatchLabel(selectedEmployee, selectedClient).startsWith("✅") ? CL.green : CL.orange, marginTop: 4 }}>{cityMatchLabel(selectedEmployee, selectedClient)}</div>}
   </>
 ) : (
-  <div style={{ border: `1px solid ${CL.bd}`, borderRadius: 10, padding: "8px 12px", background: CL.sf }}>
+  <div style={{ border: `1px solid ${CL.bd}`, borderRadius: 10, overflow: "hidden", background: CL.sf }}>
     {data.employees.filter(emp => emp.status === "active").length > 4 && (
-      <input value={empSearch} onChange={e => setEmpSearch(e.target.value)} placeholder={uiText("Search") + "..."} style={{ width: "100%", marginBottom: 6, padding: "5px 8px", borderRadius: 6, border: `1px solid ${CL.bd}`, background: CL.bg, color: CL.text, fontSize: 12, boxSizing: "border-box", outline: "none" }} />
+      <div style={{ padding: "8px 12px", borderBottom: `1px solid ${CL.bd}` }}>
+        <input value={empSearch} onChange={e => setEmpSearch(e.target.value)} placeholder={uiText("Search") + "..."} style={{ width: "100%", padding: "5px 8px", borderRadius: 6, border: `1px solid ${CL.bd}`, background: CL.bg, color: CL.text, fontSize: 12, boxSizing: "border-box", outline: "none" }} />
+      </div>
     )}
-    <div style={{ maxHeight: 180, overflowY: "auto" }}>
+    <div style={{ maxHeight: 220, overflowY: "auto" }}>
     {data.employees.filter(emp => emp.status === "active").length === 0
-      ? <div style={{ color: CL.muted, fontSize: 13 }}>{uiText("No active employees")}</div>
-      : data.employees.filter(emp => emp.status === "active" && (!empSearch || emp.name.toLowerCase().includes(empSearch.toLowerCase()))).map(emp => {
+      ? <div style={{ color: CL.muted, fontSize: 13, padding: "12px 16px" }}>{uiText("No active employees")}</div>
+      : data.employees.filter(emp => emp.status === "active" && (!empSearch || emp.name.toLowerCase().includes(empSearch.toLowerCase()))).map((emp, idx, arr) => {
           const checked = (form.employeeIds || []).includes(emp.id);
           return (
-            <label key={emp.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 2px", cursor: "pointer", fontSize: 13, color: CL.text, borderBottom: `1px solid ${CL.bd}20` }}>
-              <input type="checkbox" checked={checked} onChange={() => {
-                const ids = form.employeeIds || [];
-                set("employeeIds", checked ? ids.filter(id => id !== emp.id) : [...ids, emp.id]);
-              }} style={{ accentColor: CL.gold, width: 15, height: 15, flexShrink: 0 }} />
-              <span style={{ fontWeight: checked ? 600 : 400 }}>{emp.name}</span>
-              {emp.cleanerGroup || emp.city ? <span style={{ fontSize: 11, color: CL.muted }}>· {emp.cleanerGroup || emp.city}</span> : null}
-            </label>
+            <div key={emp.id} onClick={() => {
+              const ids = form.employeeIds || [];
+              set("employeeIds", checked ? ids.filter(id => id !== emp.id) : [...ids, emp.id]);
+            }} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "11px 14px", cursor: "pointer", borderBottom: idx < arr.length - 1 ? `1px solid ${CL.bd}30` : "none", background: checked ? CL.gold + "18" : "transparent", borderLeft: `3px solid ${checked ? CL.gold : "transparent"}`, transition: "background 0.15s" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <span style={{ fontSize: 13, fontWeight: checked ? 600 : 400, color: checked ? CL.gold : CL.text }}>{emp.name}</span>
+                {emp.cleanerGroup || emp.city ? <span style={{ fontSize: 11, color: CL.muted }}>{emp.cleanerGroup || emp.city}</span> : null}
+              </div>
+              <span style={{ fontSize: 18, color: checked ? CL.gold : CL.muted, fontWeight: 400, lineHeight: 1 }}>{checked ? "✓" : "›"}</span>
+            </div>
           );
         })
     }
@@ -4157,13 +4175,13 @@ return (
 <option value="3x-weekly">{uiText("3x per week")}</option>
 <option value="4x-weekly">{uiText("4x per week")}</option>
 </SelectInput>
-{["2x-weekly","3x-weekly","4x-weekly"].includes(form.recurrence) && (
+{["weekly","biweekly","2x-weekly","3x-weekly","4x-weekly"].includes(form.recurrence) && (
   <div style={{ marginTop: 8 }}>
     <div style={{ fontSize: 12, color: CL.muted, marginBottom: 6 }}>{uiText("Select days:")}</div>
     <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
       {["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"].map((day, i) => {
         const shortLabels = [uiText("Mon"),uiText("Tue"),uiText("Wed"),uiText("Thu"),uiText("Fri"),uiText("Sat"),uiText("Sun")];
-        const maxDays = form.recurrence === "2x-weekly" ? 2 : form.recurrence === "3x-weekly" ? 3 : 4;
+        const maxDays = form.recurrence === "2x-weekly" ? 2 : form.recurrence === "3x-weekly" ? 3 : form.recurrence === "4x-weekly" ? 4 : 1;
         const selDays = form.recurrenceDays || [];
         const isChecked = selDays.includes(day);
         const canAdd = selDays.length < maxDays || isChecked;

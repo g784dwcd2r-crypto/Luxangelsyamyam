@@ -1300,6 +1300,69 @@ const syncClockEntryToApi = async (entry) => {
   await ensureApiOk(updateRes, "Failed to update clock entry");
 };
 
+const deleteClockEntryFromApi = async (id) => {
+  const response = await fetch(apiUrl(`/api/clock-entries/${id}`), { method: "DELETE" });
+  await ensureApiOk(response, "Failed to delete clock entry");
+};
+
+const deletePayslipFromApi = async (id) => {
+  const response = await fetch(apiUrl(`/api/payslips/${id}`), { method: "DELETE" });
+  await ensureApiOk(response, "Failed to delete payslip");
+};
+
+const syncImportedDataToApi = async (nextData) => {
+  const safeJson = async (res) => {
+    if (!res?.ok) return [];
+    try { return await res.json(); } catch { return []; }
+  };
+
+  const [dbEmployees, dbClients, dbSchedules, dbClocks, dbInvoices, dbPayslips] = await Promise.all([
+    fetch(apiUrl('/api/employees'), { cache: 'no-store' }).then(safeJson),
+    fetch(apiUrl('/api/clients'), { cache: 'no-store' }).then(safeJson),
+    fetch(apiUrl('/api/schedules'), { cache: 'no-store' }).then(safeJson),
+    fetch(apiUrl('/api/clock-entries'), { cache: 'no-store' }).then(safeJson),
+    fetch(apiUrl('/api/invoices'), { cache: 'no-store' }).then(safeJson),
+    fetch(apiUrl('/api/payslips'), { cache: 'no-store' }).then(safeJson),
+  ]);
+
+  for (const emp of nextData.employees || []) {
+    await syncEmployeeToApi(emp, nextData.employeePins?.[emp.id], nextData.employeeUsernames?.[emp.id]);
+  }
+  for (const client of nextData.clients || []) await syncClientToApi(client);
+  for (const sched of nextData.schedules || []) await syncScheduleToApi(sched);
+  for (const clockEntry of nextData.clockEntries || []) await syncClockEntryToApi(clockEntry);
+  for (const invoice of nextData.invoices || []) await syncInvoiceToApi(invoice);
+  for (const payslip of nextData.payslips || []) await syncPayslipToApi(payslip);
+
+  const importedEmployeeIds = new Set((nextData.employees || []).map(r => r.id));
+  const importedClientIds = new Set((nextData.clients || []).map(r => r.id));
+  const importedScheduleIds = new Set((nextData.schedules || []).map(r => r.id));
+  const importedClockIds = new Set((nextData.clockEntries || []).map(r => r.id));
+  const importedInvoiceIds = new Set((nextData.invoices || []).map(r => r.id));
+  const importedPayslipIds = new Set((nextData.payslips || []).map(r => r.id));
+
+  for (const row of dbClocks) if (!importedClockIds.has(row.id)) await deleteClockEntryFromApi(row.id);
+  for (const row of dbSchedules) if (!importedScheduleIds.has(row.id)) await deleteScheduleFromApi(row.id);
+  for (const row of dbInvoices) if (!importedInvoiceIds.has(row.id)) await deleteInvoiceFromApi(row.id);
+  for (const row of dbPayslips) if (!importedPayslipIds.has(row.id)) await deletePayslipFromApi(row.id);
+  for (const row of dbClients) if (!importedClientIds.has(row.id)) await deleteClientFromApi(row.id);
+  for (const row of dbEmployees) if (!importedEmployeeIds.has(row.id)) await deleteEmployeeFromApi(row.id);
+
+  const settingsPayload = {
+    ...(nextData.settings || {}),
+    ownerUsername: nextData.ownerUsername || "",
+    ownerPin: nextData.ownerPin || "",
+    managerUsername: nextData.managerUsername || "",
+    managerPin: nextData.managerPin || "",
+  };
+  const settingsRes = await fetch(apiUrl('/api/settings'), {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(settingsPayload),
+  });
+  await ensureApiOk(settingsRes, 'Failed to save imported settings');
+};
+
 const getLeaveSummary = (data, employeeId, year = getToday().slice(0, 4)) => {
 const allowance = data.employees.find(e => e.id === employeeId)?.leaveAllowance ?? 26;
 const requests = (data.timeOffRequests || []).filter(r => r.employeeId === employeeId && (r.startDate || "").startsWith(year));
@@ -1668,7 +1731,7 @@ URL.revokeObjectURL(url);
 };
 
 // -- Excel Import --
-const importExcel = async (file, setData, showToast) => {
+const importExcel = async (file, currentData, setData, showToast) => {
 try {
 const buffer = await file.arrayBuffer();
 const wb = new ExcelJS.Workbook();
@@ -1701,15 +1764,15 @@ const sheet = (name) => {
         .join("");
       const parsedBackup = JSON.parse(backupJson);
 
-      setData(prev => {
-        const next = { ...prev, ...(parsedBackup || {}) };
-        return {
-          ...next,
-          settings: normalizeSettingsPayload(parsedBackup?.settings || {}, prev.settings),
-          employeePins: parsedBackup?.employeePins && typeof parsedBackup.employeePins === "object" ? parsedBackup.employeePins : prev.employeePins,
-          employeeUsernames: parsedBackup?.employeeUsernames && typeof parsedBackup.employeeUsernames === "object" ? parsedBackup.employeeUsernames : prev.employeeUsernames,
-        };
-      });
+      const nextData = {
+        ...currentData,
+        ...(parsedBackup || {}),
+        settings: normalizeSettingsPayload(parsedBackup?.settings || {}, currentData.settings),
+        employeePins: parsedBackup?.employeePins && typeof parsedBackup.employeePins === "object" ? parsedBackup.employeePins : currentData.employeePins,
+        employeeUsernames: parsedBackup?.employeeUsernames && typeof parsedBackup.employeeUsernames === "object" ? parsedBackup.employeeUsernames : currentData.employeeUsernames,
+      };
+      await syncImportedDataToApi(nextData);
+      setData(nextData);
       showToast("Excel imported!", "success");
       return;
     } catch (backupErr) {
@@ -1765,31 +1828,33 @@ const sheet = (name) => {
   const managerUsername = sett.managerUsername || sett["Manager Username"];
   const managerPin = sett.managerPin || sett["Manager Password"] || sett["Manager PIN"];
 
-  setData(prev => ({
-    ...prev,
-    employees: emps.length ? emps : prev.employees,
-    employeePins: Object.keys(pins).length ? pins : prev.employeePins,
-    employeeUsernames: Object.keys(employeeUsernames).length ? employeeUsernames : prev.employeeUsernames,
-    clients: clients.length ? clients : prev.clients,
-    schedules: scheds.length ? scheds : prev.schedules,
-    clockEntries: clocks.length ? clocks : prev.clockEntries,
-    invoices: Object.values(invMap).length ? Object.values(invMap) : prev.invoices,
-    payslips: payslips.length ? payslips : prev.payslips,
-    ownerUsername: ownerUsername || prev.ownerUsername || "",
-    ownerPin: ownerPin || prev.ownerPin || "",
-    managerUsername: managerUsername || prev.managerUsername || "",
-    managerPin: managerPin || prev.managerPin || "",
+  const nextData = {
+    ...currentData,
+    employees: emps.length ? emps : currentData.employees,
+    employeePins: Object.keys(pins).length ? pins : currentData.employeePins,
+    employeeUsernames: Object.keys(employeeUsernames).length ? employeeUsernames : currentData.employeeUsernames,
+    clients: clients.length ? clients : currentData.clients,
+    schedules: scheds.length ? scheds : currentData.schedules,
+    clockEntries: clocks.length ? clocks : currentData.clockEntries,
+    invoices: Object.values(invMap).length ? Object.values(invMap) : currentData.invoices,
+    payslips: payslips.length ? payslips : currentData.payslips,
+    ownerUsername: ownerUsername || currentData.ownerUsername || "",
+    ownerPin: ownerPin || currentData.ownerPin || "",
+    managerUsername: managerUsername || currentData.managerUsername || "",
+    managerPin: managerPin || currentData.managerPin || "",
     settings: normalizeSettingsPayload({
       ...importedSettings,
-      companyName: importedSettings.companyName || importedSettings["Company Name"] || prev.settings.companyName,
-      companyAddress: importedSettings.companyAddress || importedSettings.Address || prev.settings.companyAddress,
-      companyEmail: importedSettings.companyEmail || importedSettings.Email || prev.settings.companyEmail,
-      companyPhone: importedSettings.companyPhone || importedSettings.Phone || prev.settings.companyPhone,
-      vatNumber: importedSettings.vatNumber || importedSettings["VAT Number"] || prev.settings.vatNumber,
-      bankIban: importedSettings.bankIban || importedSettings["Bank IBAN"] || prev.settings.bankIban,
-      defaultVatRate: importedSettings.defaultVatRate ?? importedSettings["VAT Rate"] ?? prev.settings.defaultVatRate,
-    }, prev.settings),
-  }));
+      companyName: importedSettings.companyName || importedSettings["Company Name"] || currentData.settings.companyName,
+      companyAddress: importedSettings.companyAddress || importedSettings.Address || currentData.settings.companyAddress,
+      companyEmail: importedSettings.companyEmail || importedSettings.Email || currentData.settings.companyEmail,
+      companyPhone: importedSettings.companyPhone || importedSettings.Phone || currentData.settings.companyPhone,
+      vatNumber: importedSettings.vatNumber || importedSettings["VAT Number"] || currentData.settings.vatNumber,
+      bankIban: importedSettings.bankIban || importedSettings["Bank IBAN"] || currentData.settings.bankIban,
+      defaultVatRate: importedSettings.defaultVatRate ?? importedSettings["VAT Rate"] ?? currentData.settings.defaultVatRate,
+    }, currentData.settings),
+  };
+  await syncImportedDataToApi(nextData);
+  setData(nextData);
   showToast("Excel imported!", "success");
 } catch (err) { console.error(err); showToast("Import failed", "error"); }
 };
@@ -7029,7 +7094,7 @@ setExporting(false);
 const doImport = (ev) => {
 const file = ev.target.files[0];
 if (!file) return;
-importExcel(file, setData, showToast);
+importExcel(file, data, setData, showToast);
 ev.target.value = "";
 };
 

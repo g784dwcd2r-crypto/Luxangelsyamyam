@@ -902,6 +902,51 @@ envApiBase,
 ].filter(Boolean)));
 const apiUrl = (path, base = API_BASE_CANDIDATES[0] || "") => `${base}${path.startsWith("/") ? path : `/${path}`}`;
 
+const BOOLEAN_SETTING_KEYS = new Set([
+  "allowOverlappingJobs", "autoAssignEmployee", "groupByLocationSuggestion", "allowManualEntry",
+  "requireReasonManualEdits", "requireCheckinValidation", "enableStockAlerts", "notifLateEmployees",
+  "notifNewInvoices", "notifOverdueInvoices", "notifLowStock", "notifPushEnabled",
+]);
+const NUMBER_SETTING_KEYS = new Set([
+  "defaultVatRate", "financeVatRate", "latePaymentPenalty", "defaultHourlyRate",
+  "maxJobsPerEmployeePerDay", "lateToleranceMinutes", "minStockThreshold", "autoClockOutAfterHours",
+  "autoMarkOverdueDays",
+]);
+const JSON_SETTING_KEYS = new Set(["publicHolidays", "customRoles", "rolePermissions"]);
+const parseJsonSafe = (raw, fallback) => {
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed ?? fallback;
+  } catch {
+    return fallback;
+  }
+};
+const normalizeSettingValue = (key, value, fallback) => {
+  if (value == null) return fallback;
+  if (JSON_SETTING_KEYS.has(key)) {
+    if (typeof value === "string") return parseJsonSafe(value, fallback);
+    if (typeof value === "object") return value;
+    return fallback;
+  }
+  if (BOOLEAN_SETTING_KEYS.has(key)) {
+    if (typeof value === "boolean") return value;
+    if (typeof value === "string") return value.trim().toLowerCase() === "true";
+    return Boolean(value);
+  }
+  if (NUMBER_SETTING_KEYS.has(key)) {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : fallback;
+  }
+  return value;
+};
+const normalizeSettingsPayload = (incoming = {}, baseSettings = DEFAULTS.settings) => {
+  const normalized = { ...baseSettings };
+  Object.entries(incoming || {}).forEach(([key, value]) => {
+    normalized[key] = normalizeSettingValue(key, value, normalized[key]);
+  });
+  return normalized;
+};
+
 // Convert frontend camelCase employee to snake_case for backend API
 const toApiEmployee = (emp, pin, username) => ({
   id: emp.id,
@@ -1574,13 +1619,20 @@ addSheet("Invoices", invRows, ["Inv","Date","Due","Client","CliID","Status","Ite
 addSheet("Payslips", data.payslips.map(ps => { const em = data.employees.find(e => e.id === ps.employeeId); return { Num: ps.payslipNumber, Employee: em?.name || "", EmpID: ps.employeeId, Month: ps.month, Hours: ps.totalHours, Rate: ps.hourlyRate, Gross: ps.grossPay, Social: ps.socialCharges, Tax: ps.taxEstimate, Net: ps.netPay, Status: ps.status }; }),
 ["Num","Employee","EmpID","Month",uiText("Hours"),"Rate","Gross","Social","Tax","Net","Status"]);
 
+const formatSettingCell = (value) => {
+  if (value == null) return "";
+  if (Array.isArray(value) || typeof value === "object") return JSON.stringify(value);
+  return String(value);
+};
+const settingsRows = Object.entries(data.settings || {})
+  .sort(([a], [b]) => a.localeCompare(b))
+  .map(([key, value]) => ({ Key: key, Val: formatSettingCell(value) }));
 addSheet("Settings", [
-{ Key: "Company Name", Val: data.settings.companyName }, { Key: "Address", Val: data.settings.companyAddress },
-{ Key: "Email", Val: data.settings.companyEmail }, { Key: "Phone", Val: data.settings.companyPhone },
-{ Key: "VAT Number", Val: data.settings.vatNumber }, { Key: "Bank IBAN", Val: data.settings.bankIban },
-{ Key: "VAT Rate", Val: data.settings.defaultVatRate },
-{ Key: "Owner Username", Val: data.ownerUsername || "" }, { Key: "Owner Password", Val: data.ownerPin || "" },
-{ Key: "Manager Username", Val: data.managerUsername || "" }, { Key: "Manager Password", Val: data.managerPin || "" },
+  ...settingsRows,
+  { Key: "ownerUsername", Val: data.ownerUsername || "" },
+  { Key: "ownerPin", Val: data.ownerPin || "" },
+  { Key: "managerUsername", Val: data.managerUsername || "" },
+  { Key: "managerPin", Val: data.managerPin || "" },
 ], ["Key", "Val"]);
 
 const months = [...new Set(data.clockEntries.filter(c => c.clockOut && c.clockIn).map(c => c.clockIn.slice(0, 7)))].sort();
@@ -1642,7 +1694,36 @@ const sheet = (name) => {
 
   const payslips = sheet("Payslips").filter(r => r.Num).map(r => ({ id: makeId(), payslipNumber: r.Num, employeeId: r.EmpID || "", month: r.Month || "", totalHours: parseFloat(r.Hours) || 0, hourlyRate: parseFloat(r.Rate) || 0, grossPay: parseFloat(r.Gross) || 0, socialCharges: parseFloat(r.Social) || 0, taxEstimate: parseFloat(r.Tax) || 0, netPay: parseFloat(r.Net) || 0, status: r.Status || "draft", createdAt: new Date().toISOString() }));
 
-  const sett = {}; sheet("Settings").forEach(r => { if (r.Key) sett[r.Key] = r.Val; });
+  const sett = {};
+  sheet("Settings").forEach(r => {
+    if (!r.Key) return;
+    sett[String(r.Key)] = r.Val;
+  });
+
+  const parseSettingValue = (value) => {
+    if (value == null || value === "") return value;
+    if (typeof value === "number" || typeof value === "boolean") return value;
+    const raw = String(value).trim();
+    if (raw === "") return "";
+    if (raw === "true") return true;
+    if (raw === "false") return false;
+    if (/^-?\d+(\.\d+)?$/.test(raw)) return Number(raw);
+    if ((raw.startsWith("[") && raw.endsWith("]")) || (raw.startsWith("{") && raw.endsWith("}"))) {
+      try { return JSON.parse(raw); } catch { return raw; }
+    }
+    return raw;
+  };
+
+  const importedSettings = {};
+  Object.entries(sett).forEach(([key, val]) => {
+    const isCredential = ["ownerUsername", "ownerPin", "managerUsername", "managerPin"].includes(key);
+    if (!isCredential) importedSettings[key] = parseSettingValue(val);
+  });
+
+  const ownerUsername = sett.ownerUsername || sett["Owner Username"];
+  const ownerPin = sett.ownerPin || sett["Owner Password"] || sett["Owner PIN"];
+  const managerUsername = sett.managerUsername || sett["Manager Username"];
+  const managerPin = sett.managerPin || sett["Manager Password"] || sett["Manager PIN"];
 
   setData(prev => ({
     ...prev,
@@ -1654,11 +1735,20 @@ const sheet = (name) => {
     clockEntries: clocks.length ? clocks : prev.clockEntries,
     invoices: Object.values(invMap).length ? Object.values(invMap) : prev.invoices,
     payslips: payslips.length ? payslips : prev.payslips,
-    ownerUsername: sett["Owner Username"] || prev.ownerUsername || "",
-    ownerPin: sett["Owner Password"] || sett["Owner PIN"] || prev.ownerPin || "",
-    managerUsername: sett["Manager Username"] || prev.managerUsername || "",
-    managerPin: sett["Manager Password"] || sett["Manager PIN"] || prev.managerPin || "",
-    settings: { ...prev.settings, companyName: sett["Company Name"] || prev.settings.companyName, companyAddress: sett["Address"] || prev.settings.companyAddress, companyEmail: sett["Email"] || prev.settings.companyEmail, companyPhone: sett["Phone"] || prev.settings.companyPhone, vatNumber: sett["VAT Number"] || prev.settings.vatNumber, bankIban: sett["Bank IBAN"] || prev.settings.bankIban, defaultVatRate: parseFloat(sett["VAT Rate"]) || prev.settings.defaultVatRate },
+    ownerUsername: ownerUsername || prev.ownerUsername || "",
+    ownerPin: ownerPin || prev.ownerPin || "",
+    managerUsername: managerUsername || prev.managerUsername || "",
+    managerPin: managerPin || prev.managerPin || "",
+    settings: normalizeSettingsPayload({
+      ...importedSettings,
+      companyName: importedSettings.companyName || importedSettings["Company Name"] || prev.settings.companyName,
+      companyAddress: importedSettings.companyAddress || importedSettings.Address || prev.settings.companyAddress,
+      companyEmail: importedSettings.companyEmail || importedSettings.Email || prev.settings.companyEmail,
+      companyPhone: importedSettings.companyPhone || importedSettings.Phone || prev.settings.companyPhone,
+      vatNumber: importedSettings.vatNumber || importedSettings["VAT Number"] || prev.settings.vatNumber,
+      bankIban: importedSettings.bankIban || importedSettings["Bank IBAN"] || prev.settings.bankIban,
+      defaultVatRate: importedSettings.defaultVatRate ?? importedSettings["VAT Rate"] ?? prev.settings.defaultVatRate,
+    }, prev.settings),
   }));
   showToast("Excel imported!", "success");
 } catch (err) { console.error(err); showToast("Import failed", "error"); }
@@ -2030,34 +2120,7 @@ useEffect(() => {
         expenses: (expensesRows || []).map(mapExpense),
         employeePins,
         employeeUsernames,
-        settings: {
-          ...prev.settings,
-          ...(settingsRows || {}),
-          defaultVatRate: Number((settingsRows || {}).defaultVatRate ?? prev.settings.defaultVatRate) || prev.settings.defaultVatRate,
-          publicHolidays: (() => {
-            const value = (settingsRows || {}).publicHolidays;
-            if (Array.isArray(value)) return value;
-            if (!value) return prev.settings.publicHolidays;
-            try { const parsed = JSON.parse(value); return Array.isArray(parsed) ? parsed : prev.settings.publicHolidays; } catch { return prev.settings.publicHolidays; }
-          })(),
-          customRoles: (() => {
-            const value = (settingsRows || {}).customRoles;
-            if (Array.isArray(value)) return value;
-            if (!value) return prev.settings.customRoles || [];
-            try { const parsed = JSON.parse(value); return Array.isArray(parsed) ? parsed : prev.settings.customRoles || []; } catch { return prev.settings.customRoles || []; }
-          })(),
-          rolePermissions: (() => {
-            const value = (settingsRows || {}).rolePermissions;
-            if (value && typeof value === "object") return value;
-            if (!value) return prev.settings.rolePermissions || {};
-            try {
-              const parsed = JSON.parse(value);
-              return parsed && typeof parsed === "object" ? parsed : prev.settings.rolePermissions || {};
-            } catch {
-              return prev.settings.rolePermissions || {};
-            }
-          })(),
-        },
+        settings: normalizeSettingsPayload(settingsRows || {}, prev.settings),
       }));
     } catch (err) {
       console.error("Failed to load data from DB", err);

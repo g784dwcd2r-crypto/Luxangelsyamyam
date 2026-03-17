@@ -1891,7 +1891,26 @@ useEffect(() => {
       const employeePins = Object.fromEntries((employeesRows || []).map(e => [e.id, String(e.pin || '0000')]));
       const employeeUsernames = Object.fromEntries((employeesRows || []).map(e => [e.id, String(e.username || '').toLowerCase()]));
 
-      const mappedSchedules = (schedulesRows || []).map(mapSchedule);
+      let mappedSchedules = (schedulesRows || []).map(mapSchedule);
+      const cachedSchedules = Array.isArray(loadStore()?.schedules) ? loadStore().schedules : [];
+      const dbScheduleIds = new Set(mappedSchedules.map(s => s.id));
+      const schedulesMissingInDb = cachedSchedules.filter(s => s?.id && !dbScheduleIds.has(s.id));
+
+      if (schedulesMissingInDb.length) {
+        await Promise.allSettled(schedulesMissingInDb.map(s => syncScheduleToApi(s)));
+        try {
+          const schedulesRefreshRes = await fetch(apiUrl('/api/schedules', base), { cache: 'no-store' });
+          if (schedulesRefreshRes.ok) {
+            const refreshedSchedules = await schedulesRefreshRes.json();
+            mappedSchedules = (refreshedSchedules || []).map(mapSchedule);
+          } else {
+            mappedSchedules = [...mappedSchedules, ...schedulesMissingInDb];
+          }
+        } catch {
+          mappedSchedules = [...mappedSchedules, ...schedulesMissingInDb];
+        }
+      }
+
       const mappedClocks = (clocksRows || []).map(mapClock);
       setData(prev => ({
         ...prev,

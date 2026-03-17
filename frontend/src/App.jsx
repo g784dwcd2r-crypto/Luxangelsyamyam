@@ -1560,6 +1560,7 @@ const globalCSS = `
   input[type="month"]::-webkit-calendar-picker-indicator,
   input[type="datetime-local"]::-webkit-calendar-picker-indicator { filter: ${INIT_THEME === "dark" ? "invert(0.95)" : "none"}; cursor: pointer; }
   input[type="date"], input[type="time"], input[type="month"], input[type="datetime-local"], input[type="number"], input[type="text"], input[type="email"], input[type="password"], input[type="tel"], select { height: 46px !important; padding: 0 16px !important; line-height: 46px; }
+  select[multiple] { height: auto !important; min-height: 120px; padding: 8px 12px !important; line-height: 1.35; }
   textarea { padding: 12px 16px !important; height: auto !important; min-height: 80px; }
   @media print { .no-print { display: none !important; } }
 

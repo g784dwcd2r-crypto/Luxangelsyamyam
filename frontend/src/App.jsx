@@ -1600,6 +1600,13 @@ const ws = wb.addWorksheet(name);
 ws.columns = cols.map(c => ({ header: c, key: c, width: Math.max(c.length + 4, 14) }));
 ws.addRows(rows.length ? rows : [Object.fromEntries(cols.map(c => [c, ""]))]);
 };
+const splitIntoChunks = (value, size = 30000) => {
+const text = String(value || "");
+if (!text) return [];
+const chunks = [];
+for (let i = 0; i < text.length; i += size) chunks.push(text.slice(i, i + size));
+return chunks;
+};
 
 addSheet("Employees", data.employees.map(emp => ({ ID: emp.id, Name: emp.name, Username: data.employeeUsernames?.[emp.id] || "", Email: emp.email, Phone: emp.phone, Mobile: emp.phoneMobile || "", Role: emp.role, "Rate": emp.hourlyRate, Address: emp.address, City: emp.city || "", Zip: emp.postalCode || "", Country: emp.country || "", "Start": emp.startDate, "EndDate": emp.contractEndDate || "", Status: emp.status, Contract: emp.contractType || "", IBAN: emp.bankIban || "", SSN: emp.socialSecNumber || "", DOB: emp.dateOfBirth || "", Nationality: emp.nationality || "", Languages: emp.languages || "", Transport: emp.transport || "", "WorkPermit": emp.workPermit || "", "EmergName": emp.emergencyName || "", "EmergPhone": emp.emergencyPhone || "", Password: data.employeePins?.[emp.id] || "0000", LeaveAllowance: emp.leaveAllowance ?? 26, Group: emp.cleanerGroup || "", HiringStage: emp.hiringStage || "hired", Notes: emp.notes || "" })),
 ["ID","Name","Username","Email","Phone","Mobile","Role","Rate","Address","City","Zip","Country","Start","Status","Contract","IBAN","SSN","DOB","Nationality","Languages","Transport","WorkPermit","EmergName","EmergPhone","Password","LeaveAllowance","Group","HiringStage","Notes"]);
@@ -1645,6 +1652,13 @@ const revenue = data.invoices.filter(inv => inv.date?.startsWith(mo)).reduce((su
 return { Month: mo, Hours: Math.round(totalH * 100) / 100, Labor: Math.round(laborCost * 100) / 100, Revenue: Math.round(revenue * 100) / 100, Profit: Math.round((revenue - laborCost) * 100) / 100 };
 }), ["Month", uiText("Hours"), "Labor", uiText("Revenue"), uiText("Profit")]);
 
+const fullBackupPayload = {
+...data,
+settings: normalizeSettingsPayload(data.settings || {}, DEFAULTS.settings),
+};
+const backupChunks = splitIntoChunks(JSON.stringify(fullBackupPayload));
+addSheet("FullBackupJSON", backupChunks.map((chunk, idx) => ({ Part: idx + 1, JSONChunk: chunk })), ["Part", "JSONChunk"]);
+
 const buffer = await wb.xlsx.writeBuffer();
 const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
 const url = URL.createObjectURL(blob);
@@ -1676,7 +1690,32 @@ const sheet = (name) => {
     if (Object.keys(obj).length) rows.push(obj);
   });
   return rows;
-};
+	};
+
+  const backupRows = sheet("FullBackupJSON");
+  if (backupRows.length) {
+    try {
+      const backupJson = backupRows
+        .sort((a, b) => Number(a.Part || 0) - Number(b.Part || 0))
+        .map(r => String(r.JSONChunk || ""))
+        .join("");
+      const parsedBackup = JSON.parse(backupJson);
+
+      setData(prev => {
+        const next = { ...prev, ...(parsedBackup || {}) };
+        return {
+          ...next,
+          settings: normalizeSettingsPayload(parsedBackup?.settings || {}, prev.settings),
+          employeePins: parsedBackup?.employeePins && typeof parsedBackup.employeePins === "object" ? parsedBackup.employeePins : prev.employeePins,
+          employeeUsernames: parsedBackup?.employeeUsernames && typeof parsedBackup.employeeUsernames === "object" ? parsedBackup.employeeUsernames : prev.employeeUsernames,
+        };
+      });
+      showToast("Excel imported!", "success");
+      return;
+    } catch (backupErr) {
+      console.warn("Full backup import failed, falling back to legacy sheets", backupErr);
+    }
+  }
 
   const emps = sheet("Employees").filter(r => r.ID && r.Name).map(r => ({ id: r.ID, name: r.Name, email: r.Email || "", phone: r.Phone || "", phoneMobile: r.Mobile || "", role: r.Role || "Cleaner", hourlyRate: parseFloat(r.Rate) || 15, address: r.Address || "", city: r.City || "", postalCode: r.Zip || "", country: r.Country || "Luxembourg", startDate: r.Start || getToday(), contractEndDate: r.EndDate || "", status: r.Status || "active", contractType: r.Contract || "CDI", bankIban: r.IBAN || "", socialSecNumber: r.SSN || "", dateOfBirth: r.DOB || "", nationality: r.Nationality || "", languages: r.Languages || "", transport: r.Transport || "", workPermit: r.WorkPermit || "", emergencyName: r.EmergName || "", emergencyPhone: r.EmergPhone || "", leaveAllowance: parseInt(r.LeaveAllowance || "26", 10) || 26, cleanerGroup: r.Group || "", hiringStage: r.HiringStage || "hired", notes: r.Notes || "" }));
   const pins = {}; sheet("Employees").filter(r => r.ID).forEach(r => { pins[r.ID] = String(r.Password || r.PIN || "0000"); });

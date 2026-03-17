@@ -795,6 +795,13 @@ emailSignature: "Best regards,\nLux Angels Cleaning Team\ninfo@luxangels.lu | +3
 let _idCtr = Date.now();
 const makeId = () => `id_${_idCtr++}`;
 const getToday = () => new Date().toISOString().slice(0, 10);
+const normalizeDateOnly = (value) => {
+if (!value) return "";
+if (typeof value === "string") return value.slice(0, 10);
+if (value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOString().slice(0, 10);
+const parsed = new Date(value);
+return Number.isNaN(parsed.getTime()) ? "" : parsed.toISOString().slice(0, 10);
+};
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString(localeForLang(CURRENT_LANG), { day: "2-digit", month: "short", year: "numeric" }) : "";
 const fmtTime = (d) => d ? new Date(d).toLocaleTimeString(localeForLang(CURRENT_LANG), { hour: "2-digit", minute: "2-digit" }) : "";
 const fmtBoth = (d) => `${fmtDate(d)} ${fmtTime(d)}`;
@@ -1016,7 +1023,7 @@ const deleteClientFromApi = async (id) => {
 // SCHEDULE API helpers
 const toApiSchedule = (s) => ({
   id: s.id,
-  date: s.date,
+  date: normalizeDateOnly(s.date),
   client_id: s.clientId || null,
   employee_id: s.employeeId || null,
   start_time: s.startTime || "08:00",
@@ -1716,7 +1723,7 @@ useEffect(() => {
   });
   const mapSchedule = (s) => ({
     id: s.id,
-    date: s.date,
+    date: normalizeDateOnly(s.date),
     clientId: s.client_id,
     employeeId: s.employee_id,
     startTime: s.start_time || "08:00",

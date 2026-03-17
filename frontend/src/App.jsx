@@ -591,6 +591,7 @@ const UI_FR = {
 "Email: New invoices": "E-mail : nouvelles factures",
 "Email: Overdue invoices": "E-mail : factures en retard",
 "Email: Low stock": "E-mail : stock faible",
+"Email Reminders & Auto Send": "Rappels e-mail & envoi automatique",
 "Future: Push notifications": "À venir : notifications push",
 "System preferences": "Préférences système",
 "Dark": "Sombre",
@@ -7159,6 +7160,7 @@ const tabs = [
   { id: "time", label: "Time Tracking" },
   { id: "stock", label: "Stock" },
   { id: "notifications", label: "Notifications" },
+  { id: "emailReminders", label: "Email Reminders & Auto Send" },
   { id: "system", label: "System" },
 ];
 
@@ -7317,6 +7319,10 @@ return (
       ].map(([key, label]) => <label key={key} style={{ display: "flex", gap: 8, alignItems: "center" }}><input type="checkbox" checked={!!form[key]} onChange={ev => setField(key, ev.target.checked)} />{uiText(label)}</label>)}
     </div>
     <button style={btnPri} onClick={persistSettings}>{ICN.check} {uiText("Save changes")}</button>
+  </div>}
+
+  {activeTab === "emailReminders" && <div style={{ ...cardSt, marginTop: 14 }}>
+    <h3 style={{ color: CL.gold, marginTop: 0 }}>{uiText("Email Reminders & Auto Send")}</h3>
   </div>}
 
   {activeTab === "system" && <div style={{ ...cardSt, marginTop: 14 }}>

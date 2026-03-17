@@ -1301,7 +1301,10 @@ const Field = ({ label, children }) => (
 );
 
 const TextInput = (props) => <input {...props} placeholder={uiText(props.placeholder)} style={{ ...inputSt, ...(props.style || {}) }} />;
-const SelectInput = ({ children, ...props }) => <select {...props} style={{ ...inputSt, appearance: "auto", color: CL.text, colorScheme: "dark", ...(props.style || {}) }}>{children}</select>;
+const SelectInput = ({ children, ...props }) => {
+const multiSelectSt = props.multiple ? { height: "auto", minHeight: 120, padding: "8px 12px", lineHeight: 1.35 } : {};
+return <select {...props} style={{ ...inputSt, ...multiSelectSt, appearance: "auto", color: CL.text, colorScheme: "dark", ...(props.style || {}) }}>{children}</select>;
+};
 const TextArea = (props) => <textarea {...props} placeholder={uiText(props.placeholder)} style={{ ...inputSt, height: "auto", minHeight: 80, padding: "12px 16px", resize: "vertical", ...(props.style || {}) }} />;
 const Badge = ({ children, color = CL.gold }) => <span style={{ display: "inline-block", padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 600, background: color + "20", color }}>{uiText(children)}</span>;
 const StatCard = ({ label, value, icon, color = CL.gold }) => (
@@ -4170,6 +4173,7 @@ return (
       return (
         <select
           multiple
+          size={Math.max(4, Math.min(10, filteredEmployees.length || 4))}
           value={form.employeeIds || []}
           onChange={(ev) => set("employeeIds", Array.from(ev.target.selectedOptions).map(opt => opt.value))}
           style={{ width: "100%", minHeight: 220, maxHeight: 220, padding: 8, border: "none", background: CL.sf, color: CL.text, fontSize: 13, outline: "none" }}
@@ -5252,6 +5256,7 @@ return (
       <Field label="Agent(e)s assigné(e)s">
         <SelectInput
           multiple
+          size={Math.max(4, Math.min(10, (data.employees || []).length || 4))}
           value={form.jobSchedule?.employeeIds || (form.jobSchedule?.employeeId ? [form.jobSchedule.employeeId] : [])}
           onChange={ev => setJobSchedule("employeeIds", Array.from(ev.target.selectedOptions).map(opt => opt.value))}
           style={{ minHeight: 120 }}

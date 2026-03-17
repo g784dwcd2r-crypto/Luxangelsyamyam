@@ -116,6 +116,10 @@ const UI_FR = {
 "Manager Username": "Identifiant manager",
 "Manager Password": "Mot de passe manager",
 "Save All": "Tout enregistrer",
+"Company": "Entreprise",
+"Finance": "Finance",
+"Planning": "Planning",
+"Notifications": "Notifications",
 "Danger Zone": "Zone dangereuse",
 "Reset Everything": "Tout réinitialiser",
 "DELETE ALL DATA?": "SUPPRIMER TOUTES LES DONNÉES ?",
@@ -548,8 +552,52 @@ const UI_FR = {
 "Manager Username": "Identifiant manager",
 "Manager Password": "Mot de passe manager",
 "Save All": "Tout enregistrer",
+"Company": "Entreprise",
+"Finance": "Finance",
+"Planning": "Planning",
+"Notifications": "Notifications",
 "Public Holidays": "Jours Fériés",
 "Select public holidays that apply": "Sélectionnez les jours fériés applicables",
+"Settings Control Panel": "Panneau de contrôle des paramètres",
+"Configure company identity, access rights, finance, planning, time tracking, stock and system behavior.": "Configurez l'identité de l'entreprise, les droits d'accès, la finance, le planning, le pointage, le stock et le comportement système.",
+"Business identity": "Identité de l'entreprise",
+"Users & Roles": "Utilisateurs et rôles",
+"Time Tracking": "Pointage",
+"Stock": "Stock",
+"System": "Système",
+"Users & permissions": "Utilisateurs et permissions",
+"Users": "Utilisateurs",
+"Roles & permissions": "Rôles et permissions",
+"Save changes": "Enregistrer les modifications",
+"Logo": "Logo",
+"Invoice header preview (live)": "Aperçu de l'en-tête de facture (en direct)",
+"Legal footer for invoices": "Pied de page légal des factures",
+"Please upload an image file": "Veuillez téléverser une image",
+"No users yet. Add users from the Employees tab.": "Aucun utilisateur pour le moment. Ajoutez des utilisateurs depuis l'onglet Employés.",
+"Deactivate": "Désactiver",
+"User deactivated": "Utilisateur désactivé",
+"Role already exists": "Le rôle existe déjà",
+"Financial rules": "Règles financières",
+"Planning behavior": "Comportement du planning",
+"Auto-assign employee": "Assigner automatiquement un employé",
+"Suggest grouping by location": "Suggérer un groupement par localisation",
+"Time tracking": "Pointage",
+"Allow manual entry": "Autoriser la saisie manuelle",
+"Require reason for manual edits": "Exiger une raison pour les modifications manuelles",
+"Require check-in validation (GPS ready)": "Exiger une validation du pointage (GPS prêt)",
+"Stock logic": "Logique de stock",
+"Enable stock alerts": "Activer les alertes de stock",
+"Email: Late employees": "E-mail : employés en retard",
+"Email: New invoices": "E-mail : nouvelles factures",
+"Email: Overdue invoices": "E-mail : factures en retard",
+"Email: Low stock": "E-mail : stock faible",
+"Future: Push notifications": "À venir : notifications push",
+"System preferences": "Préférences système",
+"Dark": "Sombre",
+"Light": "Clair",
+"Please fix validation errors": "Veuillez corriger les erreurs de validation",
+"Changes saved successfully.": "Modifications enregistrées avec succès.",
+"Settings updated": "Paramètres mis à jour",
 // Client service
 "Hours per Session": "Heures par séance",
 "Forfait / Subscription": "Forfait / Abonnement",
@@ -1493,7 +1541,7 @@ const FormTabs = ({ tabs, active, onChange }) => (
 
   <div style={{ display: "flex", gap: 0, marginBottom: 16, borderBottom: `1px solid ${CL.bd}`, overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
     {tabs.map(t => (
-      <button key={t.id} onClick={() => onChange(t.id)} style={{ padding: "8px 14px", border: "none", background: "transparent", cursor: "pointer", color: active === t.id ? CL.gold : CL.muted, fontWeight: active === t.id ? 600 : 400, fontSize: 13, borderBottom: active === t.id ? `2px solid ${CL.gold}` : "2px solid transparent", whiteSpace: "nowrap", flexShrink: 0 }}>{t.label}</button>
+      <button key={t.id} onClick={() => onChange(t.id)} style={{ padding: "8px 14px", border: "none", background: "transparent", cursor: "pointer", color: active === t.id ? CL.gold : CL.muted, fontWeight: active === t.id ? 600 : 400, fontSize: 13, borderBottom: active === t.id ? `2px solid ${CL.gold}` : "2px solid transparent", whiteSpace: "nowrap", flexShrink: 0 }}>{uiText(t.label)}</button>
     ))}
   </div>
 );
@@ -1997,6 +2045,17 @@ useEffect(() => {
             if (Array.isArray(value)) return value;
             if (!value) return prev.settings.customRoles || [];
             try { const parsed = JSON.parse(value); return Array.isArray(parsed) ? parsed : prev.settings.customRoles || []; } catch { return prev.settings.customRoles || []; }
+          })(),
+          rolePermissions: (() => {
+            const value = (settingsRows || {}).rolePermissions;
+            if (value && typeof value === "object") return value;
+            if (!value) return prev.settings.rolePermissions || {};
+            try {
+              const parsed = JSON.parse(value);
+              return parsed && typeof parsed === "object" ? parsed : prev.settings.rolePermissions || {};
+            } catch {
+              return prev.settings.rolePermissions || {};
+            }
           })(),
         },
       }));
@@ -2544,7 +2603,7 @@ fr.readAsDataURL(file);
 
 const onUploadPhoto = async (file) => {
 if (!file) return;
-if (!file.type?.startsWith("image/")) { showToast("Please upload an image file", "error"); return; }
+if (!file.type?.startsWith("image/")) { showToast(uiText("Please upload an image file"), "error"); return; }
 if (!activeClock) { showToast("Clock in to a job before uploading photos", "error"); return; }
 try {
 const imageData = await readAsDataUrl(file);
@@ -6915,203 +6974,302 @@ return (
 // ==============================================
 // SETTINGS PAGE
 // ==============================================
-function SettingsPage({ data, updateData, setData, showToast, auth, setEmailConfigured }) {
+function SettingsPage({ data, updateData, setData, showToast }) {
+const [activeTab, setActiveTab] = useState("company");
 const [form, setForm] = useState(data.settings);
 const [ownerUsername, setOwnerUsername] = useState(data.ownerUsername || "");
-const [pin, setPin] = useState(data.ownerPin || "");
+const [ownerPin, setOwnerPin] = useState(data.ownerPin || "");
 const [managerUsername, setManagerUsername] = useState(data.managerUsername || "");
 const [managerPin, setManagerPin] = useState(data.managerPin || "");
-const set = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
-const [smtpTestStatus, setSmtpTestStatus] = useState(null); // null | { ok, msg }
-const [smtpTesting, setSmtpTesting] = useState(false);
-const [newRoleInput, setNewRoleInput] = useState("");
+const [newRoleName, setNewRoleName] = useState("");
+const [saveBanner, setSaveBanner] = useState("");
+const [errors, setErrors] = useState({});
 
-const handleTestSmtp = async () => {
-  setSmtpTesting(true);
-  setSmtpTestStatus(null);
-  try {
-    const res = await fetch(apiUrl("/api/email/test-connection"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        host: form.smtpHost || "mail.infomaniak.com",
-        port: form.smtpPort || "465",
-        secure: "true",
-        user: form.smtpUser || "",
-        pass: form.smtpPass || "",
-      }),
-    });
-    const data = await res.json().catch(() => ({}));
-    setSmtpTestStatus({ ok: data.ok, msg: data.ok ? "Connection successful" : (data.error || "Connection failed") });
-  } catch {
-    setSmtpTestStatus({ ok: false, msg: "Unable to reach server" });
-  } finally {
-    setSmtpTesting(false);
-  }
+useEffect(() => {
+  setForm(data.settings);
+  setOwnerUsername(data.ownerUsername || "");
+  setOwnerPin(data.ownerPin || "");
+  setManagerUsername(data.managerUsername || "");
+  setManagerPin(data.managerPin || "");
+}, [data.settings, data.ownerUsername, data.ownerPin, data.managerUsername, data.managerPin]);
+
+const setField = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
+const parseNum = (value, fallback = 0) => {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
 };
 
-const handleSave = async () => {
-  updateData("settings", form);
-  const newOwnerUsername = ownerUsername.trim();
-  const newOwnerPin = pin.trim();
-  const newManagerUsername = managerUsername.trim().toLowerCase();
-  const newManagerPin = managerPin.trim();
-  setData(prev => ({ ...prev, ownerUsername: newOwnerUsername, ownerPin: newOwnerPin, managerUsername: newManagerUsername, managerPin: newManagerPin }));
+const validate = () => {
+  const e = {};
+  if (!String(form.companyName || "").trim()) e.companyName = "Company name is required";
+  if (form.companyEmail && !/^\S+@\S+\.\S+$/.test(form.companyEmail)) e.companyEmail = "Enter a valid email";
+  if (form.defaultVatRate < 0 || form.defaultVatRate > 100) e.defaultVatRate = "VAT must be between 0 and 100";
+  if (form.financeVatRate < 0 || form.financeVatRate > 100) e.financeVatRate = "VAT must be between 0 and 100";
+  if (form.latePaymentPenalty < 0 || form.latePaymentPenalty > 100) e.latePaymentPenalty = "Penalty must be between 0 and 100";
+  if (parseNum(form.defaultHourlyRate, 0) < 0) e.defaultHourlyRate = "Hourly rate must be positive";
+  if (parseNum(form.maxJobsPerEmployeePerDay, 0) < 1) e.maxJobsPerEmployeePerDay = "Minimum is 1 job";
+  if (parseNum(form.lateToleranceMinutes, 0) < 0) e.lateToleranceMinutes = "Cannot be negative";
+  if (parseNum(form.minStockThreshold, 0) < 0) e.minStockThreshold = "Cannot be negative";
+  if (parseNum(form.autoClockOutAfterHours, 0) < 1) e.autoClockOutAfterHours = "Minimum 1 hour";
+  if (!String(form.defaultCurrency || "").trim()) e.defaultCurrency = "Currency is required";
+  if (!["FR", "EN"].includes(form.defaultLanguage || "")) e.defaultLanguage = "Choose FR or EN";
+  if (!["24h", "12h"].includes(form.timeFormat || "")) e.timeFormat = "Choose a valid time format";
+  setErrors(e);
+  return Object.keys(e).length === 0;
+};
 
-  // Sync credentials and company settings to the backend database so all
-  // browsers use the same credentials.
+const persistSettings = async () => {
+  if (!validate()) {
+    showToast(uiText("Please fix validation errors"), "error");
+    return false;
+  }
+
+  const normalized = {
+    ...form,
+    defaultVatRate: parseNum(form.financeVatRate ?? form.defaultVatRate, parseNum(form.defaultVatRate, 17)),
+    financeVatRate: parseNum(form.financeVatRate ?? form.defaultVatRate, 17),
+    customRoles: form.customRoles || [],
+    rolePermissions: form.rolePermissions || {},
+  };
+
+  updateData("settings", normalized);
+  setData(prev => ({
+    ...prev,
+    ownerUsername: ownerUsername.trim(),
+    ownerPin: ownerPin.trim(),
+    managerUsername: managerUsername.trim().toLowerCase(),
+    managerPin: managerPin.trim(),
+  }));
+
   try {
     await fetch(apiUrl("/api/settings"), {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        ownerUsername: newOwnerUsername,
-        ownerPin: newOwnerPin,
-        managerUsername: newManagerUsername,
-        managerPin: newManagerPin,
-        companyName: form.companyName,
-        companyAddress: form.companyAddress,
-        companyEmail: form.companyEmail,
-        companyPhone: form.companyPhone,
-        vatNumber: form.vatNumber,
-        bankIban: form.bankIban,
-        defaultVatRate: String(form.defaultVatRate),
-        emailSignature: form.emailSignature || "",
-        emailProvider: (form.smtpUser?.trim() && form.smtpPass?.trim()) ? "smtp" : "",
-        smtpHost: form.smtpHost || "",
-        smtpPort: form.smtpPort || "465",
-        smtpSecure: "true",
-        smtpUser: form.smtpUser || "",
-        smtpPass: form.smtpPass || "",
-        customRoles: JSON.stringify(form.customRoles || []),
+        ...normalized,
+        ownerUsername: ownerUsername.trim(),
+        ownerPin: ownerPin.trim(),
+        managerUsername: managerUsername.trim().toLowerCase(),
+        managerPin: managerPin.trim(),
+        customRoles: JSON.stringify(normalized.customRoles || []),
+        publicHolidays: JSON.stringify(normalized.publicHolidays || []),
+        rolePermissions: JSON.stringify(normalized.rolePermissions || {}),
       }),
     });
-    if (setEmailConfigured) {
-      try {
-        const statusRes = await fetch(apiUrl("/api/email-status"), { cache: "no-store" });
-        if (statusRes.ok) {
-          const status = await statusRes.json().catch(() => null);
-          if (status) setEmailConfigured(!!status.configured);
-        }
-      } catch { /* ignore */ }
-    }
-    showToast(uiText("Saved") + " — synced to server");
-  } catch {
-    showToast("Saved locally only — server unreachable. Credentials may not work on other devices until the server is back online.", "error");
+  } catch (err) {
+    console.error(err);
   }
+
+  setSaveBanner(uiText("Changes saved successfully."));
+  showToast(uiText("Settings updated"), "success");
+  setTimeout(() => setSaveBanner(""), 2200);
+  return true;
 };
+
+const onLogoUpload = (file) => {
+  if (!file) return;
+  if (!file.type.startsWith("image/")) { showToast(uiText("Please upload an image file"), "error"); return; }
+  const reader = new FileReader();
+  reader.onload = () => setField("companyLogo", reader.result);
+  reader.readAsDataURL(file);
+};
+
+const users = (data.employees || []).map(u => ({ id: u.id, name: u.name, role: u.role || "Agent", status: u.status || "active" }));
+const builtinRoles = ["Admin", "Manager", "Agent"];
+const roles = [...builtinRoles, ...(form.customRoles || [])];
+const permissionDefs = [
+  "View clients", "Edit clients", "Access planning", "Modify planning", "Access invoices", "Create invoices", "View salaries", "Manage stock", "Access reports",
+];
+
+const setRolePermission = (role, permission, checked) => {
+  const current = form.rolePermissions || {};
+  const rolePerms = new Set(current[role] || []);
+  if (checked) rolePerms.add(permission); else rolePerms.delete(permission);
+  setField("rolePermissions", { ...current, [role]: Array.from(rolePerms) });
+};
+
+const tabs = [
+  { id: "company", label: "Company" },
+  { id: "users", label: "Users & Roles" },
+  { id: "finance", label: "Finance" },
+  { id: "planning", label: "Planning" },
+  { id: "time", label: "Time Tracking" },
+  { id: "stock", label: "Stock" },
+  { id: "notifications", label: "Notifications" },
+  { id: "system", label: "System" },
+];
 
 return (
 <div>
-<h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold, marginBottom: 16 }}>{uiText("Settings")}</h1>
-<div style={cardSt}>
-<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: CL.gold }}>{uiText("Company Info")}</h3>
-<div className="form-grid">
-<Field label="Company Name"><TextInput value={form.companyName} onChange={ev => set("companyName", ev.target.value)} /></Field>
-<Field label="Email"><TextInput value={form.companyEmail} onChange={ev => set("companyEmail", ev.target.value)} /></Field>
-<Field label="Phone"><TextInput value={form.companyPhone} onChange={ev => set("companyPhone", ev.target.value)} /></Field>
-<Field label="VAT Number"><TextInput value={form.vatNumber} onChange={ev => set("vatNumber", ev.target.value)} /></Field>
-<Field label="Default VAT %"><TextInput type="number" value={form.defaultVatRate} onChange={ev => set("defaultVatRate", parseFloat(ev.target.value) || 0)} /></Field>
-<Field label="Bank IBAN"><TextInput value={form.bankIban} onChange={ev => set("bankIban", ev.target.value)} /></Field>
-</div>
-<Field label="Address"><TextInput value={form.companyAddress} onChange={ev => set("companyAddress", ev.target.value)} /></Field>
-<Field label="Email Signature"><TextArea value={form.emailSignature || ""} onChange={ev => set("emailSignature", ev.target.value)} placeholder={"Best regards,\nYour Company Name\nemail@example.com"} style={{ minHeight: 72, fontFamily: "monospace", fontSize: 13 }} /></Field>
-</div>
-<div style={{ ...cardSt, marginTop: 14 }}>
-<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 4, color: CL.gold }}>{uiText("Email Sending (SMTP)")}</h3>
-<p style={{ fontSize: 12, color: CL.muted, marginBottom: 12 }}>{uiText("Configure SMTP to send invoices by email. Use your email provider credentials (e.g. Infomaniak).")}</p>
-<div className="form-grid">
-<Field label="SMTP Host"><TextInput value={form.smtpHost || ""} onChange={ev => set("smtpHost", ev.target.value)} placeholder="mail.infomaniak.com" /></Field>
-<Field label="SMTP Port"><TextInput type="number" value={form.smtpPort || "465"} onChange={ev => set("smtpPort", ev.target.value)} style={{ width: 100 }} /></Field>
-<Field label="SMTP User (email)"><TextInput value={form.smtpUser || ""} onChange={ev => set("smtpUser", ev.target.value)} placeholder="info@yourdomain.lu" /></Field>
-<Field label="SMTP Password"><TextInput type="password" value={form.smtpPass || ""} onChange={ev => set("smtpPass", ev.target.value)} placeholder="••••••••" /></Field>
-</div>
-<div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 12 }}>
-  <button style={{ ...btnPri, background: CL.blue || "#3b82f6", opacity: smtpTesting ? 0.7 : 1, cursor: smtpTesting ? "wait" : "pointer" }} onClick={handleTestSmtp} disabled={smtpTesting}>
-    {smtpTesting ? "Testing…" : "Test Connection"}
-  </button>
-  {smtpTestStatus && (
-    <span style={{ fontSize: 13, color: smtpTestStatus.ok ? CL.green : CL.red, fontWeight: 500 }}>
-      {smtpTestStatus.ok ? "✓" : "✗"} {smtpTestStatus.msg}
-    </span>
-  )}
-</div>
-</div>
-<div style={{ ...cardSt, marginTop: 14 }}>
-<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: CL.gold }}>{uiText("Access Credentials")}</h3>
-<div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
-<Field label="Owner Username"><TextInput value={ownerUsername} onChange={ev => setOwnerUsername(ev.target.value)} style={{ width: 260 }} /></Field>
-<Field label="Owner Password"><TextInput maxLength={24} value={pin} onChange={ev => setPin(ev.target.value)} style={{ width: 180 }} /></Field>
-<Field label="Manager Username"><TextInput value={managerUsername} onChange={ev => setManagerUsername(ev.target.value)} style={{ width: 220 }} /></Field>
-<Field label="Manager Password"><TextInput maxLength={24} value={managerPin} onChange={ev => setManagerPin(ev.target.value)} style={{ width: 180 }} /></Field>
-</div>
-</div>
-<div style={{ ...cardSt, marginTop: 14 }}>
-<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 4, color: CL.gold }}>Employee Roles</h3>
-<p style={{ fontSize: 12, color: CL.muted, marginBottom: 12 }}>Built-in roles: {BUILTIN_ROLES.join(", ")}. Add custom roles below — they'll appear in the employee form.</p>
-<div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
-  {(form.customRoles || []).map(role => (
-    <div key={role} style={{ display: "flex", alignItems: "center", gap: 6, background: CL.s2, border: `1px solid ${CL.bd}`, borderRadius: 20, padding: "4px 12px", fontSize: 13 }}>
-      <span>{role}</span>
-      <button onClick={() => set("customRoles", (form.customRoles || []).filter(r => r !== role))} style={{ background: "none", border: "none", cursor: "pointer", color: CL.muted, fontSize: 16, lineHeight: 1, padding: 0 }}>×</button>
+  <h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold, marginBottom: 10 }}>{uiText("Settings Control Panel")}</h1>
+  <p style={{ color: CL.muted, marginBottom: 14 }}>{uiText("Configure company identity, access rights, finance, planning, time tracking, stock and system behavior.")}</p>
+  <FormTabs tabs={tabs} active={activeTab} onChange={setActiveTab} />
+
+  {saveBanner && <div style={{ marginTop: 12, marginBottom: 12, padding: "10px 12px", borderRadius: 8, border: `1px solid ${CL.green}`, background: `${CL.green}15`, color: CL.green, fontSize: 13 }}>{saveBanner}</div>}
+
+  {activeTab === "company" && <div style={{ ...cardSt, marginTop: 14 }}>
+    <h3 style={{ color: CL.gold, marginTop: 0 }}>{uiText("Business identity")}</h3>
+    <div className="grid-2">
+      <div>
+        <Field label="Company Name"><TextInput value={form.companyName || ""} onChange={ev => setField("companyName", ev.target.value)} /></Field>
+        {errors.companyName && <div style={{ color: CL.red, fontSize: 12, marginTop: -8, marginBottom: 10 }}>{uiText(errors.companyName)}</div>}
+        <Field label="Address"><TextInput value={form.companyAddress || ""} onChange={ev => setField("companyAddress", ev.target.value)} /></Field>
+        <Field label="Phone"><TextInput value={form.companyPhone || ""} onChange={ev => setField("companyPhone", ev.target.value)} /></Field>
+        <Field label="Email"><TextInput value={form.companyEmail || ""} onChange={ev => setField("companyEmail", ev.target.value)} /></Field>
+        {errors.companyEmail && <div style={{ color: CL.red, fontSize: 12, marginTop: -8, marginBottom: 10 }}>{uiText(errors.companyEmail)}</div>}
+        <Field label="VAT Number"><TextInput value={form.vatNumber || ""} onChange={ev => setField("vatNumber", ev.target.value)} /></Field>
+        <Field label="Default Currency (€)"><TextInput value={form.defaultCurrency || "EUR"} onChange={ev => setField("defaultCurrency", ev.target.value)} /></Field>
+        <Field label="Logo upload"><input type="file" accept="image/*" onChange={ev => onLogoUpload(ev.target.files?.[0])} style={{ ...inputSt, padding: 8 }} /></Field>
+      </div>
+      <div>
+        <div style={{ ...cardSt, padding: 16 }}>
+          <div style={{ fontSize: 12, color: CL.muted, marginBottom: 8 }}>{uiText("Invoice header preview (live)")}</div>
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            {form.companyLogo ? <img src={form.companyLogo} alt="logo" style={{ width: 56, height: 56, borderRadius: 8, objectFit: "cover", border: `1px solid ${CL.bd}` }} /> : <div style={{ width: 56, height: 56, borderRadius: 8, border: `1px dashed ${CL.bd}`, display: "grid", placeItems: "center", color: CL.muted, fontSize: 11 }}>{uiText("Logo")}</div>}
+            <div>
+              <div style={{ fontWeight: 700 }}>{form.companyName || uiText("Company")}</div>
+              <div style={{ fontSize: 12, color: CL.muted }}>{form.companyAddress || uiText("Address")}</div>
+              <div style={{ fontSize: 12, color: CL.muted }}>{form.companyEmail || uiText("Email")} · {form.companyPhone || uiText("Phone")}</div>
+            </div>
+          </div>
+        </div>
+        <Field label="Editable footer (legal text)">
+          <textarea value={form.invoiceFooterText || ""} onChange={ev => setField("invoiceFooterText", ev.target.value)} placeholder={uiText("Legal footer for invoices")} style={{ ...inputSt, minHeight: 110, resize: "vertical" }} />
+        </Field>
+      </div>
     </div>
-  ))}
-  {(form.customRoles || []).length === 0 && <span style={{ fontSize: 13, color: CL.muted }}>No custom roles yet.</span>}
-</div>
-<div style={{ display: "flex", gap: 8 }}>
-  <TextInput
-    value={newRoleInput}
-    onChange={ev => setNewRoleInput(ev.target.value)}
-    placeholder="e.g. Window Cleaner, Driver, Ironing Specialist..."
-    style={{ flex: 1 }}
-    onKeyDown={ev => {
-      if (ev.key === "Enter") {
-        const trimmed = newRoleInput.trim();
-        if (trimmed && !BUILTIN_ROLES.includes(trimmed) && !(form.customRoles || []).includes(trimmed)) {
-          set("customRoles", [...(form.customRoles || []), trimmed]);
-          setNewRoleInput("");
-        }
-      }
-    }}
-  />
-  <button style={btnPri} onClick={() => {
-    const trimmed = newRoleInput.trim();
-    if (!trimmed) return;
-    if (BUILTIN_ROLES.includes(trimmed) || (form.customRoles || []).includes(trimmed)) { showToast("Role already exists", "error"); return; }
-    set("customRoles", [...(form.customRoles || []), trimmed]);
-    setNewRoleInput("");
-  }}>Add Role</button>
-</div>
-</div>
-<div style={{ ...cardSt, marginTop: 14 }}>
-<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 4, color: CL.gold }}>{uiText("Public Holidays")}</h3>
-<p style={{ fontSize: 12, color: CL.muted, marginBottom: 12 }}>{uiText("Select public holidays that apply")}</p>
-<div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 8 }}>
-{LU_PUBLIC_HOLIDAYS.map(h => {
-  const checked = (form.publicHolidays || []).includes(h);
-  return (
-    <label key={h} style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, color: CL.text, cursor: "pointer", padding: "6px 10px", borderRadius: 8, background: checked ? CL.gold + "18" : CL.s2, border: `1px solid ${checked ? CL.gold + "55" : CL.bd}`, transition: "background .15s" }}>
-      <input type="checkbox" checked={checked} onChange={ev => {
-        const prev = form.publicHolidays || [];
-        const next = ev.target.checked ? [...prev, h] : prev.filter(x => x !== h);
-        set("publicHolidays", next);
-      }} style={{ accentColor: CL.gold, width: 15, height: 15 }} />
-      {h}
-    </label>
-  );
-})}
-</div>
-{(form.publicHolidays || []).length > 0 && (
-  <div style={{ marginTop: 10, fontSize: 12, color: CL.muted }}>
-    {(form.publicHolidays || []).length} jour(s) férie(s) sélectionné(s)
-  </div>
-)}
-</div>
-<div style={{ marginTop: 14 }}><button style={btnPri} onClick={handleSave}>{ICN.check} {uiText("Save All")}</button></div>
-{auth?.role === "owner" && <div style={{ ...cardSt, marginTop: 14 }}>
-<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: CL.red }}>{uiText("Danger Zone")}</h3>
-<button style={btnDng} onClick={() => { showToast("Database reset is server-managed only", "error"); }}>{uiText("Reset Everything")}</button>
-</div>}
+    <button style={btnPri} onClick={persistSettings}>{ICN.check} {uiText("Save changes")}</button>
+  </div>}
+
+  {activeTab === "users" && <div style={{ ...cardSt, marginTop: 14 }}>
+    <h3 style={{ color: CL.gold, marginTop: 0 }}>{uiText("Users & permissions")}</h3>
+    <div style={{ ...cardSt, padding: 16, marginBottom: 12 }}>
+      <div style={{ fontWeight: 600, marginBottom: 8 }}>{uiText("Users")}</div>
+      <div style={{ display: "grid", gap: 8 }}>
+        {users.map(u => <div key={u.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: CL.s2, border: `1px solid ${CL.bd}`, borderRadius: 8, padding: "8px 10px" }}>
+          <div><strong>{u.name}</strong> · {u.role} · <span style={{ color: u.status === "active" ? CL.green : CL.red }}>{u.status}</span></div>
+          <button style={btnSec} onClick={() => {
+            if (!window.confirm(uiText("Deactivate this user?").replace("{name}", u.name))) return;
+            const next = (data.employees || []).map(emp => emp.id === u.id ? { ...emp, status: "inactive" } : emp);
+            setData(prev => ({ ...prev, employees: next }));
+            showToast(uiText("User deactivated"), "success");
+          }}>{uiText("Deactivate")}</button>
+        </div>)}
+        {users.length === 0 && <div style={{ fontSize: 12, color: CL.muted }}>{uiText("No users yet. Add users from the Employees tab.")}</div>}
+      </div>
+    </div>
+
+    <div style={{ ...cardSt, padding: 16 }}>
+      <div style={{ fontWeight: 600, marginBottom: 8 }}>{uiText("Roles & permissions")}</div>
+      <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+        <TextInput value={newRoleName} placeholder="Add new role" onChange={ev => setNewRoleName(ev.target.value)} style={{ maxWidth: 280 }} />
+        <button style={btnPri} onClick={() => {
+          const role = newRoleName.trim();
+          if (!role) return;
+          if (roles.includes(role)) { showToast(uiText("Role already exists"), "error"); return; }
+          setField("customRoles", [...(form.customRoles || []), role]);
+          setNewRoleName("");
+        }}>Add role</button>
+      </div>
+      {roles.map(role => <div key={role} style={{ marginBottom: 12, border: `1px solid ${CL.bd}`, borderRadius: 10, padding: 10, background: CL.s2 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+          <strong>{role}</strong>
+          {!builtinRoles.includes(role) && <button style={btnDng} onClick={() => {
+            if (!window.confirm(`Delete role ${role}?`)) return;
+            setField("customRoles", (form.customRoles || []).filter(r => r !== role));
+            const rp = { ...(form.rolePermissions || {}) };
+            delete rp[role];
+            setField("rolePermissions", rp);
+          }}>{uiText("Delete")}</button>}
+        </div>
+        <div className="grid-3">
+          {permissionDefs.map(perm => {
+            const checked = (form.rolePermissions?.[role] || []).includes(perm);
+            return <label key={perm} style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13 }}><input type="checkbox" checked={checked} onChange={ev => setRolePermission(role, perm, ev.target.checked)} />{perm}</label>;
+          })}
+        </div>
+      </div>)}
+    </div>
+    <div style={{ marginTop: 12 }}><button style={btnPri} onClick={persistSettings}>{ICN.check} {uiText("Save changes")}</button></div>
+  </div>}
+
+  {activeTab === "finance" && <div style={{ ...cardSt, marginTop: 14 }}>
+    <h3 style={{ color: CL.gold, marginTop: 0 }}>{uiText("Financial rules")}</h3>
+    <div className="grid-2">
+      <Field label="Default hourly rate"><TextInput type="number" value={form.defaultHourlyRate || 0} onChange={ev => setField("defaultHourlyRate", parseNum(ev.target.value, 0))} /></Field>
+      <Field label="VAT rate (%)"><TextInput type="number" value={form.financeVatRate ?? form.defaultVatRate ?? 17} onChange={ev => setField("financeVatRate", parseNum(ev.target.value, 0))} /></Field>
+      <Field label="Invoice prefix"><TextInput value={form.invoicePrefix || "LA-YYYY-XXX"} onChange={ev => setField("invoicePrefix", ev.target.value)} /></Field>
+      <Field label="Payment terms"><TextInput value={form.paymentTermsDays || "30 days"} onChange={ev => setField("paymentTermsDays", ev.target.value)} /></Field>
+      <Field label="Late payment penalty (%)"><TextInput type="number" value={form.latePaymentPenalty || 0} onChange={ev => setField("latePaymentPenalty", parseNum(ev.target.value, 0))} /></Field>
+      <Field label="Auto mark overdue after X days"><TextInput type="number" value={form.autoMarkOverdueDays || 0} onChange={ev => setField("autoMarkOverdueDays", parseNum(ev.target.value, 0))} /></Field>
+      <Field label="Currency format"><TextInput value={form.currencyFormat || "€ 1,234.56"} onChange={ev => setField("currencyFormat", ev.target.value)} /></Field>
+    </div>
+    <button style={btnPri} onClick={persistSettings}>{ICN.check} {uiText("Save changes")}</button>
+  </div>}
+
+  {activeTab === "planning" && <div style={{ ...cardSt, marginTop: 14 }}>
+    <h3 style={{ color: CL.gold, marginTop: 0 }}>{uiText("Planning behavior")}</h3>
+    <div className="grid-2">
+      <Field label="Default job duration"><TextInput value={form.defaultJobDuration || "2h"} onChange={ev => setField("defaultJobDuration", ev.target.value)} /></Field>
+      <Field label="Working hours (start / end)"><div style={{ display: "flex", gap: 8 }}><TextInput type="time" value={form.workingHoursStart || "08:00"} onChange={ev => setField("workingHoursStart", ev.target.value)} /><TextInput type="time" value={form.workingHoursEnd || "18:00"} onChange={ev => setField("workingHoursEnd", ev.target.value)} /></div></Field>
+      <Field label="Max jobs per employee per day"><TextInput type="number" value={form.maxJobsPerEmployeePerDay || 3} onChange={ev => setField("maxJobsPerEmployeePerDay", parseNum(ev.target.value, 1))} /></Field>
+      <label style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 8 }}><input type="checkbox" checked={!!form.allowOverlappingJobs} onChange={ev => setField("allowOverlappingJobs", ev.target.checked)} />{uiText("Allow overlapping jobs")}</label>
+      <label style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 8 }}><input type="checkbox" checked={!!form.autoAssignEmployee} onChange={ev => setField("autoAssignEmployee", ev.target.checked)} />{uiText("Auto-assign employee")}</label>
+      <label style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 8 }}><input type="checkbox" checked={!!form.groupByLocationSuggestion} onChange={ev => setField("groupByLocationSuggestion", ev.target.checked)} />{uiText("Suggest grouping by location")}</label>
+    </div>
+    <button style={btnPri} onClick={persistSettings}>{ICN.check} {uiText("Save changes")}</button>
+  </div>}
+
+  {activeTab === "time" && <div style={{ ...cardSt, marginTop: 14 }}>
+    <h3 style={{ color: CL.gold, marginTop: 0 }}>{uiText("Time tracking")}</h3>
+    <div className="grid-2">
+      <label style={{ display: "flex", gap: 8, alignItems: "center" }}><input type="checkbox" checked={!!form.allowManualEntry} onChange={ev => setField("allowManualEntry", ev.target.checked)} />{uiText("Allow manual entry")}</label>
+      <label style={{ display: "flex", gap: 8, alignItems: "center" }}><input type="checkbox" checked={!!form.requireReasonManualEdits} onChange={ev => setField("requireReasonManualEdits", ev.target.checked)} />{uiText("Require reason for manual edits")}</label>
+      <Field label="Late tolerance (minutes)"><TextInput type="number" value={form.lateToleranceMinutes || 0} onChange={ev => setField("lateToleranceMinutes", parseNum(ev.target.value, 0))} /></Field>
+      <Field label="Auto clock-out after X hours"><TextInput type="number" value={form.autoClockOutAfterHours || 10} onChange={ev => setField("autoClockOutAfterHours", parseNum(ev.target.value, 1))} /></Field>
+      <label style={{ display: "flex", gap: 8, alignItems: "center" }}><input type="checkbox" checked={!!form.requireCheckinValidation} onChange={ev => setField("requireCheckinValidation", ev.target.checked)} />{uiText("Require check-in validation (GPS ready)")}</label>
+    </div>
+    <button style={btnPri} onClick={persistSettings}>{ICN.check} {uiText("Save changes")}</button>
+  </div>}
+
+  {activeTab === "stock" && <div style={{ ...cardSt, marginTop: 14 }}>
+    <h3 style={{ color: CL.gold, marginTop: 0 }}>{uiText("Stock logic")}</h3>
+    <div className="grid-2">
+      <Field label="Default unit"><TextInput value={form.defaultStockUnit || "bottles"} onChange={ev => setField("defaultStockUnit", ev.target.value)} /></Field>
+      <Field label="Minimum stock threshold"><TextInput type="number" value={form.minStockThreshold || 5} onChange={ev => setField("minStockThreshold", parseNum(ev.target.value, 0))} /></Field>
+      <label style={{ display: "flex", gap: 8, alignItems: "center" }}><input type="checkbox" checked={!!form.enableStockAlerts} onChange={ev => setField("enableStockAlerts", ev.target.checked)} />{uiText("Enable stock alerts")}</label>
+    </div>
+    <button style={btnPri} onClick={persistSettings}>{ICN.check} {uiText("Save changes")}</button>
+  </div>}
+
+  {activeTab === "notifications" && <div style={{ ...cardSt, marginTop: 14 }}>
+    <h3 style={{ color: CL.gold, marginTop: 0 }}>{uiText("Notifications")}</h3>
+    <div className="grid-2">
+      {[
+        ["notifLateEmployees", "Email: Late employees"],
+        ["notifNewInvoices", "Email: New invoices"],
+        ["notifOverdueInvoices", "Email: Overdue invoices"],
+        ["notifLowStock", "Email: Low stock"],
+        ["notifPushEnabled", "Future: Push notifications"],
+      ].map(([key, label]) => <label key={key} style={{ display: "flex", gap: 8, alignItems: "center" }}><input type="checkbox" checked={!!form[key]} onChange={ev => setField(key, ev.target.checked)} />{uiText(label)}</label>)}
+    </div>
+    <button style={btnPri} onClick={persistSettings}>{ICN.check} {uiText("Save changes")}</button>
+  </div>}
+
+  {activeTab === "system" && <div style={{ ...cardSt, marginTop: 14 }}>
+    <h3 style={{ color: CL.gold, marginTop: 0 }}>{uiText("System preferences")}</h3>
+    <div className="grid-2">
+      <Field label="Default language"><SelectInput value={form.defaultLanguage || "FR"} onChange={ev => setField("defaultLanguage", ev.target.value)}><option value="FR">FR</option><option value="EN">EN</option></SelectInput></Field>
+      <Field label="Date format"><SelectInput value={form.dateFormat || "DD/MM/YYYY"} onChange={ev => setField("dateFormat", ev.target.value)}><option value="DD/MM/YYYY">DD/MM/YYYY</option><option value="MM/DD/YYYY">MM/DD/YYYY</option></SelectInput></Field>
+      <Field label="Time format"><SelectInput value={form.timeFormat || "24h"} onChange={ev => setField("timeFormat", ev.target.value)}><option value="24h">24h</option><option value="12h">12h</option></SelectInput></Field>
+      <Field label="Theme"><SelectInput value={form.theme || "dark"} onChange={ev => setField("theme", ev.target.value)}><option value="dark">{uiText("Dark")}</option><option value="light">{uiText("Light")}</option></SelectInput></Field>
+      <Field label="Owner username"><TextInput value={ownerUsername} onChange={ev => setOwnerUsername(ev.target.value)} /></Field>
+      <Field label="Owner PIN"><TextInput maxLength={24} value={ownerPin} onChange={ev => setOwnerPin(ev.target.value)} /></Field>
+      <Field label="Manager username"><TextInput value={managerUsername} onChange={ev => setManagerUsername(ev.target.value)} /></Field>
+      <Field label="Manager PIN"><TextInput maxLength={24} value={managerPin} onChange={ev => setManagerPin(ev.target.value)} /></Field>
+    </div>
+    <button style={btnPri} onClick={persistSettings}>{ICN.check} {uiText("Save changes")}</button>
+  </div>}
 </div>
 );
 }

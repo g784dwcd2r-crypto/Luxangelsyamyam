@@ -82,6 +82,7 @@ CREATE TABLE IF NOT EXISTS clients (
   tax_id               TEXT,
   special_instructions TEXT,
   notes                TEXT,
+  meta                 JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

@@ -8,31 +8,9 @@ LUX ANGELS CLEANING - Management System v3 (Bug-free)
 =========================================================== */
 
 // -- Persistence --
-// Backend DB remains source of truth, but localStorage keeps an offline-safe cache
-// so UI entries (ex: planning) are not lost on disconnect/reconnect cycles.
-const STORE_KEY = "lux_store_cache_v1";
-const loadStore = () => {
-  try {
-    const raw = localStorage.getItem(STORE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object") return null;
-    return {
-      ...DEFAULTS,
-      ...parsed,
-      settings: { ...DEFAULTS.settings, ...(parsed.settings || {}) },
-    };
-  } catch {
-    return null;
-  }
-};
-const saveStore = (data) => {
-  try {
-    localStorage.setItem(STORE_KEY, JSON.stringify(data));
-  } catch {
-    // Ignore quota/private-mode errors.
-  }
-};
+// Database-only persistence: no local cache to avoid stale/offline shadow copies.
+const loadStore = () => null;
+const saveStore = () => {};
 const loadLang = () => { try { const a = JSON.parse(sessionStorage.getItem("lux_auth") || "null"); return a?.lang || "fr"; } catch { return "fr"; } };
 const saveLang = (l) => {
   try {
@@ -1891,25 +1869,7 @@ useEffect(() => {
       const employeePins = Object.fromEntries((employeesRows || []).map(e => [e.id, String(e.pin || '0000')]));
       const employeeUsernames = Object.fromEntries((employeesRows || []).map(e => [e.id, String(e.username || '').toLowerCase()]));
 
-      let mappedSchedules = (schedulesRows || []).map(mapSchedule);
-      const cachedSchedules = Array.isArray(loadStore()?.schedules) ? loadStore().schedules : [];
-      const dbScheduleIds = new Set(mappedSchedules.map(s => s.id));
-      const schedulesMissingInDb = cachedSchedules.filter(s => s?.id && !dbScheduleIds.has(s.id));
-
-      if (schedulesMissingInDb.length) {
-        await Promise.allSettled(schedulesMissingInDb.map(s => syncScheduleToApi(s)));
-        try {
-          const schedulesRefreshRes = await fetch(apiUrl('/api/schedules', base), { cache: 'no-store' });
-          if (schedulesRefreshRes.ok) {
-            const refreshedSchedules = await schedulesRefreshRes.json();
-            mappedSchedules = (refreshedSchedules || []).map(mapSchedule);
-          } else {
-            mappedSchedules = [...mappedSchedules, ...schedulesMissingInDb];
-          }
-        } catch {
-          mappedSchedules = [...mappedSchedules, ...schedulesMissingInDb];
-        }
-      }
+      const mappedSchedules = (schedulesRows || []).map(mapSchedule);
 
       const mappedClocks = (clocksRows || []).map(mapClock);
       setData(prev => ({
@@ -4946,22 +4906,35 @@ const subtotal = (q.items || []).reduce((sum, it) => sum + (Number(it.total) || 
 const vatAmount = Math.round(subtotal * (Number(q.vatRate) || 0) / 100 * 100) / 100;
 const hasValidFormat = /^DEV-\d{4}-\d{2}-\d{2}-\d+$/.test(q.quoteNumber || "");
 const final = { ...q, quoteNumber: hasValidFormat ? q.quoteNumber : quoteNumber(q.date || getToday()), subtotal, vatAmount, total: subtotal + vatAmount };
+try {
 if (final.id) {
-  try { await fetch(apiUrl(`/api/quotes/${final.id}`), { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(final) }); } catch { /* local fallback */ }
+  const response = await fetch(apiUrl(`/api/quotes/${final.id}`), { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(final) });
+  await ensureApiOk(response, "Unable to update quote");
   updateData("quotes", prev => (prev || []).map(x => x.id === final.id ? final : x));
 } else {
   const newQuote = { ...final, id: makeId() };
-  try { await fetch(apiUrl("/api/quotes"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(newQuote) }); } catch { /* local fallback */ }
+  const response = await fetch(apiUrl("/api/quotes"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(newQuote) });
+  await ensureApiOk(response, "Unable to create quote");
   updateData("quotes", prev => [...(prev || []), newQuote]);
 }
 showToast(final.id ? "Quote updated" : "Quote created");
 setModal(null);
+} catch (err) {
+console.error(err);
+showToast(err?.message || "Unable to save quote", "error");
+}
 };
 
 const deleteQuote = async (id) => {
-  try { await fetch(apiUrl(`/api/quotes/${id}`), { method: "DELETE" }); } catch { /* local fallback */ }
-  updateData("quotes", prev => (prev || []).filter(q => q.id !== id));
-  showToast("Quote deleted", "error");
+  try {
+    const response = await fetch(apiUrl(`/api/quotes/${id}`), { method: "DELETE" });
+    await ensureApiOk(response, "Unable to delete quote");
+    updateData("quotes", prev => (prev || []).filter(q => q.id !== id));
+    showToast("Quote deleted", "error");
+  } catch (err) {
+    console.error(err);
+    showToast(err?.message || "Unable to delete quote", "error");
+  }
 };
 
 const toInvoiceNum = () => {
@@ -4972,13 +4945,14 @@ return `${prefix}${nums.length ? Math.max(...nums) + 1 : 500}`;
 };
 
 const generateScheduleEntries = (clientId, js) => {
-const { startDate, dateFrom, dateTo, frequency, employeeId, startTime, endTime } = js || {};
-if (!startDate || !employeeId) return [];
+const { startDate, dateFrom, dateTo, frequency, employeeId, employeeIds, startTime, endTime } = js || {};
+const selectedEmployeeIds = (Array.isArray(employeeIds) && employeeIds.length > 0) ? employeeIds : (employeeId ? [employeeId] : []);
+if (!startDate || selectedEmployeeIds.length === 0) return [];
 const entries = [];
 const endDateStr = dateTo || dateFrom || startDate;
 const toDate = d => new Date(d);
 const toISO = d => d.toISOString().slice(0, 10);
-const addEntry = (d) => entries.push({ id: makeId(), date: toISO(d), clientId, employeeId, startTime: startTime || "08:00", endTime: endTime || "12:00", status: "scheduled", notes: "Généré depuis devis", recurrence: frequency === "one-time" ? "none" : frequency });
+const addEntry = (d) => selectedEmployeeIds.forEach((assignedEmployeeId) => entries.push({ id: makeId(), date: toISO(d), clientId, employeeId: assignedEmployeeId, startTime: startTime || "08:00", endTime: endTime || "12:00", status: "scheduled", notes: "Généré depuis devis", recurrence: frequency === "one-time" ? "none" : frequency }));
 if (frequency === "one-time") {
   addEntry(toDate(startDate));
 } else {
@@ -5019,17 +4993,25 @@ showToast(err?.message || "Unable to save invoice", "error");
 return;
 }
 updateData("invoices", prev => [...prev, invoice]);
-try { await fetch(apiUrl(`/api/quotes/${q.id}`), { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...q, status: "converted", convertedInvoiceId: invoice.id }) }); } catch { /* local fallback */ }
+try {
+  const response = await fetch(apiUrl(`/api/quotes/${q.id}`), { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...q, status: "converted", convertedInvoiceId: invoice.id }) });
+  await ensureApiOk(response, "Unable to update quote status");
+} catch (err) {
+  console.error(err);
+  showToast(err?.message || "Unable to update quote status", "error");
+  return;
+}
 updateData("quotes", prev => (prev || []).map(x => x.id === q.id ? { ...x, status: "converted", convertedInvoiceId: invoice.id } : x));
 const js = q.jobSchedule;
-if (js && js.employeeId && js.startDate) {
+if (js && js.startDate && ((Array.isArray(js.employeeIds) && js.employeeIds.length > 0) || js.employeeId)) {
   const newSchedules = generateScheduleEntries(q.clientId, js);
   if (newSchedules.length > 0) {
     try {
       await Promise.all(newSchedules.map(s => createScheduleInApi(s)));
     } catch (err) {
       console.error(err);
-      showToast("Plannings créés localement mais non sauvegardés en base de données", "error");
+      showToast(err?.message || "Unable to save generated schedules", "error");
+      return;
     }
     updateData("schedules", prev => [...(prev || []), ...newSchedules]);
     showToast(`Devis converti en facture · ${newSchedules.length} entrée(s) ajoutée(s) au planning`);
@@ -5099,7 +5081,7 @@ return (
 
 function QuoteForm({ quote, data, onSave, onCancel, generateQuoteNumber }) {
 const defaultColumns = { prestationDate: true, description: true, hours: true, quantity: false, unitPrice: true, total: true, tva: true };
-const defaultJobSchedule = { dateFrom: "", dateTo: "", frequency: "one-time", startDate: "", employeeId: "", startTime: "08:00", endTime: "12:00" };
+const defaultJobSchedule = { dateFrom: "", dateTo: "", frequency: "one-time", startDate: "", employeeIds: [], startTime: "08:00", endTime: "12:00" };
 const [form, setForm] = useState({ pricingMode: "hours", jobSchedule: { ...defaultJobSchedule }, ...quote, visibleColumns: { ...defaultColumns, ...(quote.visibleColumns || {}) } });
 const [globalDescription, setGlobalDescription] = useState("");
 const set = (k,v) => setForm(prev => ({ ...prev, [k]: v }));
@@ -5246,14 +5228,18 @@ return (
       <Field label="Heure fin">
         <TextInput type="time" value={form.jobSchedule?.endTime || "12:00"} onChange={ev => setJobSchedule("endTime", ev.target.value)} />
       </Field>
-      <Field label="Agent(e) assigné(e)">
-        <SelectInput value={form.jobSchedule?.employeeId || ""} onChange={ev => setJobSchedule("employeeId", ev.target.value)}>
-          <option value="">— Sélectionner —</option>
+      <Field label="Agent(e)s assigné(e)s">
+        <SelectInput
+          multiple
+          value={form.jobSchedule?.employeeIds || (form.jobSchedule?.employeeId ? [form.jobSchedule.employeeId] : [])}
+          onChange={ev => setJobSchedule("employeeIds", Array.from(ev.target.selectedOptions).map(opt => opt.value))}
+          style={{ minHeight: 120 }}
+        >
           {(data.employees || []).map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
         </SelectInput>
       </Field>
     </div>
-    {form.jobSchedule?.employeeId && form.jobSchedule?.startDate && (
+    {((form.jobSchedule?.employeeIds || []).length > 0 || form.jobSchedule?.employeeId) && form.jobSchedule?.startDate && (
       <div style={{ fontSize: 12, color: CL.blue, padding: "8px 12px", background: CL.blue + "14", borderRadius: 8 }}>
         Lors de la conversion en facture, {form.jobSchedule.frequency === "one-time" ? "1 entrée sera" : "les entrées seront"} automatiquement ajoutée(s) au planning.
       </div>

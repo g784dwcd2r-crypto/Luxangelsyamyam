@@ -814,8 +814,8 @@ app.post('/api/clients', async (req, res) => {
         apartment_floor, city, postal_code, country, type, cleaning_frequency, billing_type,
         price_per_hour, price_fixed, status, language, access_code, key_location, parking_info,
         pet_info, preferred_day, preferred_time, contract_start, contract_end, square_meters,
-        tax_id, special_instructions, notes)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30)
+        tax_id, special_instructions, notes, meta)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31)
        RETURNING *`,
       [b.id, b.name, b.contact_person||'', b.email||'', b.phone||'', b.phone_mobile||'',
        b.address||'', b.apartment_floor||'', b.city||'', b.postal_code||'',
@@ -824,7 +824,7 @@ app.post('/api/clients', async (req, res) => {
        b.language||'FR', b.access_code||'', b.key_location||'', b.parking_info||'',
        b.pet_info||'', b.preferred_day||'', b.preferred_time||'', b.contract_start||null,
        b.contract_end||null, b.square_meters||null, b.tax_id||'', b.special_instructions||'',
-       b.notes||'']
+       b.notes||'', b.meta || {}]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -842,8 +842,8 @@ app.put('/api/clients/:id', async (req, res) => {
         cleaning_frequency=$12, billing_type=$13, price_per_hour=$14, price_fixed=$15,
         status=$16, language=$17, access_code=$18, key_location=$19, parking_info=$20,
         pet_info=$21, preferred_day=$22, preferred_time=$23, contract_start=$24,
-        contract_end=$25, square_meters=$26, tax_id=$27, special_instructions=$28, notes=$29
-       WHERE id=$30 RETURNING *`,
+        contract_end=$25, square_meters=$26, tax_id=$27, special_instructions=$28, notes=$29, meta=$30
+       WHERE id=$31 RETURNING *`,
       [b.name, b.contact_person||'', b.email||'', b.phone||'', b.phone_mobile||'',
        b.address||'', b.apartment_floor||'', b.city||'', b.postal_code||'',
        b.country||'Luxembourg', b.type||'Residential', b.cleaning_frequency||'Weekly',
@@ -851,7 +851,7 @@ app.put('/api/clients/:id', async (req, res) => {
        b.language||'FR', b.access_code||'', b.key_location||'', b.parking_info||'',
        b.pet_info||'', b.preferred_day||'', b.preferred_time||'', b.contract_start||null,
        b.contract_end||null, b.square_meters||null, b.tax_id||'', b.special_instructions||'',
-       b.notes||'', req.params.id]
+       b.notes||'', b.meta || {}, req.params.id]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Client not found' });
     res.json(result.rows[0]);
@@ -1794,6 +1794,7 @@ async function initDb() {
     "ALTER TABLE clients ADD COLUMN IF NOT EXISTS tax_id TEXT",
     "ALTER TABLE clients ADD COLUMN IF NOT EXISTS special_instructions TEXT",
     "ALTER TABLE clients ADD COLUMN IF NOT EXISTS notes TEXT",
+    "ALTER TABLE clients ADD COLUMN IF NOT EXISTS meta JSONB NOT NULL DEFAULT '{}'::jsonb",
     "ALTER TABLE schedules ADD COLUMN IF NOT EXISTS payment_status TEXT NOT NULL DEFAULT 'unpaid'",
   ];
 

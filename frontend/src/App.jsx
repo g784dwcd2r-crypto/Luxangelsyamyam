@@ -985,6 +985,16 @@ const toApiClient = (c) => ({
   tax_id: c.taxId || "",
   special_instructions: c.specialInstructions || "",
   notes: c.notes || "",
+  meta: {
+    region: c.region || "",
+    preferredDays: Array.isArray(c.preferredDays) ? c.preferredDays : [],
+    preferredCleanerIds: Array.isArray(c.preferredCleanerIds) ? c.preferredCleanerIds : [],
+    hoursPerSession: Number(c.hoursPerSession) || 0,
+    forfaitLabel: c.forfaitLabel || "",
+    forfaitPrice: Number(c.forfaitPrice) || 0,
+    forfaitPeriod: c.forfaitPeriod || "monthly",
+    forfaitIncludedHours: Number(c.forfaitIncludedHours) || 0,
+  },
 });
 
 const syncClientToApi = async (client) => {
@@ -1756,7 +1766,9 @@ useEffect(() => {
     weeklyHours: Number(e.weekly_hours) || 0,
     profilePicture: e.profile_picture || "",
   });
-  const mapClient = (c) => ({
+  const mapClient = (c) => {
+    const meta = (c && typeof c.meta === "object" && c.meta) ? c.meta : {};
+    return ({
     id: c.id,
     name: c.name,
     contactPerson: c.contact_person || "",
@@ -1768,6 +1780,7 @@ useEffect(() => {
     city: c.city || "",
     postalCode: c.postal_code || "",
     country: c.country || "Luxembourg",
+    region: String(meta.region || ""),
     type: c.type || "Residential",
     cleaningFrequency: c.cleaning_frequency || "Weekly",
     billingType: c.billing_type || "hourly",
@@ -1781,14 +1794,21 @@ useEffect(() => {
     petInfo: c.pet_info || "",
     preferredDay: c.preferred_day || "",
     preferredTime: c.preferred_time || "",
+    preferredDays: Array.isArray(meta.preferredDays) ? meta.preferredDays : [],
     contractStart: c.contract_start || "",
     contractEnd: c.contract_end || "",
     squareMeters: Number(c.square_meters) || 0,
     taxId: c.tax_id || "",
     specialInstructions: c.special_instructions || "",
     notes: c.notes || "",
-    preferredCleanerIds: [],
+    preferredCleanerIds: Array.isArray(meta.preferredCleanerIds) ? meta.preferredCleanerIds : [],
+    hoursPerSession: Number(meta.hoursPerSession) || 0,
+    forfaitLabel: String(meta.forfaitLabel || ""),
+    forfaitPrice: Number(meta.forfaitPrice) || 0,
+    forfaitPeriod: String(meta.forfaitPeriod || "monthly"),
+    forfaitIncludedHours: Number(meta.forfaitIncludedHours) || 0,
   });
+  };
   const mapSchedule = (s) => ({
     id: s.id,
     date: normalizeDateOnly(s.date),

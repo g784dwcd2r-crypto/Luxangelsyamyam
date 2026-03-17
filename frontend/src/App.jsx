@@ -1912,11 +1912,23 @@ useEffect(() => {
       }
 
       const mappedClocks = (clocksRows || []).map(mapClock);
-      setData(prev => ({
+      setData(prev => {
+        const prevSchedules = Array.isArray(prev.schedules) ? prev.schedules : [];
+        const mergedSchedules = (() => {
+          const byId = new Map(mappedSchedules.map(s => [s.id, s]));
+          for (const sched of prevSchedules) {
+            if (sched?.id && !byId.has(sched.id)) {
+              byId.set(sched.id, sched);
+            }
+          }
+          return Array.from(byId.values());
+        })();
+
+        return ({
         ...prev,
         employees: (employeesRows || []).map(mapEmployee),
         clients: (clientsRows || []).map(mapClient),
-        schedules: syncSchedulesWithClockEntries(mappedSchedules, mappedClocks),
+        schedules: syncSchedulesWithClockEntries(mergedSchedules, mappedClocks),
         clockEntries: mappedClocks,
         invoices: (invoicesRows || []).map(mapInvoice),
         payslips: (payslipsRows || []).map(mapPayslip),
@@ -1947,7 +1959,8 @@ useEffect(() => {
             try { const parsed = JSON.parse(value); return Array.isArray(parsed) ? parsed : prev.settings.customRoles || []; } catch { return prev.settings.customRoles || []; }
           })(),
         },
-      }));
+      });
+      });
     } catch {
       // Keep in-memory defaults when DB is unreachable.
     }

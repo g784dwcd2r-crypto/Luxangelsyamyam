@@ -8,9 +8,7 @@ LUX ANGELS CLEANING - Management System v3 (Bug-free)
 =========================================================== */
 
 // -- Persistence --
-// Database-only persistence: no local cache to avoid stale/offline shadow copies.
-const loadStore = () => null;
-const saveStore = () => {};
+// Database-only persistence for business data: no local cache/offline shadow copies.
 const loadLang = () => { try { const a = JSON.parse(sessionStorage.getItem("lux_auth") || "null"); return a?.lang || "fr"; } catch { return "fr"; } };
 const saveLang = (l) => {
   try {
@@ -1710,7 +1708,7 @@ return (
 }
 
 export default function App() {
-const [data, setData] = useState(() => loadStore() || DEFAULTS);
+const [data, setData] = useState(() => DEFAULTS);
 const [lang, setLang] = useState(() => loadLang());
 const [auth, setAuth] = useState(() => {
   try { const s = sessionStorage.getItem("lux_auth"); return s ? JSON.parse(s) : null; } catch { return null; }
@@ -1965,25 +1963,12 @@ useEffect(() => {
       const employeeUsernames = Object.fromEntries((employeesRows || []).map(e => [e.id, String(e.username || '').toLowerCase()]));
 
       const mappedSchedules = (schedulesRows || []).map(mapSchedule);
-
       const mappedClocks = (clocksRows || []).map(mapClock);
-      setData(prev => {
-        const prevSchedules = Array.isArray(prev.schedules) ? prev.schedules : [];
-        const mergedSchedules = (() => {
-          const byId = new Map(mappedSchedules.map(s => [s.id, s]));
-          for (const sched of prevSchedules) {
-            if (sched?.id && !byId.has(sched.id)) {
-              byId.set(sched.id, sched);
-            }
-          }
-          return Array.from(byId.values());
-        })();
-
-        return ({
+      setData(prev => ({
         ...prev,
         employees: (employeesRows || []).map(mapEmployee),
         clients: (clientsRows || []).map(mapClient),
-        schedules: syncSchedulesWithClockEntries(mergedSchedules, mappedClocks),
+        schedules: syncSchedulesWithClockEntries(mappedSchedules, mappedClocks),
         clockEntries: mappedClocks,
         invoices: (invoicesRows || []).map(mapInvoice),
         payslips: (payslipsRows || []).map(mapPayslip),
@@ -2014,10 +1999,10 @@ useEffect(() => {
             try { const parsed = JSON.parse(value); return Array.isArray(parsed) ? parsed : prev.settings.customRoles || []; } catch { return prev.settings.customRoles || []; }
           })(),
         },
-      });
-      });
-    } catch {
-      // Keep in-memory defaults when DB is unreachable.
+      }));
+    } catch (err) {
+      console.error("Failed to load data from DB", err);
+      showToast("Unable to load data from database", "error");
     }
   };
 
@@ -2041,9 +2026,6 @@ useEffect(() => {
 }, [auth]); // eslint-disable-line react-hooks/exhaustive-deps
 const t = useCallback((key, fallback) => tr(lang, key, fallback), [lang]);
 
-useEffect(() => {
-  saveStore(data);
-}, [data]);
 
 const showToast = useCallback((msg, type = "success") => {
 setToast({ msg, type });
@@ -2573,8 +2555,9 @@ const newPhoto = {
   clockEntryId: activeClock.id, clientId: activeClock.clientId,
 };
 try {
-  await fetch(apiUrl("/api/photo-uploads"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(newPhoto) });
-} catch { /* local fallback */ }
+  const response = await fetch(apiUrl("/api/photo-uploads"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(newPhoto) });
+  await ensureApiOk(response, "Failed to save photo");
+} catch (err) { showToast("Failed to save photo to database", "error"); return; }
 updateData("photoUploads", (prev = []) => [...prev, newPhoto]);
 setUploadNote("");
 setUploadType("issue");
@@ -2596,8 +2579,9 @@ const newReq = {
   createdAt: new Date().toISOString(), reviewedAt: null, reviewedBy: null, reviewNote: "",
 };
 try {
-  await fetch(apiUrl("/api/time-off-requests"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(newReq) });
-} catch { /* local fallback */ }
+  const response = await fetch(apiUrl("/api/time-off-requests"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(newReq) });
+  await ensureApiOk(response, "Failed to save leave request");
+} catch (err) { showToast("Failed to save leave request to database", "error"); return; }
 updateData("timeOffRequests", (prev = []) => [...prev, newReq]);
 setTimeOffForm({ startDate: "", endDate: "", reason: "", leaveType: "conge" });
 showToast(uiText("Leave request sent"));
@@ -2613,8 +2597,9 @@ const newReq = {
   status: "pending", approvedQty: 0, deliveredQty: 0, createdAt: new Date().toISOString(),
 };
 try {
-  await fetch(apiUrl("/api/product-requests"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(newReq) });
-} catch { /* local fallback */ }
+  const response = await fetch(apiUrl("/api/product-requests"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(newReq) });
+  await ensureApiOk(response, "Failed to save product request");
+} catch (err) { showToast("Failed to save product request to database", "error"); return; }
 updateData("productRequests", (prev = []) => [...prev, newReq]);
 setProductForm({ productId: "", quantity: 1, note: "", deliveryAt: "" });
 showToast("Product request sent");
@@ -4695,8 +4680,9 @@ const saveProduct = async () => {
 if (!productForm.name.trim()) { showToast(uiText("Product name required"), "error"); return; }
 const newProd = { id: makeId(), active: true, ...productForm, name: productForm.name.trim(), stock: Number(productForm.stock) || 0, minStock: Number(productForm.minStock) || 0 };
 try {
-  await fetch(apiUrl("/api/inventory-products"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(newProd) });
-} catch { /* local fallback */ }
+  const response = await fetch(apiUrl("/api/inventory-products"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(newProd) });
+  await ensureApiOk(response, "Failed to save product");
+} catch (err) { showToast("Failed to save product to database", "error"); return; }
 updateData("inventoryProducts", (prev = []) => [...prev, newProd]);
 setProductForm({ name: "", unit: "bottles", stock: 0, minStock: 0, note: "" });
 showToast(uiText("Product added"));
@@ -4704,8 +4690,9 @@ showToast(uiText("Product added"));
 
 const handleDeleteProduct = async (id) => {
 try {
-  await fetch(apiUrl(`/api/inventory-products/${id}`), { method: "DELETE" });
-} catch { /* local fallback */ }
+  const response = await fetch(apiUrl(`/api/inventory-products/${id}`), { method: "DELETE" });
+  await ensureApiOk(response, "Failed to delete product");
+} catch (err) { showToast("Failed to delete product from database", "error"); return; }
 updateData("inventoryProducts", prev => (prev || []).filter(p => p.id !== id));
 setDeleteProductId(null);
 showToast(uiText("Product deleted"));
@@ -4716,24 +4703,27 @@ const product = (data.inventoryProducts || []).find(p => p.id === id);
 if (!product) return;
 const newStock = Math.max(0, (Number(product.stock) || 0) + delta);
 try {
-  await fetch(apiUrl(`/api/inventory-products/${id}`), { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...product, stock: newStock }) });
-} catch { /* local fallback */ }
+  const response = await fetch(apiUrl(`/api/inventory-products/${id}`), { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...product, stock: newStock }) });
+  await ensureApiOk(response, "Failed to update product stock");
+} catch (err) { showToast("Failed to update stock in database", "error"); return; }
 updateData("inventoryProducts", prev => (prev || []).map(p => p.id === id ? { ...p, stock: newStock } : p));
 };
 
 const setRequestStatus = async (id, status) => {
 const req = (data.productRequests || []).find(r => r.id === id);
 try {
-  await fetch(apiUrl(`/api/product-requests/${id}`), { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status, approvedQty: req?.approvedQty || 0, deliveredQty: req?.deliveredQty || 0 }) });
-} catch { /* local fallback */ }
+  const response = await fetch(apiUrl(`/api/product-requests/${id}`), { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status, approvedQty: req?.approvedQty || 0, deliveredQty: req?.deliveredQty || 0 }) });
+  await ensureApiOk(response, "Failed to update request status");
+} catch (err) { showToast("Failed to update request status in database", "error"); return; }
 updateData("productRequests", prev => (prev || []).map(r => r.id === id ? { ...r, status } : r));
 };
 
 const approveRequest = async (req, qty) => {
 const approved = Math.max(0, Number(qty) || 0);
 try {
-  await fetch(apiUrl(`/api/product-requests/${req.id}`), { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "approved", approvedQty: approved, deliveredQty: req.deliveredQty || 0 }) });
-} catch { /* local fallback */ }
+  const response = await fetch(apiUrl(`/api/product-requests/${req.id}`), { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "approved", approvedQty: approved, deliveredQty: req.deliveredQty || 0 }) });
+  await ensureApiOk(response, "Failed to approve request");
+} catch (err) { showToast("Failed to approve request in database", "error"); return; }
 updateData("productRequests", prev => (prev || []).map(r => r.id === req.id ? { ...r, status: "approved", approvedQty: approved } : r));
 showToast("Request approved");
 };
@@ -4743,11 +4733,17 @@ const prev = data.cleanerProductHoldings || [];
 const existing = prev.find(h => h.employeeId === employeeId && h.productId === productId);
 if (!existing) {
   const newH = { id: makeId(), employeeId, productId, qtyAssigned: deliveredQty, qtyInHand: deliveredQty, updatedAt: new Date().toISOString() };
-  try { await fetch(apiUrl("/api/cleaner-product-holdings"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(newH) }); } catch { /* local fallback */ }
+  try {
+    const response = await fetch(apiUrl("/api/cleaner-product-holdings"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(newH) });
+    await ensureApiOk(response, "Failed to save cleaner holding");
+  } catch (err) { throw new Error("Failed to save cleaner holding"); }
   updateData("cleanerProductHoldings", (h = []) => [...h, newH]);
 } else {
   const newQty = (Number(existing.qtyInHand) || 0) + deliveredQty;
-  try { await fetch(apiUrl(`/api/cleaner-product-holdings/${existing.id}`), { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ qtyInHand: newQty }) }); } catch { /* local fallback */ }
+  try {
+    const response = await fetch(apiUrl(`/api/cleaner-product-holdings/${existing.id}`), { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ qtyInHand: newQty }) });
+    await ensureApiOk(response, "Failed to update cleaner holding");
+  } catch (err) { throw new Error("Failed to update cleaner holding"); }
   updateData("cleanerProductHoldings", (h = []) => h.map(x => x.id === existing.id ? { ...x, qtyInHand: newQty, updatedAt: new Date().toISOString() } : x));
 }
 };
@@ -4755,20 +4751,25 @@ if (!existing) {
 const updateHoldingInHand = async (holdingId, qtyInHand) => {
 const newQty = Math.max(0, Number(qtyInHand) || 0);
 try {
-  await fetch(apiUrl(`/api/cleaner-product-holdings/${holdingId}`), { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ qtyInHand: newQty }) });
-} catch { /* local fallback */ }
+  const response = await fetch(apiUrl(`/api/cleaner-product-holdings/${holdingId}`), { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ qtyInHand: newQty }) });
+  await ensureApiOk(response, "Failed to update holding");
+} catch (err) { showToast("Failed to update holding in database", "error"); return; }
 updateData("cleanerProductHoldings", prev => (prev || []).map(h => h.id === holdingId ? { ...h, qtyInHand: newQty, updatedAt: new Date().toISOString() } : h));
 };
 
 const deliverRequest = async (req, qty) => {
 const delivered = Math.max(0, Number(qty) || 0);
 try {
-  await fetch(apiUrl(`/api/product-requests/${req.id}`), { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "delivered", approvedQty: req.approvedQty || 0, deliveredQty: delivered }) });
-} catch { /* local fallback */ }
+  const response = await fetch(apiUrl(`/api/product-requests/${req.id}`), { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "delivered", approvedQty: req.approvedQty || 0, deliveredQty: delivered }) });
+  await ensureApiOk(response, "Failed to mark delivery");
+} catch (err) { showToast("Failed to mark delivery in database", "error"); return; }
 const product = (data.inventoryProducts || []).find(p => p.id === req.productId);
 if (product) {
   const newStock = Math.max(0, (Number(product.stock) || 0) - delivered);
-  try { await fetch(apiUrl(`/api/inventory-products/${req.productId}`), { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...product, stock: newStock }) }); } catch { /* local fallback */ }
+  try {
+    const response = await fetch(apiUrl(`/api/inventory-products/${req.productId}`), { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...product, stock: newStock }) });
+    await ensureApiOk(response, "Failed to update product stock");
+  } catch (err) { showToast("Failed to update product stock in database", "error"); return; }
   updateData("inventoryProducts", prev => (prev || []).map(p => p.id === req.productId ? { ...p, stock: newStock } : p));
 }
 updateData("productRequests", prev => (prev || []).map(r => r.id === req.id ? { ...r, status: "delivered", deliveredQty: delivered } : r));
@@ -6206,19 +6207,26 @@ if (!nameOrId || !form.visitDate) { showToast(uiText("Select client and date"), 
 const client = data.clients.find(c => c.id === form.clientId);
 const payload = { ...form, id: makeId(), createdAt: new Date().toISOString(), address: form.address || client?.address || "", clientName: form.clientName.trim() || client?.name || "" };
 try {
-  await fetch(apiUrl("/api/prospect-visits"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...payload, visitDate: payload.visitDate }) });
-} catch { /* local fallback */ }
+  const response = await fetch(apiUrl("/api/prospect-visits"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...payload, visitDate: payload.visitDate }) });
+  await ensureApiOk(response, "Failed to save visit");
+} catch (err) { showToast("Failed to save visit to database", "error"); return; }
 updateData("prospectVisits", prev => [payload, ...(prev || [])]);
 setForm({ clientId: "", clientName: "", visitDate: getToday(), visitTime: "10:00", address: "", notes: "", status: "planned", photos: [] });
 showToast(uiText("Visit added"));
 };
 
 const markStatus = async (id, status) => {
-  try { await fetch(apiUrl(`/api/prospect-visits/${id}`), { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }) }); } catch { /* local fallback */ }
+  try {
+    const response = await fetch(apiUrl(`/api/prospect-visits/${id}`), { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }) });
+    await ensureApiOk(response, "Failed to update visit");
+  } catch (err) { showToast("Failed to update visit in database", "error"); return; }
   updateData("prospectVisits", prev => (prev || []).map(v => v.id === id ? { ...v, status, updatedAt: new Date().toISOString() } : v));
 };
 const removeVisit = async (id) => {
-  try { await fetch(apiUrl(`/api/prospect-visits/${id}`), { method: "DELETE" }); } catch { /* local fallback */ }
+  try {
+    const response = await fetch(apiUrl(`/api/prospect-visits/${id}`), { method: "DELETE" });
+    await ensureApiOk(response, "Failed to delete visit");
+  } catch (err) { showToast("Failed to delete visit from database", "error"); return; }
   updateData("prospectVisits", prev => (prev || []).filter(v => v.id !== id));
 };
 
@@ -6351,7 +6359,10 @@ const filteredUploads = !searched ? [] : uploads.filter(u => {
 });
 
 const markAllSeen = async () => {
-  try { await fetch(apiUrl("/api/photo-uploads/seen"), { method: "PATCH" }); } catch { /* local fallback */ }
+  try {
+    const response = await fetch(apiUrl("/api/photo-uploads/seen"), { method: "PATCH" });
+    await ensureApiOk(response, "Failed to update photo state");
+  } catch (err) { showToast("Failed to update photo state in database", "error"); return; }
   updateData("photoUploads", prev => (prev || []).map(u => ({ ...u, seenByOwner: true })));
 };
 
@@ -6435,12 +6446,13 @@ const rejectedCount = requests.filter(r => r.status === "rejected").length;
 const reviewRequest = async (id, status) => {
 const note = (reviewNote[id] || "").trim();
 try {
-  await fetch(apiUrl(`/api/time-off-requests/${id}`), {
+  const response = await fetch(apiUrl(`/api/time-off-requests/${id}`), {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ status, reviewedBy: "owner", reviewNote: note }),
   });
-} catch { /* local fallback */ }
+  await ensureApiOk(response, "Failed to review leave request");
+} catch (err) { showToast("Failed to review leave request in database", "error"); return; }
 updateData("timeOffRequests", prev => prev.map(r => r.id === id ? {
   ...r, status, reviewedAt: new Date().toISOString(), reviewedBy: "owner", reviewNote: note,
 } : r));
@@ -7098,7 +7110,7 @@ return (
 <div style={{ marginTop: 14 }}><button style={btnPri} onClick={handleSave}>{ICN.check} {uiText("Save All")}</button></div>
 {auth?.role === "owner" && <div style={{ ...cardSt, marginTop: 14 }}>
 <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: CL.red }}>{uiText("Danger Zone")}</h3>
-<button style={btnDng} onClick={() => { if (confirm(uiText("DELETE ALL DATA?"))) { setData(DEFAULTS); saveStore(DEFAULTS); window.location.reload(); } }}>{uiText("Reset Everything")}</button>
+<button style={btnDng} onClick={() => { showToast("Database reset is server-managed only", "error"); }}>{uiText("Reset Everything")}</button>
 </div>}
 </div>
 );
@@ -7185,14 +7197,20 @@ function ExpensesPage({ data, updateData, showToast }) {
 
   const deleteExpense = async (id) => {
     if (!confirm(uiText("Delete this expense? All payment history will be lost."))) return;
-    try { await fetch(apiUrl(`/api/expenses/${id}`), { method: "DELETE" }); } catch { /* local fallback */ }
+    try {
+      const response = await fetch(apiUrl(`/api/expenses/${id}`), { method: "DELETE" });
+      await ensureApiOk(response, "Failed to delete expense");
+    } catch (err) { showToast("Failed to delete expense from database", "error"); return; }
     updateData("expenses", prev => (prev || []).filter(e => e.id !== id));
     showToast(uiText("Expense deleted"), "success");
   };
 
   const markUnpaid = async (expense) => {
     const updated = { ...expense, payments: (expense.payments || []).filter(p => p.month !== viewMonth) };
-    try { await fetch(apiUrl(`/api/expenses/${expense.id}`), { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(updated) }); } catch { /* local fallback */ }
+    try {
+      const response = await fetch(apiUrl(`/api/expenses/${expense.id}`), { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(updated) });
+      await ensureApiOk(response, "Failed to update expense");
+    } catch (err) { showToast("Failed to update expense in database", "error"); return; }
     updateData("expenses", prev => (prev || []).map(e => e.id === expense.id ? updated : e));
     showToast(uiText("Marked as unpaid"), "success");
   };
@@ -7429,11 +7447,17 @@ function ExpensesPage({ data, updateData, showToast }) {
           categoryColors={CATEGORY_COLORS}
           onSave={async (exp) => {
             if (editExpense) {
-              try { await fetch(apiUrl(`/api/expenses/${exp.id}`), { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(exp) }); } catch { /* local fallback */ }
+              try {
+                const response = await fetch(apiUrl(`/api/expenses/${exp.id}`), { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(exp) });
+                await ensureApiOk(response, "Failed to update expense");
+              } catch (err) { showToast("Failed to import expense update to database", "error"); return; }
               updateData("expenses", prev => (prev || []).map(e => e.id === exp.id ? exp : e));
               showToast(uiText("Expense updated"), "success");
             } else {
-              try { await fetch(apiUrl("/api/expenses"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(exp) }); } catch { /* local fallback */ }
+              try {
+                const response = await fetch(apiUrl("/api/expenses"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(exp) });
+                await ensureApiOk(response, "Failed to create expense");
+              } catch (err) { showToast("Failed to import expense to database", "error"); return; }
               updateData("expenses", prev => [...(prev || []), exp]);
               showToast(uiText("Expense added"), "success");
             }
@@ -7453,7 +7477,10 @@ function ExpensesPage({ data, updateData, showToast }) {
             const exp = (data.expenses || []).find(e => e.id === showPayModal.id);
             if (exp) {
               const updated = { ...exp, payments: [...(exp.payments || []).filter(p => p.month !== viewMonth), payment] };
-              try { await fetch(apiUrl(`/api/expenses/${exp.id}`), { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(updated) }); } catch { /* local fallback */ }
+              try {
+                const response = await fetch(apiUrl(`/api/expenses/${exp.id}`), { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(updated) });
+                await ensureApiOk(response, "Failed to update expense payment");
+              } catch (err) { showToast("Failed to sync imported expense to database", "error"); return; }
             }
             updateData("expenses", prev => (prev || []).map(e =>
               e.id === showPayModal.id

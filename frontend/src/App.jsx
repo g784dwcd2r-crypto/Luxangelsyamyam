@@ -8,10 +8,31 @@ LUX ANGELS CLEANING - Management System v3 (Bug-free)
 =========================================================== */
 
 // -- Persistence --
-// All data (including UI preferences) is stored in the backend DB.
-// sessionStorage is used only as a runtime cache for the active session.
-const loadStore = () => null;
-const saveStore = () => {};
+// Backend DB remains source of truth, but localStorage keeps an offline-safe cache
+// so UI entries (ex: planning) are not lost on disconnect/reconnect cycles.
+const STORE_KEY = "lux_store_cache_v1";
+const loadStore = () => {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+    return {
+      ...DEFAULTS,
+      ...parsed,
+      settings: { ...DEFAULTS.settings, ...(parsed.settings || {}) },
+    };
+  } catch {
+    return null;
+  }
+};
+const saveStore = (data) => {
+  try {
+    localStorage.setItem(STORE_KEY, JSON.stringify(data));
+  } catch {
+    // Ignore quota/private-mode errors.
+  }
+};
 const loadLang = () => { try { const a = JSON.parse(sessionStorage.getItem("lux_auth") || "null"); return a?.lang || "fr"; } catch { return "fr"; } };
 const saveLang = (l) => {
   try {
@@ -1932,6 +1953,10 @@ useEffect(() => {
   } catch {}
 }, [auth]); // eslint-disable-line react-hooks/exhaustive-deps
 const t = useCallback((key, fallback) => tr(lang, key, fallback), [lang]);
+
+useEffect(() => {
+  saveStore(data);
+}, [data]);
 
 const showToast = useCallback((msg, type = "success") => {
 setToast({ msg, type });
@@ -6979,7 +7004,7 @@ return (
 <div style={{ marginTop: 14 }}><button style={btnPri} onClick={handleSave}>{ICN.check} {uiText("Save All")}</button></div>
 {auth?.role === "owner" && <div style={{ ...cardSt, marginTop: 14 }}>
 <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: CL.red }}>{uiText("Danger Zone")}</h3>
-<button style={btnDng} onClick={() => { if (confirm(uiText("DELETE ALL DATA?"))) { setData(DEFAULTS); window.location.reload(); } }}>{uiText("Reset Everything")}</button>
+<button style={btnDng} onClick={() => { if (confirm(uiText("DELETE ALL DATA?"))) { setData(DEFAULTS); saveStore(DEFAULTS); window.location.reload(); } }}>{uiText("Reset Everything")}</button>
 </div>}
 </div>
 );

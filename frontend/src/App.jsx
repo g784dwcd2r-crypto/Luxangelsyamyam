@@ -4165,7 +4165,7 @@ return (
 {data.clients.filter(c => c.status === "active").map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
 </SelectInput>
 </Field>
-<Field label={form.id ? uiText("Employee *") : uiText("select employees *")}>
+<Field label={form.id ? uiText("Employee *") : uiText("Select employees *")}>
 {form.id ? (
   <>
   <SelectInput value={form.employeeId} onChange={ev => set("employeeId", ev.target.value)} disabled={isCompletedLocked}>
@@ -4181,26 +4181,26 @@ return (
         <input value={empSearch} onChange={e => setEmpSearch(e.target.value)} placeholder={uiText("Search") + "..."} style={{ width: "100%", padding: "5px 8px", borderRadius: 6, border: `1px solid ${CL.bd}`, background: CL.bg, color: CL.text, fontSize: 12, boxSizing: "border-box", outline: "none" }} />
       </div>
     )}
-    <div style={{ maxHeight: 220, overflowY: "auto" }}>
-    {data.employees.filter(emp => emp.status === "active").length === 0
-      ? <div style={{ color: CL.muted, fontSize: 13, padding: "12px 16px" }}>{uiText("No active employees")}</div>
-      : data.employees.filter(emp => emp.status === "active" && (!empSearch || emp.name.toLowerCase().includes(empSearch.toLowerCase()))).map((emp, idx, arr) => {
-          const checked = (form.employeeIds || []).includes(emp.id);
-          return (
-            <div key={emp.id} onClick={() => {
-              const ids = form.employeeIds || [];
-              set("employeeIds", checked ? ids.filter(id => id !== emp.id) : [...ids, emp.id]);
-            }} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "11px 14px", cursor: "pointer", borderBottom: idx < arr.length - 1 ? `1px solid ${CL.bd}30` : "none", background: checked ? CL.gold + "18" : "transparent", borderLeft: `3px solid ${checked ? CL.gold : "transparent"}`, transition: "background 0.15s" }}>
-              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                <span style={{ fontSize: 13, fontWeight: checked ? 600 : 400, color: checked ? CL.gold : CL.text }}>{emp.name}</span>
-                {emp.cleanerGroup || emp.city ? <span style={{ fontSize: 11, color: CL.muted }}>{emp.cleanerGroup || emp.city}</span> : null}
-              </div>
-              <span style={{ fontSize: 18, color: checked ? CL.gold : CL.muted, fontWeight: 400, lineHeight: 1 }}>{checked ? "✓" : "›"}</span>
-            </div>
-          );
-        })
-    }
-    </div>
+    {(() => {
+      const filteredEmployees = data.employees.filter(emp => emp.status === "active" && (!empSearch || emp.name.toLowerCase().includes(empSearch.toLowerCase())));
+      if (data.employees.filter(emp => emp.status === "active").length === 0) {
+        return <div style={{ color: CL.muted, fontSize: 13, padding: "12px 16px" }}>{uiText("No active employees")}</div>;
+      }
+      return (
+        <select
+          multiple
+          value={form.employeeIds || []}
+          onChange={(ev) => set("employeeIds", Array.from(ev.target.selectedOptions).map(opt => opt.value))}
+          style={{ width: "100%", minHeight: 220, maxHeight: 220, padding: 8, border: "none", background: CL.sf, color: CL.text, fontSize: 13, outline: "none" }}
+        >
+          {filteredEmployees.map(emp => (
+            <option key={emp.id} value={emp.id} style={{ padding: "7px 8px" }}>
+              {emp.name}{emp.cleanerGroup || emp.city ? ` — ${emp.cleanerGroup || emp.city}` : ""}
+            </option>
+          ))}
+        </select>
+      );
+    })()}
   </div>
 )}
 {suggestedCleaner && !form.id && (form.employeeIds || []).length === 0 && <div style={{ fontSize: 11, color: CL.green, marginTop: 4 }}>{uiText("Suggested:")} {suggestedCleaner.name} ({suggestedCleaner.cleanerGroup || suggestedCleaner.city || uiText("No group")})</div>}

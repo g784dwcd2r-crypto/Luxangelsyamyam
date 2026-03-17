@@ -1305,6 +1305,70 @@ const SelectInput = ({ children, ...props }) => {
 const multiSelectSt = props.multiple ? { height: "auto", minHeight: 120, padding: "8px 12px", lineHeight: 1.35 } : {};
 return <select {...props} style={{ ...inputSt, ...multiSelectSt, appearance: "auto", color: CL.text, colorScheme: "dark", ...(props.style || {}) }}>{children}</select>;
 };
+const MultiSelectInput = ({ options = [], value = [], onChange, placeholder = "0 items", disabled = false }) => {
+const [open, setOpen] = useState(false);
+const [search, setSearch] = useState("");
+const ref = useRef(null);
+
+useEffect(() => {
+  const onDocClick = (ev) => {
+    if (ref.current && !ref.current.contains(ev.target)) setOpen(false);
+  };
+  document.addEventListener("mousedown", onDocClick);
+  return () => document.removeEventListener("mousedown", onDocClick);
+}, []);
+
+const selected = options.filter(opt => value.includes(opt.value));
+const filtered = options.filter(opt => !search || opt.label.toLowerCase().includes(search.toLowerCase()));
+
+const toggleVal = (val) => {
+  if (!onChange) return;
+  onChange(value.includes(val) ? value.filter(v => v !== val) : [...value, val]);
+};
+
+const summary = selected.length === 0
+  ? placeholder
+  : selected.length <= 2
+    ? selected.map(s => s.label).join(", ")
+    : `${selected.length} items`;
+
+return (
+  <div ref={ref} style={{ position: "relative" }}>
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={() => !disabled && setOpen(o => !o)}
+      style={{ ...inputSt, display: "flex", alignItems: "center", justifyContent: "space-between", cursor: disabled ? "not-allowed" : "pointer", background: disabled ? CL.s2 : CL.sf }}
+    >
+      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: selected.length ? CL.text : CL.dim }}>{summary}</span>
+      <span style={{ color: CL.muted }}>▾</span>
+    </button>
+    {open && (
+      <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0, zIndex: 1001, background: CL.sf, border: `1px solid ${CL.bd}`, borderRadius: 10, boxShadow: "0 10px 28px rgba(0,0,0,.35)", padding: 8 }}>
+        {options.length > 4 && (
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder={uiText("Search") + "..."}
+            style={{ width: "100%", height: 34, padding: "0 10px", marginBottom: 8, borderRadius: 8, border: `1px solid ${CL.bd}`, background: CL.bg, color: CL.text, outline: "none" }}
+          />
+        )}
+        <div style={{ maxHeight: 220, overflowY: "auto" }}>
+          {filtered.length === 0 ? <div style={{ fontSize: 12, color: CL.muted, padding: "8px 4px" }}>{uiText("No active employees")}</div> : filtered.map(opt => {
+            const checked = value.includes(opt.value);
+            return (
+              <label key={opt.value} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 6px", borderRadius: 7, cursor: "pointer", fontSize: 13 }}>
+                <input type="checkbox" checked={checked} onChange={() => toggleVal(opt.value)} />
+                <span style={{ color: CL.text }}>{opt.label}</span>
+              </label>
+            );
+          })}
+        </div>
+      </div>
+    )}
+  </div>
+);
+};
 const TextArea = (props) => <textarea {...props} placeholder={uiText(props.placeholder)} style={{ ...inputSt, height: "auto", minHeight: 80, padding: "12px 16px", resize: "vertical", ...(props.style || {}) }} />;
 const Badge = ({ children, color = CL.gold }) => <span style={{ display: "inline-block", padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 600, background: color + "20", color }}>{uiText(children)}</span>;
 const StatCard = ({ label, value, icon, color = CL.gold }) => (
@@ -4106,7 +4170,6 @@ return <tr key={s.id} onClick={() => setModal({ ...s })} style={{ cursor: "point
 
 function ScheduleForm({ initialData, data, onSave, onDelete, onCancel }) {
 const [form, setForm] = useState(initialData);
-const [empSearch, setEmpSearch] = useState("");
 const set = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
 
 // Show client details when selected
@@ -4159,34 +4222,14 @@ return (
   {selectedClient && selectedEmployee && <div style={{ fontSize: 11, color: cityMatchLabel(selectedEmployee, selectedClient).startsWith("✅") ? CL.green : CL.orange, marginTop: 4 }}>{cityMatchLabel(selectedEmployee, selectedClient)}</div>}
   </>
 ) : (
-  <div style={{ border: `1px solid ${CL.bd}`, borderRadius: 10, overflow: "hidden", background: CL.sf }}>
-    {data.employees.filter(emp => emp.status === "active").length > 4 && (
-      <div style={{ padding: "8px 12px", borderBottom: `1px solid ${CL.bd}` }}>
-        <input value={empSearch} onChange={e => setEmpSearch(e.target.value)} placeholder={uiText("Search") + "..."} style={{ width: "100%", padding: "5px 8px", borderRadius: 6, border: `1px solid ${CL.bd}`, background: CL.bg, color: CL.text, fontSize: 12, boxSizing: "border-box", outline: "none" }} />
-      </div>
-    )}
-    {(() => {
-      const filteredEmployees = data.employees.filter(emp => emp.status === "active" && (!empSearch || emp.name.toLowerCase().includes(empSearch.toLowerCase())));
-      if (data.employees.filter(emp => emp.status === "active").length === 0) {
-        return <div style={{ color: CL.muted, fontSize: 13, padding: "12px 16px" }}>{uiText("No active employees")}</div>;
-      }
-      return (
-        <select
-          multiple
-          size={Math.max(4, Math.min(10, filteredEmployees.length || 4))}
-          value={form.employeeIds || []}
-          onChange={(ev) => set("employeeIds", Array.from(ev.target.selectedOptions).map(opt => opt.value))}
-          style={{ width: "100%", minHeight: 220, maxHeight: 220, padding: 8, border: "none", background: CL.sf, color: CL.text, fontSize: 13, outline: "none" }}
-        >
-          {filteredEmployees.map(emp => (
-            <option key={emp.id} value={emp.id} style={{ padding: "7px 8px" }}>
-              {emp.name}{emp.cleanerGroup || emp.city ? ` — ${emp.cleanerGroup || emp.city}` : ""}
-            </option>
-          ))}
-        </select>
-      );
-    })()}
-  </div>
+  <MultiSelectInput
+    value={form.employeeIds || []}
+    onChange={(vals) => set("employeeIds", vals)}
+    placeholder={uiText("0 Items")}
+    options={data.employees
+      .filter(emp => emp.status === "active")
+      .map(emp => ({ value: emp.id, label: `${emp.name}${emp.cleanerGroup || emp.city ? ` — ${emp.cleanerGroup || emp.city}` : ""}` }))}
+  />
 )}
 {suggestedCleaner && !form.id && (form.employeeIds || []).length === 0 && <div style={{ fontSize: 11, color: CL.green, marginTop: 4 }}>{uiText("Suggested:")} {suggestedCleaner.name} ({suggestedCleaner.cleanerGroup || suggestedCleaner.city || uiText("No group")})</div>}
 </Field>

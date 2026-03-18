@@ -826,7 +826,12 @@ app.put('/api/employees/:id/pin', async (req, res) => {
       if (String(check.rows[0].pin).trim() !== String(oldPin).trim()) return res.status(401).json({ error: 'Old PIN is incorrect' });
     }
 
-    const result = await pool.query('UPDATE employees SET pin=$1 WHERE id=$2 RETURNING id', [pin, req.params.id]);
+    // Any explicit PIN reset should also clear password_hash so cleaners can
+    // authenticate with the new PIN immediately (instead of old password hash).
+    const result = await pool.query(
+      'UPDATE employees SET pin=$1, password_hash=NULL WHERE id=$2 RETURNING id',
+      [pin, req.params.id]
+    );
     if (!result.rows.length) return res.status(404).json({ error: 'Employee not found' });
     res.json({ success: true });
   } catch (err) {

@@ -1787,7 +1787,7 @@ const btnPri = { padding: "10px 20px", background: CL.gold, color: CL.bg, border
 const btnSec = { ...btnPri, background: CL.s2, color: CL.text, border: `1px solid ${CL.bd}` };
 const btnDng = { ...btnPri, background: CL.red, color: CL.white };
 const btnSm = { padding: "6px 12px", fontSize: 13 };
-const cardSt = { background: CL.sf, border: `1px solid ${CL.bd}`, borderRadius: 14, padding: 28 };
+const cardSt = { background: CL.sf, border: `1px solid ${CL.bd}`, borderRadius: 16, padding: "clamp(16px, 2vw, 26px)", boxShadow: `0 10px 30px ${CL.bg}35`, display: "flex", flexDirection: "column", gap: 12 };
 const thSt = { textAlign: "left", padding: "10px 14px", color: CL.muted, fontWeight: 500, fontSize: 11, textTransform: "uppercase", letterSpacing: ".06em", borderBottom: `1px solid ${CL.bd}` };
 const tdSt = { padding: "10px 14px", borderBottom: `1px solid ${CL.bd}`, color: CL.text, fontSize: 14 };
 
@@ -1915,11 +1915,37 @@ const TextArea = (props) => <textarea {...props} placeholder={uiText(props.place
 const Badge = ({ children, color = CL.gold }) => <span style={{ display: "inline-block", padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 600, background: color + "20", color }}>{uiText(children)}</span>;
 const StatCard = ({ label, value, icon, color = CL.gold }) => (
 
-  <div style={{ ...cardSt, display: "flex", alignItems: "center", gap: 14, flex: 1, minWidth: 160 }}>
+  <div style={{ ...cardSt, display: "flex", alignItems: "center", gap: 14, flex: 1, minWidth: 170, borderTop: `3px solid ${color}` }}>
     <div style={{ width: 42, height: 42, borderRadius: 12, background: color + "15", display: "flex", alignItems: "center", justifyContent: "center", color, flexShrink: 0 }}>{icon}</div>
     <div><div style={{ fontSize: 12, color: CL.muted, marginBottom: 2 }}>{uiText(label)}</div><div style={{ fontSize: 20, fontWeight: 700, fontFamily: "'Cormorant Garamond', serif" }}>{value}</div></div>
   </div>
 );
+
+const MiniBars = ({ title, items = [], accent = CL.gold }) => {
+  const max = Math.max(1, ...items.map(item => item.value || 0));
+  return (
+    <div style={{ ...cardSt, borderTop: `3px solid ${accent}` }} className="grid-span-2">
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+        <h3 style={{ fontSize: 14, fontWeight: 600, color: accent }}>{title}</h3>
+        <span style={{ fontSize: 11, color: CL.muted }}>{items.reduce((sum, item) => sum + (item.value || 0), 0)} {uiText("total")}</span>
+      </div>
+      <div style={{ display: "grid", gap: 8 }}>
+        {items.map(item => (
+          <div key={item.label}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 4 }}>
+              <span style={{ color: CL.muted }}>{item.label}</span>
+              <strong style={{ color: CL.text }}>{item.value}</strong>
+            </div>
+            <div style={{ height: 8, borderRadius: 999, background: CL.s2, overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${item.value ? Math.max(10, (item.value || 0) / max * 100) : 0}%`, background: item.color || accent, borderRadius: 999, transition: "width .3s ease" }} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 const ToastMsg = ({ message, type }) => (
   <div style={{ position: "fixed", top: 20, right: 20, zIndex: 2000, padding: "12px 22px", borderRadius: 10, background: type === "success" ? CL.green : type === "error" ? CL.red : CL.blue, color: CL.white, fontWeight: 600, fontSize: 14, boxShadow: "0 8px 32px rgba(0,0,0,.4)", animation: "slideIn .3s ease" }}>{message}</div>
 );
@@ -2264,6 +2290,7 @@ const globalCSS = `
 :root { --bd: Outfit, sans-serif; --hd: Cormorant Garamond, serif; }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { line-height: 1.45; }
   ::-webkit-scrollbar { width: 5px; }
   ::-webkit-scrollbar-thumb { background: ${CL.bd}; border-radius: 3px; }
   @keyframes slideIn { from { transform: translateX(60px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
@@ -2282,7 +2309,8 @@ const globalCSS = `
   @media print { .no-print { display: none !important; } }
 
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; align-items: end; }
-.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+.grid-span-2 { grid-column: span 2; }
 .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
 .stat-row { display: flex; gap: 16px; flex-wrap: wrap; }
 .sched-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
@@ -2295,19 +2323,24 @@ const globalCSS = `
 .modal-wide { width: 1100px; max-width: 96vw; max-height: 92vh; padding: 42px !important; }
 .desk-sidebar { display: flex; }
 .mob-nav { display: none; }
-.main-content { padding: 30px; }
+.main-content { padding: 34px 30px; }
 
 @media (max-width: 1024px) {
 .sched-grid { grid-template-columns: repeat(7, 1fr); }
 .cal-side { flex: 0 0 100%; }
 .grid-3 { grid-template-columns: repeat(2, 1fr); }
+.main-content { padding: 24px 20px 90px 20px; }
+.grid-2 { gap: 16px; }
+.stat-row { gap: 12px; }
+.stat-row > div { min-width: calc(50% - 8px) !important; flex: 1 1 calc(50% - 8px) !important; }
 }
 @media (max-width: 768px) {
 .desk-sidebar { display: none !important; }
 .mob-nav { display: flex; position: fixed; bottom: 0; left: 0; right: 0; z-index: 900; background: ${CL.sf}; border-top: 1px solid ${CL.bd}; padding: 4px 0; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .mob-nav button { flex: none; padding: 6px 8px; display: flex; flex-direction: column; align-items: center; gap: 2px; border: none; background: transparent; cursor: pointer; font-size: 9px; min-width: 52px; white-space: nowrap; font-family: 'Outfit', sans-serif; }
-.main-content { padding: 18px 16px 84px 16px; }
+.main-content { padding: 16px 12px 86px 12px; }
 .grid-2, .form-grid { grid-template-columns: 1fr; }
+.grid-span-2 { grid-column: span 1; }
 .stat-row > div { min-width: calc(50% - 8px) !important; flex: 1 1 calc(50% - 8px) !important; }
 .modal-normal, .modal-wide { width: 100% !important; max-width: 100vw !important; max-height: 100vh !important; border-radius: 0 !important; padding: 22px !important; }
 }
@@ -3619,6 +3652,21 @@ const _dashTodayDay = new Date().getDate();
 const dashExpOverdue = (data.expenses || []).filter(exp => exp.isActive !== false && !((exp.payments || []).some(p => p.month === monthStr)) && exp.dueDay < _dashTodayDay);
 const dashExpDueToday = (data.expenses || []).filter(exp => exp.isActive !== false && !((exp.payments || []).some(p => p.month === monthStr)) && exp.dueDay === _dashTodayDay);
 const dashExpDueSoon = (data.expenses || []).filter(exp => exp.isActive !== false && !((exp.payments || []).some(p => p.month === monthStr)) && exp.dueDay > _dashTodayDay && exp.dueDay <= _dashTodayDay + 3);
+const weekLoad = Array.from({ length: 7 }, (_, offset) => {
+  const date = new Date(Date.now() + offset * 864e5);
+  const key = date.toISOString().slice(0, 10);
+  return {
+    label: date.toLocaleDateString(localeForLang(CURRENT_LANG), { weekday: "short" }),
+    value: data.schedules.filter(s => s.date === key && s.status !== "cancelled").length,
+    color: offset === 0 ? CL.gold : CL.blue,
+  };
+});
+const invoiceStatusBars = [
+  { label: uiText("draft"), value: data.invoices.filter(inv => effectiveInvoiceStatus(inv) === "draft").length, color: CL.muted },
+  { label: uiText("sent"), value: data.invoices.filter(inv => effectiveInvoiceStatus(inv) === "sent").length, color: CL.blue },
+  { label: uiText("paid"), value: data.invoices.filter(inv => effectiveInvoiceStatus(inv) === "paid").length, color: CL.green },
+  { label: uiText("overdue"), value: data.invoices.filter(inv => effectiveInvoiceStatus(inv) === "overdue").length, color: CL.red },
+];
 
 return (
 <div>
@@ -3646,6 +3694,8 @@ return (
 {auth?.role !== "manager" && unpaidTotal > 0 && <StatCard label={uiText("Unpaid")} value={`€${unpaidTotal.toFixed(0)}`} icon={ICN.pay} color={CL.red} />}
 </div>
 <div className="grid-2">
+<MiniBars title={uiText("7-day workload")} items={weekLoad} accent={CL.blue} />
+{auth?.role !== "manager" && <MiniBars title={uiText("Invoice pipeline")} items={invoiceStatusBars} accent={CL.gold} />}
 <div style={cardSt}>
 <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>{uiText("Today's Schedule")} ({todayScheds.length})</h3>
 {todayScheds.length === 0 ? <p style={{ color: CL.muted, fontSize: 13 }}>{uiText("No jobs scheduled today")}</p> :

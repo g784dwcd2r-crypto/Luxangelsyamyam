@@ -1810,6 +1810,16 @@ async function initDb() {
     "ALTER TABLE clients ADD COLUMN IF NOT EXISTS notes TEXT",
     "ALTER TABLE clients ADD COLUMN IF NOT EXISTS meta JSONB NOT NULL DEFAULT '{}'::jsonb",
     "ALTER TABLE schedules ADD COLUMN IF NOT EXISTS payment_status TEXT NOT NULL DEFAULT 'unpaid'",
+
+    // Legacy prospect_visits tables were created before all columns existed.
+    // Ensure inserts from VisitationPage keep working on older databases.
+    "ALTER TABLE prospect_visits ADD COLUMN IF NOT EXISTS visit_time TEXT",
+    "ALTER TABLE prospect_visits ADD COLUMN IF NOT EXISTS address TEXT",
+    "ALTER TABLE prospect_visits ADD COLUMN IF NOT EXISTS notes TEXT",
+    "ALTER TABLE prospect_visits ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'planned'",
+    "ALTER TABLE prospect_visits ADD COLUMN IF NOT EXISTS photos JSONB DEFAULT '[]'",
+    "ALTER TABLE prospect_visits ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ",
+    "ALTER TABLE prospect_visits ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()",
   ];
 
   for (const sql of schemaUpgrades) {

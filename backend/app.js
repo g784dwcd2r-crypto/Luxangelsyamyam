@@ -149,6 +149,8 @@ const verifyPassword = (password, storedHash) => {
   const iterations = Number(iterRaw);
   if (!Number.isInteger(iterations) || iterations < 100000) return false;
   const calculated = crypto.pbkdf2Sync(String(password), salt, iterations, 32, 'sha256').toString('hex');
+  // Guard against malformed data in DB: timingSafeEqual throws if lengths differ.
+  if (!/^[0-9a-f]+$/i.test(hash) || hash.length !== calculated.length) return false;
   return crypto.timingSafeEqual(Buffer.from(calculated, 'hex'), Buffer.from(hash, 'hex'));
 };
 

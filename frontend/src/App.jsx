@@ -1855,7 +1855,7 @@ const Field = ({ label, children }) => (
 );
 
 const TextInput = (props) => <input {...props} placeholder={uiText(props.placeholder)} style={{ ...inputSt, ...(props.style || {}) }} />;
-const SearchableSelectInput = ({ options = [], value = "", onChange, placeholder = "Select...", disabled = false, multiple = false, noResultsLabel = "No results", style = {}, searchThreshold = 5 }) => {
+const SearchableSelectInput = ({ options = [], value = "", onChange, placeholder = "Select...", disabled = false, multiple = false, noResultsLabel = "No results", style = {}, searchThreshold = 5, menuStyle = {}, searchInputStyle = {} }) => {
 const [open, setOpen] = useState(false);
 const [search, setSearch] = useState("");
 const ref = useRef(null);
@@ -1902,13 +1902,13 @@ return (
       <span style={{ color: CL.muted }}>▾</span>
     </button>
     {open && (
-      <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0, zIndex: 1001, background: CL.sf, border: `1px solid ${CL.bd}`, borderRadius: 10, boxShadow: "0 10px 28px rgba(0,0,0,.35)", padding: 8 }}>
+      <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0, zIndex: 1001, background: CL.sf, border: `1px solid ${CL.bd}`, borderRadius: 10, boxShadow: "0 10px 28px rgba(0,0,0,.35)", padding: 8, ...(menuStyle || {}) }}>
         {options.length >= searchThreshold && (
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder={uiText("Search") + "..."}
-            style={{ width: "100%", height: 34, padding: "0 10px", marginBottom: 8, borderRadius: 8, border: `1px solid ${CL.bd}`, background: CL.bg, color: CL.text, outline: "none" }}
+            style={{ width: "100%", height: 34, padding: "0 10px", marginBottom: 8, borderRadius: 8, border: `1px solid ${CL.bd}`, background: CL.bg, color: CL.text, outline: "none", ...(searchInputStyle || {}) }}
           />
         )}
         <div style={{ maxHeight: 220, overflowY: "auto" }}>
@@ -4601,6 +4601,9 @@ return (
 // ==============================================
 function TimePicker({ value, onChange, disabled }) {
 const { lang } = useI18n();
+const timeSelectTheme = INIT_THEME === "dark"
+  ? { triggerBg: CL.s2, menuBg: CL.s2, searchBg: CL.bg, border: `${CL.gold}35` }
+  : { triggerBg: CL.sf, menuBg: CL.sf, searchBg: "#FFFFFF", border: CL.bd };
 const options = [];
 for (let h = 0; h < 24; h++) {
   for (let m = 0; m < 60; m += 5) {
@@ -4635,7 +4638,15 @@ if (value && !options.some(o => o.val === value)) {
   }
 }
 return (
-  <SelectInput value={value || ""} onChange={onChange} disabled={disabled} searchThreshold={0}>
+  <SelectInput
+    value={value || ""}
+    onChange={onChange}
+    disabled={disabled}
+    searchThreshold={0}
+    style={{ background: disabled ? CL.s2 : timeSelectTheme.triggerBg, borderColor: timeSelectTheme.border }}
+    menuStyle={{ background: timeSelectTheme.menuBg, borderColor: timeSelectTheme.border }}
+    searchInputStyle={{ background: timeSelectTheme.searchBg }}
+  >
     {options.map(o => <option key={o.val} value={o.val}>{o.label}</option>)}
   </SelectInput>
 );
@@ -7188,7 +7199,7 @@ return (
     </Field>
     <Field label="Address"><TextInput value={selectedClient?.address || form.address || ""} readOnly placeholder={uiText("Visit address")} /></Field>
     <Field label="Visit date"><DatePicker value={form.visitDate} onChange={ev => set("visitDate", ev.target.value)} /></Field>
-    <Field label="Visit time"><TextInput type="time" value={form.visitTime} onChange={ev => set("visitTime", ev.target.value)} /></Field>
+    <Field label="Visit time"><TimePicker value={form.visitTime} onChange={ev => set("visitTime", ev.target.value)} /></Field>
   </div>
   <Field label="Notes"><TextArea value={form.notes} onChange={ev => set("notes", ev.target.value)} placeholder={uiText("Scope, apartment access, expectations...")} /></Field>
   <Field label={uiText("Site Photos (optional)")}>

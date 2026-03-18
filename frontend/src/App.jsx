@@ -8402,20 +8402,23 @@ return (
 // ==============================================
 function CommunicationFlowsPage({ data, updateData, showToast }) {
 const { t, lang } = useI18n();
+const settings = data?.settings || DEFAULTS.settings;
+const clientsList = Array.isArray(data?.clients) ? data.clients : [];
+const invoicesList = Array.isArray(data?.invoices) ? data.invoices : [];
 const defaultSubject = lang === "fr" ? "Actualités Lux Angels" : "Lux Angels update";
 const defaultBody = lang === "fr" ? "Bonjour, voici notre communication périodique de la part de Lux Angels Cleaning." : "Hello, this is your scheduled client communication from Lux Angels.";
-const [channel, setChannel] = useState(data.settings.communicationChannel || "email");
+const [channel, setChannel] = useState(settings.communicationChannel || "email");
 const [selectedClientIds, setSelectedClientIds] = useState([]);
 const [clientSearch, setClientSearch] = useState("");
-const [campaignSubject, setCampaignSubject] = useState(data.settings.communicationCampaignSubject || defaultSubject);
-const [campaignBody, setCampaignBody] = useState(data.settings.communicationCampaignBody || defaultBody);
+const [campaignSubject, setCampaignSubject] = useState(settings.communicationCampaignSubject || defaultSubject);
+const [campaignBody, setCampaignBody] = useState(settings.communicationCampaignBody || defaultBody);
 useEffect(() => {
-  setChannel(data.settings.communicationChannel || "email");
-  setCampaignSubject(data.settings.communicationCampaignSubject || defaultSubject);
-  setCampaignBody(data.settings.communicationCampaignBody || defaultBody);
-}, [data.settings.communicationChannel, data.settings.communicationCampaignSubject, data.settings.communicationCampaignBody, defaultBody, defaultSubject]);
+  setChannel(settings.communicationChannel || "email");
+  setCampaignSubject(settings.communicationCampaignSubject || defaultSubject);
+  setCampaignBody(settings.communicationCampaignBody || defaultBody);
+}, [settings.communicationChannel, settings.communicationCampaignSubject, settings.communicationCampaignBody, defaultBody, defaultSubject]);
 
-const clients = data.clients.filter(c => c.status === "active");
+const clients = clientsList.filter(c => c.status === "active");
 const selectedClients = clients.filter(c => selectedClientIds.includes(c.id));
 const normalizedSearch = clientSearch.trim().toLowerCase();
 const filteredClients = normalizedSearch
@@ -8433,7 +8436,7 @@ const saveCommunicationSettings = async ({ silent = false } = {}) => {
     communicationCampaignBody: campaignBody,
   };
   try {
-    const nextSettings = normalizeSettingsPayload({ ...(data.settings || {}), ...patch }, data.settings || DEFAULTS.settings);
+    const nextSettings = normalizeSettingsPayload({ ...(settings || {}), ...patch }, settings || DEFAULTS.settings);
     const response = await fetch(apiUrl('/api/settings'), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -8450,9 +8453,9 @@ const saveCommunicationSettings = async ({ silent = false } = {}) => {
   }
 };
 
-const signatureBlock = data.settings.emailSignature
-  ? `\n\n--\n${data.settings.emailSignature}`
-  : `\n\n${lang === "fr" ? "Cordialement" : "Best regards"},\n${data.settings.companyName}${data.settings.companyEmail ? `\n${data.settings.companyEmail}` : ""}${data.settings.companyPhone ? ` | ${data.settings.companyPhone}` : ""}`;
+const signatureBlock = settings.emailSignature
+  ? `\n\n--\n${settings.emailSignature}`
+  : `\n\n${lang === "fr" ? "Cordialement" : "Best regards"},\n${settings.companyName}${settings.companyEmail ? `\n${settings.companyEmail}` : ""}${settings.companyPhone ? ` | ${settings.companyPhone}` : ""}`;
 
 const sendPlatformEmail = async ({ to, subject, body }) => {
   if (!to) { showToast(uiText("Client email missing"), "error"); return false; }
@@ -8544,13 +8547,13 @@ const dispatch = async (mode, payload, client) => {
   return false;
 };
 
-const followups = (data.invoices || [])
+const followups = invoicesList
   .filter(inv => {
     const effective = effectiveInvoiceStatus(inv);
     return effective === "sent" || effective === "overdue";
   })
   .map(inv => {
-    const client = data.clients.find(c => c.id === inv.clientId);
+    const client = clientsList.find(c => c.id === inv.clientId);
     if (!client) return null;
     const overdue = !!inv.dueDate && inv.dueDate < getToday();
     return {
@@ -8609,9 +8612,9 @@ return (
     <p style={{ color: CL.muted, marginBottom: 12 }}>{uiText("Operational reminders + business follow-up + marketing communication workflows.")}</p>
 
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 10, marginBottom: 12 }}>
-      {providerChip(uiText("Email"), !!data.settings.companyEmail)}
-      {providerChip(uiText("SMS"), !!data.settings.companyPhone)}
-      {providerChip(uiText("WhatsApp"), !!data.settings.companyWhatsApp)}
+      {providerChip(uiText("Email"), !!settings.companyEmail)}
+      {providerChip(uiText("SMS"), !!settings.companyPhone)}
+      {providerChip(uiText("WhatsApp"), !!settings.companyWhatsApp)}
       {providerChip(uiText("Zoho"), true)}
     </div>
 

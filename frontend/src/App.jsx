@@ -6251,7 +6251,15 @@ return (
           multiple
           size={Math.max(4, Math.min(10, (data.employees || []).length || 4))}
           value={form.jobSchedule?.employeeIds || (form.jobSchedule?.employeeId ? [form.jobSchedule.employeeId] : [])}
-          onChange={ev => setJobSchedule("employeeIds", Array.from(ev.target.selectedOptions).map(opt => opt.value))}
+          onChange={ev => {
+            const nextValue = ev?.target?.value;
+            if (Array.isArray(nextValue)) {
+              setJobSchedule("employeeIds", nextValue);
+              return;
+            }
+            const selectedOptions = ev?.target?.selectedOptions;
+            setJobSchedule("employeeIds", selectedOptions ? Array.from(selectedOptions).map(opt => opt.value) : []);
+          }}
           style={{ minHeight: 120 }}
         >
           {(data.employees || []).map(e => <option key={e.id} value={e.id}>{e.name}</option>)}

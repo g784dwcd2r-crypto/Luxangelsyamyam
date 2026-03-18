@@ -7110,30 +7110,111 @@ return (
 // ==============================================
 function PayslipsPage({ data, updateData, showToast, auth }) {
 const [preview, setPreview] = useState(null);
-const [month, setMonth] = useState(getToday().slice(0, 7));
+const [rangeStart, setRangeStart] = useState(`${getToday().slice(0, 7)}-01`);
+const [rangeEnd, setRangeEnd] = useState(getToday());
+const [selectedEmployees, setSelectedEmployees] = useState([]);
 
 if (auth?.role !== "owner") return <div style={cardSt}>{t("Payroll access is restricted.")}</div>;
 
-const generatePayslips = async () => {
-const payslips = data.employees.filter(emp => emp.status === "active").map(emp => {
-const entries = data.clockEntries.filter(c => c.employeeId === emp.id && c.clockOut && c.clockIn?.startsWith(month));
-const totalH = entries.reduce((sum, ce) => sum + calcHrs(ce.clockIn, ce.clockOut), 0);
-const gross = Math.round(totalH * emp.hourlyRate * 100) / 100;
-return {
-id: makeId(), employeeId: emp.id, month, totalHours: Math.round(totalH * 100) / 100,
-hourlyRate: emp.hourlyRate, grossPay: gross,
-status: "draft", createdAt: new Date().toISOString(),
-payslipNumber: `PS-${month.replace("-", "")}-${emp.name.slice(0, 3).toUpperCase()}`,
-};
+const activeEmployees = data.employees.filter(emp => emp.status === "active");
+const employeeOptions = activeEmployees.map(emp => ({ value: emp.id, label: emp.name }));
+
+const collectEntries = (employeeId, startDate, endDate) => (
+  data.clockEntries
+    .filter(entry => {
+      if (entry.employeeId !== employeeId || !entry.clockOut) return false;
+      const day = entry.clockIn?.slice(0, 10);
+      return day && day >= startDate && day <= endDate;
+    })
+    .sort((a, b) => new Date(a.clockIn) - new Date(b.clockIn))
+);
+
+const buildBreakdown = (entries) => entries.map(entry => {
+  const client = data.clients.find(c => c.id === entry.clientId);
+  const hours = calcHrs(entry.clockIn, entry.clockOut);
+  return {
+    date: entry.clockIn?.slice(0, 10) || "",
+    from: fmtTime(entry.clockIn),
+    to: fmtTime(entry.clockOut),
+    clockIn: entry.clockIn,
+    clockOut: entry.clockOut,
+    clientId: entry.clientId || "",
+    clientName: client?.name || "—",
+    hours: Math.round(hours * 100) / 100,
+  };
 });
-try {
-await Promise.all(payslips.map(ps => createPayslipInApi(ps)));
-updateData("payslips", prev => [...prev, ...payslips]);
-showToast(`${payslips.length} generated`);
-} catch (err) {
-console.error(err);
-showToast(err?.message || "Unable to generate payslips", "error");
-}
+
+const getAuditLines = (ps) => {
+  if (Array.isArray(ps.hourBreakdown) && ps.hourBreakdown.length) return ps.hourBreakdown;
+  const start = ps.periodStart || `${ps.month}-01`;
+  const end = ps.periodEnd || `${ps.month}-31`;
+  return buildBreakdown(collectEntries(ps.employeeId, start, end));
+};
+
+const downloadPayslipFile = (ps) => {
+  const employee = data.employees.find(e => e.id === ps.employeeId);
+  const auditLines = getAuditLines(ps);
+  const periodLabel = `${ps.periodStart || `${ps.month}-01`} to ${ps.periodEnd || `${ps.month}-31`}`;
+  const lines = [
+    "LUX ANGELS CLEANING - PAYSLIP",
+    `Payslip: ${ps.payslipNumber}`,
+    `Employee: ${employee?.name || "Unknown"}`,
+    `Period: ${periodLabel}`,
+    "",
+    `Total Hours: ${ps.totalHours}h`,
+    `Hourly Rate: €${(ps.hourlyRate || 0).toFixed(2)}`,
+    `Gross Pay: €${(ps.grossPay || 0).toFixed(2)}`,
+    "",
+    "Detailed Hours Audit",
+    "Date | From | To | Client | Hours",
+    ...auditLines.map(item => `${item.date} | ${item.from} | ${item.to} | ${item.clientName} | ${item.hours}h`)
+  ];
+  const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = `${ps.payslipNumber}.txt`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(link.href);
+};
+
+const generatePayslips = async (downloadAfter = false) => {
+  if (!rangeStart || !rangeEnd) { showToast("Select a time range", "error"); return; }
+  if (rangeEnd < rangeStart) { showToast("End date must be after start date", "error"); return; }
+  const employeesToGenerate = selectedEmployees.length
+    ? activeEmployees.filter(emp => selectedEmployees.includes(emp.id))
+    : activeEmployees;
+  if (employeesToGenerate.length === 0) { showToast("Select at least one employee", "error"); return; }
+
+  const payslips = employeesToGenerate.map(emp => {
+    const entries = collectEntries(emp.id, rangeStart, rangeEnd);
+    const totalH = entries.reduce((sum, ce) => sum + calcHrs(ce.clockIn, ce.clockOut), 0);
+    const gross = Math.round(totalH * (emp.hourlyRate || 0) * 100) / 100;
+    return {
+      id: makeId(),
+      employeeId: emp.id,
+      month: rangeStart.slice(0, 7),
+      periodStart: rangeStart,
+      periodEnd: rangeEnd,
+      totalHours: Math.round(totalH * 100) / 100,
+      hourlyRate: emp.hourlyRate || 0,
+      grossPay: gross,
+      status: "draft",
+      createdAt: new Date().toISOString(),
+      hourBreakdown: buildBreakdown(entries),
+      payslipNumber: `PS-${rangeStart.replaceAll("-", "")}-${rangeEnd.replaceAll("-", "")}-${emp.name.slice(0, 3).toUpperCase()}`,
+    };
+  });
+  try {
+    await Promise.all(payslips.map(ps => createPayslipInApi(ps)));
+    updateData("payslips", prev => [...prev, ...payslips]);
+    if (downloadAfter) payslips.forEach(downloadPayslipFile);
+    showToast(`${payslips.length} generated`);
+  } catch (err) {
+    console.error(err);
+    showToast(err?.message || "Unable to generate payslips", "error");
+  }
 };
 
 const markPaid = async (id) => {
@@ -7154,13 +7235,22 @@ return (
 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
 <h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold }}>Payslips</h1>
 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-<TextInput type="month" value={month} onChange={ev => setMonth(ev.target.value)} style={{ width: 160 }} />
-<button style={btnPri} onClick={generatePayslips}>{ICN.plus} Generate</button>
+<TextInput type="date" value={rangeStart} onChange={ev => setRangeStart(ev.target.value)} style={{ width: 165 }} />
+<TextInput type="date" value={rangeEnd} onChange={ev => setRangeEnd(ev.target.value)} style={{ width: 165 }} />
+<MultiSelectInput
+  options={employeeOptions}
+  value={selectedEmployees}
+  onChange={setSelectedEmployees}
+  placeholder="All active employees"
+  style={{ width: 250 }}
+/>
+<button style={btnPri} onClick={() => generatePayslips(false)}>{ICN.plus} Generate</button>
+<button style={btnSec} onClick={() => generatePayslips(true)}>{ICN.download} Generate + Download</button>
 </div>
 </div>
 <div style={cardSt} className="tbl-wrap">
 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-<thead><tr><th style={thSt}>#</th><th style={thSt}>Employee</th><th style={thSt}>Month</th><th style={thSt}>Hours</th><th style={thSt}>Gross</th><th style={thSt}>Status</th><th style={thSt}>Actions</th></tr></thead>
+<thead><tr><th style={thSt}>#</th><th style={thSt}>Employee</th><th style={thSt}>Period</th><th style={thSt}>Hours</th><th style={thSt}>Gross</th><th style={thSt}>Status</th><th style={thSt}>Actions</th></tr></thead>
 <tbody>
 {data.payslips.sort((a, b) => b.month.localeCompare(a.month)).map(ps => {
 const employee = data.employees.find(e => e.id === ps.employeeId);
@@ -7168,13 +7258,14 @@ return (
 <tr key={ps.id}>
 <td style={tdSt}><strong>{ps.payslipNumber}</strong></td>
 <td style={tdSt}>{employee?.name || "-"}</td>
-<td style={tdSt}>{ps.month}</td>
+<td style={tdSt}>{ps.periodStart && ps.periodEnd ? `${ps.periodStart} → ${ps.periodEnd}` : ps.month}</td>
 <td style={tdSt}>{ps.totalHours}h</td>
 <td style={{ ...tdSt, fontWeight: 600 }}>€{ps.grossPay?.toFixed(2)}</td>
 <td style={tdSt}><Badge color={ps.status === "paid" ? CL.green : CL.muted}>{ps.status}</Badge></td>
 <td style={tdSt}>
 <div style={{ display: "flex", gap: 4 }}>
 <button style={{ ...btnSec, ...btnSm }} onClick={() => setPreview(ps)}>View</button>
+<button style={{ ...btnSec, ...btnSm }} onClick={() => downloadPayslipFile(ps)}>{ICN.download}</button>
 {ps.status !== "paid" && <button style={{ ...btnSec, ...btnSm, color: CL.green }} onClick={() => markPaid(ps.id)}>{ICN.check}</button>}
 </div>
 </td>
@@ -7191,6 +7282,7 @@ return (
       {(() => {
         const employee = data.employees.find(e => e.id === preview.employeeId);
         const settings = data.settings;
+        const auditLines = getAuditLines(preview);
         return (
           <div style={{ background: "#fff", color: "#1a1a1a", padding: 28, borderRadius: 8, fontFamily: "'Outfit', sans-serif" }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 18, flexWrap: "wrap", gap: 12 }}>
@@ -7200,7 +7292,10 @@ return (
               </div>
               <div style={{ textAlign: "right" }}>
                 <h2 style={{ fontSize: 18, color: "#333", margin: 0, fontWeight: 700, letterSpacing: "0.05em" }}>FICHE DE PAIE</h2>
-                <div style={{ fontSize: 11, color: "#666", marginTop: 3 }}>{preview.payslipNumber}<br />{preview.month}</div>
+                <div style={{ fontSize: 11, color: "#666", marginTop: 3 }}>
+                  {preview.payslipNumber}<br />
+                  {(preview.periodStart && preview.periodEnd) ? `${preview.periodStart} → ${preview.periodEnd}` : preview.month}
+                </div>
               </div>
             </div>
             <div style={{ padding: 12, background: "#f8f8f8", borderRadius: 8, marginBottom: 18 }}>
@@ -7217,6 +7312,34 @@ return (
                 <tr><td style={{ padding: "10px 0", fontSize: 18, fontWeight: 700, color: "#C9A84C", fontFamily: "'Cormorant Garamond', serif" }}>TOTAL BRUT</td><td style={{ padding: "10px 0", textAlign: "right", fontSize: 18, fontWeight: 700, color: "#C9A84C" }}>€{preview.grossPay?.toFixed(2)}</td></tr>
               </tbody>
             </table>
+            <div style={{ marginBottom: 18 }}>
+              <h3 style={{ margin: "0 0 8px", color: "#444", fontSize: 13, textTransform: "uppercase", letterSpacing: ".05em" }}>Detailed hours audit</h3>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: "left", borderBottom: "1px solid #e6e6e6", padding: "6px 0", color: "#777" }}>Date</th>
+                    <th style={{ textAlign: "left", borderBottom: "1px solid #e6e6e6", padding: "6px 0", color: "#777" }}>From</th>
+                    <th style={{ textAlign: "left", borderBottom: "1px solid #e6e6e6", padding: "6px 0", color: "#777" }}>To</th>
+                    <th style={{ textAlign: "left", borderBottom: "1px solid #e6e6e6", padding: "6px 0", color: "#777" }}>Client</th>
+                    <th style={{ textAlign: "right", borderBottom: "1px solid #e6e6e6", padding: "6px 0", color: "#777" }}>Hours</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {auditLines.map((line, idx) => (
+                    <tr key={`${line.clockIn || line.date}-${idx}`}>
+                      <td style={{ padding: "6px 0" }}>{line.date ? fmtDate(line.date) : "—"}</td>
+                      <td style={{ padding: "6px 0" }}>{line.from || "—"}</td>
+                      <td style={{ padding: "6px 0" }}>{line.to || "—"}</td>
+                      <td style={{ padding: "6px 0" }}>{line.clientName || "—"}</td>
+                      <td style={{ padding: "6px 0", textAlign: "right" }}>{line.hours ? `${line.hours}h` : "—"}</td>
+                    </tr>
+                  ))}
+                  {auditLines.length === 0 && (
+                    <tr><td colSpan={5} style={{ color: "#777", padding: "8px 0" }}>No detailed hour lines available for this period.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
             <div style={{ fontSize: 9, color: "#999", textAlign: "center", marginBottom: 24 }}>Document à titre indicatif — brut uniquement.</div>
             {/* Signature */}
             <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
@@ -7231,7 +7354,7 @@ return (
       })()}
       <div className="no-print" style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 12 }}>
         <button style={btnSec} onClick={() => setPreview(null)}>{uiText("Close")}</button>
-        <button style={btnPri} onClick={() => window.print()}>{ICN.download} {uiText("Print")}</button>
+        <button style={btnPri} onClick={() => downloadPayslipFile(preview)}>{ICN.download} Download</button>
       </div>
     </ModalBox>
   )}

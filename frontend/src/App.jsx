@@ -2418,9 +2418,29 @@ const globalCSS = `
 .cal-side { flex: 0 0 280px; min-width: 240px; }
 .tbl-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .tbl-wrap table { min-width: 680px; }
-.tbl-wrap .employees-table { min-width: 0; width: 100%; table-layout: fixed; }
+.tbl-wrap .employees-table { min-width: 1200px; width: 100%; table-layout: auto; }
 .tbl-wrap .employees-table th,
-.tbl-wrap .employees-table td { white-space: normal; overflow-wrap: anywhere; word-break: break-word; vertical-align: top; }
+.tbl-wrap .employees-table td { vertical-align: top; }
+.tbl-wrap .employees-table th { white-space: nowrap; }
+.tbl-wrap .employees-table .emp-name-cell { min-width: 220px; }
+.tbl-wrap .employees-table .emp-location-cell { min-width: 150px; }
+.tbl-wrap .employees-table .emp-role-cell { min-width: 130px; white-space: nowrap; }
+.tbl-wrap .employees-table .emp-rate-cell { min-width: 100px; white-space: nowrap; }
+.tbl-wrap .employees-table .emp-contact-cell { min-width: 190px; }
+.tbl-wrap .employees-table .emp-stage-cell,
+.tbl-wrap .employees-table .emp-assigned-cell,
+.tbl-wrap .employees-table .emp-status-cell { min-width: 110px; white-space: nowrap; }
+.tbl-wrap .employees-table .emp-username-cell { min-width: 210px; }
+.tbl-wrap .employees-table .emp-password-cell { min-width: 90px; white-space: nowrap; }
+.tbl-wrap .employees-table .emp-actions-cell { min-width: 95px; white-space: nowrap; }
+.tbl-wrap .employees-table .emp-code {
+  display: inline-block;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+}
+.tbl-wrap .employees-table tbody tr:hover { background: ${CL.s2}; }
 .modal-normal { width: 820px; max-width: 96vw; max-height: 92vh; padding: 36px !important; }
 .modal-wide { width: 1100px; max-width: 96vw; max-height: 92vh; padding: 42px !important; }
 .desk-sidebar { display: flex; }
@@ -4073,22 +4093,34 @@ return (
 <div style={cardSt} className="tbl-wrap">
 <table className="employees-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
 <thead>
-<tr><th style={thSt}>{uiText("Name")}</th><th style={thSt}>{uiText("Location Group")}</th><th style={thSt}>{uiText("Role")}</th><th style={thSt}>{uiText("Rate")}</th><th style={thSt}>{uiText("Contact")}</th><th style={thSt}>{uiText("Stage")}</th><th style={thSt}>{uiText("Assigned Clients")}</th><th style={thSt}>{uiText("Username")}</th><th style={thSt}>{uiText("Password")}</th><th style={thSt}>{uiText("Status")}</th><th style={thSt}>{uiText("Actions")}</th></tr>
+<tr>
+  <th style={thSt} className="emp-name-cell">{uiText("Name")}</th>
+  <th style={thSt} className="emp-location-cell">{uiText("Location Group")}</th>
+  <th style={thSt} className="emp-role-cell">{uiText("Role")}</th>
+  <th style={thSt} className="emp-rate-cell">{uiText("Rate")}</th>
+  <th style={thSt} className="emp-contact-cell">{uiText("Contact")}</th>
+  <th style={thSt} className="emp-stage-cell">{uiText("Stage")}</th>
+  <th style={thSt} className="emp-assigned-cell">{uiText("Assigned Clients")}</th>
+  <th style={thSt} className="emp-username-cell">{uiText("Username")}</th>
+  <th style={thSt} className="emp-password-cell">{uiText("Password")}</th>
+  <th style={thSt} className="emp-status-cell">{uiText("Status")}</th>
+  <th style={thSt} className="emp-actions-cell">{uiText("Actions")}</th>
+</tr>
 </thead>
 <tbody>
 {filtered.map(emp => (
 <tr key={emp.id}>
-<td style={tdSt}><div style={{ display: "flex", alignItems: "center", gap: 8 }}>{emp.profilePicture ? <img src={emp.profilePicture} alt="" style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} /> : <div style={{ width: 32, height: 32, borderRadius: "50%", background: CL.s2, display: "flex", alignItems: "center", justifyContent: "center", color: CL.muted, flexShrink: 0 }}>{ICN.user}</div>}<div><div style={{ fontWeight: 600 }}>{emp.name}</div><div style={{ fontSize: 11, color: CL.muted }}>{emp.nationality ? `${emp.nationality} · ` : ""}{emp.languages || ""}</div></div></div></td>
-<td style={tdSt}><div style={{ fontWeight: 600 }}>{emp.cleanerGroup || emp.city || "-"}</div><div style={{ fontSize: 11, color: CL.muted }}>{emp.city || uiText("No city")}</div></td>
-<td style={tdSt}>{emp.role}</td>
-<td style={tdSt}>€{Number(emp.hourlyRate).toFixed(2)}/hr</td>
-<td style={tdSt}><div style={{ fontSize: 12 }}>{emp.phone}</div><div style={{ fontSize: 11, color: CL.muted }}>{emp.email}</div></td>
-<td style={tdSt}><Badge color={(emp.hiringStage || "hired") === "standby" ? CL.orange : CL.green}>{(emp.hiringStage || "hired") === "standby" ? uiText("Standby") : uiText("Hired")}</Badge></td>
-<td style={tdSt}>{preferredCountByEmployee[emp.id] || 0}</td>
-<td style={tdSt}><code style={{ background: CL.s2, padding: "2px 5px", borderRadius: 4, fontSize: 12 }}>{data.employeeUsernames?.[emp.id] || uiText("(email/full name)")}</code></td>
-<td style={tdSt}><code style={{ background: CL.s2, padding: "2px 5px", borderRadius: 4, fontSize: 12 }}>{data.employeePins?.[emp.id] || "0000"}</code></td>
-<td style={tdSt}><Badge color={emp.status === "active" ? CL.green : CL.red}>{emp.status}</Badge></td>
-<td style={tdSt}>
+<td style={tdSt} className="emp-name-cell"><div style={{ display: "flex", alignItems: "center", gap: 8 }}>{emp.profilePicture ? <img src={emp.profilePicture} alt="" style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} /> : <div style={{ width: 32, height: 32, borderRadius: "50%", background: CL.s2, display: "flex", alignItems: "center", justifyContent: "center", color: CL.muted, flexShrink: 0 }}>{ICN.user}</div>}<div style={{ minWidth: 0 }}><div style={{ fontWeight: 600, lineHeight: 1.3 }}>{emp.name}</div><div style={{ fontSize: 11, color: CL.muted }}>{emp.nationality ? `${emp.nationality} · ` : ""}{emp.languages || ""}</div></div></div></td>
+<td style={tdSt} className="emp-location-cell"><div style={{ fontWeight: 600, lineHeight: 1.3 }}>{emp.cleanerGroup || emp.city || "-"}</div><div style={{ fontSize: 11, color: CL.muted }}>{emp.city || uiText("No city")}</div></td>
+<td style={tdSt} className="emp-role-cell">{emp.role}</td>
+<td style={tdSt} className="emp-rate-cell">€{Number(emp.hourlyRate).toFixed(2)}/hr</td>
+<td style={tdSt} className="emp-contact-cell"><div style={{ fontSize: 12, whiteSpace: "nowrap" }}>{emp.phone || "-"}</div><div style={{ fontSize: 11, color: CL.muted, overflowWrap: "anywhere" }}>{emp.email || "-"}</div></td>
+<td style={tdSt} className="emp-stage-cell"><Badge color={(emp.hiringStage || "hired") === "standby" ? CL.orange : CL.green}>{(emp.hiringStage || "hired") === "standby" ? uiText("Standby") : uiText("Hired")}</Badge></td>
+<td style={tdSt} className="emp-assigned-cell">{preferredCountByEmployee[emp.id] || 0}</td>
+<td style={tdSt} className="emp-username-cell"><code className="emp-code" style={{ background: CL.s2, padding: "2px 5px", borderRadius: 4, fontSize: 12 }}>{data.employeeUsernames?.[emp.id] || uiText("(email/full name)")}</code></td>
+<td style={tdSt} className="emp-password-cell"><code style={{ background: CL.s2, padding: "2px 5px", borderRadius: 4, fontSize: 12 }}>{data.employeePins?.[emp.id] || "0000"}</code></td>
+<td style={tdSt} className="emp-status-cell"><Badge color={emp.status === "active" ? CL.green : CL.red}>{emp.status}</Badge></td>
+<td style={tdSt} className="emp-actions-cell">
 <div style={{ display: "flex", gap: 4 }}>
 <button style={{ ...btnSec, ...btnSm }} onClick={() => setModal({ ...emp, pin: data.employeePins?.[emp.id] || "0000", username: data.employeeUsernames?.[emp.id] || "" })}>{ICN.edit}</button>
 <button style={{ ...btnSec, ...btnSm, color: CL.red }} onClick={() => setDeleteId(emp.id)}>{ICN.trash}</button>

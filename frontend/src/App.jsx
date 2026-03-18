@@ -5167,6 +5167,7 @@ const [form, setForm] = useState(initialData);
 const set = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
 
 // Show client details when selected
+const selectedClient = data.clients.find(c => c.id === form.clientId);
 const selectedEmployee = data.employees.find(e => e.id === form.employeeId);
 const suggestedCleaner = recommendedCleanerForClient(selectedClient, data.employees || []);
 const isCompletedLocked = Boolean(form.id && form.status === "completed");

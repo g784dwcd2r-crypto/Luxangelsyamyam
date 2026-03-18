@@ -7301,12 +7301,35 @@ const generatePayslips = async (downloadAfter = false) => {
     : activeEmployees;
   if (employeesToGenerate.length === 0) { showToast("Select at least one employee", "error"); return; }
 
+  const existingPayslipByEmployeeAndPeriod = new Map(
+    data.payslips
+      .filter(ps => (ps.periodStart || "") === rangeStart && (ps.periodEnd || "") === rangeEnd)
+      .map(ps => [`${ps.employeeId}-${rangeStart}-${rangeEnd}`, ps])
+  );
+  const usedNumbers = new Set(data.payslips.map(ps => ps.payslipNumber));
+  const nextPayslipNumber = (emp) => {
+    const base = `PS-${rangeStart.replaceAll("-", "")}-${rangeEnd.replaceAll("-", "")}-${emp.name.slice(0, 3).toUpperCase()}`;
+    if (!usedNumbers.has(base)) {
+      usedNumbers.add(base);
+      return base;
+    }
+    let suffix = 2;
+    let candidate = `${base}-${suffix}`;
+    while (usedNumbers.has(candidate)) {
+      suffix += 1;
+      candidate = `${base}-${suffix}`;
+    }
+    usedNumbers.add(candidate);
+    return candidate;
+  };
+
   const payslips = employeesToGenerate.map(emp => {
     const entries = collectEntries(emp.id, rangeStart, rangeEnd);
     const totalH = entries.reduce((sum, ce) => sum + calcHrs(ce.clockIn, ce.clockOut), 0);
     const gross = Math.round(totalH * (emp.hourlyRate || 0) * 100) / 100;
+    const existing = existingPayslipByEmployeeAndPeriod.get(`${emp.id}-${rangeStart}-${rangeEnd}`);
     return {
-      id: makeId(),
+      id: existing?.id || makeId(),
       employeeId: emp.id,
       month: rangeStart.slice(0, 7),
       periodStart: rangeStart,
@@ -7314,15 +7337,24 @@ const generatePayslips = async (downloadAfter = false) => {
       totalHours: Math.round(totalH * 100) / 100,
       hourlyRate: emp.hourlyRate || 0,
       grossPay: gross,
-      status: "draft",
-      createdAt: new Date().toISOString(),
+      status: existing?.status || "draft",
+      createdAt: existing?.createdAt || new Date().toISOString(),
       hourBreakdown: buildBreakdown(entries),
-      payslipNumber: `PS-${rangeStart.replaceAll("-", "")}-${rangeEnd.replaceAll("-", "")}-${emp.name.slice(0, 3).toUpperCase()}`,
+      payslipNumber: existing?.payslipNumber || nextPayslipNumber(emp),
     };
   });
   try {
-    await Promise.all(payslips.map(ps => createPayslipInApi(ps)));
-    updateData("payslips", prev => [...prev, ...payslips]);
+    await Promise.all(payslips.map(ps => syncPayslipToApi(ps)));
+    updateData("payslips", prev => {
+      const indexById = new Map(prev.map((p, index) => [p.id, index]));
+      const merged = [...prev];
+      payslips.forEach(ps => {
+        const existingIndex = indexById.get(ps.id);
+        if (typeof existingIndex === "number") merged[existingIndex] = ps;
+        else merged.push(ps);
+      });
+      return merged;
+    });
     if (downloadAfter) payslips.forEach(downloadPayslipFile);
     showToast(`${payslips.length} generated`);
   } catch (err) {

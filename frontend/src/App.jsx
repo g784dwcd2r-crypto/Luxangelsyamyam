@@ -9116,15 +9116,13 @@ const setRolePermission = (role, permission, checked) => {
 
 const tabs = [
   { id: "company", label: "Company" },
-  { id: "users", label: "Users & Roles" },
+  { id: "team", label: "Team" },
   { id: "finance", label: "Finance" },
   { id: "planning", label: "Planning" },
-  { id: "time", label: "Time Tracking" },
-  { id: "stock", label: "Stock" },
+  { id: "operations", label: "Operations" },
   { id: "notifications", label: "Notifications" },
-  { id: "emailReminders", label: "Email Reminders & Auto Send" },
+  { id: "security", label: "Security" },
   { id: "system", label: "System" },
-  { id: "passwordReset", label: "🔑 Password Reset" },
 ];
 
 return (
@@ -9176,7 +9174,7 @@ return (
     <button style={btnPri} onClick={persistSettings}>{ICN.check} {uiText("Save changes")}</button>
   </div>}
 
-  {activeTab === "users" && <div style={{ ...cardSt, marginTop: 14 }}>
+  {activeTab === "team" && <div style={{ ...cardSt, marginTop: 14 }}>
     <h3 style={{ color: CL.gold, marginTop: 0 }}>{uiText("Users & permissions")}</h3>
     <div style={{ ...cardSt, padding: 16, marginBottom: 12 }}>
       <div style={{ fontWeight: 600, marginBottom: 8 }}>{uiText("Users")}</div>
@@ -9255,65 +9253,75 @@ return (
     <button style={btnPri} onClick={persistSettings}>{ICN.check} {uiText("Save changes")}</button>
   </div>}
 
-  {activeTab === "time" && <div style={{ ...cardSt, marginTop: 14 }}>
-    <h3 style={{ color: CL.gold, marginTop: 0 }}>{uiText("Time tracking")}</h3>
-    <div className="grid-2">
-      <label style={{ display: "flex", gap: 8, alignItems: "center" }}><input type="checkbox" checked={!!form.allowManualEntry} onChange={ev => setField("allowManualEntry", ev.target.checked)} />{uiText("Allow manual entry")}</label>
-      <label style={{ display: "flex", gap: 8, alignItems: "center" }}><input type="checkbox" checked={!!form.requireReasonManualEdits} onChange={ev => setField("requireReasonManualEdits", ev.target.checked)} />{uiText("Require reason for manual edits")}</label>
-      <Field label="Late tolerance (minutes)"><TextInput type="number" value={form.lateToleranceMinutes || 0} onChange={ev => setField("lateToleranceMinutes", parseNum(ev.target.value, 0))} /></Field>
-      <Field label="Auto clock-out after X hours"><TextInput type="number" value={form.autoClockOutAfterHours || 10} onChange={ev => setField("autoClockOutAfterHours", parseNum(ev.target.value, 1))} /></Field>
-      <label style={{ display: "flex", gap: 8, alignItems: "center" }}><input type="checkbox" checked={!!form.requireCheckinValidation} onChange={ev => setField("requireCheckinValidation", ev.target.checked)} />{uiText("Require check-in validation (GPS ready)")}</label>
+  {activeTab === "operations" && <div style={{ marginTop: 14 }}>
+    <div style={{ ...cardSt, marginBottom: 14 }}>
+      <h3 style={{ color: CL.gold, marginTop: 0 }}>{uiText("Time tracking")}</h3>
+      <div className="grid-2">
+        <label style={{ display: "flex", gap: 8, alignItems: "center" }}><input type="checkbox" checked={!!form.allowManualEntry} onChange={ev => setField("allowManualEntry", ev.target.checked)} />{uiText("Allow manual entry")}</label>
+        <label style={{ display: "flex", gap: 8, alignItems: "center" }}><input type="checkbox" checked={!!form.requireReasonManualEdits} onChange={ev => setField("requireReasonManualEdits", ev.target.checked)} />{uiText("Require reason for manual edits")}</label>
+        <Field label="Late tolerance (minutes)"><TextInput type="number" value={form.lateToleranceMinutes || 0} onChange={ev => setField("lateToleranceMinutes", parseNum(ev.target.value, 0))} /></Field>
+        <Field label="Auto clock-out after X hours"><TextInput type="number" value={form.autoClockOutAfterHours || 10} onChange={ev => setField("autoClockOutAfterHours", parseNum(ev.target.value, 1))} /></Field>
+        <label style={{ display: "flex", gap: 8, alignItems: "center" }}><input type="checkbox" checked={!!form.requireCheckinValidation} onChange={ev => setField("requireCheckinValidation", ev.target.checked)} />{uiText("Require check-in validation (GPS ready)")}</label>
+      </div>
     </div>
-    <button style={btnPri} onClick={persistSettings}>{ICN.check} {uiText("Save changes")}</button>
-  </div>}
-
-  {activeTab === "stock" && <div style={{ ...cardSt, marginTop: 14 }}>
-    <h3 style={{ color: CL.gold, marginTop: 0 }}>{uiText("Stock logic")}</h3>
-    <div className="grid-2">
-      <Field label="Default unit"><TextInput value={form.defaultStockUnit || "bottles"} onChange={ev => setField("defaultStockUnit", ev.target.value)} /></Field>
-      <Field label="Minimum stock threshold"><TextInput type="number" value={form.minStockThreshold || 5} onChange={ev => setField("minStockThreshold", parseNum(ev.target.value, 0))} /></Field>
-      <label style={{ display: "flex", gap: 8, alignItems: "center" }}><input type="checkbox" checked={!!form.enableStockAlerts} onChange={ev => setField("enableStockAlerts", ev.target.checked)} />{uiText("Enable stock alerts")}</label>
+    <div style={{ ...cardSt }}>
+      <h3 style={{ color: CL.gold, marginTop: 0 }}>{uiText("Stock")}</h3>
+      <div className="grid-2">
+        <Field label="Default unit"><TextInput value={form.defaultStockUnit || "bottles"} onChange={ev => setField("defaultStockUnit", ev.target.value)} /></Field>
+        <Field label="Minimum stock threshold"><TextInput type="number" value={form.minStockThreshold || 5} onChange={ev => setField("minStockThreshold", parseNum(ev.target.value, 0))} /></Field>
+        <label style={{ display: "flex", gap: 8, alignItems: "center" }}><input type="checkbox" checked={!!form.enableStockAlerts} onChange={ev => setField("enableStockAlerts", ev.target.checked)} />{uiText("Enable stock alerts")}</label>
+      </div>
     </div>
-    <button style={btnPri} onClick={persistSettings}>{ICN.check} {uiText("Save changes")}</button>
+    <button style={{ ...btnPri, marginTop: 14 }} onClick={persistSettings}>{ICN.check} {uiText("Save changes")}</button>
   </div>}
 
   {activeTab === "notifications" && <div style={{ ...cardSt, marginTop: 14 }}>
     <h3 style={{ color: CL.gold, marginTop: 0 }}>{uiText("Notifications")}</h3>
-    <Field label="Business WhatsApp number (for reminder drafts)">
-      <TextInput value={form.companyWhatsApp || ""} onChange={ev => setField("companyWhatsApp", ev.target.value)} placeholder="+352..." />
-    </Field>
-    <div style={{ fontSize: 12, color: CL.muted, marginTop: -6, marginBottom: 10 }}>
-      {uiText("WhatsApp Business API requires backend Twilio env vars: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_FROM.")}
+    <div style={{ marginBottom: 16 }}>
+      <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 13, color: CL.muted, textTransform: "uppercase", letterSpacing: "0.05em" }}>{uiText("WhatsApp")}</div>
+      <Field label="Business WhatsApp number (for reminder drafts)">
+        <TextInput value={form.companyWhatsApp || ""} onChange={ev => setField("companyWhatsApp", ev.target.value)} placeholder="+352..." />
+      </Field>
+      <div style={{ fontSize: 12, color: CL.muted, marginTop: -6 }}>
+        {uiText("WhatsApp Business API requires backend Twilio env vars: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_FROM.")}
+      </div>
     </div>
-    <div className="grid-2">
-      {[
-        ["notifLateEmployees", "Email: Late employees"],
-        ["notifNewInvoices", "Email: New invoices"],
-        ["notifOverdueInvoices", "Email: Overdue invoices"],
-        ["notifLowStock", "Email: Low stock"],
-        ["notifPushEnabled", "Future: Push notifications"],
-      ].map(([key, label]) => <label key={key} style={{ display: "flex", gap: 8, alignItems: "center" }}><input type="checkbox" checked={!!form[key]} onChange={ev => setField(key, ev.target.checked)} />{uiText(label)}</label>)}
+    <div style={{ marginBottom: 16 }}>
+      <div style={{ fontWeight: 600, marginBottom: 10, fontSize: 13, color: CL.muted, textTransform: "uppercase", letterSpacing: "0.05em" }}>{uiText("Email alerts")}</div>
+      <div className="grid-2">
+        {[
+          ["notifLateEmployees", "Late employees"],
+          ["notifNewInvoices", "New invoices"],
+          ["notifOverdueInvoices", "Overdue invoices"],
+          ["notifLowStock", "Low stock"],
+          ["notifPushEnabled", "Push notifications (future)"],
+        ].map(([key, label]) => <label key={key} style={{ display: "flex", gap: 8, alignItems: "center" }}><input type="checkbox" checked={!!form[key]} onChange={ev => setField(key, ev.target.checked)} />{uiText(label)}</label>)}
+      </div>
     </div>
     <button style={btnPri} onClick={persistSettings}>{ICN.check} {uiText("Save changes")}</button>
   </div>}
 
-  {activeTab === "emailReminders" && <div style={{ ...cardSt, marginTop: 14 }}>
-    <h3 style={{ color: CL.gold, marginTop: 0 }}>{uiText("Email Reminders & Auto Send")}</h3>
+  {activeTab === "security" && <div style={{ marginTop: 14 }}>
+    <div style={{ ...cardSt, marginBottom: 14 }}>
+      <h3 style={{ color: CL.gold, marginTop: 0 }}>{uiText("Account credentials")}</h3>
+      <div className="grid-2">
+        <Field label="Owner username"><TextInput value={ownerUsername} onChange={ev => setOwnerUsername(ev.target.value)} /></Field>
+        <Field label="Owner PIN"><TextInput maxLength={24} value={ownerPin} onChange={ev => setOwnerPin(ev.target.value)} /></Field>
+        <Field label="Manager username"><TextInput value={managerUsername} onChange={ev => setManagerUsername(ev.target.value)} /></Field>
+        <Field label="Manager PIN"><TextInput maxLength={24} value={managerPin} onChange={ev => setManagerPin(ev.target.value)} /></Field>
+      </div>
+      <button style={{ ...btnPri, marginTop: 4 }} onClick={persistSettings}>{ICN.check} {uiText("Save credentials")}</button>
+    </div>
+    <PasswordResetTab data={data} showToast={showToast} ownerUsername={ownerUsername} managerUsername={managerUsername} />
   </div>}
 
-  {activeTab === "passwordReset" && <PasswordResetTab data={data} showToast={showToast} ownerUsername={ownerUsername} managerUsername={managerUsername} />}
-
   {activeTab === "system" && <div style={{ ...cardSt, marginTop: 14 }}>
-    <h3 style={{ color: CL.gold, marginTop: 0 }}>{uiText("System preferences")}</h3>
+    <h3 style={{ color: CL.gold, marginTop: 0 }}>{uiText("Display & locale")}</h3>
     <div className="grid-2">
       <Field label="Default language"><SelectInput value={form.defaultLanguage || "FR"} onChange={ev => setField("defaultLanguage", ev.target.value)}><option value="FR">FR</option><option value="EN">EN</option></SelectInput></Field>
       <Field label="Date format"><SelectInput value={form.dateFormat || "DD/MM/YYYY"} onChange={ev => setField("dateFormat", ev.target.value)}><option value="DD/MM/YYYY">DD/MM/YYYY</option><option value="MM/DD/YYYY">MM/DD/YYYY</option></SelectInput></Field>
       <Field label="Time format"><SelectInput value={form.timeFormat || "24h"} onChange={ev => setField("timeFormat", ev.target.value)}><option value="24h">24h</option><option value="12h">12h</option></SelectInput></Field>
       <Field label="Theme"><SelectInput value={form.theme || "dark"} onChange={ev => setField("theme", ev.target.value)}><option value="dark">{uiText("Dark")}</option><option value="light">{uiText("Light")}</option></SelectInput></Field>
-      <Field label="Owner username"><TextInput value={ownerUsername} onChange={ev => setOwnerUsername(ev.target.value)} /></Field>
-      <Field label="Owner PIN"><TextInput maxLength={24} value={ownerPin} onChange={ev => setOwnerPin(ev.target.value)} /></Field>
-      <Field label="Manager username"><TextInput value={managerUsername} onChange={ev => setManagerUsername(ev.target.value)} /></Field>
-      <Field label="Manager PIN"><TextInput maxLength={24} value={managerPin} onChange={ev => setManagerPin(ev.target.value)} /></Field>
     </div>
     <button style={btnPri} onClick={persistSettings}>{ICN.check} {uiText("Save changes")}</button>
   </div>}

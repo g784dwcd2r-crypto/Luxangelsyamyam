@@ -1845,7 +1845,7 @@ const Field = ({ label, children }) => (
 const TextInput = (props) => <input {...props} placeholder={uiText(props.placeholder)} style={{ ...inputSt, ...(props.style || {}) }} />;
 const SelectInput = ({ children, ...props }) => {
 const multiSelectSt = props.multiple ? { height: "auto", minHeight: 120, padding: "8px 12px", lineHeight: 1.35 } : {};
-return <select {...props} style={{ ...inputSt, ...multiSelectSt, appearance: "auto", color: CL.text, colorScheme: "dark", ...(props.style || {}) }}>{children}</select>;
+return <select {...props} style={{ ...inputSt, ...multiSelectSt, appearance: "auto", color: CL.text, colorScheme: INIT_THEME === "dark" ? "dark" : "light", ...(props.style || {}) }}>{children}</select>;
 };
 const MultiSelectInput = ({ options = [], value = [], onChange, placeholder = "0 items", disabled = false }) => {
 const [open, setOpen] = useState(false);
@@ -2049,13 +2049,13 @@ return chunks;
 };
 
 addSheet("Employees", data.employees.map(emp => ({ ID: emp.id, Name: emp.name, Username: data.employeeUsernames?.[emp.id] || "", Email: emp.email, Phone: emp.phone, Mobile: emp.phoneMobile || "", Role: emp.role, "Rate": emp.hourlyRate, Address: emp.address, City: emp.city || "", Zip: emp.postalCode || "", Country: emp.country || "", "Start": emp.startDate, "EndDate": emp.contractEndDate || "", Status: emp.status, Contract: emp.contractType || "", IBAN: emp.bankIban || "", SSN: emp.socialSecNumber || "", DOB: emp.dateOfBirth || "", Nationality: emp.nationality || "", Languages: emp.languages || "", Transport: emp.transport || "", "WorkPermit": emp.workPermit || "", "EmergName": emp.emergencyName || "", "EmergPhone": emp.emergencyPhone || "", Password: data.employeePins?.[emp.id] || "0000", LeaveAllowance: emp.leaveAllowance ?? 26, Group: emp.cleanerGroup || "", HiringStage: emp.hiringStage || "hired", Notes: emp.notes || "" })),
-["ID","Name","Username","Email","Phone","Mobile","Role","Rate","Address","City","Zip","Country","Start","Status","Contract","IBAN","SSN","DOB","Nationality","Languages","Transport","WorkPermit","EmergName","EmergPhone","Password","LeaveAllowance","Group","HiringStage","Notes"]);
+["ID","Name","Username","Email","Phone","Mobile","Role","Rate","Address","City","Zip","Country","Start","EndDate","Status","Contract","IBAN","SSN","DOB","Nationality","Languages","Transport","WorkPermit","EmergName","EmergPhone","Password","LeaveAllowance","Group","HiringStage","Notes"]);
 
 addSheet("Clients", data.clients.map(cl => ({ ID: cl.id, Name: cl.name, Contact: cl.contactPerson || "", Email: cl.email, Phone: cl.phone, Mobile: cl.phoneMobile || "", Address: cl.address, "Apt": cl.apartmentFloor || "", City: cl.city || "", Zip: cl.postalCode || "", Country: cl.country || "", Type: cl.type, Freq: cl.cleaningFrequency, Billing: cl.billingType, "Hourly": cl.pricePerHour || 0, "Fixed": cl.priceFixed || 0, Status: cl.status, Lang: cl.language || "", "Code": cl.accessCode || "", "KeyLoc": cl.keyLocation || "", Parking: cl.parkingInfo || "", Pets: cl.petInfo || "", "PrefDay": cl.preferredDay || "", "PrefTime": cl.preferredTime || "", "ContStart": cl.contractStart || "", "ContEnd": cl.contractEnd || "", "SqM": cl.squareMeters || "", "TaxID": cl.taxId || "", "Instructions": cl.specialInstructions || "", PreferredCleaners: (cl.preferredCleanerIds || []).join("|"), Notes: cl.notes || "" })),
 ["ID","Name","Contact","Email","Phone","Mobile","Address","Apt","City","Zip","Country","Type","Freq","Billing","Hourly","Fixed","Status","Lang","Code","KeyLoc","Parking","Pets","PrefDay","PrefTime","ContStart","ContEnd","SqM","TaxID","Instructions","PreferredCleaners","Notes"]);
 
 addSheet("Schedule", data.schedules.map(sc => { const cl = data.clients.find(c => c.id === sc.clientId); const em = data.employees.find(e => e.id === sc.employeeId); return { ID: sc.id, Date: sc.date, Client: cl?.name || "", CliID: sc.clientId, Employee: em?.name || "", EmpID: sc.employeeId, Start: sc.startTime, End: sc.endTime, Status: sc.status, PaymentStatus: sc.paymentStatus || "unpaid", Notes: sc.notes || "" }; }),
-["ID","Date","Client","CliID","Employee","EmpID","Start","End","Status","Notes"]);
+["ID","Date","Client","CliID","Employee","EmpID","Start","End","Status","PaymentStatus","Notes"]);
 
 addSheet("TimeClock", data.clockEntries.map(ce => { const em = data.employees.find(e => e.id === ce.employeeId); const cl = data.clients.find(c => c.id === ce.clientId); const h = calcHrs(ce.clockIn, ce.clockOut); return { ID: ce.id, Employee: em?.name || "", EmpID: ce.employeeId, Client: cl?.name || "", CliID: ce.clientId, In: ce.clockIn || "", Out: ce.clockOut || "", Hours: ce.clockOut ? h : "Active", Late: ce.isLate ? "yes" : "no", LateMins: ce.lateMinutes || 0, Note: ce.notes || "", Rate: em?.hourlyRate || 0, Cost: ce.clockOut ? Math.round(h * (em?.hourlyRate || 0) * 100) / 100 : "" }; }),
 ["ID","Employee","EmpID","Client","CliID","In","Out",uiText("Hours"),"Rate","Cost"]);
@@ -2236,18 +2236,18 @@ const sheet = (name) => {
 
   setData(prev => ({
     ...prev,
-    employees: importedSnapshot.employees.length ? importedSnapshot.employees : prev.employees,
-    employeePins: Object.keys(importedSnapshot.employeePins).length ? importedSnapshot.employeePins : prev.employeePins,
-    employeeUsernames: Object.keys(importedSnapshot.employeeUsernames).length ? importedSnapshot.employeeUsernames : prev.employeeUsernames,
-    clients: importedSnapshot.clients.length ? importedSnapshot.clients : prev.clients,
-    schedules: importedSnapshot.schedules.length ? importedSnapshot.schedules : prev.schedules,
-    clockEntries: importedSnapshot.clockEntries.length ? importedSnapshot.clockEntries : prev.clockEntries,
-    invoices: importedSnapshot.invoices.length ? importedSnapshot.invoices : prev.invoices,
-    payslips: importedSnapshot.payslips.length ? importedSnapshot.payslips : prev.payslips,
-    ownerUsername: importedSnapshot.ownerUsername || prev.ownerUsername || "",
-    ownerPin: importedSnapshot.ownerPin || prev.ownerPin || "",
-    managerUsername: importedSnapshot.managerUsername || prev.managerUsername || "",
-    managerPin: importedSnapshot.managerPin || prev.managerPin || "",
+    employees: importedSnapshot.employees,
+    employeePins: importedSnapshot.employeePins,
+    employeeUsernames: importedSnapshot.employeeUsernames,
+    clients: importedSnapshot.clients,
+    schedules: importedSnapshot.schedules,
+    clockEntries: importedSnapshot.clockEntries,
+    invoices: importedSnapshot.invoices,
+    payslips: importedSnapshot.payslips,
+    ownerUsername: importedSnapshot.ownerUsername || "",
+    ownerPin: importedSnapshot.ownerPin || "",
+    managerUsername: importedSnapshot.managerUsername || "",
+    managerPin: importedSnapshot.managerPin || "",
     settings: importedSnapshot.settings,
   }));
 
@@ -2275,6 +2275,8 @@ const globalCSS = `
   input[type="month"]::-webkit-calendar-picker-indicator,
   input[type="datetime-local"]::-webkit-calendar-picker-indicator { filter: ${INIT_THEME === "dark" ? "invert(0.95)" : "none"}; cursor: pointer; }
   input[type="date"], input[type="time"], input[type="month"], input[type="datetime-local"], input[type="number"], input[type="text"], input[type="email"], input[type="password"], input[type="tel"], select { height: 46px !important; padding: 0 16px !important; line-height: 46px; }
+  select { color-scheme: ${INIT_THEME === "dark" ? "dark" : "light"}; }
+  select option { background: ${CL.sf}; color: ${CL.text}; }
   select[multiple] { height: auto !important; min-height: 120px; padding: 8px 12px !important; line-height: 1.35; }
   textarea { padding: 12px 16px !important; height: auto !important; min-height: 80px; }
   @media print { .no-print { display: none !important; } }

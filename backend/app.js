@@ -1223,7 +1223,7 @@ app.post('/api/auth/admin-reset-password', async (req, res) => {
       if (String(newPassword).length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
       const passwordHash = hashPassword(String(newPassword));
       result = await pool.query(
-        "UPDATE employees SET password_hash=$1, pin=NULL WHERE id=$2 RETURNING id",
+        "UPDATE employees SET password_hash=$1 WHERE id=$2 RETURNING id",
         [passwordHash, employeeId]
       );
     } else {

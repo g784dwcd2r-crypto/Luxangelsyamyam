@@ -334,6 +334,12 @@ DO $$ BEGIN
   END IF;
 END $$;
 
+-- Migration: ensure password_hash on employees is nullable so PIN reset can clear it
+DO $$ BEGIN
+  ALTER TABLE employees ALTER COLUMN password_hash DROP NOT NULL;
+EXCEPTION WHEN others THEN NULL;
+END $$;
+
 -- Seed default settings
 INSERT INTO settings (key, value) VALUES
   ('companyName',    'Lux Angels Cleaning'),

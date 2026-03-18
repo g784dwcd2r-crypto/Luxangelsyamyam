@@ -9027,11 +9027,16 @@ function PasswordResetTab({ data, showToast, ownerUsername, managerUsername }) {
     if (!pin) { showToast(`Enter a new PIN for ${emp.name}`, "error"); return; }
     setSaving(s => ({ ...s, [emp.id]: true }));
     try {
-      await fetch(apiUrl(`/api/auth/admin-reset-password`), {
+      const res = await fetch(apiUrl(`/api/auth/admin-reset-password`), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ employeeId: emp.id, newPin: pin }),
       });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        showToast(body.error || `Failed to reset PIN for ${emp.name}`, "error");
+        return;
+      }
       showToast(`PIN reset for ${emp.name}`, "success");
       setEmpPins(p => ({ ...p, [emp.id]: "" }));
     } catch (err) {

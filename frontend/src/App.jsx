@@ -963,6 +963,26 @@ const calcHrs = (a, b) => (a && b) ? Math.max(0, Math.round((new Date(b) - new D
 const makeISO = (d, t) => `${d}T${t}:00`;
 const mapsUrl = (address = "") => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
 const normalizeCity = (value = "") => String(value || "").trim().toLowerCase();
+
+// ---------------------------------------------------------------------------
+// GEOLOCATION HELPERS
+// ---------------------------------------------------------------------------
+const getGeoPosition = (opts = {}) => new Promise((resolve, reject) => {
+  if (!navigator?.geolocation) { reject(new Error("Geolocation not supported")); return; }
+  navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0, ...opts });
+});
+
+const haversineDistance = (lat1, lng1, lat2, lng2) => {
+  const R = 6371000; // metres
+  const toRad = (x) => (x * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+};
+
+const coordsToMapsUrl = (lat, lng) => `https://www.google.com/maps?q=${lat},${lng}`;
+// ---------------------------------------------------------------------------
 const cityMatchLabel = (employee, client) => {
 const empCity = normalizeCity(employee?.city);
 const clientCity = normalizeCity(client?.city);
@@ -1366,6 +1386,8 @@ const toApiClient = (c) => ({
   tax_id: c.taxId || "",
   special_instructions: c.specialInstructions || "",
   notes: c.notes || "",
+  location_lat: c.locationLat ?? null,
+  location_lng: c.locationLng ?? null,
   meta: {
     region: c.region || "",
     preferredDays: Array.isArray(c.preferredDays) ? c.preferredDays : [],
@@ -1562,6 +1584,12 @@ const toApiClock = (c) => ({
   clock_in: c.clockIn,
   clock_out: c.clockOut || null,
   notes: c.notes || "",
+  checkin_lat: c.checkinLat ?? null,
+  checkin_lng: c.checkinLng ?? null,
+  checkin_accuracy: c.checkinAccuracy ?? null,
+  checkout_lat: c.checkoutLat ?? null,
+  checkout_lng: c.checkoutLng ?? null,
+  checkout_accuracy: c.checkoutAccuracy ?? null,
 });
 
 const createClockEntryInApi = async (entry) => {
@@ -2708,6 +2736,8 @@ useEffect(() => {
     taxId: c.tax_id || "",
     specialInstructions: c.special_instructions || "",
     notes: c.notes || "",
+    locationLat: c.location_lat != null ? Number(c.location_lat) : null,
+    locationLng: c.location_lng != null ? Number(c.location_lng) : null,
     preferredCleanerIds: Array.isArray(meta.preferredCleanerIds) ? meta.preferredCleanerIds : [],
     hoursPerSession: Number(meta.hoursPerSession) || 0,
     forfaitLabel: String(meta.forfaitLabel || ""),
@@ -2737,6 +2767,12 @@ useEffect(() => {
     notes: c.notes || "",
     isLate: false,
     lateMinutes: 0,
+    checkinLat: c.checkin_lat != null ? Number(c.checkin_lat) : null,
+    checkinLng: c.checkin_lng != null ? Number(c.checkin_lng) : null,
+    checkinAccuracy: c.checkin_accuracy != null ? Number(c.checkin_accuracy) : null,
+    checkoutLat: c.checkout_lat != null ? Number(c.checkout_lat) : null,
+    checkoutLng: c.checkout_lng != null ? Number(c.checkout_lng) : null,
+    checkoutAccuracy: c.checkout_accuracy != null ? Number(c.checkout_accuracy) : null,
   });
   const mapInvoice = (inv) => ({
     id: inv.id,
@@ -3434,6 +3470,8 @@ const [monthFilter, setMonthFilter] = useState(getToday().slice(0, 7));
 const [uploadNote, setUploadNote] = useState("");
 const [uploadType, setUploadType] = useState("issue");
 const [clockInNote, setClockInNote] = useState("");
+const [geoLoading, setGeoLoading] = useState(false);
+const [geoStatus, setGeoStatus] = useState(null); // { ok, distanceM, accuracy, error }
 const [timeOffForm, setTimeOffForm] = useState({ startDate: "", endDate: "", reason: "", leaveType: "conge" });
 const [productForm, setProductForm] = useState({ productId: "", quantity: 1, note: "", deliveryAt: "" });
 
@@ -3460,12 +3498,40 @@ const isCompletedToday = data.schedules.some(sc => sc.employeeId === auth.employ
 if (isCompletedToday) { showToast("This job is already completed and locked", "error"); return; }
 const nowAt = new Date();
 const lateMeta = getLateMeta(data.schedules, { employeeId: auth.employeeId, clientId, clockInAt: nowAt });
+// Capture GPS coordinates (non-blocking — proceed even if geolocation fails)
+let checkinLat = null, checkinLng = null, checkinAccuracy = null;
+setGeoLoading(true);
+setGeoStatus(null);
+try {
+  const pos = await getGeoPosition();
+  checkinLat = pos.coords.latitude;
+  checkinLng = pos.coords.longitude;
+  checkinAccuracy = Math.round(pos.coords.accuracy);
+  // Validate distance to client if client has a GPS pin
+  const client = data.clients.find(c => c.id === clientId);
+  if (client?.locationLat && client?.locationLng) {
+    const distanceM = haversineDistance(checkinLat, checkinLng, client.locationLat, client.locationLng);
+    const ok = distanceM <= 300;
+    setGeoStatus({ ok, distanceM, accuracy: checkinAccuracy });
+    if (!ok) {
+      showToast(`Location warning: ${distanceM}m from client (expected ≤300m)`, "warn");
+    }
+  } else {
+    setGeoStatus({ ok: true, distanceM: null, accuracy: checkinAccuracy });
+  }
+} catch {
+  setGeoStatus({ ok: null, distanceM: null, accuracy: null, error: "Location unavailable" });
+} finally {
+  setGeoLoading(false);
+}
 const newEntry = {
 id: makeId(), employeeId: auth.employeeId, clientId,
 clockIn: nowAt.toISOString(), clockOut: null,
 notes: clockInNote.trim(),
 isLate: lateMeta.isLate, lateMinutes: lateMeta.lateMinutes,
 scheduledStart: lateMeta.scheduledStart,
+checkinLat, checkinLng, checkinAccuracy,
+checkoutLat: null, checkoutLng: null, checkoutAccuracy: null,
 };
 try {
 await createClockEntryInApi(newEntry);
@@ -3483,13 +3549,22 @@ showToast(err?.message || "Unable to clock in", "error");
 const doClockOut = async () => {
 if (!activeClock) return;
 const today = activeClock.clockIn?.slice(0, 10) || getToday();
-const updatedEntry = { ...activeClock, clockOut: new Date().toISOString() };
+// Capture checkout GPS (non-blocking)
+let checkoutLat = null, checkoutLng = null, checkoutAccuracy = null;
+try {
+  const pos = await getGeoPosition();
+  checkoutLat = pos.coords.latitude;
+  checkoutLng = pos.coords.longitude;
+  checkoutAccuracy = Math.round(pos.coords.accuracy);
+} catch { /* proceed without GPS */ }
+const updatedEntry = { ...activeClock, clockOut: new Date().toISOString(), checkoutLat, checkoutLng, checkoutAccuracy };
 try {
 await syncClockEntryToApi(updatedEntry);
 updateData("clockEntries", prev => prev.map(c => c.id === activeClock.id ? updatedEntry : c));
 const schedToSyncOut = (data.schedules || []).find(s => s.employeeId === auth.employeeId && s.clientId === activeClock.clientId && s.date === today && s.status === "in-progress");
 if (schedToSyncOut) syncScheduleToApi({ ...schedToSyncOut, status: "completed" }).catch(console.error);
 updateData("schedules", prev => updateScheduleStatusForJob(prev, { employeeId: auth.employeeId, clientId: activeClock.clientId, date: today, from: "in-progress", to: "completed" }));
+setGeoStatus(null);
 showToast("Clocked out!");
 } catch (err) {
 console.error(err);
@@ -3647,7 +3722,7 @@ return (
 <div key={sched.id} style={{ ...cardSt, marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
 <div style={{ flex: 1 }}>
 <div style={{ fontWeight: 600 }}>{client?.name || "?"}</div>
-<div style={{ fontSize: 12, color: CL.muted }}>{client?.address}{client?.apartmentFloor ? `, ${client.apartmentFloor}` : ""} {client?.address && <a href={mapsUrl(`${client.address}${client.apartmentFloor ? ` ${client.apartmentFloor}` : ""} ${client.postalCode || ""} ${client.city || ""}`)} target="_blank" rel="noreferrer" style={{ color: CL.blue, marginLeft: 6, textDecoration: "underline" }}>Map</a>}</div>
+<div style={{ fontSize: 12, color: CL.muted }}>{client?.address}{client?.apartmentFloor ? `, ${client.apartmentFloor}` : ""} {client?.address && <a href={mapsUrl(`${client.address}${client.apartmentFloor ? ` ${client.apartmentFloor}` : ""} ${client.postalCode || ""} ${client.city || ""}`)} target="_blank" rel="noreferrer" style={{ color: CL.blue, marginLeft: 6, textDecoration: "underline" }}>Map</a>} {client?.locationLat && <a href={coordsToMapsUrl(client.locationLat, client.locationLng)} target="_blank" rel="noreferrer" style={{ color: CL.green, marginLeft: 4, textDecoration: "underline", fontSize: 11 }}>📍 GPS</a>}</div>
 {client?.accessCode && <div style={{ fontSize: 11, color: CL.orange, marginTop: 2 }}>Code: {client.accessCode}</div>}
 {client?.keyLocation && <div style={{ fontSize: 11, color: CL.orange }}>Key: {client.keyLocation}</div>}
 {client?.petInfo && <div style={{ fontSize: 11, color: CL.orange }}>Pets: {client.petInfo}</div>}
@@ -3673,11 +3748,36 @@ return (
             <div style={{ color: CL.green, marginBottom: 4 }}>{ICN.clock}</div>
             <div style={{ fontSize: 17, fontWeight: 600, color: CL.green }}>{uiText("Clocked In")}</div>
             <div style={{ color: CL.muted }}>Since {fmtBoth(activeClock.clockIn)} at {data.clients.find(c => c.id === activeClock.clientId)?.name || "?"}</div>
+            {activeClock.checkinLat && (
+              <div style={{ fontSize: 11, color: CL.muted, marginTop: 6 }}>
+                Check-in location recorded
+                {activeClock.checkinAccuracy ? ` (±${activeClock.checkinAccuracy}m)` : ""}
+                {" · "}<a href={coordsToMapsUrl(activeClock.checkinLat, activeClock.checkinLng)} target="_blank" rel="noreferrer" style={{ color: CL.blue }}>View map</a>
+              </div>
+            )}
             <button onClick={doClockOut} style={{ ...btnPri, background: CL.red, marginTop: 12 }}>{uiText("Clock Out Now")}</button>
           </div>
         ) : (
           <div style={cardSt}>
             <p style={{ color: CL.muted, marginBottom: 12 }}>{uiText("Select client to clock in:")}</p>
+            {geoLoading && (
+              <div style={{ fontSize: 12, color: CL.blue, marginBottom: 8, padding: "6px 10px", background: CL.blue + "15", borderRadius: 6 }}>
+                Acquiring your GPS location…
+              </div>
+            )}
+            {geoStatus && !geoLoading && (
+              <div style={{ fontSize: 12, marginBottom: 8, padding: "6px 10px", borderRadius: 6,
+                background: geoStatus.ok === false ? CL.red + "15" : geoStatus.ok === true ? CL.green + "15" : CL.orange + "15",
+                color: geoStatus.ok === false ? CL.red : geoStatus.ok === true ? CL.green : CL.orange }}>
+                {geoStatus.error
+                  ? `GPS unavailable — ${geoStatus.error}`
+                  : geoStatus.distanceM !== null
+                    ? geoStatus.ok
+                      ? `Location verified — ${geoStatus.distanceM}m from client (±${geoStatus.accuracy}m)`
+                      : `Location warning — ${geoStatus.distanceM}m from client · Are you at the right address?`
+                    : `GPS captured (±${geoStatus.accuracy}m) — client has no GPS pin set`}
+              </div>
+            )}
             <Field label={uiText("Clock-in note (optional)")}>
               <TextArea value={clockInNote} onChange={ev => setClockInNote(ev.target.value)} placeholder={uiText("Late reason, traffic, access issues...")} />
             </Field>
@@ -4473,6 +4573,7 @@ hoursPerSession: 0, forfaitLabel: "", forfaitPrice: 0, forfaitPeriod: "monthly",
 notes: "", contactPerson: "",
 status: "active", accessCode: "", keyLocation: "", parkingInfo: "", petInfo: "", specialInstructions: "", preferredDay: "", preferredTime: "",
 contractStart: "", contractEnd: "", squareMeters: "", taxId: "", language: "FR", preferredCleanerIds: [],
+locationLat: null, locationLng: null,
 };
 
 const handleSave = async (clientData) => {
@@ -4608,7 +4709,20 @@ return (
 function ClientForm({ initialData, data, onSave, onCancel }) {
 const [form, setForm] = useState(initialData);
 const [activeTab, setActiveTab] = useState("basic");
+const [pinningLocation, setPinningLocation] = useState(false);
 const set = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
+
+const handlePinLocation = async () => {
+  setPinningLocation(true);
+  try {
+    const pos = await getGeoPosition();
+    setForm(prev => ({ ...prev, locationLat: pos.coords.latitude, locationLng: pos.coords.longitude }));
+  } catch {
+    alert("Unable to get your current location. Please ensure location permission is granted.");
+  } finally {
+    setPinningLocation(false);
+  }
+};
 
 const tabs = [
 { id: "basic", label: uiText("Basic Info") },
@@ -4655,6 +4769,34 @@ return (
       <Field label="City"><TextInput value={form.city || ""} onChange={ev => set("city", ev.target.value)} /></Field>
       <Field label="Region / District"><TextInput value={form.region || ""} onChange={ev => set("region", ev.target.value)} placeholder="e.g. Kirchberg, Esch, Centre-Ville" /></Field>
       <Field label="Country"><TextInput value={form.country || ""} onChange={ev => set("country", ev.target.value)} /></Field>
+      <div style={{ gridColumn: "1/-1", borderTop: `1px solid ${CL.bd}`, paddingTop: 12, marginTop: 4 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: CL.gold, marginBottom: 10 }}>GPS Location Pin</div>
+        <div style={{ fontSize: 12, color: CL.muted, marginBottom: 8 }}>Set the exact GPS coordinates for this property. Cleaners will be validated against this pin when they check in.</div>
+        <div style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
+          <div style={{ flex: 1, minWidth: 140 }}>
+            <Field label="Latitude"><TextInput type="number" step="0.0000001" value={form.locationLat ?? ""} onChange={ev => set("locationLat", ev.target.value === "" ? null : parseFloat(ev.target.value))} placeholder="e.g. 49.6116" /></Field>
+          </div>
+          <div style={{ flex: 1, minWidth: 140 }}>
+            <Field label="Longitude"><TextInput type="number" step="0.0000001" value={form.locationLng ?? ""} onChange={ev => set("locationLng", ev.target.value === "" ? null : parseFloat(ev.target.value))} placeholder="e.g. 6.1319" /></Field>
+          </div>
+          <div style={{ paddingBottom: 14 }}>
+            <button type="button" style={{ ...btnSec, whiteSpace: "nowrap" }} disabled={pinningLocation} onClick={handlePinLocation}>
+              {pinningLocation ? "Getting location…" : "📍 Use My Location"}
+            </button>
+          </div>
+          {form.locationLat && form.locationLng && (
+            <div style={{ paddingBottom: 14 }}>
+              <a href={coordsToMapsUrl(form.locationLat, form.locationLng)} target="_blank" rel="noreferrer" style={{ ...btnSec, textDecoration: "none", display: "inline-flex", alignItems: "center" }}>View on Map</a>
+            </div>
+          )}
+        </div>
+        {form.locationLat && form.locationLng && (
+          <div style={{ fontSize: 11, color: CL.green, marginTop: -6, marginBottom: 8 }}>
+            GPS pin set: {Number(form.locationLat).toFixed(6)}, {Number(form.locationLng).toFixed(6)}
+            {" · "}<button type="button" onClick={() => { set("locationLat", null); set("locationLng", null); }} style={{ background: "none", border: "none", color: CL.red, cursor: "pointer", fontSize: 11, padding: 0 }}>Clear</button>
+          </div>
+        )}
+      </div>
       <div style={{ gridColumn: "1/-1", borderTop: `1px solid ${CL.bd}`, paddingTop: 12, marginTop: 4 }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: CL.gold, marginBottom: 10 }}>{uiText("Access Information")}</div>
       </div>
@@ -5766,12 +5908,30 @@ return (
 
   <div style={cardSt} className="tbl-wrap">
     <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-      <thead><tr><th style={thSt}>{uiText("Employee")}</th><th style={thSt}>{uiText("Client")}</th><th style={thSt}>{uiText("In")}</th><th style={thSt}>{uiText("Out")}</th><th style={thSt}>{uiText("Late")}</th><th style={thSt}>{uiText("Notes")}</th><th style={thSt}>{uiText("Hours")}</th><th style={thSt}>{uiText("Actions")}</th></tr></thead>
+      <thead><tr><th style={thSt}>{uiText("Employee")}</th><th style={thSt}>{uiText("Client")}</th><th style={thSt}>{uiText("In")}</th><th style={thSt}>{uiText("Out")}</th><th style={thSt}>{uiText("Late")}</th><th style={thSt}>Location</th><th style={thSt}>{uiText("Notes")}</th><th style={thSt}>{uiText("Hours")}</th><th style={thSt}>{uiText("Actions")}</th></tr></thead>
       <tbody>
         {filteredEntries.map(entry => {
           const employee = data.employees.find(e => e.id === entry.employeeId);
           const client = data.clients.find(c => c.id === entry.clientId);
           const hours = calcHrs(entry.clockIn, entry.clockOut);
+          // Location distance badge
+          let locationBadge = null;
+          if (entry.checkinLat && client?.locationLat && client?.locationLng) {
+            const distM = haversineDistance(entry.checkinLat, entry.checkinLng, client.locationLat, client.locationLng);
+            locationBadge = (
+              <a href={coordsToMapsUrl(entry.checkinLat, entry.checkinLng)} target="_blank" rel="noreferrer" title={`Check-in: ${Number(entry.checkinLat).toFixed(5)}, ${Number(entry.checkinLng).toFixed(5)}`} style={{ textDecoration: "none" }}>
+                <Badge color={distM <= 300 ? CL.green : CL.red}>{distM <= 300 ? "✓" : "⚠"} {distM}m</Badge>
+              </a>
+            );
+          } else if (entry.checkinLat) {
+            locationBadge = (
+              <a href={coordsToMapsUrl(entry.checkinLat, entry.checkinLng)} target="_blank" rel="noreferrer" title={`Check-in: ${Number(entry.checkinLat).toFixed(5)}, ${Number(entry.checkinLng).toFixed(5)}`} style={{ textDecoration: "none" }}>
+                <Badge color={CL.blue}>📍 GPS</Badge>
+              </a>
+            );
+          } else {
+            locationBadge = <span style={{ color: CL.muted, fontSize: 11 }}>—</span>;
+          }
           return (
             <tr key={entry.id}>
               <td style={tdSt}>{employee?.name || "-"}</td>
@@ -5779,6 +5939,7 @@ return (
               <td style={tdSt}>{fmtBoth(entry.clockIn)}</td>
               <td style={tdSt}>{entry.clockOut ? fmtBoth(entry.clockOut) : <Badge color={CL.green}>{uiText("Active")}</Badge>}</td>
               <td style={tdSt}>{entry.isLate ? <Badge color={CL.orange}>{uiText("Late")} {entry.lateMinutes || 0}m</Badge> : <Badge color={CL.green}>{uiText("On time")}</Badge>}</td>
+              <td style={tdSt}>{locationBadge}</td>
               <td style={tdSt}>{entry.notes || "-"}</td>
               <td style={tdSt}>{entry.clockOut ? `${hours.toFixed(2)}h` : "-"}</td>
               <td style={tdSt}>
@@ -5790,7 +5951,7 @@ return (
             </tr>
           );
         })}
-        {filteredEntries.length === 0 && <tr><td colSpan={8} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>{uiText("No entries")}</td></tr>}
+        {filteredEntries.length === 0 && <tr><td colSpan={9} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>{uiText("No entries")}</td></tr>}
       </tbody>
     </table>
   </div>

@@ -809,6 +809,13 @@ const UI_FR = {
 "Add First Expense": "Ajouter la première dépense",
 "Category": "Catégorie",
 "Due Day": "Jour d'échéance",
+"Frequency / Dates": "Fréquence / Dates",
+"Monthly": "Mensuel",
+"Weekly": "Hebdomadaire",
+"Every 2 weeks": "Toutes les 2 semaines",
+"Quarterly": "Trimestriel",
+"Yearly": "Annuel",
+"from": "à partir du",
 "Receipt": "Reçu",
 "Delete this expense? All payment history will be lost.": "Supprimer cette dépense ? Tout l'historique de paiement sera perdu.",
 "Expense deleted": "Dépense supprimée",
@@ -1809,6 +1816,9 @@ const toApiExpense = (expense) => ({
   name: expense.name || "",
   amount: Number(expense.amount) || 0,
   dueDay: Number(expense.dueDay) || 1,
+  frequency: expense.frequency || "monthly",
+  startDate: expense.startDate || "",
+  endDate: expense.endDate || null,
   category: expense.category || "other",
   note: expense.note || expense.notes || "",
   isActive: expense.isActive !== false,
@@ -2868,6 +2878,9 @@ useEffect(() => {
       const mapExpense = (e) => ({
         id: e.id, name: e.name, amount: Number(e.amount) || 0,
         dueDay: Number(e.due_day) || 1, category: e.category || "other",
+        frequency: e.frequency || "monthly",
+        startDate: e.start_date || "",
+        endDate: e.end_date || "",
         notes: e.note || e.notes || "", isActive: e.is_active !== false,
         payments: Array.isArray(e.payments) ? e.payments : [],
       });
@@ -9281,6 +9294,21 @@ function ExpensesPage({ data, updateData, showToast }) {
     "Transport": "#66BB6A", "Other": CL.muted,
   };
 
+  const getExpenseScheduleLabel = (expense) => {
+    const freq = expense.frequency || "monthly";
+    const start = expense.startDate ? fmtDate(expense.startDate) : null;
+    const end = expense.endDate ? fmtDate(expense.endDate) : null;
+    const freqLabel = uiText(
+      freq === "weekly" ? "Weekly" :
+      freq === "biweekly" ? "Every 2 weeks" :
+      freq === "quarterly" ? "Quarterly" :
+      freq === "yearly" ? "Yearly" : "Monthly"
+    );
+    if (start && end) return `${freqLabel} · ${start} → ${end}`;
+    if (start) return `${freqLabel} · ${uiText("from")} ${start}`;
+    return `${freqLabel} · ${uiText("Day")} ${expense.dueDay || 1}`;
+  };
+
   const sortedExpenses = [...activeExpenses].sort((a, b) => {
     const aUrgent = (isOverdue(a) || isDueToday(a)) ? 0 : isDueSoon(a) ? 1 : isPaid(a) ? 3 : 2;
     const bUrgent = (isOverdue(b) || isDueToday(b)) ? 0 : isDueSoon(b) ? 1 : isPaid(b) ? 3 : 2;
@@ -9387,7 +9415,7 @@ function ExpensesPage({ data, updateData, showToast }) {
                   <th style={thSt}>{uiText("Expense")}</th>
                   <th style={thSt}>{uiText("Category")}</th>
                   <th style={thSt}>{uiText("Amount")}</th>
-                  <th style={thSt}>{uiText("Due Day")}</th>
+                  <th style={thSt}>{uiText("Frequency / Dates")}</th>
                   <th style={thSt}>{uiText("Status")}</th>
                   <th style={thSt}>{uiText("Receipt")}</th>
                   <th style={thSt}>{uiText("Actions")}</th>
@@ -9412,7 +9440,7 @@ function ExpensesPage({ data, updateData, showToast }) {
                       <td style={tdSt}><Badge color={catColor}>{exp.category || "Other"}</Badge></td>
                       <td style={{ ...tdSt, fontWeight: 700, fontSize: 16, color: CL.text }}>€{(exp.amount || 0).toFixed(2)}</td>
                       <td style={tdSt}>
-                        <div style={{ fontSize: 13, fontWeight: 500 }}>{uiText("Day")} {exp.dueDay}</div>
+                        <div style={{ fontSize: 13, fontWeight: 500 }}>{getExpenseScheduleLabel(exp)}</div>
                         {payment?.paidDate && <div style={{ fontSize: 11, color: CL.green, marginTop: 1 }}>✓ {fmtDate(payment.paidDate)}</div>}
                         {payment?.amount && payment.amount !== exp.amount && <div style={{ fontSize: 11, color: CL.muted }}>€{payment.amount.toFixed(2)} {uiText("paid")}</div>}
                       </td>
@@ -9571,7 +9599,12 @@ function ExpenseFormModal({ expense, categories, paymentMethods, categoryColors,
   const [name, setName] = useState(expense?.name || "");
   const [category, setCategory] = useState(expense?.category || "Other");
   const [amount, setAmount] = useState(expense?.amount?.toString() || "");
-  const [dueDay, setDueDay] = useState(expense?.dueDay?.toString() || "1");
+  const [frequency, setFrequency] = useState(expense?.frequency || "monthly");
+  const [startDate, setStartDate] = useState(
+    expense?.startDate
+      || `${getToday().slice(0, 8)}${String(Number(expense?.dueDay) || 1).padStart(2, "0")}`
+  );
+  const [endDate, setEndDate] = useState(expense?.endDate || "");
   const [paymentMethod, setPaymentMethod] = useState(expense?.paymentMethod || "Bank Transfer");
   const [notes, setNotes] = useState(expense?.notes || "");
   const [isActive, setIsActive] = useState(expense?.isActive !== false);
@@ -9580,14 +9613,18 @@ function ExpenseFormModal({ expense, categories, paymentMethods, categoryColors,
     if (!name.trim()) { alert(uiText("Expense name is required")); return; }
     const amt = parseFloat(amount);
     if (isNaN(amt) || amt <= 0) { alert(uiText("Please enter a valid amount greater than 0")); return; }
-    const day = parseInt(dueDay, 10);
-    if (isNaN(day) || day < 1 || day > 31) { alert(uiText("Due day must be between 1 and 31")); return; }
+    if (!startDate) { alert(uiText("Please choose a start date")); return; }
+    if (endDate && endDate < startDate) { alert(uiText("End date must be after start date")); return; }
+    const day = Number(startDate.slice(8, 10)) || Number(expense?.dueDay) || 1;
     onSave({
       id: expense?.id || makeId(),
       name: name.trim(),
       category,
       amount: amt,
       dueDay: day,
+      frequency,
+      startDate,
+      endDate: endDate || "",
       paymentMethod,
       notes: notes.trim(),
       isActive,
@@ -9611,12 +9648,20 @@ function ExpenseFormModal({ expense, categories, paymentMethods, categoryColors,
           <Field label="Monthly Amount (€) *">
             <TextInput type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" min="0.01" step="0.01" />
           </Field>
-          <Field label="Due Day of Month *">
-            <SelectInput value={dueDay} onChange={e => setDueDay(e.target.value)}>
-              {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
-                <option key={d} value={d}>{d}{d === 1 ? "st" : d === 2 ? "nd" : d === 3 ? "rd" : "th"} of each month</option>
-              ))}
+          <Field label="Frequency *">
+            <SelectInput value={frequency} onChange={e => setFrequency(e.target.value)}>
+              <option value="monthly">{uiText("Monthly")}</option>
+              <option value="weekly">{uiText("Weekly")}</option>
+              <option value="biweekly">{uiText("Every 2 weeks")}</option>
+              <option value="quarterly">{uiText("Quarterly")}</option>
+              <option value="yearly">{uiText("Yearly")}</option>
             </SelectInput>
+          </Field>
+          <Field label="Start Date *">
+            <TextInput type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+          </Field>
+          <Field label="End Date (optional)">
+            <TextInput type="date" value={endDate} onChange={e => setEndDate(e.target.value)} min={startDate || undefined} />
           </Field>
           <Field label="Payment Method">
             <SelectInput value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}>
@@ -9640,7 +9685,16 @@ function ExpenseFormModal({ expense, categories, paymentMethods, categoryColors,
             <Badge color={categoryColors[category] || CL.muted}>{category}</Badge>
             {amount && !isNaN(parseFloat(amount)) && (
               <span style={{ color: CL.muted, fontSize: 13 }}>
-                {uiText("Due on the")} <strong style={{ color: CL.gold }}>{dueDay}{parseInt(dueDay) === 1 ? "st" : parseInt(dueDay) === 2 ? "nd" : parseInt(dueDay) === 3 ? "rd" : "th"}</strong> {uiText("of each month")} · <strong style={{ color: CL.gold }}>€{parseFloat(amount).toFixed(2)}</strong>/mo
+                <strong style={{ color: CL.gold }}>{uiText(
+                  frequency === "weekly" ? "Weekly" :
+                  frequency === "biweekly" ? "Every 2 weeks" :
+                  frequency === "quarterly" ? "Quarterly" :
+                  frequency === "yearly" ? "Yearly" : "Monthly"
+                )}</strong>
+                {startDate ? <> · {uiText("from")} <strong style={{ color: CL.gold }}>{fmtDate(startDate)}</strong></> : null}
+                {endDate ? <> → <strong style={{ color: CL.gold }}>{fmtDate(endDate)}</strong></> : null}
+                {" · "}
+                <strong style={{ color: CL.gold }}>€{parseFloat(amount).toFixed(2)}</strong>/mo
               </span>
             )}
           </div>

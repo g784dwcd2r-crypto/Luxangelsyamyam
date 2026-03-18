@@ -1752,9 +1752,9 @@ app.post('/api/expenses', async (req, res) => {
     const b = req.body;
     if (!b.id || !b.name) return res.status(400).json({ error: 'Missing required fields: id, name' });
     const result = await pool.query(
-      `INSERT INTO expenses (id, name, amount, due_day, category, note, is_active, payments)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
-      [b.id, b.name, b.amount || 0, b.dueDay || 1, b.category || 'other',
+      `INSERT INTO expenses (id, name, amount, due_day, frequency, start_date, end_date, category, note, is_active, payments)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+      [b.id, b.name, b.amount || 0, b.dueDay || 1, b.frequency || 'monthly', b.startDate || null, b.endDate || null, b.category || 'other',
        b.note || b.notes || '', b.isActive !== false, JSON.stringify(b.payments || [])]
     );
     res.status(201).json(result.rows[0]);
@@ -1768,8 +1768,11 @@ app.put('/api/expenses/:id', async (req, res) => {
   try {
     const b = req.body;
     const result = await pool.query(
-      `UPDATE expenses SET name=$1, amount=$2, due_day=$3, category=$4, note=$5, is_active=$6, payments=$7 WHERE id=$8 RETURNING *`,
-      [b.name, b.amount || 0, b.dueDay || 1, b.category || 'other',
+      `UPDATE expenses
+       SET name=$1, amount=$2, due_day=$3, frequency=$4, start_date=$5, end_date=$6, category=$7, note=$8, is_active=$9, payments=$10
+       WHERE id=$11
+       RETURNING *`,
+      [b.name, b.amount || 0, b.dueDay || 1, b.frequency || 'monthly', b.startDate || null, b.endDate || null, b.category || 'other',
        b.note || b.notes || '', b.isActive !== false, JSON.stringify(b.payments || []), req.params.id]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Expense not found' });
@@ -1871,6 +1874,9 @@ async function initDb() {
     "ALTER TABLE prospect_visits ADD COLUMN IF NOT EXISTS photos JSONB DEFAULT '[]'",
     "ALTER TABLE prospect_visits ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ",
     "ALTER TABLE prospect_visits ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()",
+    "ALTER TABLE expenses ADD COLUMN IF NOT EXISTS frequency TEXT NOT NULL DEFAULT 'monthly'",
+    "ALTER TABLE expenses ADD COLUMN IF NOT EXISTS start_date DATE",
+    "ALTER TABLE expenses ADD COLUMN IF NOT EXISTS end_date DATE",
   ];
 
   for (const sql of schemaUpgrades) {
@@ -1961,7 +1967,8 @@ async function initDb() {
     )`,
     `CREATE TABLE IF NOT EXISTS expenses (
       id TEXT PRIMARY KEY, name TEXT NOT NULL, amount NUMERIC(10,2) NOT NULL DEFAULT 0,
-      due_day INTEGER NOT NULL DEFAULT 1, category TEXT DEFAULT 'other', note TEXT,
+      due_day INTEGER NOT NULL DEFAULT 1, frequency TEXT NOT NULL DEFAULT 'monthly',
+      start_date DATE, end_date DATE, category TEXT DEFAULT 'other', note TEXT,
       is_active BOOLEAN NOT NULL DEFAULT TRUE, payments JSONB NOT NULL DEFAULT '[]',
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )`,

@@ -642,6 +642,15 @@ const UI_FR = {
 "Please fix validation errors": "Veuillez corriger les erreurs de validation",
 "Changes saved successfully.": "Modifications enregistrées avec succès.",
 "Settings updated": "Paramètres mis à jour",
+"Owner only danger zone": "Zone rouge réservée au propriétaire",
+"Permanently delete all business data from the app and database.": "Supprime définitivement toutes les données métier de l'application et de la base.",
+"Wipe all data": "Effacer toutes les données",
+"Wiping data...": "Effacement des données...",
+"This action is irreversible. Continue?": "Cette action est irréversible. Continuer ?",
+"Type WIPE to confirm full deletion": "Tapez WIPE pour confirmer la suppression complète",
+"Type WIPE to proceed.": "Tapez WIPE pour continuer.",
+"All data deleted successfully": "Toutes les données ont été supprimées",
+"Failed to wipe data": "Échec de l'effacement des données",
 // Client service
 "Hours per Session": "Heures par séance",
 "Forfait / Subscription": "Forfait / Abonnement",
@@ -8520,7 +8529,7 @@ return (
 // ==============================================
 // SETTINGS PAGE
 // ==============================================
-function SettingsPage({ data, updateData, setData, showToast }) {
+function SettingsPage({ data, updateData, setData, showToast, auth }) {
 const [activeTab, setActiveTab] = useState("company");
 const [form, setForm] = useState(data.settings);
 const [ownerUsername, setOwnerUsername] = useState(data.ownerUsername || "");
@@ -8530,6 +8539,7 @@ const [managerPin, setManagerPin] = useState(data.managerPin || "");
 const [newRoleName, setNewRoleName] = useState("");
 const [saveBanner, setSaveBanner] = useState("");
 const [errors, setErrors] = useState({});
+const [isWipingData, setIsWipingData] = useState(false);
 
 useEffect(() => {
   setForm(data.settings);
@@ -8612,6 +8622,39 @@ const persistSettings = async () => {
   return true;
 };
 
+const wipeAllData = async () => {
+  if (auth?.role !== "owner" || isWipingData) return;
+  if (!window.confirm(uiText("This action is irreversible. Continue?"))) return;
+  const confirmation = window.prompt(uiText("Type WIPE to confirm full deletion"), "");
+  if ((confirmation || "").trim().toUpperCase() !== "WIPE") {
+    showToast(uiText("Type WIPE to proceed."), "error");
+    return;
+  }
+
+  const wipedSnapshot = {
+    ...DEFAULTS,
+    ownerUsername: (data.ownerUsername || "").trim(),
+    ownerPin: (data.ownerPin || "").trim(),
+    managerUsername: (data.managerUsername || "").trim().toLowerCase(),
+    managerPin: (data.managerPin || "").trim(),
+    settings: normalizeSettingsPayload(DEFAULTS.settings, DEFAULTS.settings),
+    employeePins: {},
+    employeeUsernames: {},
+  };
+
+  setIsWipingData(true);
+  try {
+    setData(wipedSnapshot);
+    await syncImportedDataToDb(wipedSnapshot);
+    showToast(uiText("All data deleted successfully"), "success");
+  } catch (err) {
+    console.error(err);
+    showToast(uiText("Failed to wipe data"), "error");
+  } finally {
+    setIsWipingData(false);
+  }
+};
+
 const onLogoUpload = (file) => {
   if (!file) return;
   if (!file.type.startsWith("image/")) { showToast(uiText("Please upload an image file"), "error"); return; }
@@ -8685,6 +8728,13 @@ return (
         </Field>
       </div>
     </div>
+    {auth?.role === "owner" && <div style={{ marginTop: 14, border: `1px solid ${CL.red}`, borderRadius: 10, padding: 14, background: `${CL.red}10` }}>
+      <h4 style={{ marginTop: 0, marginBottom: 6, color: CL.red }}>{uiText("Owner only danger zone")}</h4>
+      <p style={{ marginTop: 0, marginBottom: 10, color: CL.muted, fontSize: 12 }}>{uiText("Permanently delete all business data from the app and database.")}</p>
+      <button style={{ ...btnDng, opacity: isWipingData ? 0.7 : 1 }} onClick={wipeAllData} disabled={isWipingData}>
+        {isWipingData ? uiText("Wiping data...") : uiText("Wipe all data")}
+      </button>
+    </div>}
     <button style={btnPri} onClick={persistSettings}>{ICN.check} {uiText("Save changes")}</button>
   </div>}
 

@@ -8403,8 +8403,8 @@ return (
 function CommunicationFlowsPage({ data, updateData, showToast }) {
 const { t, lang } = useI18n();
 const settings = data?.settings || DEFAULTS.settings;
-const clientsList = Array.isArray(data?.clients) ? data.clients : [];
-const invoicesList = Array.isArray(data?.invoices) ? data.invoices : [];
+const clientsList = Array.isArray(data?.clients) ? data.clients.filter(c => c && typeof c === "object") : [];
+const invoicesList = Array.isArray(data?.invoices) ? data.invoices.filter(inv => inv && typeof inv === "object") : [];
 const defaultSubject = lang === "fr" ? "Actualités Lux Angels" : "Lux Angels update";
 const defaultBody = lang === "fr" ? "Bonjour, voici notre communication périodique de la part de Lux Angels Cleaning." : "Hello, this is your scheduled client communication from Lux Angels.";
 const [channel, setChannel] = useState(settings.communicationChannel || "email");
@@ -8549,6 +8549,7 @@ const dispatch = async (mode, payload, client) => {
 
 const followups = invoicesList
   .filter(inv => {
+    if (!inv?.id || !inv?.clientId) return false;
     const effective = effectiveInvoiceStatus(inv);
     return effective === "sent" || effective === "overdue";
   })

@@ -1833,13 +1833,13 @@ dark: {
   bg: "#0C0F16", sf: "#151922", s2: "#1C2130", bd: "#2C3348",
   gold: "#D4A843", goldDark: "#B08C2F", goldLight: "#F0D78C",
   blue: "#4A9FD9", green: "#3EC47E", red: "#D95454", orange: "#E89840",
-  text: "#E4E6ED", muted: "#838AA3", dim: "#525976", white: "#FFF",
+  text: "#E4E6ED", muted: "#838AA3", dim: "#525976", white: "#FFF", line: "#2C3348",
 },
 light: {
   bg: "#F4F1EA", sf: "#FFFFFF", s2: "#EDE9DF", bd: "#D4C9B0",
   gold: "#B8860B", goldDark: "#8B6914", goldLight: "#D4A843",
   blue: "#1565C0", green: "#2E7D32", red: "#C62828", orange: "#E65100",
-  text: "#1A1A1A", muted: "#5C5C5C", dim: "#888888", white: "#FFF",
+  text: "#1A1A1A", muted: "#5C5C5C", dim: "#888888", white: "#FFF", line: "#D4C9B0",
 },
 };
 const INIT_THEME = loadTheme();
@@ -8654,7 +8654,7 @@ return (
       <h3 style={{ fontSize: 15, color: CL.gold, marginTop: 0, marginBottom: 10 }}>{uiText("Email Marketing Campaigns")}</h3>
       <div className="form-grid">
         <Field label={uiText("Client search")}><TextInput value={clientSearch} onChange={ev => setClientSearch(ev.target.value)} placeholder={uiText("Search by name, contact, email or phone")} /></Field>
-        <Field label={uiText("Selected")}><div style={{ ...inSt, display: "flex", alignItems: "center", fontSize: 13 }}>{selectedClientIds.length} / {clients.length}</div></Field>
+        <Field label={uiText("Selected")}><div style={{ ...inputSt, display: "flex", alignItems: "center", fontSize: 13 }}>{selectedClientIds.length} / {clients.length}</div></Field>
       </div>
       <div style={{ marginBottom: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
         <button style={{ ...btnSec, ...btnSm }} onClick={() => setSelectedClientIds(filteredClients.map(c => c.id))}>{uiText("Select all")}</button>

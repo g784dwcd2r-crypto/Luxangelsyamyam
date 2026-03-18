@@ -877,9 +877,24 @@ if (value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOS
 const parsed = new Date(value);
 return Number.isNaN(parsed.getTime()) ? "" : parsed.toISOString().slice(0, 10);
 };
-const fmtDate = (d) => d ? new Date(d).toLocaleDateString(localeForLang(CURRENT_LANG), { day: "2-digit", month: "short", year: "numeric" }) : "";
-const fmtTime = (d) => d ? new Date(d).toLocaleTimeString(localeForLang(CURRENT_LANG), { hour: "2-digit", minute: "2-digit" }) : "";
-const fmtBoth = (d) => `${fmtDate(d)} ${fmtTime(d)}`;
+const safeDate = (value) => {
+if (!value) return null;
+const parsed = value instanceof Date ? value : new Date(value);
+return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+const fmtDate = (d) => {
+const parsed = safeDate(d);
+return parsed ? parsed.toLocaleDateString(localeForLang(CURRENT_LANG), { day: "2-digit", month: "short", year: "numeric" }) : "";
+};
+const fmtTime = (d) => {
+const parsed = safeDate(d);
+return parsed ? parsed.toLocaleTimeString(localeForLang(CURRENT_LANG), { hour: "2-digit", minute: "2-digit" }) : "";
+};
+const fmtBoth = (d) => {
+const date = fmtDate(d);
+const time = fmtTime(d);
+return [date, time].filter(Boolean).join(" ");
+};
 const calcHrs = (a, b) => (a && b) ? Math.max(0, Math.round((new Date(b) - new Date(a)) / 36e5 * 100) / 100) : 0;
 const makeISO = (d, t) => `${d}T${t}:00`;
 const mapsUrl = (address = "") => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;

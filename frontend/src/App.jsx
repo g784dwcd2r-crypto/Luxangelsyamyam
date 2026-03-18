@@ -5774,12 +5774,15 @@ const previewRef = useRef(null);
 const hiddenQuoteRef = useRef(null);
 
 const defaultQuoteColumns = { prestationDate: true, description: true, hours: true, quantity: false, unitPrice: true, total: true, tva: true };
+const defaultVatRate = Number.isFinite(Number(data?.settings?.defaultVatRate)) ? Number(data.settings.defaultVatRate) : 17;
 
-const newQuoteDraft = (clientId = "", presetDescription = "Cleaning service") => ({ quoteNumber: quoteNumber(), clientId, date: getToday(), validUntil: "", items: [{ prestationDate: getToday(), description: presetDescription, hours: "", quantity: 1, unitPrice: 0, total: 0 }], pricingMode: "hours", visibleColumns: { ...defaultQuoteColumns }, vatRate: data.settings.defaultVatRate, subtotal: 0, vatAmount: 0, total: 0, status: "draft", notes: "", paymentTerms: "Quote valid for 30 days.", jobSchedule: { dateFrom: "", dateTo: "", frequency: "one-time", startDate: getToday(), employeeId: "", startTime: "08:00", endTime: "12:00" } });
+const newQuoteDraft = (clientId = "", presetDescription = "Cleaning service") => ({ quoteNumber: quoteNumber(), clientId, date: getToday(), validUntil: "", items: [{ prestationDate: getToday(), description: presetDescription, hours: "", quantity: 1, unitPrice: 0, total: 0 }], pricingMode: "hours", visibleColumns: { ...defaultQuoteColumns }, vatRate: defaultVatRate, subtotal: 0, vatAmount: 0, total: 0, status: "draft", notes: "", paymentTerms: "Quote valid for 30 days.", jobSchedule: { dateFrom: "", dateTo: "", frequency: "one-time", startDate: getToday(), employeeId: "", startTime: "08:00", endTime: "12:00" } });
 
 useEffect(() => {
 if (!devisSeed) return;
-setModal(newQuoteDraft(devisSeed.clientId, devisSeed.description || "Prospect visit quotation"));
+const seededClientId = typeof devisSeed?.clientId === "string" ? devisSeed.clientId : "";
+const seededDescription = typeof devisSeed?.description === "string" && devisSeed.description.trim() ? devisSeed.description.trim() : "Prospect visit quotation";
+setModal(newQuoteDraft(seededClientId, seededDescription));
 if (setDevisSeed) setDevisSeed(null);
 // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [devisSeed]);
@@ -5787,7 +5790,8 @@ if (setDevisSeed) setDevisSeed(null);
 const quoteNumber = (dateStr = getToday()) => {
 const [year, month, day] = (dateStr || getToday()).split("-");
 const prefix = `DEV-${year || new Date().getFullYear()}-${(month || "01").padStart(2, "0")}-${(day || "01").padStart(2, "0")}-`;
-const nums = (data.quotes || []).map(q => String(q.quoteNumber || "")).filter(n => n.startsWith(prefix)).map(n => parseInt(n.slice(prefix.length), 10)).filter(n => Number.isFinite(n));
+const quotes = Array.isArray(data?.quotes) ? data.quotes : [];
+const nums = quotes.map(q => String(q.quoteNumber || "")).filter(n => n.startsWith(prefix)).map(n => parseInt(n.slice(prefix.length), 10)).filter(n => Number.isFinite(n));
 return `${prefix}${nums.length ? Math.max(...nums) + 1 : 1}`;
 };
 

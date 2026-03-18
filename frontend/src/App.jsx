@@ -157,6 +157,7 @@ const UI_FR = {
 "Payroll access is restricted.": "L'accès à la paie est restreint.",
 "Email Marketing Campaigns": "Campagnes marketing par email",
 "Frequency": "Fréquence",
+"Quote #": "N° devis",
 "Channel": "Canal",
 "8 sheets: Employees, Clients, Schedule, Time Clock, Invoices, Payslips, Settings, Summary": "8 feuilles : Employés, Clients, Planning, Pointage, Factures, Fiches de paie, Paramètres, Résumé",
 "Use Share > Add to Home Screen": "Utilisez Partager > Sur l'écran d'accueil",
@@ -5844,9 +5845,14 @@ if (frequency === "one-time") {
   let cur = toDate(startDate);
   const end = toDate(endDateStr);
   while (cur <= end) {
-    addEntry(new Date(cur));
-    if (frequency === "monthly") { cur.setUTCMonth(cur.getUTCMonth() + 1); }
-    else { cur.setUTCDate(cur.getUTCDate() + (frequency === "biweekly" ? 14 : 7)); }
+    const weekday = cur.getUTCDay();
+    if (frequency !== "daily-weekdays" || (weekday !== 0 && weekday !== 6)) {
+      addEntry(new Date(cur));
+    }
+    if (frequency === "monthly") cur.setUTCMonth(cur.getUTCMonth() + 1);
+    else if (frequency === "biweekly") cur.setUTCDate(cur.getUTCDate() + 14);
+    else if (frequency === "daily" || frequency === "daily-weekdays") cur.setUTCDate(cur.getUTCDate() + 1);
+    else cur.setUTCDate(cur.getUTCDate() + 7);
   }
 }
 return entries;
@@ -6029,16 +6035,22 @@ const QSectionHeader = ({ label }) => (
 );
 
 const itemColTemplate = `${form.visibleColumns?.prestationDate !== false ? "1.2fr " : ""}${form.visibleColumns?.description !== false ? "2.2fr " : ""}${form.visibleColumns?.hours !== false ? ".8fr " : ""}${form.visibleColumns?.quantity !== false ? ".8fr " : ""}${form.visibleColumns?.unitPrice !== false ? "1fr " : ""}${form.visibleColumns?.total !== false ? "1fr " : ""}28px`;
+const normalizedFrequency = (() => {
+  const freq = form.jobSchedule?.frequency || "one-time";
+  if (freq === "daily") return "daily";
+  if (freq === "daily-weekdays") return "daily-weekdays";
+  return freq;
+})();
 
 return (
 <div>
   {/* ── Section 1: Core info ── */}
   <QSectionHeader label="Devis — Informations" />
   <div className="form-grid" style={{ gap: 20 }}>
-    <Field label="Quote #">
+    <Field label={uiText("Quote #")}>
       <div style={{ display: "flex", gap: 8 }}>
         <TextInput value={form.quoteNumber} onChange={ev => set("quoteNumber", ev.target.value)} style={{ flex: 1 }} />
-        <button style={{ ...btnSec, padding: "0 14px", whiteSpace: "nowrap" }} onClick={autoQuoteNumber}>Auto</button>
+        <button style={{ ...btnSec, padding: "0 14px", whiteSpace: "nowrap" }} onClick={autoQuoteNumber}>{t("auto")}</button>
       </div>
     </Field>
     <Field label="Statut">
@@ -6091,9 +6103,11 @@ return (
       <Field label="Date de début du job">
         <DatePicker value={form.jobSchedule?.startDate || ""} onChange={ev => setJobSchedule("startDate", ev.target.value)} />
       </Field>
-      <Field label="Fréquence">
-        <SelectInput value={form.jobSchedule?.frequency || "one-time"} onChange={ev => setJobSchedule("frequency", ev.target.value)}>
+      <Field label={uiText("Frequency")}>
+        <SelectInput value={normalizedFrequency} onChange={ev => setJobSchedule("frequency", ev.target.value)}>
           <option value="one-time">Une seule fois</option>
+          <option value="daily">{uiText("Daily (weekends included)")}</option>
+          <option value="daily-weekdays">{uiText("Daily (weekdays only)")}</option>
           <option value="weekly">Chaque semaine</option>
           <option value="biweekly">Toutes les 2 semaines</option>
           <option value="monthly">Chaque mois</option>
@@ -6185,7 +6199,7 @@ return (
   {/* Footer buttons */}
   <div style={{ display: "flex", gap: 12, justifyContent: "flex-end", marginTop: 28, paddingTop: 20, borderTop: `1px solid ${CL.bd}` }}>
     <button style={{ ...btnSec, padding: "12px 28px", fontSize: 14 }} onClick={onCancel}>Annuler</button>
-    <button style={{ ...btnPri, padding: "12px 32px", fontSize: 14 }} onClick={() => form.clientId && onSave({ ...form, subtotal, vatAmount: form.visibleColumns?.tva === false ? 0 : vatAmount, total: subtotal + (form.visibleColumns?.tva === false ? 0 : vatAmount) })}>Enregistrer le devis</button>
+    <button style={{ ...btnPri, padding: "12px 32px", fontSize: 14 }} onClick={() => onSave({ ...form, subtotal, vatAmount: form.visibleColumns?.tva === false ? 0 : vatAmount, total: subtotal + (form.visibleColumns?.tva === false ? 0 : vatAmount) })}>Enregistrer le devis</button>
   </div>
 </div>
 );

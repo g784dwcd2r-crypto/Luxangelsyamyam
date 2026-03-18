@@ -1175,14 +1175,26 @@ app.put('/api/settings', async (req, res) => {
     if (!updates || typeof updates !== 'object') {
       return res.status(400).json({ error: 'Request body must be a key-value object' });
     }
-    const entries = Object.entries(updates);
+    const serializeSettingValue = (value) => {
+      if (value == null) return '';
+      if (typeof value === 'object') {
+        try {
+          return JSON.stringify(value);
+        } catch {
+          return String(value);
+        }
+      }
+      return String(value);
+    };
+
+    const entries = Object.entries(updates).filter(([, value]) => value !== undefined);
     if (!entries.length) return res.json({ success: true });
 
     await Promise.all(
       entries.map(([key, value]) =>
         pool.query(
           'INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value',
-          [key, String(value)]
+          [key, serializeSettingValue(value)]
         )
       )
     );

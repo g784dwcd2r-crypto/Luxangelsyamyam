@@ -8557,22 +8557,23 @@ const followups = invoicesList
     const client = clientsList.find(c => c.id === inv.clientId);
     if (!client) return null;
     const overdue = !!inv.dueDate && inv.dueDate < getToday();
+    const totalAmount = Number.isFinite(Number(inv.total)) ? Number(inv.total) : 0;
     return {
       id: `comm-${inv.id}`,
       client,
       title: overdue ? uiText("Payment follow-up") : uiText("Invoice sent notification"),
-      details: `${inv.invoiceNumber || "Invoice"} · €${(inv.total || 0).toFixed(2)}${inv.dueDate ? ` · ${uiText("due")} ${fmtDate(inv.dueDate)}` : ""}`,
+      details: `${inv.invoiceNumber || "Invoice"} · €${totalAmount.toFixed(2)}${inv.dueDate ? ` · ${uiText("due")} ${fmtDate(inv.dueDate)}` : ""}`,
       payload: () => {
         const greeting = lang === "fr" ? `Bonjour ${client.contactPerson || client.name},` : `Hello ${client.contactPerson || client.name},`;
         if (overdue) {
           return {
             subject: lang === "fr" ? `Relance paiement — ${inv.invoiceNumber}` : `Payment follow-up — ${inv.invoiceNumber}`,
-            body: `${greeting}\n\n${lang === "fr" ? `Nous vous contactons concernant la facture ${inv.invoiceNumber} toujours en attente de règlement.` : `This is a follow-up regarding invoice ${inv.invoiceNumber}, which is still pending.`}\n${lang === "fr" ? "Montant dû" : "Outstanding amount"}: €${(inv.total || 0).toFixed(2)}${inv.dueDate ? `\n${lang === "fr" ? "Date d'échéance" : "Due date"}: ${fmtDate(inv.dueDate)}` : ""}${signatureBlock}`,
+            body: `${greeting}\n\n${lang === "fr" ? `Nous vous contactons concernant la facture ${inv.invoiceNumber} toujours en attente de règlement.` : `This is a follow-up regarding invoice ${inv.invoiceNumber}, which is still pending.`}\n${lang === "fr" ? "Montant dû" : "Outstanding amount"}: €${totalAmount.toFixed(2)}${inv.dueDate ? `\n${lang === "fr" ? "Date d'échéance" : "Due date"}: ${fmtDate(inv.dueDate)}` : ""}${signatureBlock}`,
           };
         }
         return {
           subject: lang === "fr" ? `Facture ${inv.invoiceNumber} envoyée` : `Invoice ${inv.invoiceNumber} sent`,
-          body: `${greeting}\n\n${lang === "fr" ? `Votre facture ${inv.invoiceNumber} a été envoyée.` : `Your invoice ${inv.invoiceNumber} has been sent.`}\n${lang === "fr" ? "Montant" : "Amount"}: €${(inv.total || 0).toFixed(2)}${signatureBlock}`,
+          body: `${greeting}\n\n${lang === "fr" ? `Votre facture ${inv.invoiceNumber} a été envoyée.` : `Your invoice ${inv.invoiceNumber} has been sent.`}\n${lang === "fr" ? "Montant" : "Amount"}: €${totalAmount.toFixed(2)}${signatureBlock}`,
         };
       },
     };

@@ -1582,13 +1582,29 @@ const clockOutDate = entry.clockOut ? entry.clockOut.slice(0, 10) : clockInDate;
 const clockOutTime = entry.clockOut ? entry.clockOut.slice(11, 16) : “17:00”;
 
 const [form, setForm] = useState({ …entry, clockInDate, clockInTime, clockOutDate, clockOutTime });
-const set = (key, value) => setForm(prev => ({ …prev, [key]: value }));
+const [error, setError] = useState(“”);
+const set = (key, value) => {
+setError(“”);
+setForm(prev => ({ …prev, [key]: value }));
+};
 
 const handleSave = () => {
+if (!form.clockInDate || !form.clockInTime || !form.clockOutDate || !form.clockOutTime) {
+setError(“In/Out date and time are required.”);
+return;
+}
+
+const clockIn = makeISO(form.clockInDate, form.clockInTime);
+const clockOut = makeISO(form.clockOutDate, form.clockOutTime);
+if (new Date(clockOut) < new Date(clockIn)) {
+setError(“Out time must be after in time.”);
+return;
+}
+
 const updated = {
 …form,
-clockIn: makeISO(form.clockInDate, form.clockInTime),
-clockOut: form.clockOutDate && form.clockOutTime ? makeISO(form.clockOutDate, form.clockOutTime) : null,
+clockIn,
+clockOut,
 };
 delete updated.clockInDate;
 delete updated.clockInTime;
@@ -1610,11 +1626,12 @@ return (
 {data.clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
 </SelectInput>
 </Field>
-<Field label="In Date"><TextInput type=“date” value={form.clockInDate} onChange={ev => set(“clockInDate”, ev.target.value)} /></Field>
-<Field label="In Time"><TextInput type=“time” value={form.clockInTime} onChange={ev => set(“clockInTime”, ev.target.value)} /></Field>
-<Field label="Out Date"><TextInput type=“date” value={form.clockOutDate} onChange={ev => set(“clockOutDate”, ev.target.value)} /></Field>
-<Field label="Out Time"><TextInput type=“time” value={form.clockOutTime} onChange={ev => set(“clockOutTime”, ev.target.value)} /></Field>
+<Field label="In Date"><TextInput type=“date” value={form.clockInDate} required onChange={ev => set(“clockInDate”, ev.target.value)} /></Field>
+<Field label="In Time"><TextInput type=“time” value={form.clockInTime} required onChange={ev => set(“clockInTime”, ev.target.value)} /></Field>
+<Field label="Out Date"><TextInput type=“date” value={form.clockOutDate} required onChange={ev => set(“clockOutDate”, ev.target.value)} /></Field>
+<Field label="Out Time"><TextInput type=“time” value={form.clockOutTime} required onChange={ev => set(“clockOutTime”, ev.target.value)} /></Field>
 </div>
+{error && <p style={{ color: CL.red, fontSize: 12, margin: "6px 0 0" }}>{error}</p>}
 <div style={{ display: “flex”, gap: 10, justifyContent: “flex-end”, marginTop: 6 }}>
 <button style={btnSec} onClick={onCancel}>Cancel</button>
 <button style={btnPri} onClick={handleSave}>Save</button>

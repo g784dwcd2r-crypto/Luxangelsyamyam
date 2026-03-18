@@ -229,6 +229,12 @@ const UI_FR = {
 "Nothing upcoming": "Rien à venir",
 "Recent Invoices": "Factures récentes",
 "No invoices yet": "Aucune facture pour l'instant",
+"Show all": "Voir tout",
+"Show less": "Réduire",
+"Showing": "Affichage",
+"of": "sur",
+"record": "élément",
+"records": "éléments",
 "leave request": "demande de congé",
 "leave requests": "demandes de congé",
 "pending": "en attente",
@@ -3715,6 +3721,32 @@ return (
 // ==============================================
 // DASHBOARD
 // ==============================================
+function DashboardListCard({ title, count, color = CL.gold, emptyText, items, initialVisible = 4 }) {
+const [expanded, setExpanded] = useState(false);
+const safeInitialVisible = Math.max(1, initialVisible);
+const visibleCount = expanded ? count : Math.min(count, safeInitialVisible);
+const hasMore = count > safeInitialVisible;
+
+return (
+<div style={cardSt}>
+<div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+<h3 style={{ fontSize: 14, fontWeight: 600, color }}>{title} ({count})</h3>
+{count > 0 && <span style={{ fontSize: 11, color: CL.muted }}>{uiText("Showing")} {visibleCount} {uiText("of")} {count}</span>}
+</div>
+{count === 0 ? <p style={{ color: CL.muted, fontSize: 13 }}>{emptyText}</p> : items.slice(0, visibleCount)}
+{hasMore && (
+  <button
+    type="button"
+    style={{ ...btnSec, ...btnSm, alignSelf: "flex-start" }}
+    onClick={() => setExpanded(prev => !prev)}
+  >
+    {expanded ? uiText("Show less") : `${uiText("Show all")} (${count})`}
+  </button>
+)}
+</div>
+);
+}
+
 function DashboardPage({ data, auth }) {
 const todayStr = getToday();
 const next7Days = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
@@ -3762,10 +3794,13 @@ return (
 {auth?.role !== "manager" && unpaidTotal > 0 && <StatCard label={uiText("Unpaid")} value={`€${unpaidTotal.toFixed(0)}`} icon={ICN.pay} color={CL.red} />}
 </div>
 <div className="grid-2">
-<div style={cardSt}>
-<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>{uiText("Today's Schedule")} ({todayScheds.length})</h3>
-{todayScheds.length === 0 ? <p style={{ color: CL.muted, fontSize: 13 }}>{uiText("No jobs scheduled today")}</p> :
-todayScheds.map(sched => {
+<DashboardListCard
+title={uiText("Today's Schedule")}
+count={todayScheds.length}
+color={CL.gold}
+emptyText={uiText("No jobs scheduled today")}
+initialVisible={4}
+items={todayScheds.map(sched => {
 const client = data.clients.find(c => c.id === sched.clientId);
 const employee = data.employees.find(e => e.id === sched.employeeId);
 const clockInfo = data.clockEntries.find(c => c.employeeId === sched.employeeId && c.clientId === sched.clientId && c.clockIn?.slice(0, 10) === sched.date);
@@ -3779,13 +3814,15 @@ return (
 <Badge color={scheduleStatusColor(sched.status)}>{sched.status}</Badge>
 </div>
 );
-})
-}
-</div>
-<div style={cardSt}>
-<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>{uiText("Tomorrow")} ({tomorrowScheds.length})</h3>
-{tomorrowScheds.length === 0 ? <p style={{ color: CL.muted, fontSize: 13 }}>{uiText("Nothing scheduled")}</p> :
-tomorrowScheds.map(sched => {
+})}
+/>
+<DashboardListCard
+title={uiText("Tomorrow")}
+count={tomorrowScheds.length}
+color={CL.gold}
+emptyText={uiText("Nothing scheduled")}
+initialVisible={4}
+items={tomorrowScheds.map(sched => {
 const client = data.clients.find(c => c.id === sched.clientId);
 const employee = data.employees.find(e => e.id === sched.employeeId);
 return (
@@ -3794,13 +3831,15 @@ return (
 <div style={{ fontSize: 11, color: CL.muted }}>{employee?.name || "—"} · {sched.startTime}–{sched.endTime}</div>
 </div>
 );
-})
-}
-</div>
-<div style={cardSt}>
-<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.green }}>{uiText("Active Clocks")} ({activeClocks.length})</h3>
-{activeClocks.length === 0 ? <p style={{ color: CL.muted, fontSize: 13 }}>{uiText("No one clocked in right now")}</p> :
-activeClocks.map(clk => {
+})}
+/>
+<DashboardListCard
+title={uiText("Active Clocks")}
+count={activeClocks.length}
+color={CL.green}
+emptyText={uiText("No one clocked in right now")}
+initialVisible={3}
+items={activeClocks.map(clk => {
 const employee = data.employees.find(e => e.id === clk.employeeId);
 const client = data.clients.find(c => c.id === clk.clientId);
 const elapsed = Math.round((Date.now() - new Date(clk.clockIn)) / 60000);
@@ -3811,13 +3850,15 @@ return (
 <div style={{ fontSize: 11, color: CL.green }}>{elapsed}{uiText("m elapsed")}</div>
 </div>
 );
-})
-}
-</div>
-<div style={cardSt}>
-<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>{uiText("Next 7 Days")} ({next7Scheds.length})</h3>
-{next7Scheds.length === 0 ? <p style={{ color: CL.muted, fontSize: 13 }}>{uiText("Nothing upcoming")}</p> :
-next7Scheds.slice(0, 6).map(sched => {
+})}
+/>
+<DashboardListCard
+title={uiText("Next 7 Days")}
+count={next7Scheds.length}
+color={CL.gold}
+emptyText={uiText("Nothing upcoming")}
+initialVisible={6}
+items={next7Scheds.map(sched => {
 const client = data.clients.find(c => c.id === sched.clientId);
 const employee = data.employees.find(e => e.id === sched.employeeId);
 return (
@@ -3828,13 +3869,15 @@ return (
 </div>
 </div>
 );
-})
-}
-{next7Scheds.length > 6 && <p style={{ fontSize: 11, color: CL.muted, marginTop: 6 }}>+{next7Scheds.length - 6} more</p>}
-</div>
-{auth?.role !== "manager" && <div style={cardSt}>
-<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>{uiText("Recent Invoices")}</h3>
-{data.invoices.length === 0 ? <p style={{ color: CL.muted, fontSize: 13 }}>{uiText("No invoices yet")}</p> : data.invoices.slice(-5).reverse().map(inv => {
+})}
+/>
+{auth?.role !== "manager" && <DashboardListCard
+title={uiText("Recent Invoices")}
+count={data.invoices.length}
+color={CL.gold}
+emptyText={uiText("No invoices yet")}
+initialVisible={5}
+items={data.invoices.slice().reverse().map(inv => {
 const client = data.clients.find(c => c.id === inv.clientId);
 return (
 <div key={inv.id} style={{ padding: "7px 0", borderBottom: `1px solid ${CL.bd}`, display: "flex", justifyContent: "space-between" }}>
@@ -3843,7 +3886,7 @@ return (
 </div>
 );
 })}
-</div>}
+/>}
 </div>
 </div>
 );

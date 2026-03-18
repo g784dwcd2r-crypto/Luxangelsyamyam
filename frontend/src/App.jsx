@@ -1425,12 +1425,15 @@ const toApiPayslip = (ps) => ({
   payslip_number: ps.payslipNumber,
   employee_id: ps.employeeId,
   month: ps.month,
+  period_start: ps.periodStart || null,
+  period_end: ps.periodEnd || null,
   total_hours: ps.totalHours || 0,
   hourly_rate: ps.hourlyRate || 0,
   gross_pay: ps.grossPay || 0,
   social_charges: ps.socialCharges || 0,
   tax_estimate: ps.taxEstimate || 0,
   net_pay: ps.netPay || 0,
+  hour_breakdown: Array.isArray(ps.hourBreakdown) ? ps.hourBreakdown : [],
   status: ps.status || "draft",
 });
 
@@ -2663,12 +2666,15 @@ useEffect(() => {
     payslipNumber: ps.payslip_number,
     employeeId: ps.employee_id,
     month: ps.month,
+    periodStart: ps.period_start || "",
+    periodEnd: ps.period_end || "",
     totalHours: Number(ps.total_hours) || 0,
     hourlyRate: Number(ps.hourly_rate) || 0,
     grossPay: Number(ps.gross_pay) || 0,
     socialCharges: Number(ps.social_charges) || 0,
     taxEstimate: Number(ps.tax_estimate) || 0,
     netPay: Number(ps.net_pay) || 0,
+    hourBreakdown: Array.isArray(ps.hour_breakdown) ? ps.hour_breakdown : [],
     status: ps.status || "draft",
   });
 
@@ -7234,18 +7240,27 @@ return (
 <div>
 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
 <h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold }}>Payslips</h1>
-<div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-<TextInput type="date" value={rangeStart} onChange={ev => setRangeStart(ev.target.value)} style={{ width: 165 }} />
-<TextInput type="date" value={rangeEnd} onChange={ev => setRangeEnd(ev.target.value)} style={{ width: 165 }} />
-<MultiSelectInput
-  options={employeeOptions}
-  value={selectedEmployees}
-  onChange={setSelectedEmployees}
-  placeholder="All active employees"
-  style={{ width: 250 }}
-/>
-<button style={btnPri} onClick={() => generatePayslips(false)}>{ICN.plus} Generate</button>
-<button style={btnSec} onClick={() => generatePayslips(true)}>{ICN.download} Generate + Download</button>
+<div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap", padding: 10, borderRadius: 12, border: `1px solid ${CL.bd}`, background: CL.sf }}>
+  <div>
+    <label style={{ display: "block", fontSize: 11, color: CL.muted, marginBottom: 4 }}>From</label>
+    <TextInput type="date" value={rangeStart} onChange={ev => setRangeStart(ev.target.value)} style={{ width: 165 }} />
+  </div>
+  <div>
+    <label style={{ display: "block", fontSize: 11, color: CL.muted, marginBottom: 4 }}>To</label>
+    <TextInput type="date" value={rangeEnd} onChange={ev => setRangeEnd(ev.target.value)} style={{ width: 165 }} />
+  </div>
+  <div>
+    <label style={{ display: "block", fontSize: 11, color: CL.muted, marginBottom: 4 }}>Employees</label>
+    <MultiSelectInput
+      options={employeeOptions}
+      value={selectedEmployees}
+      onChange={setSelectedEmployees}
+      placeholder="All active employees"
+      style={{ width: 260 }}
+    />
+  </div>
+  <button style={btnPri} onClick={() => generatePayslips(false)}>{ICN.plus} Generate</button>
+  <button style={btnSec} onClick={() => generatePayslips(true)}>{ICN.download} Generate + Download</button>
 </div>
 </div>
 <div style={cardSt} className="tbl-wrap">

@@ -132,12 +132,15 @@ CREATE TABLE IF NOT EXISTS payslips (
   payslip_number  TEXT NOT NULL UNIQUE,
   employee_id     TEXT REFERENCES employees(id) ON DELETE SET NULL,
   month           TEXT NOT NULL,
+  period_start    DATE,
+  period_end      DATE,
   total_hours     NUMERIC(8,2) NOT NULL DEFAULT 0,
   hourly_rate     NUMERIC(10,2) NOT NULL DEFAULT 0,
   gross_pay       NUMERIC(10,2) NOT NULL DEFAULT 0,
   social_charges  NUMERIC(10,2) NOT NULL DEFAULT 0,
   tax_estimate    NUMERIC(10,2) NOT NULL DEFAULT 0,
   net_pay         NUMERIC(10,2) NOT NULL DEFAULT 0,
+  hour_breakdown  JSONB NOT NULL DEFAULT '[]',
   status          TEXT NOT NULL DEFAULT 'draft',
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -292,6 +295,19 @@ DO $$ BEGIN
   END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='employees' AND column_name='theme') THEN
     ALTER TABLE employees ADD COLUMN theme TEXT NOT NULL DEFAULT 'dark';
+  END IF;
+END $$;
+
+-- Migration: enrich payslips with selected range and detailed hour audit lines
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='payslips' AND column_name='period_start') THEN
+    ALTER TABLE payslips ADD COLUMN period_start DATE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='payslips' AND column_name='period_end') THEN
+    ALTER TABLE payslips ADD COLUMN period_end DATE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='payslips' AND column_name='hour_breakdown') THEN
+    ALTER TABLE payslips ADD COLUMN hour_breakdown JSONB NOT NULL DEFAULT '[]';
   END IF;
 END $$;
 

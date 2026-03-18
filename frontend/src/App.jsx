@@ -2418,6 +2418,9 @@ const globalCSS = `
 .cal-side { flex: 0 0 280px; min-width: 240px; }
 .tbl-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .tbl-wrap table { min-width: 680px; }
+.tbl-wrap .employees-table { min-width: 0; width: 100%; table-layout: fixed; }
+.tbl-wrap .employees-table th,
+.tbl-wrap .employees-table td { white-space: normal; overflow-wrap: anywhere; word-break: break-word; vertical-align: top; }
 .modal-normal { width: 820px; max-width: 96vw; max-height: 92vh; padding: 36px !important; }
 .modal-wide { width: 1100px; max-width: 96vw; max-height: 92vh; padding: 42px !important; }
 .desk-sidebar { display: flex; }
@@ -4068,7 +4071,7 @@ return (
 </SelectInput>
 </div>
 <div style={cardSt} className="tbl-wrap">
-<table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+<table className="employees-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
 <thead>
 <tr><th style={thSt}>{uiText("Name")}</th><th style={thSt}>{uiText("Location Group")}</th><th style={thSt}>{uiText("Role")}</th><th style={thSt}>{uiText("Rate")}</th><th style={thSt}>{uiText("Contact")}</th><th style={thSt}>{uiText("Stage")}</th><th style={thSt}>{uiText("Assigned Clients")}</th><th style={thSt}>{uiText("Username")}</th><th style={thSt}>{uiText("Password")}</th><th style={thSt}>{uiText("Status")}</th><th style={thSt}>{uiText("Actions")}</th></tr>
 </thead>
@@ -4110,7 +4113,7 @@ return (
 
   {modal && (
     <ModalBox title={uiText(modal.id ? "Edit Employee" : "Add Employee")} onClose={() => setModal(null)}>
-      <EmployeeForm initialData={modal} onSave={handleSave} onCancel={() => setModal(null)} customRoles={data.settings?.customRoles || []} />
+      <EmployeeForm initialData={modal} onSave={handleSave} onCancel={() => setModal(null)} customRoles={data.settings?.customRoles || []} existingEmployees={data.employees || []} />
     </ModalBox>
   )}
 </div>
@@ -4119,12 +4122,25 @@ return (
 }
 
 const BUILTIN_ROLES = ["Manager", "Cleaning Agent", "Cleaner", "Senior Cleaner", "Team Lead", "Supervisor"];
+const EMPLOYEE_CITY_OPTIONS = ["Luxembourg", "Esch-sur-Alzette", "Differdange", "Dudelange", "Ettelbruck", "Diekirch", "Wiltz", "Grevenmacher", "Remich", "Mersch", "Strassen", "Bertrange", "Hesperange", "Sandweiler"];
+const COUNTRY_OPTIONS = ["Luxembourg", "France", "Belgium", "Germany", "Portugal", "Italy", "Spain", "Netherlands", "Romania", "Poland", "Cape Verde", "Brazil", "Morocco", "Ukraine"];
+const NATIONALITY_OPTIONS = ["Luxembourgish", "Portuguese", "French", "Belgian", "German", "Italian", "Spanish", "Dutch", "Romanian", "Polish", "Cape Verdean", "Brazilian", "Moroccan", "Ukrainian"];
+const LANGUAGE_OPTIONS = ["French", "English", "German", "Luxembourgish", "Portuguese", "Italian", "Spanish", "Dutch", "Romanian", "Polish", "Arabic", "Ukrainian"];
 
-function EmployeeForm({ initialData, onSave, onCancel, customRoles }) {
-const [form, setForm] = useState(initialData);
+function EmployeeForm({ initialData, onSave, onCancel, customRoles, existingEmployees = [] }) {
+const [form, setForm] = useState(() => ({
+  ...initialData,
+  languages: Array.isArray(initialData.languages)
+    ? initialData.languages
+    : String(initialData.languages || "").split(",").map(v => v.trim()).filter(Boolean),
+}));
 const [activeTab, setActiveTab] = useState("basic");
 
 const set = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
+const cityOptions = Array.from(new Set([...EMPLOYEE_CITY_OPTIONS, ...existingEmployees.map(e => e.city).filter(Boolean)])).sort((a, b) => a.localeCompare(b));
+const countryOptions = Array.from(new Set([...COUNTRY_OPTIONS, ...existingEmployees.map(e => e.country).filter(Boolean)])).sort((a, b) => a.localeCompare(b));
+const nationalityOptions = Array.from(new Set([...NATIONALITY_OPTIONS, ...existingEmployees.map(e => e.nationality).filter(Boolean)])).sort((a, b) => a.localeCompare(b));
+const languageOptions = Array.from(new Set([...LANGUAGE_OPTIONS, ...existingEmployees.flatMap(e => String(e.languages || "").split(",").map(v => v.trim()).filter(Boolean))])).sort((a, b) => a.localeCompare(b));
 
 const handleProfilePicChange = async (file) => {
   if (!file) return;
@@ -4182,16 +4198,49 @@ return (
       <Field label="Login Password"><TextInput maxLength={24} value={form.pin || "0000"} onChange={ev => set("pin", ev.target.value)} /></Field>
       <div style={{ gridColumn: "1/-1" }}><Field label="Address"><TextInput value={form.address} onChange={ev => set("address", ev.target.value)} placeholder="Street & house number" /></Field></div>
       <Field label="Postal Code"><TextInput value={form.postalCode || ""} onChange={ev => set("postalCode", ev.target.value)} placeholder="L-1234" /></Field>
-      <Field label="City"><TextInput value={form.city || ""} onChange={ev => set("city", ev.target.value)} /></Field>
-      <Field label="Country"><TextInput value={form.country || ""} onChange={ev => set("country", ev.target.value)} /></Field>
+      <Field label="City">
+        <SearchableSelectInput
+          options={cityOptions.map(city => ({ value: city, label: city }))}
+          value={form.city || ""}
+          onChange={(value) => set("city", value)}
+          placeholder={uiText("Select...")}
+          searchThreshold={0}
+        />
+      </Field>
+      <Field label="Country">
+        <SearchableSelectInput
+          options={countryOptions.map(country => ({ value: country, label: country }))}
+          value={form.country || ""}
+          onChange={(value) => set("country", value)}
+          placeholder={uiText("Select...")}
+          searchThreshold={0}
+        />
+      </Field>
     </div>
   )}
 
   {activeTab === "personal" && (
     <div className="form-grid">
       <Field label="Date of Birth"><DatePicker value={form.dateOfBirth || ""} onChange={ev => set("dateOfBirth", ev.target.value)} /></Field>
-      <Field label="Nationality"><TextInput value={form.nationality || ""} onChange={ev => set("nationality", ev.target.value)} placeholder="e.g. Portuguese" /></Field>
-      <Field label="Languages"><TextInput value={form.languages || ""} onChange={ev => set("languages", ev.target.value)} placeholder="FR, DE, PT, EN..." /></Field>
+      <Field label="Nationality">
+        <SearchableSelectInput
+          options={nationalityOptions.map(nationality => ({ value: nationality, label: nationality }))}
+          value={form.nationality || ""}
+          onChange={(value) => set("nationality", value)}
+          placeholder={uiText("Select...")}
+          searchThreshold={0}
+        />
+      </Field>
+      <Field label="Languages">
+        <MultiSelectInput
+          options={languageOptions.map(language => ({ value: language, label: language }))}
+          value={Array.isArray(form.languages) ? form.languages : []}
+          onChange={(values) => set("languages", values)}
+          placeholder={uiText("Select...")}
+          noResultsLabel="No results"
+          searchThreshold={0}
+        />
+      </Field>
       <Field label="Social Security No."><TextInput value={form.socialSecNumber || ""} onChange={ev => set("socialSecNumber", ev.target.value)} /></Field>
       <Field label="Transport">
         <SelectInput value={form.transport || ""} onChange={ev => set("transport", ev.target.value)}>
@@ -4248,7 +4297,7 @@ return (
 
   <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 10 }}>
     <button style={btnSec} onClick={onCancel}>{uiText("Cancel")}</button>
-    <button style={btnPri} onClick={() => form.name && onSave(form)}>{uiText("Save Employee")}</button>
+    <button style={btnPri} onClick={() => form.name && onSave({ ...form, languages: (form.languages || []).join(", ") })}>{uiText("Save Employee")}</button>
   </div>
 </div>
 

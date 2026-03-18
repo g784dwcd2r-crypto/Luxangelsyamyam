@@ -5063,7 +5063,6 @@ const [form, setForm] = useState(initialData);
 const set = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
 
 // Show client details when selected
-const selectedClient = data.clients.find(c => c.id === form.clientId);
 const selectedEmployee = data.employees.find(e => e.id === form.employeeId);
 const suggestedCleaner = recommendedCleanerForClient(selectedClient, data.employees || []);
 const isCompletedLocked = Boolean(form.id && form.status === "completed");
@@ -7140,7 +7139,6 @@ const [uploadingPhoto, setUploadingPhoto] = useState(false);
 const allVisits = (data.prospectVisits || []).slice().sort((a, b) => `${b.visitDate} ${b.visitTime}`.localeCompare(`${a.visitDate} ${a.visitTime}`));
 const visits = filterClient ? allVisits.filter(v => v.clientId === filterClient || (v.clientName && data.clients.find(c => c.id === filterClient)?.name?.toLowerCase() === v.clientName?.toLowerCase())) : allVisits;
 const prospects = data.clients.filter(c => c.status === "prospect" || c.status === "active");
-const selectedClient = data.clients.find(c => c.id === form.clientId);
 const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
 
 const handlePhotoUpload = (e) => {
@@ -7161,7 +7159,7 @@ const saveVisit = async () => {
 if (!form.clientId || !form.visitDate) { showToast(uiText("Select client and date"), "error"); return; }
 const client = data.clients.find(c => c.id === form.clientId);
 if (!client) { showToast(uiText("Select client and date"), "error"); return; }
-const payload = { ...form, id: makeId(), createdAt: new Date().toISOString(), address: client.address || "", clientName: client.name || "" };
+const payload = { ...form, id: makeId(), createdAt: new Date().toISOString(), address: (form.address || client.address || "").trim(), clientName: client.name || "" };
 try {
   const response = await fetch(apiUrl("/api/prospect-visits"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...payload, visitDate: payload.visitDate }) });
   await ensureApiOk(response, "Failed to save visit");
@@ -7197,7 +7195,7 @@ return (
         {prospects.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
       </SelectInput>
     </Field>
-    <Field label="Address"><TextInput value={selectedClient?.address || form.address || ""} readOnly placeholder={uiText("Visit address")} /></Field>
+    <Field label="Address"><TextInput value={form.address || ""} onChange={ev => set("address", ev.target.value)} placeholder={uiText("Visit address")} /></Field>
     <Field label="Visit date"><DatePicker value={form.visitDate} onChange={ev => set("visitDate", ev.target.value)} /></Field>
     <Field label="Visit time"><TimePicker value={form.visitTime} onChange={ev => set("visitTime", ev.target.value)} /></Field>
   </div>

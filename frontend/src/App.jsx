@@ -7100,13 +7100,14 @@ return (
 // ==============================================
 function VisitationPage({ data, updateData, showToast, setSection, setDevisSeed }) {
 const { t } = useI18n();
-const [form, setForm] = useState({ clientId: "", clientName: "", visitDate: getToday(), visitTime: "10:00", address: "", notes: "", status: "planned", photos: [] });
+const [form, setForm] = useState({ clientId: "", visitDate: getToday(), visitTime: "10:00", address: "", notes: "", status: "planned", photos: [] });
 const [filterClient, setFilterClient] = useState("");
 const [viewVisit, setViewVisit] = useState(null);
 const [uploadingPhoto, setUploadingPhoto] = useState(false);
 const allVisits = (data.prospectVisits || []).slice().sort((a, b) => `${b.visitDate} ${b.visitTime}`.localeCompare(`${a.visitDate} ${a.visitTime}`));
 const visits = filterClient ? allVisits.filter(v => v.clientId === filterClient || (v.clientName && data.clients.find(c => c.id === filterClient)?.name?.toLowerCase() === v.clientName?.toLowerCase())) : allVisits;
 const prospects = data.clients.filter(c => c.status === "prospect" || c.status === "active");
+const selectedClient = data.clients.find(c => c.id === form.clientId);
 const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
 
 const handlePhotoUpload = (e) => {
@@ -7124,16 +7125,16 @@ const handlePhotoUpload = (e) => {
 };
 
 const saveVisit = async () => {
-const nameOrId = form.clientName.trim() || form.clientId;
-if (!nameOrId || !form.visitDate) { showToast(uiText("Select client and date"), "error"); return; }
+if (!form.clientId || !form.visitDate) { showToast(uiText("Select client and date"), "error"); return; }
 const client = data.clients.find(c => c.id === form.clientId);
-const payload = { ...form, id: makeId(), createdAt: new Date().toISOString(), address: form.address || client?.address || "", clientName: form.clientName.trim() || client?.name || "" };
+if (!client) { showToast(uiText("Select client and date"), "error"); return; }
+const payload = { ...form, id: makeId(), createdAt: new Date().toISOString(), address: client.address || "", clientName: client.name || "" };
 try {
   const response = await fetch(apiUrl("/api/prospect-visits"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...payload, visitDate: payload.visitDate }) });
   await ensureApiOk(response, "Failed to save visit");
 } catch (err) { showToast("Failed to save visit to database", "error"); return; }
 updateData("prospectVisits", prev => [payload, ...(prev || [])]);
-setForm({ clientId: "", clientName: "", visitDate: getToday(), visitTime: "10:00", address: "", notes: "", status: "planned", photos: [] });
+setForm({ clientId: "", visitDate: getToday(), visitTime: "10:00", address: "", notes: "", status: "planned", photos: [] });
 showToast(uiText("Visit added"));
 };
 
@@ -7157,10 +7158,13 @@ return (
 <h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold, marginBottom: 16 }}>{t("visitationSchedule")}</h1>
 <div style={{ ...cardSt, marginBottom: 14 }}>
   <div className="form-grid">
-    <Field label={uiText("Prospect / Client name")}>
-      <TextInput value={form.clientName} onChange={ev => { const name = ev.target.value; const c = data.clients.find(x => x.name.toLowerCase() === name.toLowerCase()); setForm(v => ({ ...v, clientName: name, clientId: c?.id || "", address: v.address || c?.address || "" })); }} placeholder={uiText("New prospect name or address")} />
+    <Field label={uiText("Client")}>
+      <SelectInput value={form.clientId} onChange={ev => setForm(v => ({ ...v, clientId: ev.target.value, address: data.clients.find(c => c.id === ev.target.value)?.address || "" }))}>
+        <option value="">{uiText("Select...")}</option>
+        {prospects.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+      </SelectInput>
     </Field>
-    <Field label="Address"><TextInput value={form.address} onChange={ev => set("address", ev.target.value)} placeholder={uiText("Visit address")} /></Field>
+    <Field label="Address"><TextInput value={selectedClient?.address || form.address || ""} readOnly placeholder={uiText("Visit address")} /></Field>
     <Field label="Visit date"><DatePicker value={form.visitDate} onChange={ev => set("visitDate", ev.target.value)} /></Field>
     <Field label="Visit time"><TextInput type="time" value={form.visitTime} onChange={ev => set("visitTime", ev.target.value)} /></Field>
   </div>

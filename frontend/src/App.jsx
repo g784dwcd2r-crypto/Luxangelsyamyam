@@ -1013,86 +1013,167 @@ const fetchApiList = async (path) => {
   return Array.isArray(payload) ? payload : [];
 };
 
+const syncCollectionToApi = async ({ importedItems = [], listPath, deletePath, syncItem }) => {
+  const existing = await fetchApiList(listPath);
+  const importedIds = new Set(importedItems.map(item => item?.id).filter(Boolean));
+
+  for (const row of existing) {
+    if (row?.id && !importedIds.has(row.id)) await deletePath(row.id);
+  }
+
+  for (const item of importedItems) {
+    if (!item?.id) continue;
+    await syncItem(item);
+  }
+};
+
 const syncImportedDataToDb = async (imported) => {
   if (!imported || typeof imported !== "object") return;
 
   if (imported.settings && typeof imported.settings === "object") {
+    const settingsPayload = {
+      ...imported.settings,
+      ownerUsername: imported.ownerUsername || "",
+      ownerPin: imported.ownerPin || "",
+      managerUsername: imported.managerUsername || "",
+      managerPin: imported.managerPin || "",
+    };
     const response = await fetch(apiUrl("/api/settings"), {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(imported.settings),
+      body: JSON.stringify(settingsPayload),
     });
     await ensureApiOk(response, "Failed to sync settings");
   }
 
   if (Array.isArray(imported.employees)) {
-    const importedEmployees = imported.employees;
-    const existing = await fetchApiList("/api/employees");
-    const importedIds = new Set(importedEmployees.map(e => e.id));
-    for (const row of existing) {
-      if (row?.id && !importedIds.has(row.id)) await deleteEmployeeFromApi(row.id);
-    }
-    for (const emp of importedEmployees) {
+    await syncCollectionToApi({
+      importedItems: imported.employees,
+      listPath: "/api/employees",
+      deletePath: deleteEmployeeFromApi,
+      syncItem: async (emp) => {
       await syncEmployeeToApi(emp, imported.employeePins?.[emp.id], imported.employeeUsernames?.[emp.id]);
       if (imported.employeePins?.[emp.id] != null) await syncEmployeePinToApi(emp.id, imported.employeePins[emp.id]);
       if (emp.profilePicture !== undefined) await syncProfilePictureToApi(emp.id, emp.profilePicture || null);
-    }
+      },
+    });
   }
 
   if (Array.isArray(imported.clients)) {
-    const importedClients = imported.clients;
-    const existing = await fetchApiList("/api/clients");
-    const importedIds = new Set(importedClients.map(c => c.id));
-    for (const row of existing) {
-      if (row?.id && !importedIds.has(row.id)) await deleteClientFromApi(row.id);
-    }
-    for (const client of importedClients) await syncClientToApi(client);
+    await syncCollectionToApi({
+      importedItems: imported.clients,
+      listPath: "/api/clients",
+      deletePath: deleteClientFromApi,
+      syncItem: syncClientToApi,
+    });
   }
 
   if (Array.isArray(imported.schedules)) {
-    const importedSchedules = imported.schedules;
-    const existing = await fetchApiList("/api/schedules");
-    const importedIds = new Set(importedSchedules.map(sc => sc.id));
-    for (const row of existing) {
-      if (row?.id && !importedIds.has(row.id)) await deleteScheduleFromApi(row.id);
-    }
-    for (const sched of importedSchedules) await syncScheduleToApi(sched);
+    await syncCollectionToApi({
+      importedItems: imported.schedules,
+      listPath: "/api/schedules",
+      deletePath: deleteScheduleFromApi,
+      syncItem: syncScheduleToApi,
+    });
   }
 
   if (Array.isArray(imported.clockEntries)) {
-    const importedClockEntries = imported.clockEntries;
-    const existing = await fetchApiList("/api/clock-entries");
-    const importedIds = new Set(importedClockEntries.map(c => c.id));
-    for (const row of existing) {
-      if (row?.id && !importedIds.has(row.id)) {
-        const response = await fetch(apiUrl(`/api/clock-entries/${row.id}`), { method: "DELETE" });
-        await ensureApiOk(response, "Failed to delete clock entry");
-      }
-    }
-    for (const entry of importedClockEntries) await syncClockEntryToApi(entry);
+    await syncCollectionToApi({
+      importedItems: imported.clockEntries,
+      listPath: "/api/clock-entries",
+      deletePath: deleteClockEntryFromApi,
+      syncItem: syncClockEntryToApi,
+    });
   }
 
   if (Array.isArray(imported.invoices)) {
-    const importedInvoices = imported.invoices;
-    const existing = await fetchApiList("/api/invoices");
-    const importedIds = new Set(importedInvoices.map(inv => inv.id));
-    for (const row of existing) {
-      if (row?.id && !importedIds.has(row.id)) await deleteInvoiceFromApi(row.id);
-    }
-    for (const invoice of importedInvoices) await syncInvoiceToApi(invoice);
+    await syncCollectionToApi({
+      importedItems: imported.invoices,
+      listPath: "/api/invoices",
+      deletePath: deleteInvoiceFromApi,
+      syncItem: syncInvoiceToApi,
+    });
   }
 
   if (Array.isArray(imported.payslips)) {
-    const importedPayslips = imported.payslips;
-    const existing = await fetchApiList("/api/payslips");
-    const importedIds = new Set(importedPayslips.map(ps => ps.id));
-    for (const row of existing) {
-      if (row?.id && !importedIds.has(row.id)) {
-        const response = await fetch(apiUrl(`/api/payslips/${row.id}`), { method: "DELETE" });
-        await ensureApiOk(response, "Failed to delete payslip");
-      }
-    }
-    for (const payslip of importedPayslips) await syncPayslipToApi(payslip);
+    await syncCollectionToApi({
+      importedItems: imported.payslips,
+      listPath: "/api/payslips",
+      deletePath: deletePayslipFromApi,
+      syncItem: syncPayslipToApi,
+    });
+  }
+
+  if (Array.isArray(imported.quotes)) {
+    await syncCollectionToApi({
+      importedItems: imported.quotes,
+      listPath: "/api/quotes",
+      deletePath: deleteQuoteFromApi,
+      syncItem: syncQuoteToApi,
+    });
+  }
+
+  if (Array.isArray(imported.photoUploads)) {
+    await syncCollectionToApi({
+      importedItems: imported.photoUploads,
+      listPath: "/api/photo-uploads",
+      deletePath: deletePhotoUploadFromApi,
+      syncItem: syncPhotoUploadToApi,
+    });
+  }
+
+  if (Array.isArray(imported.timeOffRequests)) {
+    await syncCollectionToApi({
+      importedItems: imported.timeOffRequests,
+      listPath: "/api/time-off-requests",
+      deletePath: deleteTimeOffRequestFromApi,
+      syncItem: syncTimeOffRequestToApi,
+    });
+  }
+
+  if (Array.isArray(imported.inventoryProducts)) {
+    await syncCollectionToApi({
+      importedItems: imported.inventoryProducts,
+      listPath: "/api/inventory-products",
+      deletePath: deleteInventoryProductFromApi,
+      syncItem: syncInventoryProductToApi,
+    });
+  }
+
+  if (Array.isArray(imported.productRequests)) {
+    await syncCollectionToApi({
+      importedItems: imported.productRequests,
+      listPath: "/api/product-requests",
+      deletePath: deleteProductRequestFromApi,
+      syncItem: syncProductRequestToApi,
+    });
+  }
+
+  if (Array.isArray(imported.cleanerProductHoldings)) {
+    await syncCollectionToApi({
+      importedItems: imported.cleanerProductHoldings,
+      listPath: "/api/cleaner-product-holdings",
+      deletePath: deleteCleanerProductHoldingFromApi,
+      syncItem: syncCleanerProductHoldingToApi,
+    });
+  }
+
+  if (Array.isArray(imported.prospectVisits)) {
+    await syncCollectionToApi({
+      importedItems: imported.prospectVisits,
+      listPath: "/api/prospect-visits",
+      deletePath: deleteProspectVisitFromApi,
+      syncItem: syncProspectVisitToApi,
+    });
+  }
+
+  if (Array.isArray(imported.expenses)) {
+    await syncCollectionToApi({
+      importedItems: imported.expenses,
+      listPath: "/api/expenses",
+      deletePath: deleteExpenseFromApi,
+      syncItem: syncExpenseToApi,
+    });
   }
 };
 
@@ -1403,6 +1484,260 @@ const syncClockEntryToApi = async (entry) => {
     return;
   }
   await ensureApiOk(updateRes, "Failed to update clock entry");
+};
+
+const deleteClockEntryFromApi = async (id) => {
+  const response = await fetch(apiUrl(`/api/clock-entries/${id}`), { method: "DELETE" });
+  await ensureApiOk(response, "Failed to delete clock entry");
+};
+
+const deletePayslipFromApi = async (id) => {
+  const response = await fetch(apiUrl(`/api/payslips/${id}`), { method: "DELETE" });
+  await ensureApiOk(response, "Failed to delete payslip");
+};
+
+const deleteApiResourceIfPresent = async (path) => {
+  const response = await fetch(apiUrl(path), { method: "DELETE" });
+  if (response.status === 404) return;
+  await ensureApiOk(response, `Failed to delete ${path}`);
+};
+
+const toApiQuote = (quote) => ({
+  id: quote.id,
+  quoteNumber: quote.quoteNumber || "",
+  date: quote.date || "",
+  clientId: quote.clientId || null,
+  status: quote.status || "draft",
+  items: quote.items || [],
+  subtotal: Number(quote.subtotal) || 0,
+  vatRate: Number(quote.vatRate) || 17,
+  vatAmount: Number(quote.vatAmount) || 0,
+  total: Number(quote.total) || 0,
+  notes: quote.notes || "",
+  pricingMode: quote.pricingMode || "hours",
+  jobSchedule: quote.jobSchedule || {},
+  visibleColumns: quote.visibleColumns || {},
+});
+
+const syncQuoteToApi = async (quote) => {
+  const payload = toApiQuote(quote);
+  const updateRes = await fetch(apiUrl(`/api/quotes/${quote.id}`), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (updateRes.status === 404) {
+    const createRes = await fetch(apiUrl("/api/quotes"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    await ensureApiOk(createRes, "Failed to create quote");
+    return;
+  }
+  await ensureApiOk(updateRes, "Failed to update quote");
+};
+
+const deleteQuoteFromApi = async (id) => {
+  const response = await fetch(apiUrl(`/api/quotes/${id}`), { method: "DELETE" });
+  await ensureApiOk(response, "Failed to delete quote");
+};
+
+const toApiPhotoUpload = (upload) => ({
+  id: upload.id,
+  employeeId: upload.employeeId || null,
+  clientId: upload.clientId || null,
+  clockEntryId: upload.clockEntryId || null,
+  fileName: upload.fileName || "",
+  imageData: upload.imageData || "",
+  note: upload.note || "",
+  type: upload.type || "issue",
+  seenByOwner: upload.seenByOwner === true,
+});
+
+const syncPhotoUploadToApi = async (upload) => {
+  await deleteApiResourceIfPresent(`/api/photo-uploads/${upload.id}`);
+  const response = await fetch(apiUrl("/api/photo-uploads"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(toApiPhotoUpload(upload)),
+  });
+  await ensureApiOk(response, "Failed to sync photo upload");
+};
+
+const deletePhotoUploadFromApi = async (id) => {
+  const response = await fetch(apiUrl(`/api/photo-uploads/${id}`), { method: "DELETE" });
+  await ensureApiOk(response, "Failed to delete photo upload");
+};
+
+const toApiTimeOffRequest = (request) => ({
+  id: request.id,
+  employeeId: request.employeeId || null,
+  startDate: request.startDate,
+  endDate: request.endDate,
+  requestedDays: Number(request.requestedDays) || leaveDaysInclusive(request.startDate, request.endDate) || 1,
+  reason: request.reason || "",
+  leaveType: request.leaveType || "conge",
+  status: request.status || "pending",
+});
+
+const syncTimeOffRequestToApi = async (request) => {
+  await deleteApiResourceIfPresent(`/api/time-off-requests/${request.id}`);
+  const response = await fetch(apiUrl("/api/time-off-requests"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(toApiTimeOffRequest(request)),
+  });
+  await ensureApiOk(response, "Failed to sync time-off request");
+};
+
+const deleteTimeOffRequestFromApi = async (id) => {
+  const response = await fetch(apiUrl(`/api/time-off-requests/${id}`), { method: "DELETE" });
+  await ensureApiOk(response, "Failed to delete time-off request");
+};
+
+const toApiInventoryProduct = (product) => ({
+  id: product.id,
+  name: product.name || "",
+  unit: product.unit || "pcs",
+  stock: Number(product.stock) || 0,
+  minStock: Number(product.minStock) || 0,
+  note: product.note || "",
+  active: product.active !== false,
+});
+
+const syncInventoryProductToApi = async (product) => {
+  const payload = toApiInventoryProduct(product);
+  const updateRes = await fetch(apiUrl(`/api/inventory-products/${product.id}`), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (updateRes.status === 404) {
+    const createRes = await fetch(apiUrl("/api/inventory-products"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    await ensureApiOk(createRes, "Failed to create inventory product");
+    return;
+  }
+  await ensureApiOk(updateRes, "Failed to update inventory product");
+};
+
+const deleteInventoryProductFromApi = async (id) => {
+  const response = await fetch(apiUrl(`/api/inventory-products/${id}`), { method: "DELETE" });
+  await ensureApiOk(response, "Failed to delete inventory product");
+};
+
+const toApiProductRequest = (request) => ({
+  id: request.id,
+  employeeId: request.employeeId || null,
+  productId: request.productId || null,
+  quantity: Number(request.quantity) || 1,
+  note: request.note || "",
+  deliveryAt: request.deliveryAt || "",
+  status: request.status || "pending",
+  approvedQty: Number(request.approvedQty) || 0,
+  deliveredQty: Number(request.deliveredQty) || 0,
+});
+
+const syncProductRequestToApi = async (request) => {
+  await deleteApiResourceIfPresent(`/api/product-requests/${request.id}`);
+  const response = await fetch(apiUrl("/api/product-requests"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(toApiProductRequest(request)),
+  });
+  await ensureApiOk(response, "Failed to sync product request");
+};
+
+const deleteProductRequestFromApi = async (id) => {
+  const response = await fetch(apiUrl(`/api/product-requests/${id}`), { method: "DELETE" });
+  await ensureApiOk(response, "Failed to delete product request");
+};
+
+const toApiCleanerProductHolding = (holding) => ({
+  id: holding.id,
+  employeeId: holding.employeeId || null,
+  productId: holding.productId || null,
+  qtyInHand: Number(holding.qtyInHand) || 0,
+});
+
+const syncCleanerProductHoldingToApi = async (holding) => {
+  await deleteApiResourceIfPresent(`/api/cleaner-product-holdings/${holding.id}`);
+  const response = await fetch(apiUrl("/api/cleaner-product-holdings"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(toApiCleanerProductHolding(holding)),
+  });
+  await ensureApiOk(response, "Failed to sync cleaner product holding");
+};
+
+const deleteCleanerProductHoldingFromApi = async (id) => {
+  const response = await fetch(apiUrl(`/api/cleaner-product-holdings/${id}`), { method: "DELETE" });
+  await ensureApiOk(response, "Failed to delete cleaner product holding");
+};
+
+const toApiProspectVisit = (visit) => ({
+  id: visit.id,
+  clientId: visit.clientId || null,
+  visitDate: visit.visitDate,
+  visitTime: visit.visitTime || "",
+  address: visit.address || "",
+  notes: visit.notes || "",
+  status: visit.status || "planned",
+  photos: visit.photos || [],
+});
+
+const syncProspectVisitToApi = async (visit) => {
+  await deleteApiResourceIfPresent(`/api/prospect-visits/${visit.id}`);
+  const response = await fetch(apiUrl("/api/prospect-visits"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(toApiProspectVisit(visit)),
+  });
+  await ensureApiOk(response, "Failed to sync prospect visit");
+};
+
+const deleteProspectVisitFromApi = async (id) => {
+  const response = await fetch(apiUrl(`/api/prospect-visits/${id}`), { method: "DELETE" });
+  await ensureApiOk(response, "Failed to delete prospect visit");
+};
+
+const toApiExpense = (expense) => ({
+  id: expense.id,
+  name: expense.name || "",
+  amount: Number(expense.amount) || 0,
+  dueDay: Number(expense.dueDay) || 1,
+  category: expense.category || "other",
+  note: expense.note || expense.notes || "",
+  isActive: expense.isActive !== false,
+  payments: Array.isArray(expense.payments) ? expense.payments : [],
+});
+
+const syncExpenseToApi = async (expense) => {
+  const payload = toApiExpense(expense);
+  const updateRes = await fetch(apiUrl(`/api/expenses/${expense.id}`), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (updateRes.status === 404) {
+    const createRes = await fetch(apiUrl("/api/expenses"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    await ensureApiOk(createRes, "Failed to create expense");
+    return;
+  }
+  await ensureApiOk(updateRes, "Failed to update expense");
+};
+
+const deleteExpenseFromApi = async (id) => {
+  const response = await fetch(apiUrl(`/api/expenses/${id}`), { method: "DELETE" });
+  await ensureApiOk(response, "Failed to delete expense");
 };
 
 const getLeaveSummary = (data, employeeId, year = getToday().slice(0, 4)) => {

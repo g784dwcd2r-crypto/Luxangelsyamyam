@@ -1812,6 +1812,9 @@ async function initDb() {
     "ALTER TABLE clients ADD COLUMN IF NOT EXISTS notes TEXT",
     "ALTER TABLE clients ADD COLUMN IF NOT EXISTS meta JSONB NOT NULL DEFAULT '{}'::jsonb",
     "ALTER TABLE schedules ADD COLUMN IF NOT EXISTS payment_status TEXT NOT NULL DEFAULT 'unpaid'",
+    "ALTER TABLE payslips ADD COLUMN IF NOT EXISTS period_start DATE",
+    "ALTER TABLE payslips ADD COLUMN IF NOT EXISTS period_end DATE",
+    "ALTER TABLE payslips ADD COLUMN IF NOT EXISTS hour_breakdown JSONB NOT NULL DEFAULT '[]'",
 
     // Legacy prospect_visits tables were created before all columns existed.
     // Ensure inserts from VisitationPage keep working on older databases.

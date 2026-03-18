@@ -1923,22 +1923,48 @@ const StatCard = ({ label, value, icon, color = CL.gold }) => (
 
 const MiniBars = ({ title, items = [], accent = CL.gold }) => {
   const max = Math.max(1, ...items.map(item => item.value || 0));
+  const chartWidth = 360;
+  const chartHeight = 120;
+  const xStep = items.length > 1 ? chartWidth / (items.length - 1) : chartWidth;
+  const points = items.map((item, index) => {
+    const value = item.value || 0;
+    const x = items.length > 1 ? index * xStep : chartWidth / 2;
+    const y = chartHeight - (value / max) * (chartHeight - 20) - 10;
+    return { ...item, x, y, value };
+  });
+  const linePoints = points.map(p => `${p.x},${p.y}`).join(" ");
+
   return (
-    <div style={{ ...cardSt, borderTop: `3px solid ${accent}` }} className="grid-span-2">
+    <div style={{ ...cardSt, borderTop: `3px solid ${accent}` }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
         <h3 style={{ fontSize: 14, fontWeight: 600, color: accent }}>{title}</h3>
         <span style={{ fontSize: 11, color: CL.muted }}>{items.reduce((sum, item) => sum + (item.value || 0), 0)} {uiText("total")}</span>
       </div>
-      <div style={{ display: "grid", gap: 8 }}>
+      <div style={{ marginTop: 10, marginBottom: 10 }}>
+        <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} style={{ width: "100%", height: 130, overflow: "visible" }}>
+          <line x1="0" y1={chartHeight - 10} x2={chartWidth} y2={chartHeight - 10} stroke={CL.bd} strokeWidth="1" />
+          <polyline
+            fill="none"
+            stroke={accent}
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            points={linePoints}
+          />
+          {points.map(point => (
+            <g key={point.label}>
+              <circle cx={point.x} cy={point.y} r="4.5" fill={point.color || accent} />
+              <text x={point.x} y={point.y - 10} textAnchor="middle" fontSize="11" fill={CL.text} style={{ fontWeight: 600 }}>
+                {point.value}
+              </text>
+            </g>
+          ))}
+        </svg>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(items.length, 1)}, minmax(0, 1fr))`, gap: 6 }}>
         {items.map(item => (
-          <div key={item.label}>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 4 }}>
-              <span style={{ color: CL.muted }}>{item.label}</span>
-              <strong style={{ color: CL.text }}>{item.value}</strong>
-            </div>
-            <div style={{ height: 8, borderRadius: 999, background: CL.s2, overflow: "hidden" }}>
-              <div style={{ height: "100%", width: `${item.value ? Math.max(10, (item.value || 0) / max * 100) : 0}%`, background: item.color || accent, borderRadius: 999, transition: "width .3s ease" }} />
-            </div>
+          <div key={`${item.label}-label`} style={{ textAlign: "center", fontSize: 11, color: CL.muted, lineHeight: 1.3 }}>
+            {item.label}
           </div>
         ))}
       </div>

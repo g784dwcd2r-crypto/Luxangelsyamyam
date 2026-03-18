@@ -1114,11 +1114,11 @@ app.post('/api/payslips', async (req, res) => {
     if (absent.length) return res.status(400).json({ error: `Missing required fields: ${absent.join(', ')}` });
 
     const result = await pool.query(
-      `INSERT INTO payslips (id, payslip_number, employee_id, month, total_hours, hourly_rate,
-        gross_pay, social_charges, tax_estimate, net_pay, status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
-      [b.id, b.payslip_number, b.employee_id, b.month, b.total_hours||0, b.hourly_rate||0,
-       b.gross_pay||0, b.social_charges||0, b.tax_estimate||0, b.net_pay||0, b.status||'draft']
+      `INSERT INTO payslips (id, payslip_number, employee_id, month, period_start, period_end, total_hours, hourly_rate,
+        gross_pay, social_charges, tax_estimate, net_pay, hour_breakdown, status)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
+      [b.id, b.payslip_number, b.employee_id, b.month, b.period_start || null, b.period_end || null, b.total_hours || 0, b.hourly_rate || 0,
+       b.gross_pay || 0, b.social_charges || 0, b.tax_estimate || 0, b.net_pay || 0, JSON.stringify(Array.isArray(b.hour_breakdown) ? b.hour_breakdown : []), b.status || 'draft']
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -1131,12 +1131,12 @@ app.put('/api/payslips/:id', async (req, res) => {
   try {
     const b = req.body;
     const result = await pool.query(
-      `UPDATE payslips SET payslip_number=$1, employee_id=$2, month=$3, total_hours=$4,
-        hourly_rate=$5, gross_pay=$6, social_charges=$7, tax_estimate=$8, net_pay=$9, status=$10
-       WHERE id=$11 RETURNING *`,
-      [b.payslip_number, b.employee_id, b.month, b.total_hours||0, b.hourly_rate||0,
-       b.gross_pay||0, b.social_charges||0, b.tax_estimate||0, b.net_pay||0,
-       b.status||'draft', req.params.id]
+      `UPDATE payslips SET payslip_number=$1, employee_id=$2, month=$3, period_start=$4, period_end=$5, total_hours=$6,
+        hourly_rate=$7, gross_pay=$8, social_charges=$9, tax_estimate=$10, net_pay=$11, hour_breakdown=$12, status=$13
+       WHERE id=$14 RETURNING *`,
+      [b.payslip_number, b.employee_id, b.month, b.period_start || null, b.period_end || null, b.total_hours || 0, b.hourly_rate || 0,
+       b.gross_pay || 0, b.social_charges || 0, b.tax_estimate || 0, b.net_pay || 0, JSON.stringify(Array.isArray(b.hour_breakdown) ? b.hour_breakdown : []),
+       b.status || 'draft', req.params.id]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Payslip not found' });
     res.json(result.rows[0]);

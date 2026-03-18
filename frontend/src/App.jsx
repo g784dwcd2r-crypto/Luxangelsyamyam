@@ -3678,21 +3678,6 @@ const _dashTodayDay = new Date().getDate();
 const dashExpOverdue = (data.expenses || []).filter(exp => exp.isActive !== false && !((exp.payments || []).some(p => p.month === monthStr)) && exp.dueDay < _dashTodayDay);
 const dashExpDueToday = (data.expenses || []).filter(exp => exp.isActive !== false && !((exp.payments || []).some(p => p.month === monthStr)) && exp.dueDay === _dashTodayDay);
 const dashExpDueSoon = (data.expenses || []).filter(exp => exp.isActive !== false && !((exp.payments || []).some(p => p.month === monthStr)) && exp.dueDay > _dashTodayDay && exp.dueDay <= _dashTodayDay + 3);
-const weekLoad = Array.from({ length: 7 }, (_, offset) => {
-  const date = new Date(Date.now() + offset * 864e5);
-  const key = date.toISOString().slice(0, 10);
-  return {
-    label: date.toLocaleDateString(localeForLang(CURRENT_LANG), { weekday: "short" }),
-    value: data.schedules.filter(s => s.date === key && s.status !== "cancelled").length,
-    color: offset === 0 ? CL.gold : CL.blue,
-  };
-});
-const invoiceStatusBars = [
-  { label: uiText("draft"), value: data.invoices.filter(inv => effectiveInvoiceStatus(inv) === "draft").length, color: CL.muted },
-  { label: uiText("sent"), value: data.invoices.filter(inv => effectiveInvoiceStatus(inv) === "sent").length, color: CL.blue },
-  { label: uiText("paid"), value: data.invoices.filter(inv => effectiveInvoiceStatus(inv) === "paid").length, color: CL.green },
-  { label: uiText("overdue"), value: data.invoices.filter(inv => effectiveInvoiceStatus(inv) === "overdue").length, color: CL.red },
-];
 
 return (
 <div>
@@ -3720,8 +3705,6 @@ return (
 {auth?.role !== "manager" && unpaidTotal > 0 && <StatCard label={uiText("Unpaid")} value={`€${unpaidTotal.toFixed(0)}`} icon={ICN.pay} color={CL.red} />}
 </div>
 <div className="grid-2">
-<MiniBars title={uiText("7-day workload")} items={weekLoad} accent={CL.blue} />
-{auth?.role !== "manager" && <MiniBars title={uiText("Invoice pipeline")} items={invoiceStatusBars} accent={CL.gold} />}
 <div style={cardSt}>
 <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>{uiText("Today's Schedule")} ({todayScheds.length})</h3>
 {todayScheds.length === 0 ? <p style={{ color: CL.muted, fontSize: 13 }}>{uiText("No jobs scheduled today")}</p> :

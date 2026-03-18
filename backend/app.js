@@ -16,6 +16,16 @@ const app = express();
 // Trust reverse proxy (Render, etc.) so rate-limiting uses real IPs
 app.set('trust proxy', 1);
 
+// Basic security headers — no external dependency needed
+app.use((_req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  next();
+});
+
 // Middleware — explicit CORS so every browser (Safari, Firefox, Chrome) gets
 // the right preflight response regardless of which origin is calling.
 const ALLOWED_ORIGINS = [
@@ -1723,6 +1733,23 @@ app.patch('/api/prospect-visits/:id', async (req, res) => {
   }
 });
 
+app.put('/api/prospect-visits/:id', async (req, res) => {
+  try {
+    const b = req.body;
+    const result = await pool.query(
+      `UPDATE prospect_visits SET client_id=$1, visit_date=$2, visit_time=$3, address=$4, notes=$5, status=$6, photos=$7, updated_at=NOW()
+       WHERE id=$8 RETURNING *`,
+      [b.clientId || null, b.visitDate, b.visitTime || '', b.address || '',
+       b.notes || '', b.status || 'planned', JSON.stringify(b.photos || []), req.params.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Visit not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
 app.delete('/api/prospect-visits/:id', async (req, res) => {
   try {
     const result = await pool.query('DELETE FROM prospect_visits WHERE id=$1 RETURNING id', [req.params.id]);
@@ -1991,8 +2018,6 @@ initDb().then(() => {
 // Pings our own health endpoint every 10 minutes so the server stays awake 24/7.
 // ---------------------------------------------------------------------------
 function startKeepAlive() {
-  const https = require('https');
-  const http = require('http');
   const SELF_URL = (process.env.RENDER_EXTERNAL_URL || 'https://luxangelsyamyam-api.onrender.com').replace(/\/$/, '');
   const PING_URL = `${SELF_URL}/api/health/db`;
   const INTERVAL_MS = 10 * 60 * 1000; // every 10 minutes

@@ -623,6 +623,12 @@ const UI_FR = {
 "No users yet. Add users from the Employees tab.": "Aucun utilisateur pour le moment. Ajoutez des utilisateurs depuis l'onglet Employés.",
 "Deactivate": "Désactiver",
 "User deactivated": "Utilisateur désactivé",
+"Search users...": "Rechercher des utilisateurs...",
+"Delete user": "Supprimer l'utilisateur",
+"Delete this user?": "Supprimer cet utilisateur ?",
+"User deleted": "Utilisateur supprimé",
+"Show more": "Voir plus",
+"Show less": "Voir moins",
 "Role already exists": "Le rôle existe déjà",
 "Financial rules": "Règles financières",
 "Planning behavior": "Comportement du planning",
@@ -9138,6 +9144,8 @@ const [newRoleName, setNewRoleName] = useState("");
 const [saveBanner, setSaveBanner] = useState("");
 const [errors, setErrors] = useState({});
 const [isWipingData, setIsWipingData] = useState(false);
+const [userSearch, setUserSearch] = useState("");
+const [usersShowAll, setUsersShowAll] = useState(false);
 
 useEffect(() => {
   setForm(data.settings);
@@ -9338,19 +9346,51 @@ return (
   {activeTab === "team" && <div style={{ ...cardSt, marginTop: 14 }}>
     <h3 style={{ color: CL.gold, marginTop: 0 }}>{uiText("Users & permissions")}</h3>
     <div style={{ ...cardSt, padding: 16, marginBottom: 12 }}>
-      <div style={{ fontWeight: 600, marginBottom: 8 }}>{uiText("Users")}</div>
-      <div style={{ display: "grid", gap: 8 }}>
-        {users.map(u => <div key={u.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: CL.s2, border: `1px solid ${CL.bd}`, borderRadius: 8, padding: "8px 10px" }}>
-          <div><strong>{u.name}</strong> · {u.role} · <span style={{ color: u.status === "active" ? CL.green : CL.red }}>{u.status}</span></div>
-          <button style={btnSec} onClick={() => {
-            if (!window.confirm(uiText("Deactivate this user?").replace("{name}", u.name))) return;
-            const next = (data.employees || []).map(emp => emp.id === u.id ? { ...emp, status: "inactive" } : emp);
-            setData(prev => ({ ...prev, employees: next }));
-            showToast(uiText("User deactivated"), "success");
-          }}>{uiText("Deactivate")}</button>
-        </div>)}
-        {users.length === 0 && <div style={{ fontSize: 12, color: CL.muted }}>{uiText("No users yet. Add users from the Employees tab.")}</div>}
+      <div style={{ fontWeight: 600, marginBottom: 10 }}>{uiText("Users")}</div>
+      <div style={{ position: "relative", marginBottom: 10 }}>
+        <TextInput
+          placeholder={uiText("Search users...")}
+          value={userSearch}
+          onChange={ev => { setUserSearch(ev.target.value); setUsersShowAll(false); }}
+          style={{ paddingLeft: 34 }}
+        />
+        <span style={{ position: "absolute", left: 10, top: 10, color: CL.muted }}>{ICN.search}</span>
       </div>
+      {(() => {
+        const filtered = users.filter(u => {
+          const q = userSearch.toLowerCase();
+          return !q || u.name.toLowerCase().includes(q) || (u.role || "").toLowerCase().includes(q) || (u.status || "").toLowerCase().includes(q);
+        });
+        const VISIBLE = 5;
+        const shown = usersShowAll ? filtered : filtered.slice(0, VISIBLE);
+        return (
+          <div>
+            <div style={{ display: "grid", gap: 8, maxHeight: usersShowAll ? "none" : `${VISIBLE * 54}px`, overflowY: usersShowAll ? "visible" : "auto" }}>
+              {shown.map(u => (
+                <div key={u.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: CL.s2, border: `1px solid ${CL.bd}`, borderRadius: 8, padding: "8px 10px" }}>
+                  <div><strong>{u.name}</strong> · {u.role} · <span style={{ color: u.status === "active" ? CL.green : CL.red }}>{u.status}</span></div>
+                  <button style={btnDng} onClick={async () => {
+                    if (!window.confirm(`${uiText("Delete this user?")} (${u.name})`)) return;
+                    try {
+                      await deleteEmployeeFromApi(u.id);
+                      setData(prev => ({ ...prev, employees: (prev.employees || []).filter(emp => emp.id !== u.id) }));
+                      showToast(uiText("User deleted"), "success");
+                    } catch (err) {
+                      showToast(err.message || "Error", "error");
+                    }
+                  }}>{uiText("Delete")}</button>
+                </div>
+              ))}
+              {filtered.length === 0 && <div style={{ fontSize: 12, color: CL.muted }}>{uiText("No users yet. Add users from the Employees tab.")}</div>}
+            </div>
+            {filtered.length > VISIBLE && (
+              <button style={{ ...btnSec, marginTop: 8, fontSize: 12 }} onClick={() => setUsersShowAll(v => !v)}>
+                {usersShowAll ? uiText("Show less") : `${uiText("Show more")} (${filtered.length - VISIBLE})`}
+              </button>
+            )}
+          </div>
+        );
+      })()}
     </div>
 
     <div style={{ ...cardSt, padding: 16 }}>

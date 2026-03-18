@@ -1,5 +1,5 @@
 // Bump this version string whenever you deploy changes to force cache refresh
-const CACHE_VERSION = 'v4';
+const CACHE_VERSION = 'v5';
 const CACHE_NAME = `lux-angels-cache-${CACHE_VERSION}`;
 const APP_SHELL = ['/', '/manifest.webmanifest'];
 

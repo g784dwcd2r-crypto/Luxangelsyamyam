@@ -2423,6 +2423,21 @@ const globalCSS = `
 .tbl-wrap .employees-table td { vertical-align: top; }
 .tbl-wrap .employees-table th { white-space: nowrap; }
 .tbl-wrap .employees-table .emp-name-cell { min-width: 220px; }
+.tbl-wrap .employees-table thead .emp-name-cell {
+  position: sticky;
+  left: 0;
+  z-index: 4;
+  background: ${CL.sf};
+  box-shadow: 1px 0 0 ${CL.bd};
+}
+.tbl-wrap .employees-table tbody .emp-name-cell {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: ${CL.sf};
+  box-shadow: 1px 0 0 ${CL.bd};
+}
+.tbl-wrap .employees-table tbody tr:hover .emp-name-cell { background: ${CL.s2}; }
 .tbl-wrap .employees-table .emp-location-cell { min-width: 150px; }
 .tbl-wrap .employees-table .emp-role-cell { min-width: 130px; white-space: nowrap; }
 .tbl-wrap .employees-table .emp-rate-cell { min-width: 100px; white-space: nowrap; }

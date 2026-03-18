@@ -4921,10 +4921,58 @@ if (hasRange) {
       if (cur.getUTCDay() !== 0 && cur.getUTCDay() !== 6) items.push({ ...base, id: makeId(), date: cur.toISOString().slice(0, 10), updatedAt: stamp });
       cur.setUTCDate(cur.getUTCDate() + 1);
     }
+  } else if (["2x-weekly","3x-weekly","4x-weekly"].includes(schedData.recurrence)) {
+    const dayNames = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+    const selectedDayIndexes = (schedData.recurrenceDays || []).map(d => dayNames.indexOf(d)).filter(idx => idx >= 0);
+    if (selectedDayIndexes.length === 0) { showToast(uiText("Select days:"), "error"); return; }
+    while (cur <= end) {
+      if (selectedDayIndexes.includes(cur.getUTCDay())) {
+        items.push({ ...base, id: makeId(), date: cur.toISOString().slice(0, 10), updatedAt: stamp });
+      }
+      cur.setUTCDate(cur.getUTCDate() + 1);
+    }
   } else if (schedData.recurrence === "weekly") {
-    while (cur <= end) { items.push({ ...base, id: makeId(), date: cur.toISOString().slice(0, 10), updatedAt: stamp }); cur.setUTCDate(cur.getUTCDate() + 7); }
+    const dayNames = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+    const selectedDayIndexes = (schedData.recurrenceDays || []).map(d => dayNames.indexOf(d)).filter(idx => idx >= 0);
+    if (selectedDayIndexes.length > 0) {
+      while (cur <= end) {
+        if (selectedDayIndexes.includes(cur.getUTCDay())) {
+          items.push({ ...base, id: makeId(), date: cur.toISOString().slice(0, 10), updatedAt: stamp });
+        }
+        cur.setUTCDate(cur.getUTCDate() + 1);
+      }
+    } else {
+      while (cur <= end) { items.push({ ...base, id: makeId(), date: cur.toISOString().slice(0, 10), updatedAt: stamp }); cur.setUTCDate(cur.getUTCDate() + 7); }
+    }
   } else if (schedData.recurrence === "biweekly") {
-    while (cur <= end) { items.push({ ...base, id: makeId(), date: cur.toISOString().slice(0, 10), updatedAt: stamp }); cur.setUTCDate(cur.getUTCDate() + 14); }
+    const dayNames = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+    const selectedDayIndexes = (schedData.recurrenceDays || []).map(d => dayNames.indexOf(d)).filter(idx => idx >= 0);
+    if (selectedDayIndexes.length > 0) {
+      let cursor = new Date(schedData.date);
+      while (cursor <= end) {
+        selectedDayIndexes.forEach(dow => {
+          const d = new Date(cursor);
+          const diff = (dow - d.getUTCDay() + 7) % 7;
+          d.setUTCDate(d.getUTCDate() + diff);
+          if (d >= new Date(schedData.date) && d <= end) {
+            items.push({ ...base, id: makeId(), date: d.toISOString().slice(0, 10), updatedAt: stamp });
+          }
+        });
+        cursor.setUTCDate(cursor.getUTCDate() + 14);
+      }
+      const seen = new Set();
+      const uniqueItems = [];
+      items.forEach(item => {
+        if (!seen.has(item.date)) {
+          seen.add(item.date);
+          uniqueItems.push(item);
+        }
+      });
+      items.length = 0;
+      items.push(...uniqueItems.sort((a, b) => a.date.localeCompare(b.date)));
+    } else {
+      while (cur <= end) { items.push({ ...base, id: makeId(), date: cur.toISOString().slice(0, 10), updatedAt: stamp }); cur.setUTCDate(cur.getUTCDate() + 14); }
+    }
   } else if (schedData.recurrence === "monthly") {
     while (cur <= end) { items.push({ ...base, id: makeId(), date: cur.toISOString().slice(0, 10), updatedAt: stamp }); cur.setUTCMonth(cur.getUTCMonth() + 1); }
   } else {
@@ -5218,6 +5266,42 @@ const previewJobCount = (() => {
     const interval = form.recurrence === "daily" ? 1 : form.recurrence === "daily-weekdays" ? 1 : form.recurrence === "weekly" ? 7 : form.recurrence === "biweekly" ? 14 : 28;
     if (form.recurrence === "daily-weekdays") {
       while (cur <= end) { if (cur.getUTCDay() !== 0 && cur.getUTCDay() !== 6) count++; cur.setUTCDate(cur.getUTCDate() + 1); }
+    } else if (["2x-weekly","3x-weekly","4x-weekly"].includes(form.recurrence)) {
+      const dayNames = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+      const selectedDayIndexes = (form.recurrenceDays || []).map(d => dayNames.indexOf(d)).filter(idx => idx >= 0);
+      if (selectedDayIndexes.length === 0) return 0;
+      while (cur <= end) {
+        if (selectedDayIndexes.includes(cur.getUTCDay())) count++;
+        cur.setUTCDate(cur.getUTCDate() + 1);
+      }
+    } else if (form.recurrence === "weekly" || form.recurrence === "biweekly") {
+      const dayNames = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+      const selectedDayIndexes = (form.recurrenceDays || []).map(d => dayNames.indexOf(d)).filter(idx => idx >= 0);
+      if (selectedDayIndexes.length > 0) {
+        if (form.recurrence === "weekly") {
+          while (cur <= end) {
+            if (selectedDayIndexes.includes(cur.getUTCDay())) count++;
+            cur.setUTCDate(cur.getUTCDate() + 1);
+          }
+        } else {
+          let cursor = new Date(form.date);
+          const seen = new Set();
+          while (cursor <= end) {
+            selectedDayIndexes.forEach(dow => {
+              const d = new Date(cursor);
+              const diff = (dow - d.getUTCDay() + 7) % 7;
+              d.setUTCDate(d.getUTCDate() + diff);
+              if (d >= new Date(form.date) && d <= end) {
+                seen.add(d.toISOString().slice(0, 10));
+              }
+            });
+            cursor.setUTCDate(cursor.getUTCDate() + 14);
+          }
+          count = seen.size;
+        }
+      } else {
+        while (cur <= end) { count++; cur.setUTCDate(cur.getUTCDate() + interval); }
+      }
     } else {
       while (cur <= end) { count++; cur.setUTCDate(cur.getUTCDate() + interval); }
     }
@@ -5276,10 +5360,10 @@ return (
 </Field>
 <Field label={uiText("Start")}><TimePicker value={form.startTime} onChange={ev => set("startTime", ev.target.value)} disabled={isCompletedLocked} /></Field>
 <Field label={uiText("End")}><TimePicker value={form.endTime} onChange={ev => set("endTime", ev.target.value)} disabled={isCompletedLocked} /></Field>
-{!form.id && !hasDateRange && (
+{!form.id && (
 <Field label={uiText("Recurrence")}>
 <SelectInput value={form.recurrence} onChange={ev => set("recurrence", ev.target.value)} disabled={isCompletedLocked}>
-<option value="none">{uiText("One-time")}</option>
+<option value="none">{hasDateRange ? uiText("Every day") : uiText("One-time")}</option>
 <option value="daily">{uiText("Daily (weekends included)")}</option>
 <option value="daily-weekdays">{uiText("Daily (weekdays only)")}</option>
 <option value="weekly">{uiText("Weekly (12 weeks)")}</option>
@@ -5313,13 +5397,6 @@ return (
     {(form.recurrenceDays || []).length === 0 && <div style={{ fontSize: 11, color: CL.orange, marginTop: 4 }}>{uiText("Select days:")}</div>}
   </div>
 )}
-</Field>
-)}
-{!form.id && hasDateRange && (
-<Field label={uiText("Interval in range")}>
-<SelectInput value={form.recurrence} onChange={ev => set("recurrence", ev.target.value)}>
-<option value="none">{uiText("Every day")}</option><option value="daily-weekdays">{uiText("Daily (weekdays only)")}</option><option value="weekly">{uiText("Weekly")}</option><option value="biweekly">{uiText("Bi-weekly")}</option><option value="monthly">{uiText("Monthly")}</option>
-</SelectInput>
 </Field>
 )}
 </div>

@@ -895,6 +895,31 @@ emailSignature: "Best regards,\nLux Angels Cleaning Team\ninfo@luxangels.lu | +3
 communicationChannel: "email",
 communicationCampaignSubject: "Lux Angels update",
 communicationCampaignBody: "Hello, this is your scheduled client communication from Lux Angels.",
+communicationOwnerManagerChannels: { email: true, sms: true, whatsapp: true },
+communicationOwnerManagerEvents: {
+clockInOut: true,
+lateArrival: true,
+timeOffRequest: true,
+timeOffApproval: true,
+scheduleChange: true,
+invoiceOverdue: true,
+},
+communicationCleanerChannels: { email: false, sms: true, whatsapp: true },
+communicationCleanerEvents: {
+jobReminder: true,
+jobRescheduled: true,
+lateAlert: false,
+vacationApproval: true,
+vacationRequestStatus: true,
+},
+communicationClientChannels: { email: true, sms: true, whatsapp: false },
+communicationClientEvents: {
+jobCompleted: true,
+jobReminder: true,
+jobRescheduled: true,
+invoiceSent: true,
+paymentReceived: true,
+},
 },
 };
 
@@ -988,7 +1013,17 @@ const NUMBER_SETTING_KEYS = new Set([
   "maxJobsPerEmployeePerDay", "lateToleranceMinutes", "minStockThreshold", "autoClockOutAfterHours",
   "autoMarkOverdueDays",
 ]);
-const JSON_SETTING_KEYS = new Set(["publicHolidays", "customRoles", "rolePermissions"]);
+const JSON_SETTING_KEYS = new Set([
+  "publicHolidays",
+  "customRoles",
+  "rolePermissions",
+  "communicationOwnerManagerChannels",
+  "communicationOwnerManagerEvents",
+  "communicationCleanerChannels",
+  "communicationCleanerEvents",
+  "communicationClientChannels",
+  "communicationClientEvents",
+]);
 const parseJsonSafe = (raw, fallback) => {
   try {
     const parsed = JSON.parse(raw);
@@ -8405,6 +8440,8 @@ const { t, lang } = useI18n();
 const settings = data?.settings || DEFAULTS.settings;
 const clientsList = Array.isArray(data?.clients) ? data.clients.filter(c => c && typeof c === "object") : [];
 const invoicesList = Array.isArray(data?.invoices) ? data.invoices.filter(inv => inv && typeof inv === "object") : [];
+const schedulesList = Array.isArray(data?.schedules) ? data.schedules.filter(s => s && typeof s === "object") : [];
+const timeOffRequests = Array.isArray(data?.timeOffRequests) ? data.timeOffRequests.filter(r => r && typeof r === "object") : [];
 const defaultSubject = lang === "fr" ? "Actualités Lux Angels" : "Lux Angels update";
 const defaultBody = lang === "fr" ? "Bonjour, voici notre communication périodique de la part de Lux Angels Cleaning." : "Hello, this is your scheduled client communication from Lux Angels.";
 const [channel, setChannel] = useState(settings.communicationChannel || "email");
@@ -8412,11 +8449,48 @@ const [selectedClientIds, setSelectedClientIds] = useState([]);
 const [clientSearch, setClientSearch] = useState("");
 const [campaignSubject, setCampaignSubject] = useState(settings.communicationCampaignSubject || defaultSubject);
 const [campaignBody, setCampaignBody] = useState(settings.communicationCampaignBody || defaultBody);
+const [audienceTab, setAudienceTab] = useState("owner_manager");
+const [ownerManagerChannels, setOwnerManagerChannels] = useState(settings.communicationOwnerManagerChannels || DEFAULTS.settings.communicationOwnerManagerChannels);
+const [ownerManagerEvents, setOwnerManagerEvents] = useState(settings.communicationOwnerManagerEvents || DEFAULTS.settings.communicationOwnerManagerEvents);
+const [cleanerChannels, setCleanerChannels] = useState(settings.communicationCleanerChannels || DEFAULTS.settings.communicationCleanerChannels);
+const [cleanerEvents, setCleanerEvents] = useState(settings.communicationCleanerEvents || DEFAULTS.settings.communicationCleanerEvents);
+const [clientChannels, setClientChannels] = useState(settings.communicationClientChannels || DEFAULTS.settings.communicationClientChannels);
+const [clientEvents, setClientEvents] = useState(settings.communicationClientEvents || DEFAULTS.settings.communicationClientEvents);
+
+const firstEnabledChannel = useCallback((channels = {}, fallback = "email") => {
+  const order = ["email", "sms", "whatsapp"];
+  return order.find(mode => channels?.[mode]) || fallback;
+}, []);
+
 useEffect(() => {
   setChannel(settings.communicationChannel || "email");
   setCampaignSubject(settings.communicationCampaignSubject || defaultSubject);
   setCampaignBody(settings.communicationCampaignBody || defaultBody);
-}, [settings.communicationChannel, settings.communicationCampaignSubject, settings.communicationCampaignBody, defaultBody, defaultSubject]);
+  setOwnerManagerChannels(settings.communicationOwnerManagerChannels || DEFAULTS.settings.communicationOwnerManagerChannels);
+  setOwnerManagerEvents(settings.communicationOwnerManagerEvents || DEFAULTS.settings.communicationOwnerManagerEvents);
+  setCleanerChannels(settings.communicationCleanerChannels || DEFAULTS.settings.communicationCleanerChannels);
+  setCleanerEvents(settings.communicationCleanerEvents || DEFAULTS.settings.communicationCleanerEvents);
+  setClientChannels(settings.communicationClientChannels || DEFAULTS.settings.communicationClientChannels);
+  setClientEvents(settings.communicationClientEvents || DEFAULTS.settings.communicationClientEvents);
+}, [
+  settings.communicationChannel,
+  settings.communicationCampaignSubject,
+  settings.communicationCampaignBody,
+  settings.communicationOwnerManagerChannels,
+  settings.communicationOwnerManagerEvents,
+  settings.communicationCleanerChannels,
+  settings.communicationCleanerEvents,
+  settings.communicationClientChannels,
+  settings.communicationClientEvents,
+  defaultBody,
+  defaultSubject,
+]);
+
+useEffect(() => {
+  if (audienceTab === "clients") {
+    setChannel(firstEnabledChannel(clientChannels, "email"));
+  }
+}, [audienceTab, clientChannels, firstEnabledChannel]);
 
 const clients = clientsList.filter(c => c.status === "active");
 const selectedClients = clients.filter(c => selectedClientIds.includes(c.id));
@@ -8434,6 +8508,12 @@ const saveCommunicationSettings = async ({ silent = false } = {}) => {
     communicationChannel: channel,
     communicationCampaignSubject: campaignSubject,
     communicationCampaignBody: campaignBody,
+    communicationOwnerManagerChannels: ownerManagerChannels,
+    communicationOwnerManagerEvents: ownerManagerEvents,
+    communicationCleanerChannels: cleanerChannels,
+    communicationCleanerEvents: cleanerEvents,
+    communicationClientChannels: clientChannels,
+    communicationClientEvents: clientEvents,
   };
   try {
     const nextSettings = normalizeSettingsPayload({ ...(settings || {}), ...patch }, settings || DEFAULTS.settings);
@@ -8547,6 +8627,72 @@ const dispatch = async (mode, payload, client) => {
   return false;
 };
 
+const channelModes = [
+  { id: "email", label: uiText("Email") },
+  { id: "sms", label: uiText("SMS") },
+  { id: "whatsapp", label: uiText("WhatsApp") },
+];
+const ownerManagerEventDefs = [
+  { id: "clockInOut", label: lang === "fr" ? "Pointage entrée/sortie" : "Clock in / out" },
+  { id: "lateArrival", label: lang === "fr" ? "Employé en retard" : "Employee late" },
+  { id: "timeOffRequest", label: lang === "fr" ? "Demande de congé" : "Time off request" },
+  { id: "timeOffApproval", label: lang === "fr" ? "Validation de congé" : "Time off approved / rejected" },
+  { id: "scheduleChange", label: lang === "fr" ? "Changement de planning" : "Schedule update" },
+  { id: "invoiceOverdue", label: lang === "fr" ? "Facture en retard" : "Overdue invoice" },
+];
+const cleanerEventDefs = [
+  { id: "jobReminder", label: lang === "fr" ? "Rappel d'intervention" : "Job reminder" },
+  { id: "jobRescheduled", label: lang === "fr" ? "Intervention replanifiée" : "Job rescheduled" },
+  { id: "lateAlert", label: lang === "fr" ? "Alerte retard" : "Late alert" },
+  { id: "vacationApproval", label: lang === "fr" ? "Validation congé" : "Vacation approval" },
+  { id: "vacationRequestStatus", label: lang === "fr" ? "Statut demande congé" : "Vacation request status" },
+];
+const clientEventDefs = [
+  { id: "jobCompleted", label: lang === "fr" ? "Intervention terminée" : "Job completed" },
+  { id: "jobReminder", label: lang === "fr" ? "Rappel de passage" : "Upcoming visit reminder" },
+  { id: "jobRescheduled", label: lang === "fr" ? "Rendez-vous replanifié" : "Rescheduled visit" },
+  { id: "invoiceSent", label: lang === "fr" ? "Facture envoyée" : "Invoice sent" },
+  { id: "paymentReceived", label: lang === "fr" ? "Paiement reçu" : "Payment received" },
+];
+
+const toggleMapValue = (setter, key) => setter(prev => ({ ...(prev || {}), [key]: !prev?.[key] }));
+const activeCount = (obj = {}) => Object.values(obj).filter(Boolean).length;
+
+const pendingLeaveCount = timeOffRequests.filter(req => req.status === "pending").length;
+const lateTodayCount = schedulesList.filter(s => s.date === getToday() && s.status === "scheduled").length;
+const completedTodayCount = schedulesList.filter(s => s.date === getToday() && s.status === "completed").length;
+const rescheduledCount = schedulesList.filter(s => s.status === "cancelled" || s.status === "rescheduled").length;
+
+const renderAudienceConfigurator = ({ title, description, channelsState, onToggleChannel, eventDefs, eventsState, onToggleEvent, helperText }) => (
+  <div style={{ ...cardSt }}>
+    <h3 style={{ fontSize: 15, color: CL.gold, marginTop: 0, marginBottom: 4 }}>{title}</h3>
+    <div style={{ color: CL.muted, fontSize: 13, marginBottom: 10 }}>{description}</div>
+    <div style={{ marginBottom: 12 }}>
+      <div style={{ fontSize: 12, color: CL.muted, marginBottom: 6 }}>{lang === "fr" ? "Canaux actifs" : "Active channels"}</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))", gap: 8 }}>
+        {channelModes.map(mode => (
+          <label key={mode.id} style={{ ...inputSt, display: "flex", gap: 8, alignItems: "center", cursor: "pointer" }}>
+            <input type="checkbox" checked={!!channelsState?.[mode.id]} onChange={() => onToggleChannel(mode.id)} />
+            <span>{mode.label}</span>
+          </label>
+        ))}
+      </div>
+    </div>
+    <div>
+      <div style={{ fontSize: 12, color: CL.muted, marginBottom: 6 }}>{lang === "fr" ? "Déclencheurs de notification" : "Notification triggers"}</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(210px,1fr))", gap: 8 }}>
+        {eventDefs.map(item => (
+          <label key={item.id} style={{ ...inputSt, display: "flex", gap: 8, alignItems: "center", cursor: "pointer" }}>
+            <input type="checkbox" checked={!!eventsState?.[item.id]} onChange={() => onToggleEvent(item.id)} />
+            <span style={{ fontSize: 13 }}>{item.label}</span>
+          </label>
+        ))}
+      </div>
+    </div>
+    {helperText ? <div style={{ color: CL.dim, fontSize: 12, marginTop: 10 }}>{helperText}</div> : null}
+  </div>
+);
+
 const followups = invoicesList
   .filter(inv => {
     if (!inv?.id || !inv?.clientId) return false;
@@ -8618,6 +8764,77 @@ return (
       {providerChip(uiText("SMS"), !!settings.companyPhone)}
       {providerChip(uiText("WhatsApp"), !!settings.companyWhatsApp)}
       {providerChip(uiText("Zoho"), true)}
+    </div>
+
+    <div style={{ ...cardSt, marginBottom: 12 }}>
+      <FormTabs
+        tabs={[
+          { id: "owner_manager", label: lang === "fr" ? "Owner & Manager" : "Owner & Manager" },
+          { id: "cleaners", label: lang === "fr" ? "Cleaners" : "Cleaners" },
+          { id: "clients", label: lang === "fr" ? "Clients" : "Clients" },
+        ]}
+        active={audienceTab}
+        onChange={setAudienceTab}
+      />
+      {audienceTab === "owner_manager" && renderAudienceConfigurator({
+        title: lang === "fr" ? "Owner & Manager" : "Owner & Manager",
+        description: lang === "fr"
+          ? "Configurez WhatsApp / Email / SMS pour les alertes d'exploitation et de supervision."
+          : "Configure WhatsApp / Email / SMS for operational and supervision alerts.",
+        channelsState: ownerManagerChannels,
+        onToggleChannel: (key) => toggleMapValue(setOwnerManagerChannels, key),
+        eventDefs: ownerManagerEventDefs,
+        eventsState: ownerManagerEvents,
+        onToggleEvent: (key) => toggleMapValue(setOwnerManagerEvents, key),
+        helperText: lang === "fr"
+          ? `Aujourd'hui: ${lateTodayCount} interventions planifiées, ${pendingLeaveCount} demandes de congé en attente.`
+          : `Today: ${lateTodayCount} scheduled jobs, ${pendingLeaveCount} pending leave requests.`,
+      })}
+      {audienceTab === "cleaners" && renderAudienceConfigurator({
+        title: lang === "fr" ? "Cleaners" : "Cleaners",
+        description: lang === "fr"
+          ? "Le propriétaire active les notifications de terrain envoyées aux agents."
+          : "Owner controls field notifications sent to cleaners.",
+        channelsState: cleanerChannels,
+        onToggleChannel: (key) => toggleMapValue(setCleanerChannels, key),
+        eventDefs: cleanerEventDefs,
+        eventsState: cleanerEvents,
+        onToggleEvent: (key) => toggleMapValue(setCleanerEvents, key),
+        helperText: lang === "fr"
+          ? `Connecté au planning: ${lateTodayCount} interventions du jour et ${rescheduledCount} changements détectés.`
+          : `Connected to schedule data: ${lateTodayCount} jobs today and ${rescheduledCount} schedule changes.`,
+      })}
+      {audienceTab === "clients" && renderAudienceConfigurator({
+        title: lang === "fr" ? "Clients" : "Clients",
+        description: lang === "fr"
+          ? "Activez les communications clients après passage, replanification et suivi facturation."
+          : "Enable client communications for completion, rescheduling and billing updates.",
+        channelsState: clientChannels,
+        onToggleChannel: (key) => {
+          toggleMapValue(setClientChannels, key);
+          setChannel(firstEnabledChannel({ ...(clientChannels || {}), [key]: !clientChannels?.[key] }, channel));
+        },
+        eventDefs: clientEventDefs,
+        eventsState: clientEvents,
+        onToggleEvent: (key) => toggleMapValue(setClientEvents, key),
+        helperText: lang === "fr"
+          ? `Connecté aux interventions: ${completedTodayCount} terminées aujourd'hui.`
+          : `Connected to operations: ${completedTodayCount} jobs completed today.`,
+      })}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", gap: 8, marginTop: 10 }}>
+        <div style={{ ...inputSt, textAlign: "center" }}>
+          <div style={{ fontSize: 11, color: CL.muted }}>{lang === "fr" ? "Owner/Manager actifs" : "Owner/Manager active"}</div>
+          <div style={{ fontWeight: 700, color: CL.gold }}>{activeCount(ownerManagerEvents)} {lang === "fr" ? "événements" : "events"}</div>
+        </div>
+        <div style={{ ...inputSt, textAlign: "center" }}>
+          <div style={{ fontSize: 11, color: CL.muted }}>{lang === "fr" ? "Cleaners actifs" : "Cleaners active"}</div>
+          <div style={{ fontWeight: 700, color: CL.gold }}>{activeCount(cleanerEvents)} {lang === "fr" ? "événements" : "events"}</div>
+        </div>
+        <div style={{ ...inputSt, textAlign: "center" }}>
+          <div style={{ fontSize: 11, color: CL.muted }}>{lang === "fr" ? "Clients actifs" : "Clients active"}</div>
+          <div style={{ fontWeight: 700, color: CL.gold }}>{activeCount(clientEvents)} {lang === "fr" ? "événements" : "events"}</div>
+        </div>
+      </div>
     </div>
 
     <div style={{ ...cardSt, marginBottom: 12 }}>

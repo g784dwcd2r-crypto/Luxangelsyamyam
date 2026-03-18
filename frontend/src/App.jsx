@@ -8020,7 +8020,7 @@ const settings = data?.settings || DEFAULTS.settings;
 const [mainTab, setMainTab] = useState("reminders");
 
 // ── Send / Reminders state ────────────────────────
-const [channel, setChannel] = useState("email");
+const [channel, setChannel] = useState("zoho");
 const [workflowType, setWorkflowType] = useState("all");
 const [selectedOnly, setSelectedOnly] = useState(false);
 const [selectedClientIds, setSelectedClientIds] = useState([]);
@@ -8029,7 +8029,7 @@ const [showClientPicker, setShowClientPicker] = useState(false);
 
 // ── Campaign state ────────────────────────────────
 const [campaignFrequency, setCampaignFrequency] = useState("weekly");
-const [campaignChannel, setCampaignChannel] = useState("email");
+const [campaignChannel, setCampaignChannel] = useState("zoho");
 const [campaignSubject, setCampaignSubject] = useState(lang === "fr" ? "Actualités Lux Angels" : "Lux Angels update");
 const [campaignBody, setCampaignBody] = useState(lang === "fr" ? "Bonjour, voici notre communication périodique de la part de Lux Angels Cleaning." : "Hello, this is your scheduled client communication from Lux Angels.");
 
@@ -8058,8 +8058,8 @@ const visibleClients = normalizedSearch
 
 const toggleClient = (id) => setSelectedClientIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
-const firstEnabledChannel = useCallback((channels = {}, fallback = "email") => {
-  const order = ["email", "sms", "whatsapp"];
+const firstEnabledChannel = useCallback((channels = {}, fallback = "zoho") => {
+  const order = ["zoho", "sms", "whatsapp"];
   return order.find(mode => channels?.[mode]) || fallback;
 }, []);
 
@@ -8085,26 +8085,6 @@ useEffect(() => {
   }
 }, [audienceTab, clientChannels, firstEnabledChannel]);
 
-const sendPlatformEmail = async ({ to, subject, body, from }) => {
-if (!to) { showToast(uiText("Client email missing"), "error"); return false; }
-try {
-const response = await fetch(apiUrl('/api/notifications/email'), {
-method: 'POST',
-headers: { 'Content-Type': 'application/json' },
-body: JSON.stringify({ to, subject, body, from }),
-});
-if (!response.ok) {
-const errPayload = await response.json().catch(() => ({}));
-throw new Error(errPayload.error || 'Unable to send email');
-}
-return true;
-} catch (err) {
-console.error(err);
-const fallbackEmailError = !err?.message || /load failed|failed to fetch/i.test(err.message);
-showToast(fallbackEmailError ? uiText("Unable to send email") : err.message, "error");
-return false;
-}
-};
 const openWhatsApp = ({ phone, message }) => {
 if (!phone) { showToast(uiText("Client phone missing"), "error"); return false; }
 const cleaned = String(phone).replace(/[^\d+]/g, "").replace(/^00/, "+");
@@ -8182,7 +8162,6 @@ if (mode === "whatsapp") {
   return openWhatsApp({ phone: targetPhone, message: payload.body });
 }
 if (mode === "sms") return sendPlatformSMS({ to: client.phoneMobile || client.phone, body: payload.body });
-if (mode === "email") return sendPlatformEmail({ to: client.email, subject: payload.subject, body: payload.body });
 if (mode === "zoho") return openZohoCompose({ to: client.email, subject: payload.subject, body: payload.body });
 return openZohoCompose({ to: client.email, subject: payload.subject, body: payload.body });
 };
@@ -8342,7 +8321,7 @@ const saveCommunicationSettings = async ({ silent = false } = {}) => {
 
 // ── Notification rules definitions ────────────────
 const channelModes = [
-  { id: "email", label: uiText("Email") },
+  { id: "zoho", label: uiText("Email") },
   { id: "sms", label: uiText("SMS") },
   { id: "whatsapp", label: uiText("WhatsApp") },
 ];
@@ -8432,10 +8411,9 @@ return (
 
   {/* Channel status bar */}
   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 8, marginBottom: 18 }}>
-    {providerChip(uiText("Email"), !!settings.companyEmail)}
+    {providerChip(uiText("Email"), true)}
     {providerChip(uiText("SMS"), !!settings.companyPhone)}
     {providerChip(uiText("WhatsApp"), !!settings.companyWhatsApp)}
-    {providerChip(uiText("Zoho"), true)}
   </div>
 
   {/* Main tabs */}
@@ -8510,10 +8488,9 @@ return (
         <div>
           <div style={{ fontSize: 12, color: CL.muted, marginBottom: 6 }}>{uiText("Channel")}</div>
           <SelectInput value={channel} onChange={ev => setChannel(ev.target.value)}>
-            <option value="email">{uiText("Email")}</option>
+            <option value="zoho">{uiText("Email")}</option>
             <option value="sms">{uiText("SMS")}</option>
             <option value="whatsapp">{uiText("WhatsApp")}</option>
-            <option value="zoho">{uiText("Zoho")}</option>
           </SelectInput>
         </div>
         <div style={{ ...statChip, textAlign: "center" }}>{uiText("Ready reminders:")} {filtered.length}</div>
@@ -8587,10 +8564,9 @@ return (
         </Field>
         <Field label={uiText("Channel")}>
           <SelectInput value={campaignChannel} onChange={ev => setCampaignChannel(ev.target.value)}>
-            <option value="email">{uiText("Email")}</option>
+            <option value="zoho">{uiText("Email")}</option>
             <option value="sms">{uiText("SMS")}</option>
             <option value="whatsapp">{uiText("WhatsApp")}</option>
-            <option value="zoho">{uiText("Zoho")}</option>
           </SelectInput>
         </Field>
       </div>

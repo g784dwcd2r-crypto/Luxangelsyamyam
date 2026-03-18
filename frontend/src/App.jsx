@@ -8439,16 +8439,9 @@ function CommunicationFlowsPage({ data, updateData, showToast }) {
 const { t, lang } = useI18n();
 const settings = data?.settings || DEFAULTS.settings;
 const clientsList = Array.isArray(data?.clients) ? data.clients.filter(c => c && typeof c === "object") : [];
-const invoicesList = Array.isArray(data?.invoices) ? data.invoices.filter(inv => inv && typeof inv === "object") : [];
 const schedulesList = Array.isArray(data?.schedules) ? data.schedules.filter(s => s && typeof s === "object") : [];
 const timeOffRequests = Array.isArray(data?.timeOffRequests) ? data.timeOffRequests.filter(r => r && typeof r === "object") : [];
-const defaultSubject = lang === "fr" ? "Actualités Lux Angels" : "Lux Angels update";
-const defaultBody = lang === "fr" ? "Bonjour, voici notre communication périodique de la part de Lux Angels Cleaning." : "Hello, this is your scheduled client communication from Lux Angels.";
 const [channel, setChannel] = useState(settings.communicationChannel || "email");
-const [selectedClientIds, setSelectedClientIds] = useState([]);
-const [clientSearch, setClientSearch] = useState("");
-const [campaignSubject, setCampaignSubject] = useState(settings.communicationCampaignSubject || defaultSubject);
-const [campaignBody, setCampaignBody] = useState(settings.communicationCampaignBody || defaultBody);
 const [audienceTab, setAudienceTab] = useState("owner_manager");
 const [ownerManagerChannels, setOwnerManagerChannels] = useState(settings.communicationOwnerManagerChannels || DEFAULTS.settings.communicationOwnerManagerChannels);
 const [ownerManagerEvents, setOwnerManagerEvents] = useState(settings.communicationOwnerManagerEvents || DEFAULTS.settings.communicationOwnerManagerEvents);
@@ -8464,8 +8457,6 @@ const firstEnabledChannel = useCallback((channels = {}, fallback = "email") => {
 
 useEffect(() => {
   setChannel(settings.communicationChannel || "email");
-  setCampaignSubject(settings.communicationCampaignSubject || defaultSubject);
-  setCampaignBody(settings.communicationCampaignBody || defaultBody);
   setOwnerManagerChannels(settings.communicationOwnerManagerChannels || DEFAULTS.settings.communicationOwnerManagerChannels);
   setOwnerManagerEvents(settings.communicationOwnerManagerEvents || DEFAULTS.settings.communicationOwnerManagerEvents);
   setCleanerChannels(settings.communicationCleanerChannels || DEFAULTS.settings.communicationCleanerChannels);
@@ -8474,16 +8465,12 @@ useEffect(() => {
   setClientEvents(settings.communicationClientEvents || DEFAULTS.settings.communicationClientEvents);
 }, [
   settings.communicationChannel,
-  settings.communicationCampaignSubject,
-  settings.communicationCampaignBody,
   settings.communicationOwnerManagerChannels,
   settings.communicationOwnerManagerEvents,
   settings.communicationCleanerChannels,
   settings.communicationCleanerEvents,
   settings.communicationClientChannels,
   settings.communicationClientEvents,
-  defaultBody,
-  defaultSubject,
 ]);
 
 useEffect(() => {
@@ -8492,22 +8479,9 @@ useEffect(() => {
   }
 }, [audienceTab, clientChannels, firstEnabledChannel]);
 
-const clients = clientsList.filter(c => c.status === "active");
-const selectedClients = clients.filter(c => selectedClientIds.includes(c.id));
-const normalizedSearch = clientSearch.trim().toLowerCase();
-const filteredClients = normalizedSearch
-  ? clients.filter(c => `${c.name || ""} ${c.contactPerson || ""} ${c.email || ""} ${c.phone || ""} ${c.phoneMobile || ""}`.toLowerCase().includes(normalizedSearch))
-  : clients;
-
-const toggleClient = (id) => {
-  setSelectedClientIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-};
-
 const saveCommunicationSettings = async ({ silent = false } = {}) => {
   const patch = {
     communicationChannel: channel,
-    communicationCampaignSubject: campaignSubject,
-    communicationCampaignBody: campaignBody,
     communicationOwnerManagerChannels: ownerManagerChannels,
     communicationOwnerManagerEvents: ownerManagerEvents,
     communicationCleanerChannels: cleanerChannels,
@@ -8531,100 +8505,6 @@ const saveCommunicationSettings = async ({ silent = false } = {}) => {
     if (!silent) showToast(uiText("Failed to save communication settings"), "error");
     return false;
   }
-};
-
-const signatureBlock = settings.emailSignature
-  ? `\n\n--\n${settings.emailSignature}`
-  : `\n\n${lang === "fr" ? "Cordialement" : "Best regards"},\n${settings.companyName}${settings.companyEmail ? `\n${settings.companyEmail}` : ""}${settings.companyPhone ? ` | ${settings.companyPhone}` : ""}`;
-
-const sendPlatformEmail = async ({ to, subject, body }) => {
-  if (!to) { showToast(uiText("Client email missing"), "error"); return false; }
-  try {
-    const response = await fetch(apiUrl('/api/notifications/email'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ to, subject, body }),
-    });
-    if (!response.ok) {
-      const errPayload = await response.json().catch(() => ({}));
-      throw new Error(errPayload.error || 'Unable to send email');
-    }
-    return true;
-  } catch (err) {
-    console.error(err);
-    const fallbackEmailError = !err?.message || /load failed|failed to fetch/i.test(err.message);
-    showToast(fallbackEmailError ? uiText("Unable to send email") : err.message, "error");
-    return false;
-  }
-};
-
-const sendPlatformSMS = async ({ to, body }) => {
-  if (!to) { showToast(uiText("Client phone missing"), "error"); return false; }
-  try {
-    const response = await fetch(apiUrl('/api/notifications/sms'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ to, body }),
-    });
-    if (!response.ok) {
-      const errPayload = await response.json().catch(() => ({}));
-      throw new Error(errPayload.error || 'Unable to send SMS');
-    }
-    return true;
-  } catch (err) {
-    console.error(err);
-    const fallbackSmsError = !err?.message || /load failed|failed to fetch/i.test(err.message);
-    showToast(fallbackSmsError ? uiText("Unable to send SMS") : err.message, "error");
-    return false;
-  }
-};
-
-const sendPlatformWhatsApp = async ({ to, body }) => {
-  if (!to) { showToast(uiText("Client phone missing"), "error"); return false; }
-  try {
-    const response = await fetch(apiUrl('/api/notifications/whatsapp'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ to, body }),
-    });
-    if (!response.ok) {
-      const errPayload = await response.json().catch(() => ({}));
-      throw new Error(errPayload.error || 'Unable to send WhatsApp');
-    }
-    return true;
-  } catch (err) {
-    console.error(err);
-    const fallbackWhatsappError = !err?.message || /load failed|failed to fetch/i.test(err.message);
-    showToast(fallbackWhatsappError ? uiText("Unable to send WhatsApp") : err.message, "error");
-    return false;
-  }
-};
-
-const openZohoCompose = ({ to, subject, body }) => {
-  if (!to) { showToast(uiText("Client email missing"), "error"); return false; }
-  const url = `https://mail.zoho.com/zm/#compose?to=${encodeURIComponent(to)}&subject=${encodeURIComponent(subject || "")}&body=${encodeURIComponent(body || "")}`;
-  window.open(url, '_blank');
-  return true;
-};
-
-const openWhatsApp = ({ phone, message }) => {
-  if (!phone) { showToast(uiText("Client phone missing"), "error"); return false; }
-  const cleaned = String(phone).replace(/[^\d+]/g, "").replace(/^00/, "+");
-  window.open(`https://wa.me/${cleaned.replace("+", "")}?text=${encodeURIComponent(message)}`, "_blank");
-  return true;
-};
-
-const dispatch = async (mode, payload, client) => {
-  if (mode === "email") return sendPlatformEmail({ to: client.email, subject: payload.subject, body: payload.body });
-  if (mode === "sms") return sendPlatformSMS({ to: client.phoneMobile || client.phone, body: payload.body });
-  if (mode === "whatsapp") {
-    const targetPhone = client.phoneMobile || client.phone;
-    const sent = await sendPlatformWhatsApp({ to: targetPhone, body: payload.body });
-    if (sent) return true;
-    return openWhatsApp({ phone: targetPhone, message: payload.body });
-  }
-  if (mode === "zoho") return openZohoCompose({ to: client.email, subject: payload.subject, body: payload.body });
-  return false;
 };
 
 const channelModes = [
@@ -8692,60 +8572,6 @@ const renderAudienceConfigurator = ({ title, description, channelsState, onToggl
     {helperText ? <div style={{ color: CL.dim, fontSize: 12, marginTop: 10 }}>{helperText}</div> : null}
   </div>
 );
-
-const followups = invoicesList
-  .filter(inv => {
-    if (!inv?.id || !inv?.clientId) return false;
-    const effective = effectiveInvoiceStatus(inv);
-    return effective === "sent" || effective === "overdue";
-  })
-  .map(inv => {
-    const client = clientsList.find(c => c.id === inv.clientId);
-    if (!client) return null;
-    const overdue = !!inv.dueDate && inv.dueDate < getToday();
-    const totalAmount = Number.isFinite(Number(inv.total)) ? Number(inv.total) : 0;
-    return {
-      id: `comm-${inv.id}`,
-      client,
-      title: overdue ? uiText("Payment follow-up") : uiText("Invoice sent notification"),
-      details: `${inv.invoiceNumber || "Invoice"} · €${totalAmount.toFixed(2)}${inv.dueDate ? ` · ${uiText("due")} ${fmtDate(inv.dueDate)}` : ""}`,
-      payload: () => {
-        const greeting = lang === "fr" ? `Bonjour ${client.contactPerson || client.name},` : `Hello ${client.contactPerson || client.name},`;
-        if (overdue) {
-          return {
-            subject: lang === "fr" ? `Relance paiement — ${inv.invoiceNumber}` : `Payment follow-up — ${inv.invoiceNumber}`,
-            body: `${greeting}\n\n${lang === "fr" ? `Nous vous contactons concernant la facture ${inv.invoiceNumber} toujours en attente de règlement.` : `This is a follow-up regarding invoice ${inv.invoiceNumber}, which is still pending.`}\n${lang === "fr" ? "Montant dû" : "Outstanding amount"}: €${totalAmount.toFixed(2)}${inv.dueDate ? `\n${lang === "fr" ? "Date d'échéance" : "Due date"}: ${fmtDate(inv.dueDate)}` : ""}${signatureBlock}`,
-          };
-        }
-        return {
-          subject: lang === "fr" ? `Facture ${inv.invoiceNumber} envoyée` : `Invoice ${inv.invoiceNumber} sent`,
-          body: `${greeting}\n\n${lang === "fr" ? `Votre facture ${inv.invoiceNumber} a été envoyée.` : `Your invoice ${inv.invoiceNumber} has been sent.`}\n${lang === "fr" ? "Montant" : "Amount"}: €${totalAmount.toFixed(2)}${signatureBlock}`,
-        };
-      },
-    };
-  }).filter(Boolean);
-
-const sendFollowup = async (item) => {
-  const ok = await dispatch(channel, item.payload(), item.client);
-  if (ok) showToast(`${uiText("Reminder opened via")} ${channel}`);
-};
-
-const sendCampaign = async () => {
-  const persisted = await saveCommunicationSettings({ silent: true });
-  if (!persisted) {
-    showToast(uiText("Failed to save communication settings"), "error");
-    return;
-  }
-  if (!selectedClients.length) { showToast(uiText("Select at least one client for campaign"), "error"); return; }
-  let sentCount = 0;
-  for (const client of selectedClients) {
-    const greeting = lang === "fr" ? `Bonjour ${client.contactPerson || client.name},` : `Hello ${client.contactPerson || client.name},`;
-    const payload = { subject: campaignSubject, body: `${greeting}\n\n${campaignBody}${signatureBlock}` };
-    const ok = await dispatch(channel, payload, client);
-    if (ok) sentCount += 1;
-  }
-  showToast(`${uiText("Campaign opened for")} ${sentCount} ${uiText("client(s)")}`);
-};
 
 const providerChip = (label, configured) => (
   <div style={{ ...cardSt, padding: "10px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -8837,63 +8663,8 @@ return (
       </div>
     </div>
 
-    <div style={{ ...cardSt, marginBottom: 12 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
-        <h3 style={{ fontSize: 15, color: CL.gold, margin: 0 }}>{uiText("Business follow-up")}</h3>
-        <div style={{ width: 180 }}>
-          <div style={{ fontSize: 11, color: CL.muted, marginBottom: 4 }}>{uiText("Default channel")}</div>
-          <SelectInput value={channel} onChange={ev => setChannel(ev.target.value)}>
-            <option value="email">{uiText("Email")}</option>
-            <option value="sms">{uiText("SMS")}</option>
-            <option value="whatsapp">{uiText("WhatsApp")}</option>
-            <option value="zoho">{uiText("Zoho")}</option>
-          </SelectInput>
-        </div>
-      </div>
-      {followups.length === 0 ? (
-        <div style={{ color: CL.muted, textAlign: "center", padding: 18 }}>{uiText("No reminders ready for this filter.")}</div>
-      ) : (
-        <div style={{ display: "grid", gap: 8 }}>
-          {followups.slice(0, 20).map(item => (
-            <div key={item.id} style={{ border: `1px solid ${CL.line}`, borderRadius: 10, padding: 10, display: "grid", gridTemplateColumns: "1fr auto", gap: 8, alignItems: "center" }}>
-              <div>
-                <div style={{ fontWeight: 600 }}>{item.client.name} · {item.title}</div>
-                <div style={{ fontSize: 12, color: CL.muted }}>{item.details}</div>
-              </div>
-              <button style={{ ...btnPri, ...btnSm }} onClick={() => sendFollowup(item)}>{ICN.mail} {uiText("Send")}</button>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-
-    <div style={{ ...cardSt }}>
-      <h3 style={{ fontSize: 15, color: CL.gold, marginTop: 0, marginBottom: 10 }}>{uiText("Email Marketing Campaigns")}</h3>
-      <div className="form-grid">
-        <Field label={uiText("Client search")}><TextInput value={clientSearch} onChange={ev => setClientSearch(ev.target.value)} placeholder={uiText("Search by name, contact, email or phone")} /></Field>
-        <Field label={uiText("Selected")}><div style={{ ...inputSt, display: "flex", alignItems: "center", fontSize: 13 }}>{selectedClientIds.length} / {clients.length}</div></Field>
-      </div>
-      <div style={{ marginBottom: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
-        <button style={{ ...btnSec, ...btnSm }} onClick={() => setSelectedClientIds(filteredClients.map(c => c.id))}>{uiText("Select all")}</button>
-        <button style={{ ...btnSec, ...btnSm }} onClick={() => setSelectedClientIds([])}>{uiText("Clear")}</button>
-      </div>
-      <div style={{ maxHeight: 180, overflow: "auto", border: `1px solid ${CL.line}`, borderRadius: 10, marginBottom: 10 }}>
-        {filteredClients.length === 0 ? <div style={{ padding: 12, fontSize: 12, color: CL.muted }}>{uiText("No clients match this search.")}</div> : filteredClients.map(c => (
-          <label key={c.id} style={{ display: "flex", gap: 8, alignItems: "center", padding: "8px 10px", borderBottom: `1px solid ${CL.s2}`, cursor: "pointer" }}>
-            <input type="checkbox" checked={selectedClientIds.includes(c.id)} onChange={() => toggleClient(c.id)} />
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 600 }}>{c.name}</div>
-              <div style={{ fontSize: 11, color: CL.muted }}>{c.email || c.phone || c.phoneMobile || uiText("No contact")}</div>
-            </div>
-          </label>
-        ))}
-      </div>
-      <Field label={uiText("Campaign subject")}><TextInput value={campaignSubject} onChange={ev => setCampaignSubject(ev.target.value)} /></Field>
-      <Field label={uiText("Campaign content")}><TextArea value={campaignBody} onChange={ev => setCampaignBody(ev.target.value)} /></Field>
-      <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-        <button style={{ ...btnSec, ...btnSm }} onClick={() => { void saveCommunicationSettings(); }}>{uiText("Save communication settings")}</button>
-        <button style={btnPri} onClick={sendCampaign}>{ICN.mail} {uiText("Send Campaign to Selected Clients")}</button>
-      </div>
+    <div style={{ display: "flex", justifyContent: "flex-end" }}>
+      <button style={{ ...btnSec, ...btnSm }} onClick={() => { void saveCommunicationSettings(); }}>{uiText("Save communication settings")}</button>
     </div>
   </div>
 );

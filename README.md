@@ -123,6 +123,10 @@ npm run dev
 | `ZEPTO_FROM_ADDRESS` | Default sender email for ZeptoMail         | _(empty)_                                          |
 | `RESEND_API_KEY` | Resend API key (if using Resend)               | _(empty)_                                          |
 | `RESEND_FROM`    | Default sender email for Resend                | _(empty)_                                          |
+| `TWILIO_ACCOUNT_SID` | Twilio account SID (for SMS/WhatsApp)      | _(empty)_                                          |
+| `TWILIO_AUTH_TOKEN`  | Twilio auth token (for SMS/WhatsApp)       | _(empty)_                                          |
+| `TWILIO_FROM_NUMBER` | Twilio SMS sender number                    | _(empty)_                                          |
+| `TWILIO_WHATSAPP_FROM` | Twilio WhatsApp sender (e.g. `whatsapp:+14155238886`) | _(empty)_                              |
 
 ### `frontend/.env`
 
@@ -168,3 +172,4 @@ npm run dev
 | GET    | `/api/settings`             | Get all settings             |
 | PUT    | `/api/settings`             | Bulk update settings         |
 | POST   | `/api/notifications/email`  | Send email directly from platform via configured provider |
+| POST   | `/api/notifications/whatsapp` | Send WhatsApp notification via Twilio WhatsApp Business |

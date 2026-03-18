@@ -872,6 +872,7 @@ companyName: "Lux Angels Cleaning",
 companyAddress: "12 Rue de la Liberté, L-1930 Luxembourg",
 companyEmail: "info@luxangels.lu",
 companyPhone: "+352 123 456",
+companyWhatsApp: "",
 vatNumber: "LU12345678",
 bankIban: "LU12 3456 7890 1234 5678",
 defaultVatRate: 17,
@@ -7999,6 +8000,15 @@ window.open(`https://wa.me/${cleaned.replace("+", "")}?text=${encodeURIComponent
 return true;
 };
 
+const buildBusinessWhatsAppReminder = (client, body) => {
+  const contact = client.phoneMobile || client.phone || client.email || uiText("No contact");
+  return `${uiText("Client")}: ${client.name}
+${uiText("Contact")}: ${contact}
+${uiText("Channel")}: WhatsApp
+
+${body}`;
+};
+
 const sendPlatformSMS = async ({ to, body }) => {
 if (!to) { showToast(uiText("Client phone missing"), "error"); return false; }
 try {
@@ -8020,6 +8030,27 @@ return false;
 }
 };
 
+const sendPlatformWhatsApp = async ({ to, body }) => {
+if (!to) { showToast(uiText("Client phone missing"), "error"); return false; }
+try {
+const response = await fetch(apiUrl('/api/notifications/whatsapp'), {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ to, body }),
+});
+if (!response.ok) {
+const errPayload = await response.json().catch(() => ({}));
+throw new Error(errPayload.error || 'Unable to send WhatsApp');
+}
+return true;
+} catch (err) {
+console.error(err);
+const fallbackWhatsappError = !err?.message || /load failed|failed to fetch/i.test(err.message);
+showToast(fallbackWhatsappError ? uiText("Unable to send WhatsApp") : err.message, "error");
+return false;
+}
+};
+
 const openZohoCompose = ({ to, subject, body }) => {
 if (!to) { showToast(uiText("Client email missing"), "error"); return false; }
 const url = `https://mail.zoho.com/zm/#compose?to=${encodeURIComponent(to)}&subject=${encodeURIComponent(subject || "")}&body=${encodeURIComponent(body || "")}`;
@@ -8028,7 +8059,16 @@ return true;
 };
 
 const dispatch = async (mode, payload, client) => {
-if (mode === "whatsapp") return openWhatsApp({ phone: client.phoneMobile || client.phone, message: payload.body });
+if (mode === "whatsapp") {
+  const targetPhone = client.phoneMobile || client.phone;
+  const sent = await sendPlatformWhatsApp({ to: targetPhone, body: payload.body });
+  if (sent) return true;
+  const businessWhatsApp = String(data.settings.companyWhatsApp || "").trim();
+  if (businessWhatsApp && targetPhone) {
+    return openWhatsApp({ phone: businessWhatsApp, message: buildBusinessWhatsAppReminder(client, payload.body) });
+  }
+  return openWhatsApp({ phone: targetPhone, message: payload.body });
+}
 if (mode === "sms") return sendPlatformSMS({ to: client.phoneMobile || client.phone, body: payload.body });
 if (mode === "email") return sendPlatformEmail({ to: client.email, subject: payload.subject, body: payload.body });
 if (mode === "zoho") return openZohoCompose({ to: client.email, subject: payload.subject, body: payload.body });
@@ -8751,6 +8791,12 @@ return (
 
   {activeTab === "notifications" && <div style={{ ...cardSt, marginTop: 14 }}>
     <h3 style={{ color: CL.gold, marginTop: 0 }}>{uiText("Notifications")}</h3>
+    <Field label="Business WhatsApp number (for reminder drafts)">
+      <TextInput value={form.companyWhatsApp || ""} onChange={ev => setField("companyWhatsApp", ev.target.value)} placeholder="+352..." />
+    </Field>
+    <div style={{ fontSize: 12, color: CL.muted, marginTop: -6, marginBottom: 10 }}>
+      {uiText("WhatsApp Business API requires backend Twilio env vars: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_FROM.")}
+    </div>
     <div className="grid-2">
       {[
         ["notifLateEmployees", "Email: Late employees"],

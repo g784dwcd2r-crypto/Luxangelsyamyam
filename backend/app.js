@@ -238,12 +238,25 @@ const postForm = (urlString, { headers = {}, body = {} } = {}) =>
     }
   });
 
-const getSmsGateway = () => {
+const getTwilioGateway = () => {
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
   const authToken = process.env.TWILIO_AUTH_TOKEN;
+  if (!accountSid || !authToken) return null;
+  return { accountSid, authToken };
+};
+
+const getSmsGateway = () => {
+  const base = getTwilioGateway();
   const fromNumber = process.env.TWILIO_FROM_NUMBER;
-  if (!accountSid || !authToken || !fromNumber) return null;
-  return { accountSid, authToken, fromNumber };
+  if (!base || !fromNumber) return null;
+  return { ...base, fromNumber };
+};
+
+const getWhatsAppGateway = () => {
+  const base = getTwilioGateway();
+  const fromNumber = process.env.TWILIO_WHATSAPP_FROM;
+  if (!base || !fromNumber) return null;
+  return { ...base, fromNumber };
 };
 
 async function sendSMS({ to, body }) {
@@ -262,6 +275,24 @@ async function sendSMS({ to, body }) {
     return { ok: false, status: 502, error: 'SMS provider rejected the request' };
   }
   return { ok: true, provider: 'twilio' };
+}
+
+async function sendWhatsApp({ to, body }) {
+  const gateway = getWhatsAppGateway();
+  if (!gateway) return { ok: false, status: 503, error: 'WhatsApp provider is not configured. Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_WHATSAPP_FROM.' };
+  const cleaned = String(to || '').replace(/[^\d+]/g, '').replace(/^00/, '+');
+  if (!cleaned) return { ok: false, status: 400, error: 'Invalid phone number' };
+  const url = `https://api.twilio.com/2010-04-01/Accounts/${gateway.accountSid}/Messages.json`;
+  const auth = Buffer.from(`${gateway.accountSid}:${gateway.authToken}`).toString('base64');
+  const response = await postForm(url, {
+    headers: { Authorization: `Basic ${auth}` },
+    body: { From: gateway.fromNumber, To: `whatsapp:${cleaned}`, Body: body },
+  });
+  if (!response.ok) {
+    console.error('Twilio WhatsApp rejected request:', response.status, response.body);
+    return { ok: false, status: 502, error: 'WhatsApp provider rejected the request' };
+  }
+  return { ok: true, provider: 'twilio-whatsapp' };
 }
 
 async function sendEmail({ to, subject, body, html, from }) {
@@ -1292,6 +1323,21 @@ app.post('/api/notifications/sms', async (req, res) => {
   } catch (err) {
     console.error('SMS notification send failed:', err);
     return res.status(500).json({ error: 'Unable to send SMS notification' });
+  }
+});
+
+app.post('/api/notifications/whatsapp', async (req, res) => {
+  try {
+    const { to, body } = req.body || {};
+    if (!to || !body) {
+      return res.status(400).json({ error: 'to and body are required' });
+    }
+    const sent = await sendWhatsApp({ to, body });
+    if (!sent.ok) return res.status(sent.status || 500).json({ error: sent.error || 'Unable to send WhatsApp notification' });
+    return res.json({ success: true, provider: sent.provider });
+  } catch (err) {
+    console.error('WhatsApp notification send failed:', err);
+    return res.status(500).json({ error: 'Unable to send WhatsApp notification' });
   }
 });
 

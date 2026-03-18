@@ -41,7 +41,9 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions)); // Handle preflight for all routes
-app.use(bodyParser.json());
+// Photos are sent as base64 data URLs for some endpoints (e.g. prospect visits).
+// Increase JSON body limit so those requests are not rejected with 413 payload-too-large.
+app.use(bodyParser.json({ limit: '15mb' }));
 
 // Rate limiting — stricter on auth to prevent PIN brute-force
 const authLimiter = rateLimit({

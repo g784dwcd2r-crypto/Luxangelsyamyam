@@ -1855,7 +1855,7 @@ const Field = ({ label, children }) => (
 );
 
 const TextInput = (props) => <input {...props} placeholder={uiText(props.placeholder)} style={{ ...inputSt, ...(props.style || {}) }} />;
-const SearchableSelectInput = ({ options = [], value = "", onChange, placeholder = "Select...", disabled = false, multiple = false, noResultsLabel = "No results", style = {} }) => {
+const SearchableSelectInput = ({ options = [], value = "", onChange, placeholder = "Select...", disabled = false, multiple = false, noResultsLabel = "No results", style = {}, searchThreshold = 5 }) => {
 const [open, setOpen] = useState(false);
 const [search, setSearch] = useState("");
 const ref = useRef(null);
@@ -1903,7 +1903,7 @@ return (
     </button>
     {open && (
       <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0, zIndex: 1001, background: CL.sf, border: `1px solid ${CL.bd}`, borderRadius: 10, boxShadow: "0 10px 28px rgba(0,0,0,.35)", padding: 8 }}>
-        {options.length > 4 && (
+        {options.length >= searchThreshold && (
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
@@ -4603,7 +4603,7 @@ function TimePicker({ value, onChange, disabled }) {
 const { lang } = useI18n();
 const options = [];
 for (let h = 0; h < 24; h++) {
-  for (let m = 0; m < 60; m += 30) {
+  for (let m = 0; m < 60; m += 5) {
     const hStr = String(h).padStart(2, "0");
     const mStr = String(m).padStart(2, "0");
     const val = `${hStr}:${mStr}`;
@@ -4618,8 +4618,24 @@ for (let h = 0; h < 24; h++) {
     options.push({ val, label });
   }
 }
+if (value && !options.some(o => o.val === value)) {
+  const [rawH, rawM] = String(value).split(":");
+  const h = Number(rawH);
+  const m = Number(rawM);
+  if (Number.isFinite(h) && Number.isFinite(m)) {
+    let label;
+    if (lang === "en") {
+      const period = h < 12 ? "AM" : "PM";
+      const h12 = h % 12 === 0 ? 12 : h % 12;
+      label = `${h12}:${String(m).padStart(2, "0")} ${period}`;
+    } else {
+      label = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+    }
+    options.push({ val: value, label });
+  }
+}
 return (
-  <SelectInput value={value || ""} onChange={onChange} disabled={disabled}>
+  <SelectInput value={value || ""} onChange={onChange} disabled={disabled} searchThreshold={0}>
     {options.map(o => <option key={o.val} value={o.val}>{o.label}</option>)}
   </SelectInput>
 );
@@ -5204,8 +5220,8 @@ const [selectedEmp, setSelectedEmp] = useState("");
 const [selectedCli, setSelectedCli] = useState("");
 const [clockInNote, setClockInNote] = useState("");
 const [manualEntry, setManualEntry] = useState({
-employeeId: "",
-clientId: "",
+employeeIds: [],
+clientIds: [],
 clockInDate: getToday(),
 clockInTime: "08:00",
 clockOutDate: "",
@@ -5264,7 +5280,9 @@ showToast(err?.message || "Unable to clock out", "error");
 };
 
 const addManualEntry = async () => {
-if (!manualEntry.employeeId || !manualEntry.clientId) { showToast("Select employee and client", "error"); return; }
+const selectedEmployeeIds = (manualEntry.employeeIds || []).filter(Boolean);
+const selectedClientIds = (manualEntry.clientIds || []).filter(Boolean);
+if (selectedEmployeeIds.length === 0 || selectedClientIds.length === 0) { showToast("Select employee and client", "error"); return; }
 if (!manualEntry.clockInDate || !manualEntry.clockInTime) { showToast("Set clock-in date/time", "error"); return; }
 
 const clockInISO = makeISO(manualEntry.clockInDate, manualEntry.clockInTime);
@@ -5276,47 +5294,47 @@ showToast("Clock-out must be after clock-in", "error");
 return;
 }
 
-const lateMeta = getLateMeta(data.schedules, {
-employeeId: manualEntry.employeeId,
-clientId: manualEntry.clientId,
-clockInAt: new Date(clockInISO),
+const combinations = selectedEmployeeIds.flatMap(employeeId => selectedClientIds.map(clientId => ({ employeeId, clientId })));
+const newManualEntries = combinations.map(({ employeeId, clientId }) => {
+  const lateMeta = getLateMeta(data.schedules, { employeeId, clientId, clockInAt: new Date(clockInISO) });
+  return {
+    id: makeId(),
+    employeeId,
+    clientId,
+    clockIn: clockInISO,
+    clockOut: clockOutISO,
+    notes: manualEntry.notes.trim(),
+    isLate: lateMeta.isLate,
+    lateMinutes: lateMeta.lateMinutes,
+    scheduledStart: lateMeta.scheduledStart,
+  };
 });
 
-const newManualEntry = {
-id: makeId(),
-employeeId: manualEntry.employeeId,
-clientId: manualEntry.clientId,
-clockIn: clockInISO,
-clockOut: clockOutISO,
-notes: manualEntry.notes.trim(),
-isLate: lateMeta.isLate,
-lateMinutes: lateMeta.lateMinutes,
-scheduledStart: lateMeta.scheduledStart,
-};
-
 try {
-await createClockEntryInApi(newManualEntry);
-updateData("clockEntries", prev => [...prev, newManualEntry]);
+await Promise.all(newManualEntries.map(createClockEntryInApi));
+updateData("clockEntries", prev => [...prev, ...newManualEntries]);
 const manualNewStatus = clockOutISO ? "completed" : "in-progress";
-const manualSchedToSync = (data.schedules || []).find(s => s.employeeId === manualEntry.employeeId && s.clientId === manualEntry.clientId && s.date === manualEntry.clockInDate && s.status === "scheduled");
-if (manualSchedToSync) syncScheduleToApi({ ...manualSchedToSync, status: manualNewStatus }).catch(console.error);
-updateData("schedules", prev => updateScheduleStatusForJob(prev, {
-employeeId: manualEntry.employeeId,
-clientId: manualEntry.clientId,
-date: manualEntry.clockInDate,
-from: "scheduled",
-to: manualNewStatus,
-}));
+newManualEntries.forEach(entry => {
+  const manualSchedToSync = (data.schedules || []).find(s => s.employeeId === entry.employeeId && s.clientId === entry.clientId && s.date === manualEntry.clockInDate && s.status === "scheduled");
+  if (manualSchedToSync) syncScheduleToApi({ ...manualSchedToSync, status: manualNewStatus }).catch(console.error);
+});
+updateData("schedules", prev => newManualEntries.reduce((acc, entry) => updateScheduleStatusForJob(acc, {
+  employeeId: entry.employeeId,
+  clientId: entry.clientId,
+  date: manualEntry.clockInDate,
+  from: "scheduled",
+  to: manualNewStatus,
+}), prev));
 setManualEntry({
-employeeId: "",
-clientId: "",
+employeeIds: [],
+clientIds: [],
 clockInDate: getToday(),
 clockInTime: "08:00",
 clockOutDate: "",
 clockOutTime: "",
 notes: "",
 });
-showToast("Manual clock entry added");
+showToast(newManualEntries.length > 1 ? `${newManualEntries.length} manual clock entries added` : "Manual clock entry added");
 } catch (err) {
 console.error(err);
 showToast(err?.message || "Unable to add manual clock entry", "error");
@@ -5373,6 +5391,7 @@ return (
             options={activeEmployeeOptions}
             placeholder={uiText("Select...")}
             noResultsLabel="No employees"
+            searchThreshold={0}
           />
         </Field>
       </div>
@@ -5384,6 +5403,7 @@ return (
             options={activeClientOptions}
             placeholder={uiText("Select...")}
             noResultsLabel="No clients"
+            searchThreshold={0}
           />
         </Field>
       </div>
@@ -5413,27 +5433,29 @@ return (
     <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.blue }}>{uiText("Owner: Add missed clock-in")}</h3>
     <div className="form-grid" style={{ marginBottom: 8 }}>
       <Field label="Employee">
-        <SearchableSelectInput
-          value={manualEntry.employeeId}
-          onChange={(val) => setManual("employeeId", val)}
+        <MultiSelectInput
+          value={manualEntry.employeeIds}
+          onChange={(vals) => setManual("employeeIds", vals)}
           options={activeEmployeeOptions}
           placeholder={uiText("Select...")}
           noResultsLabel="No employees"
+          searchThreshold={0}
         />
       </Field>
       <Field label="Client">
-        <SearchableSelectInput
-          value={manualEntry.clientId}
-          onChange={(val) => setManual("clientId", val)}
+        <MultiSelectInput
+          value={manualEntry.clientIds}
+          onChange={(vals) => setManual("clientIds", vals)}
           options={activeClientOptions}
           placeholder={uiText("Select...")}
           noResultsLabel="No clients"
+          searchThreshold={0}
         />
       </Field>
       <Field label="In Date"><DatePicker value={manualEntry.clockInDate} onChange={ev => setManual("clockInDate", ev.target.value)} /></Field>
-      <Field label="In Time"><TextInput type="time" value={manualEntry.clockInTime} onChange={ev => setManual("clockInTime", ev.target.value)} /></Field>
+      <Field label="In Time"><TimePicker value={manualEntry.clockInTime} onChange={ev => setManual("clockInTime", ev.target.value)} /></Field>
       <Field label="Out Date (optional)"><DatePicker value={manualEntry.clockOutDate} onChange={ev => setManual("clockOutDate", ev.target.value)} /></Field>
-      <Field label="Out Time (optional)"><TextInput type="time" value={manualEntry.clockOutTime} onChange={ev => setManual("clockOutTime", ev.target.value)} /></Field>
+      <Field label="Out Time (optional)"><TimePicker value={manualEntry.clockOutTime} onChange={ev => setManual("clockOutTime", ev.target.value)} /></Field>
     </div>
     <Field label="Reason / note (optional)">
       <TextInput value={manualEntry.notes} onChange={ev => setManual("notes", ev.target.value)} placeholder="Forgot to clock in, adjusted by owner..." />
@@ -5532,9 +5554,9 @@ return (
 </SelectInput>
 </Field>
 <Field label="In Date"><DatePicker value={form.clockInDate} onChange={ev => set("clockInDate", ev.target.value)} /></Field>
-<Field label="In Time"><TextInput type="time" value={form.clockInTime} onChange={ev => set("clockInTime", ev.target.value)} /></Field>
+<Field label="In Time"><TimePicker value={form.clockInTime} onChange={ev => set("clockInTime", ev.target.value)} /></Field>
 <Field label="Out Date"><DatePicker value={form.clockOutDate} onChange={ev => set("clockOutDate", ev.target.value)} /></Field>
-<Field label="Out Time"><TextInput type="time" value={form.clockOutTime} onChange={ev => set("clockOutTime", ev.target.value)} /></Field>
+<Field label="Out Time"><TimePicker value={form.clockOutTime} onChange={ev => set("clockOutTime", ev.target.value)} /></Field>
 </div>
 <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 6 }}>
 <button style={btnSec} onClick={onCancel}>Cancel</button>

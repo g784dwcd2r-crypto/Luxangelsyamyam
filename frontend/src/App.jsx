@@ -542,6 +542,8 @@ const UI_FR = {
 // Leave management (owner view)
 "All Cleaners": "Tous les agents",
 "Holiday Counter": "Compteur de congés",
+"Search cleaner by name": "Rechercher un agent par nom",
+"Next": "Suivant",
 "No active cleaners": "Aucun agent actif",
 // Payslips
 "No payslips": "Aucune fiche de paie",
@@ -7503,6 +7505,9 @@ function LeaveManagementPage({ data, updateData, showToast }) {
 const [employeeFilter, setEmployeeFilter] = useState("");
 const [yearFilter, setYearFilter] = useState(getToday().slice(0, 4));
 const [reviewNote, setReviewNote] = useState({});
+const [counterQuery, setCounterQuery] = useState("");
+const [counterPage, setCounterPage] = useState(1);
+const [counterPageSize, setCounterPageSize] = useState(25);
 
 const requests = (data.timeOffRequests || [])
 .filter(r => (!employeeFilter || r.employeeId === employeeFilter) && (!yearFilter || (r.startDate || "").startsWith(yearFilter)))
@@ -7529,7 +7534,27 @@ setReviewNote(prev => ({ ...prev, [id]: "" }));
 showToast(status === "approved" ? "Leave approved" : "Leave rejected", status === "approved" ? "success" : "error");
 };
 
-const summaryRows = data.employees.filter(emp => emp.status === "active").map(emp => ({ emp, ...getLeaveSummary(data, emp.id, yearFilter) }));
+const summaryRows = data.employees
+  .filter(emp => emp.status === "active")
+  .map(emp => ({ emp, ...getLeaveSummary(data, emp.id, yearFilter) }))
+  .filter(row => !employeeFilter || row.emp.id === employeeFilter)
+  .filter(row => !counterQuery.trim() || row.emp.name.toLowerCase().includes(counterQuery.trim().toLowerCase()))
+  .sort((a, b) => (a.emp.name || "").localeCompare(b.emp.name || "", "fr", { sensitivity: "base" }));
+
+const totalSummaryRows = summaryRows.length;
+const totalCounterPages = Math.max(1, Math.ceil(totalSummaryRows / counterPageSize));
+const safeCounterPage = Math.min(counterPage, totalCounterPages);
+const pagedSummaryRows = summaryRows.slice((safeCounterPage - 1) * counterPageSize, safeCounterPage * counterPageSize);
+const rangeStart = totalSummaryRows === 0 ? 0 : (safeCounterPage - 1) * counterPageSize + 1;
+const rangeEnd = Math.min(totalSummaryRows, safeCounterPage * counterPageSize);
+
+useEffect(() => {
+  setCounterPage(1);
+}, [employeeFilter, yearFilter, counterQuery, counterPageSize]);
+
+useEffect(() => {
+  if (counterPage > totalCounterPages) setCounterPage(totalCounterPages);
+}, [counterPage, totalCounterPages]);
 
 return (
 <div>
@@ -7552,15 +7577,45 @@ return (
 
 <div style={{ ...cardSt, marginBottom: 16 }}>
 <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>{uiText("Holiday Counter")}</h3>
+<div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 10 }}>
+  <TextInput
+    value={counterQuery}
+    onChange={ev => setCounterQuery(ev.target.value)}
+    placeholder={uiText("Search cleaner by name")}
+    style={{ minWidth: 220, flex: "1 1 220px" }}
+  />
+  <SelectInput value={String(counterPageSize)} onChange={ev => setCounterPageSize(Number(ev.target.value) || 25)} style={{ width: 120 }}>
+    <option value="10">10 / page</option>
+    <option value="25">25 / page</option>
+    <option value="50">50 / page</option>
+    <option value="100">100 / page</option>
+  </SelectInput>
+</div>
+<div style={{ fontSize: 12, color: CL.muted, marginBottom: 10 }}>
+  {rangeStart}-{rangeEnd} / {totalSummaryRows}
+</div>
 <div className="tbl-wrap">
 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
 <thead><tr><th style={thSt}>{uiText("Cleaner")}</th><th style={thSt}>{uiText("Allowance")}</th><th style={thSt}>{uiText("Approved")}</th><th style={thSt}>{uiText("Pending")}</th><th style={thSt}>{uiText("Remaining")}</th></tr></thead>
 <tbody>
-{summaryRows.map(row => <tr key={row.emp.id}><td style={tdSt}>{row.emp.name}</td><td style={tdSt}><TextInput type="number" min={0} value={row.emp.leaveAllowance ?? 26} onChange={ev => updateData("employees", prev => prev.map(e => e.id === row.emp.id ? { ...e, leaveAllowance: Math.max(0, parseInt(ev.target.value || "0", 10) || 0) } : e))} style={{ width: 90 }} /></td><td style={tdSt}>{row.approvedDays}d</td><td style={tdSt}>{row.pendingDays}d</td><td style={{ ...tdSt, fontWeight: 700, color: row.remaining > 5 ? CL.green : CL.orange }}>{row.remaining}d</td></tr>)}
-{summaryRows.length === 0 && <tr><td colSpan={5} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>{uiText("No active cleaners")}</td></tr>}
+{pagedSummaryRows.map(row => <tr key={row.emp.id}><td style={{ ...tdSt, paddingTop: 8, paddingBottom: 8 }}>{row.emp.name}</td><td style={{ ...tdSt, paddingTop: 8, paddingBottom: 8 }}><TextInput type="number" min={0} value={row.emp.leaveAllowance ?? 26} onChange={ev => updateData("employees", prev => prev.map(e => e.id === row.emp.id ? { ...e, leaveAllowance: Math.max(0, parseInt(ev.target.value || "0", 10) || 0) } : e))} style={{ width: 84, padding: "6px 8px" }} /></td><td style={{ ...tdSt, paddingTop: 8, paddingBottom: 8 }}>{row.approvedDays}d</td><td style={{ ...tdSt, paddingTop: 8, paddingBottom: 8 }}>{row.pendingDays}d</td><td style={{ ...tdSt, paddingTop: 8, paddingBottom: 8, fontWeight: 700, color: row.remaining > 5 ? CL.green : CL.orange }}>{row.remaining}d</td></tr>)}
+{pagedSummaryRows.length === 0 && <tr><td colSpan={5} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>{uiText("No active cleaners")}</td></tr>}
 </tbody>
 </table>
 </div>
+{totalCounterPages > 1 && (
+  <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 10 }}>
+    <button style={{ ...btnSec, ...btnSm }} onClick={() => setCounterPage(p => Math.max(1, p - 1))} disabled={safeCounterPage <= 1}>
+      {uiText("Back")}
+    </button>
+    <div style={{ alignSelf: "center", color: CL.muted, fontSize: 12 }}>
+      {safeCounterPage} / {totalCounterPages}
+    </div>
+    <button style={{ ...btnSec, ...btnSm }} onClick={() => setCounterPage(p => Math.min(totalCounterPages, p + 1))} disabled={safeCounterPage >= totalCounterPages}>
+      {uiText("Next")}
+    </button>
+  </div>
+)}
 </div>
 
 <div style={cardSt}>

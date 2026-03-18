@@ -1855,7 +1855,7 @@ const Field = ({ label, children }) => (
 );
 
 const TextInput = (props) => <input {...props} placeholder={uiText(props.placeholder)} style={{ ...inputSt, ...(props.style || {}) }} />;
-const SearchableSelectInput = ({ options = [], value = "", onChange, placeholder = "Select...", disabled = false, multiple = false, noResultsLabel = "No results", style = {}, searchThreshold = 5, menuStyle = {}, searchInputStyle = {} }) => {
+const SearchableSelectInput = ({ options = [], value = "", onChange, placeholder = "Select...", disabled = false, multiple = false, noResultsLabel = "No results", style = {}, searchThreshold = 0, menuStyle = {}, searchInputStyle = {} }) => {
 const [open, setOpen] = useState(false);
 const [search, setSearch] = useState("");
 const ref = useRef(null);

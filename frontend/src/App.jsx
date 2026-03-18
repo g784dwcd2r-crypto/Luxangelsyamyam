@@ -2754,26 +2754,69 @@ const dueOrOverdueExpenses = (data.expenses || []).filter(exp => {
   return !paid && exp.dueDay <= _expTodayDay;
 }).length;
 
-const navItems = [
-{ id: "dashboard", label: t("dashboard"), icon: ICN.dash },
-{ id: "employees", label: t("employees"), icon: ICN.team },
-{ id: "clients", label: t("clients"), icon: ICN.user },
-{ id: "schedule", label: t("schedule"), icon: ICN.cal },
-{ id: "visits", label: t("visitation"), icon: ICN.cal },
-{ id: "timeclock", label: t("timeclock"), icon: ICN.clock },
-{ id: "inventory", label: t("inventory"), icon: ICN.doc, hasAlert: pendingProductRequests > 0 },
-{ id: "devis", label: t("devis"), icon: ICN.doc },
-{ id: "invoices", label: t("invoices"), icon: ICN.doc },
-{ id: "payslips", label: t("payslips"), icon: ICN.pay },
-{ id: "expenses", label: t("expenses"), icon: ICN.wallet, hasAlert: dueOrOverdueExpenses > 0 },
-{ id: "conges", label: t("conges"), icon: ICN.cal, hasAlert: pendingTimeOffRequests > 0 },
-{ id: "history", label: t("history"), icon: ICN.doc, hasAlert: unseenUploads > 0 },
-{ id: "reminders", label: t("reminders"), icon: ICN.mail },
-{ id: "reports", label: t("reports"), icon: ICN.chart },
-{ id: "database", label: t("database"), icon: ICN.excel },
-{ id: "download-app", label: t("downloadApp"), icon: ICN.download },
-{ id: "settings", label: t("settings"), icon: ICN.gear },
+const navGroups = [
+  {
+    id: "operations",
+    label: "Opérations",
+    items: [
+      { id: "dashboard", label: t("dashboard"), icon: ICN.dash },
+      { id: "timeclock", label: t("timeclock"), icon: ICN.clock },
+      { id: "schedule", label: t("schedule"), icon: ICN.cal },
+      { id: "visits", label: t("visitation"), icon: ICN.cal },
+    ],
+  },
+  {
+    id: "management",
+    label: "Gestion",
+    items: [
+      { id: "employees", label: t("employees"), icon: ICN.team },
+      { id: "clients", label: t("clients"), icon: ICN.user },
+    ],
+  },
+  {
+    id: "finance",
+    label: "Finance",
+    items: [
+      { id: "devis", label: t("devis"), icon: ICN.doc },
+      { id: "invoices", label: t("invoices"), icon: ICN.doc },
+      { id: "expenses", label: t("expenses"), icon: ICN.wallet, hasAlert: dueOrOverdueExpenses > 0 },
+    ],
+  },
+  {
+    id: "hr",
+    label: "Ressources humaines",
+    items: [
+      { id: "conges", label: t("conges"), icon: ICN.cal, hasAlert: pendingTimeOffRequests > 0 },
+      { id: "payslips", label: t("payslips"), icon: ICN.pay },
+    ],
+  },
+  {
+    id: "support",
+    label: "Support",
+    items: [
+      { id: "inventory", label: t("inventory"), icon: ICN.doc, hasAlert: pendingProductRequests > 0 },
+      { id: "reminders", label: t("reminders"), icon: ICN.mail },
+      { id: "database", label: t("database"), icon: ICN.excel },
+    ],
+  },
+  {
+    id: "analysis",
+    label: "Analyse",
+    items: [
+      { id: "history", label: t("history"), icon: ICN.doc, hasAlert: unseenUploads > 0 },
+      { id: "reports", label: t("reports"), icon: ICN.chart },
+    ],
+  },
+  {
+    id: "system",
+    label: "Système",
+    items: [
+      { id: "settings", label: t("settings"), icon: ICN.gear },
+      { id: "download-app", label: t("downloadApp"), icon: ICN.download },
+    ],
+  },
 ];
+const navItems = navGroups.flatMap(group => group.items);
 
 const openDownloadApp = () => {
 setSection("download-app");
@@ -2835,11 +2878,20 @@ return (
       {sideOpen && <div><div style={{ fontSize: 13, fontWeight: 700, color: CL.gold, fontFamily: "'Cormorant Garamond', serif", whiteSpace: "nowrap" }}>Lux Angels Cleaning</div><div style={{ fontSize: 10, color: CL.muted }}>{auth.role === "manager" ? t("managerPortal") : t("ownerPortal")}</div></div>}
     </div>
     <nav style={{ flex: 1, padding: "6px 4px", overflowY: "auto" }}>
-      {navItems.map(nav => (
-        <button key={nav.id} onClick={() => nav.id === "download-app" ? openDownloadApp() : setSection(nav.id)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: sideOpen ? "7px 10px" : "7px 11px", background: section === nav.id ? CL.gold + "15" : "transparent", border: "none", borderRadius: 7, cursor: "pointer", color: section === nav.id ? CL.gold : CL.muted, fontSize: 13, fontWeight: section === nav.id ? 600 : 400, marginBottom: 1, textAlign: "left", whiteSpace: "nowrap" }}>
-          <span style={{ flexShrink: 0 }}>{nav.icon}</span>
-          {sideOpen && <span>{nav.label}{nav.hasAlert ? <span style={{ color: CL.red, marginLeft: 6, fontWeight: 700 }}>!</span> : null}</span>}
-        </button>
+      {navGroups.map(group => (
+        <div key={group.id} style={{ marginBottom: 8 }}>
+          {sideOpen && (
+            <div style={{ fontSize: 10, fontWeight: 700, color: CL.muted, padding: "8px 10px 4px", textTransform: "uppercase", letterSpacing: ".06em" }}>
+              {group.label}
+            </div>
+          )}
+          {group.items.map(nav => (
+            <button key={nav.id} onClick={() => nav.id === "download-app" ? openDownloadApp() : setSection(nav.id)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: sideOpen ? "7px 10px" : "7px 11px", background: section === nav.id ? CL.gold + "15" : "transparent", border: "none", borderRadius: 7, cursor: "pointer", color: section === nav.id ? CL.gold : CL.muted, fontSize: 13, fontWeight: section === nav.id ? 600 : 400, marginBottom: 1, textAlign: "left", whiteSpace: "nowrap" }}>
+              <span style={{ flexShrink: 0 }}>{nav.icon}</span>
+              {sideOpen && <span>{nav.label}{nav.hasAlert ? <span style={{ color: CL.red, marginLeft: 6, fontWeight: 700 }}>!</span> : null}</span>}
+            </button>
+          ))}
+        </div>
       ))}
     </nav>
     <div style={{ padding: "8px 4px", borderTop: `1px solid ${CL.bd}` }}>

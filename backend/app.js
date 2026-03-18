@@ -1199,6 +1199,42 @@ app.delete('/api/payslips/:id', async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// ADMIN PASSWORD / PIN RESET
+// ---------------------------------------------------------------------------
+// Owner or manager can reset any employee's PIN or password from the settings panel.
+// Body: { employeeId, newPin?, newPassword? }
+// newPin  → stores plain PIN and clears password_hash
+// newPassword → hashes and stores as password_hash, clears pin
+app.post('/api/auth/admin-reset-password', async (req, res) => {
+  try {
+    const { employeeId, newPin, newPassword } = req.body || {};
+    if (!employeeId) return res.status(400).json({ error: 'employeeId is required' });
+    if (!newPin && !newPassword) return res.status(400).json({ error: 'newPin or newPassword is required' });
+
+    let result;
+    if (newPassword) {
+      if (String(newPassword).length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
+      const passwordHash = hashPassword(String(newPassword));
+      result = await pool.query(
+        "UPDATE employees SET password_hash=$1, pin=NULL WHERE id=$2 RETURNING id",
+        [passwordHash, employeeId]
+      );
+    } else {
+      result = await pool.query(
+        "UPDATE employees SET pin=$1, password_hash=NULL WHERE id=$2 RETURNING id",
+        [String(newPin).trim(), employeeId]
+      );
+    }
+
+    if (!result.rows.length) return res.status(404).json({ error: 'Employee not found' });
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
+// ---------------------------------------------------------------------------
 // SETTINGS
 // ---------------------------------------------------------------------------
 app.get('/api/settings', async (req, res) => {

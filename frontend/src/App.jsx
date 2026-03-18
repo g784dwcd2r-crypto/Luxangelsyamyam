@@ -8807,6 +8807,163 @@ return (
 }
 
 // ==============================================
+// PASSWORD RESET TAB
+// ==============================================
+function PasswordResetTab({ data, showToast, ownerUsername, managerUsername }) {
+  const [ownerNewPin, setOwnerNewPin] = useState("");
+  const [managerNewPin, setManagerNewPin] = useState("");
+  const [empPins, setEmpPins] = useState({});
+  const [saving, setSaving] = useState({});
+
+  const employees = (data.employees || []).filter(e => e.status !== "inactive");
+
+  const resetOwnerPin = async () => {
+    const pin = ownerNewPin.trim();
+    if (!pin) { showToast("Enter a new PIN for the owner", "error"); return; }
+    setSaving(s => ({ ...s, owner: true }));
+    try {
+      await fetch(apiUrl("/api/settings"), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ownerPin: pin }),
+      });
+      showToast("Owner PIN updated successfully", "success");
+      setOwnerNewPin("");
+    } catch (err) {
+      showToast("Failed to update owner PIN", "error");
+    } finally {
+      setSaving(s => ({ ...s, owner: false }));
+    }
+  };
+
+  const resetManagerPin = async () => {
+    const pin = managerNewPin.trim();
+    if (!pin) { showToast("Enter a new PIN for the manager", "error"); return; }
+    setSaving(s => ({ ...s, manager: true }));
+    try {
+      await fetch(apiUrl("/api/settings"), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ managerPin: pin }),
+      });
+      showToast("Manager PIN updated successfully", "success");
+      setManagerNewPin("");
+    } catch (err) {
+      showToast("Failed to update manager PIN", "error");
+    } finally {
+      setSaving(s => ({ ...s, manager: false }));
+    }
+  };
+
+  const resetEmployeePin = async (emp) => {
+    const pin = (empPins[emp.id] || "").trim();
+    if (!pin) { showToast(`Enter a new PIN for ${emp.name}`, "error"); return; }
+    setSaving(s => ({ ...s, [emp.id]: true }));
+    try {
+      await fetch(apiUrl(`/api/auth/admin-reset-password`), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ employeeId: emp.id, newPin: pin }),
+      });
+      showToast(`PIN reset for ${emp.name}`, "success");
+      setEmpPins(p => ({ ...p, [emp.id]: "" }));
+    } catch (err) {
+      showToast(`Failed to reset PIN for ${emp.name}`, "error");
+    } finally {
+      setSaving(s => ({ ...s, [emp.id]: false }));
+    }
+  };
+
+  return (
+    <div style={{ marginTop: 14 }}>
+      <h3 style={{ color: CL.gold, marginTop: 0, fontFamily: "'Cormorant Garamond', serif", fontSize: 20 }}>Password & PIN Reset</h3>
+      <p style={{ color: CL.muted, marginBottom: 18, fontSize: 13 }}>Reset access credentials for any user. Changes take effect immediately on the next login.</p>
+
+      {/* Owner */}
+      <div style={{ ...cardSt, marginBottom: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+          <span style={{ fontSize: 20 }}>👑</span>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>Owner</div>
+            <div style={{ fontSize: 12, color: CL.muted }}>{ownerUsername || "owner"}</div>
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
+          <Field label="New PIN / Password">
+            <TextInput
+              type="password"
+              value={ownerNewPin}
+              onChange={ev => setOwnerNewPin(ev.target.value)}
+              placeholder="Enter new PIN"
+              style={{ maxWidth: 260 }}
+            />
+          </Field>
+          <button style={{ ...btnPri, marginBottom: 10 }} onClick={resetOwnerPin} disabled={saving.owner}>
+            {saving.owner ? "Saving…" : "🔑 Reset PIN"}
+          </button>
+        </div>
+      </div>
+
+      {/* Manager */}
+      <div style={{ ...cardSt, marginBottom: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+          <span style={{ fontSize: 20 }}>🧑‍💼</span>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>Manager</div>
+            <div style={{ fontSize: 12, color: CL.muted }}>{managerUsername || "manager"}</div>
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
+          <Field label="New PIN / Password">
+            <TextInput
+              type="password"
+              value={managerNewPin}
+              onChange={ev => setManagerNewPin(ev.target.value)}
+              placeholder="Enter new PIN"
+              style={{ maxWidth: 260 }}
+            />
+          </Field>
+          <button style={{ ...btnPri, marginBottom: 10 }} onClick={resetManagerPin} disabled={saving.manager}>
+            {saving.manager ? "Saving…" : "🔑 Reset PIN"}
+          </button>
+        </div>
+      </div>
+
+      {/* Employees / Cleaners */}
+      <div style={{ ...cardSt }}>
+        <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 14 }}>🧹 Agents / Cleaners</div>
+        {employees.length === 0 && <div style={{ color: CL.muted, fontSize: 13 }}>No active employees found.</div>}
+        <div style={{ display: "grid", gap: 12 }}>
+          {employees.map(emp => (
+            <div key={emp.id} style={{ display: "flex", alignItems: "flex-end", gap: 10, padding: "12px 14px", background: CL.s2, border: `1px solid ${CL.bd}`, borderRadius: 10, flexWrap: "wrap" }}>
+              <div style={{ minWidth: 160, flex: "0 0 auto" }}>
+                <div style={{ fontWeight: 600 }}>{emp.name}</div>
+                <div style={{ fontSize: 12, color: CL.muted }}>{emp.role || "Agent"} · {emp.email || "no email"}</div>
+              </div>
+              <Field label="New PIN / Password" style={{ flex: 1, minWidth: 180 }}>
+                <TextInput
+                  type="password"
+                  value={empPins[emp.id] || ""}
+                  onChange={ev => setEmpPins(p => ({ ...p, [emp.id]: ev.target.value }))}
+                  placeholder="Enter new PIN"
+                />
+              </Field>
+              <button
+                style={{ ...btnPri, marginBottom: 10, flexShrink: 0 }}
+                onClick={() => resetEmployeePin(emp)}
+                disabled={saving[emp.id]}
+              >
+                {saving[emp.id] ? "Saving…" : "🔑 Reset"}
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ==============================================
 // SETTINGS PAGE
 // ==============================================
 function SettingsPage({ data, updateData, setData, showToast, auth }) {
@@ -8967,6 +9124,7 @@ const tabs = [
   { id: "notifications", label: "Notifications" },
   { id: "emailReminders", label: "Email Reminders & Auto Send" },
   { id: "system", label: "System" },
+  { id: "passwordReset", label: "🔑 Password Reset" },
 ];
 
 return (
@@ -9142,6 +9300,8 @@ return (
   {activeTab === "emailReminders" && <div style={{ ...cardSt, marginTop: 14 }}>
     <h3 style={{ color: CL.gold, marginTop: 0 }}>{uiText("Email Reminders & Auto Send")}</h3>
   </div>}
+
+  {activeTab === "passwordReset" && <PasswordResetTab data={data} showToast={showToast} ownerUsername={ownerUsername} managerUsername={managerUsername} />}
 
   {activeTab === "system" && <div style={{ ...cardSt, marginTop: 14 }}>
     <h3 style={{ color: CL.gold, marginTop: 0 }}>{uiText("System preferences")}</h3>

@@ -47,8 +47,9 @@ Luxangelsyamyam/
 
 | Role   | Default PIN |
 |--------|-------------|
-| Owner  | `1234`      |
-| Cleaner| `0000`      |
+| Owner  | `LuxAngels@2025` |
+| Manager| `Manager@2025` |
+| Cleaner| `0000` |
 
 These can be changed from the Settings page (owner) or by the owner via the employee PIN management screen.
 

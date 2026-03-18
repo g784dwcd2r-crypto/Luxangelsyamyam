@@ -17,7 +17,7 @@ const saveLang = (l) => {
     const a = JSON.parse(raw);
     a.lang = l;
     sessionStorage.setItem("lux_auth", JSON.stringify(a));
-    fetch(`${API_BASE_CANDIDATES[0] || ""}/api/preferences`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ role: a.role, userId: a.employeeId, lang: l }) }).catch(() => {});
+    void persistPreferenceToApi({ role: a.role, userId: a.employeeId, lang: l });
   } catch {}
 };
 const loadTheme = () => { try { const a = JSON.parse(sessionStorage.getItem("lux_auth") || "null"); return a?.theme || "dark"; } catch { return "dark"; } };
@@ -28,9 +28,23 @@ const saveTheme = (t) => {
     const a = JSON.parse(raw);
     a.theme = t;
     sessionStorage.setItem("lux_auth", JSON.stringify(a));
-    fetch(`${API_BASE_CANDIDATES[0] || ""}/api/preferences`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ role: a.role, userId: a.employeeId, theme: t }) }).catch(() => {});
+    void persistPreferenceToApi({ role: a.role, userId: a.employeeId, theme: t });
   } catch {}
 };
+
+async function persistPreferenceToApi(payload) {
+  for (const base of API_BASE_CANDIDATES) {
+    try {
+      const res = await fetch(`${base}/api/preferences`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) return true;
+    } catch {}
+  }
+  return false;
+}
 
 const I18N = {
 fr: {
@@ -991,6 +1005,97 @@ const ensureApiOk = async (response, fallbackMessage) => {
   throw new Error(await parseApiErrorMessage(response, fallbackMessage));
 };
 
+
+const fetchApiList = async (path) => {
+  const response = await fetch(apiUrl(path), { cache: "no-store" });
+  await ensureApiOk(response, `Failed to load ${path}`);
+  const payload = await response.json();
+  return Array.isArray(payload) ? payload : [];
+};
+
+const syncImportedDataToDb = async (imported) => {
+  if (!imported || typeof imported !== "object") return;
+
+  if (imported.settings && typeof imported.settings === "object") {
+    const response = await fetch(apiUrl("/api/settings"), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(imported.settings),
+    });
+    await ensureApiOk(response, "Failed to sync settings");
+  }
+
+  if (Array.isArray(imported.employees)) {
+    const importedEmployees = imported.employees;
+    const existing = await fetchApiList("/api/employees");
+    const importedIds = new Set(importedEmployees.map(e => e.id));
+    for (const row of existing) {
+      if (row?.id && !importedIds.has(row.id)) await deleteEmployeeFromApi(row.id);
+    }
+    for (const emp of importedEmployees) {
+      await syncEmployeeToApi(emp, imported.employeePins?.[emp.id], imported.employeeUsernames?.[emp.id]);
+      if (imported.employeePins?.[emp.id] != null) await syncEmployeePinToApi(emp.id, imported.employeePins[emp.id]);
+      if (emp.profilePicture !== undefined) await syncProfilePictureToApi(emp.id, emp.profilePicture || null);
+    }
+  }
+
+  if (Array.isArray(imported.clients)) {
+    const importedClients = imported.clients;
+    const existing = await fetchApiList("/api/clients");
+    const importedIds = new Set(importedClients.map(c => c.id));
+    for (const row of existing) {
+      if (row?.id && !importedIds.has(row.id)) await deleteClientFromApi(row.id);
+    }
+    for (const client of importedClients) await syncClientToApi(client);
+  }
+
+  if (Array.isArray(imported.schedules)) {
+    const importedSchedules = imported.schedules;
+    const existing = await fetchApiList("/api/schedules");
+    const importedIds = new Set(importedSchedules.map(sc => sc.id));
+    for (const row of existing) {
+      if (row?.id && !importedIds.has(row.id)) await deleteScheduleFromApi(row.id);
+    }
+    for (const sched of importedSchedules) await syncScheduleToApi(sched);
+  }
+
+  if (Array.isArray(imported.clockEntries)) {
+    const importedClockEntries = imported.clockEntries;
+    const existing = await fetchApiList("/api/clock-entries");
+    const importedIds = new Set(importedClockEntries.map(c => c.id));
+    for (const row of existing) {
+      if (row?.id && !importedIds.has(row.id)) {
+        const response = await fetch(apiUrl(`/api/clock-entries/${row.id}`), { method: "DELETE" });
+        await ensureApiOk(response, "Failed to delete clock entry");
+      }
+    }
+    for (const entry of importedClockEntries) await syncClockEntryToApi(entry);
+  }
+
+  if (Array.isArray(imported.invoices)) {
+    const importedInvoices = imported.invoices;
+    const existing = await fetchApiList("/api/invoices");
+    const importedIds = new Set(importedInvoices.map(inv => inv.id));
+    for (const row of existing) {
+      if (row?.id && !importedIds.has(row.id)) await deleteInvoiceFromApi(row.id);
+    }
+    for (const invoice of importedInvoices) await syncInvoiceToApi(invoice);
+  }
+
+  if (Array.isArray(imported.payslips)) {
+    const importedPayslips = imported.payslips;
+    const existing = await fetchApiList("/api/payslips");
+    const importedIds = new Set(importedPayslips.map(ps => ps.id));
+    for (const row of existing) {
+      if (row?.id && !importedIds.has(row.id)) {
+        const response = await fetch(apiUrl(`/api/payslips/${row.id}`), { method: "DELETE" });
+        await ensureApiOk(response, "Failed to delete payslip");
+      }
+    }
+    for (const payslip of importedPayslips) await syncPayslipToApi(payslip);
+  }
+};
+
 const syncEmployeeToApi = async (emp, pin, username) => {
   const payload = toApiEmployee(emp, pin, username);
   const updateRes = await fetch(apiUrl(`/api/employees/${emp.id}`), {
@@ -1701,16 +1806,20 @@ const sheet = (name) => {
         .join("");
       const parsedBackup = JSON.parse(backupJson);
 
-      setData(prev => {
-        const next = { ...prev, ...(parsedBackup || {}) };
-        return {
-          ...next,
-          settings: normalizeSettingsPayload(parsedBackup?.settings || {}, prev.settings),
-          employeePins: parsedBackup?.employeePins && typeof parsedBackup.employeePins === "object" ? parsedBackup.employeePins : prev.employeePins,
-          employeeUsernames: parsedBackup?.employeeUsernames && typeof parsedBackup.employeeUsernames === "object" ? parsedBackup.employeeUsernames : prev.employeeUsernames,
-        };
-      });
-      showToast("Excel imported!", "success");
+      const importedSnapshot = {
+        ...(parsedBackup || {}),
+        settings: normalizeSettingsPayload(parsedBackup?.settings || {}, DEFAULTS.settings),
+        employeePins: parsedBackup?.employeePins && typeof parsedBackup.employeePins === "object" ? parsedBackup.employeePins : {},
+        employeeUsernames: parsedBackup?.employeeUsernames && typeof parsedBackup.employeeUsernames === "object" ? parsedBackup.employeeUsernames : {},
+      };
+
+      setData(prev => ({
+        ...prev,
+        ...importedSnapshot,
+      }));
+
+      await syncImportedDataToDb(importedSnapshot);
+      showToast("Excel imported and synced to database!", "success");
       return;
     } catch (backupErr) {
       console.warn("Full backup import failed, falling back to legacy sheets", backupErr);
@@ -1765,32 +1874,50 @@ const sheet = (name) => {
   const managerUsername = sett.managerUsername || sett["Manager Username"];
   const managerPin = sett.managerPin || sett["Manager Password"] || sett["Manager PIN"];
 
-  setData(prev => ({
-    ...prev,
-    employees: emps.length ? emps : prev.employees,
-    employeePins: Object.keys(pins).length ? pins : prev.employeePins,
-    employeeUsernames: Object.keys(employeeUsernames).length ? employeeUsernames : prev.employeeUsernames,
-    clients: clients.length ? clients : prev.clients,
-    schedules: scheds.length ? scheds : prev.schedules,
-    clockEntries: clocks.length ? clocks : prev.clockEntries,
-    invoices: Object.values(invMap).length ? Object.values(invMap) : prev.invoices,
-    payslips: payslips.length ? payslips : prev.payslips,
-    ownerUsername: ownerUsername || prev.ownerUsername || "",
-    ownerPin: ownerPin || prev.ownerPin || "",
-    managerUsername: managerUsername || prev.managerUsername || "",
-    managerPin: managerPin || prev.managerPin || "",
+  const importedSnapshot = {
+    employees: emps.length ? emps : [],
+    employeePins: pins,
+    employeeUsernames,
+    clients: clients.length ? clients : [],
+    schedules: scheds.length ? scheds : [],
+    clockEntries: clocks.length ? clocks : [],
+    invoices: Object.values(invMap),
+    payslips: payslips.length ? payslips : [],
+    ownerUsername: ownerUsername || "",
+    ownerPin: ownerPin || "",
+    managerUsername: managerUsername || "",
+    managerPin: managerPin || "",
     settings: normalizeSettingsPayload({
       ...importedSettings,
-      companyName: importedSettings.companyName || importedSettings["Company Name"] || prev.settings.companyName,
-      companyAddress: importedSettings.companyAddress || importedSettings.Address || prev.settings.companyAddress,
-      companyEmail: importedSettings.companyEmail || importedSettings.Email || prev.settings.companyEmail,
-      companyPhone: importedSettings.companyPhone || importedSettings.Phone || prev.settings.companyPhone,
-      vatNumber: importedSettings.vatNumber || importedSettings["VAT Number"] || prev.settings.vatNumber,
-      bankIban: importedSettings.bankIban || importedSettings["Bank IBAN"] || prev.settings.bankIban,
-      defaultVatRate: importedSettings.defaultVatRate ?? importedSettings["VAT Rate"] ?? prev.settings.defaultVatRate,
-    }, prev.settings),
+      companyName: importedSettings.companyName || importedSettings["Company Name"] || DEFAULTS.settings.companyName,
+      companyAddress: importedSettings.companyAddress || importedSettings.Address || DEFAULTS.settings.companyAddress,
+      companyEmail: importedSettings.companyEmail || importedSettings.Email || DEFAULTS.settings.companyEmail,
+      companyPhone: importedSettings.companyPhone || importedSettings.Phone || DEFAULTS.settings.companyPhone,
+      vatNumber: importedSettings.vatNumber || importedSettings["VAT Number"] || DEFAULTS.settings.vatNumber,
+      bankIban: importedSettings.bankIban || importedSettings["Bank IBAN"] || DEFAULTS.settings.bankIban,
+      defaultVatRate: importedSettings.defaultVatRate ?? importedSettings["VAT Rate"] ?? DEFAULTS.settings.defaultVatRate,
+    }, DEFAULTS.settings),
+  };
+
+  setData(prev => ({
+    ...prev,
+    employees: importedSnapshot.employees.length ? importedSnapshot.employees : prev.employees,
+    employeePins: Object.keys(importedSnapshot.employeePins).length ? importedSnapshot.employeePins : prev.employeePins,
+    employeeUsernames: Object.keys(importedSnapshot.employeeUsernames).length ? importedSnapshot.employeeUsernames : prev.employeeUsernames,
+    clients: importedSnapshot.clients.length ? importedSnapshot.clients : prev.clients,
+    schedules: importedSnapshot.schedules.length ? importedSnapshot.schedules : prev.schedules,
+    clockEntries: importedSnapshot.clockEntries.length ? importedSnapshot.clockEntries : prev.clockEntries,
+    invoices: importedSnapshot.invoices.length ? importedSnapshot.invoices : prev.invoices,
+    payslips: importedSnapshot.payslips.length ? importedSnapshot.payslips : prev.payslips,
+    ownerUsername: importedSnapshot.ownerUsername || prev.ownerUsername || "",
+    ownerPin: importedSnapshot.ownerPin || prev.ownerPin || "",
+    managerUsername: importedSnapshot.managerUsername || prev.managerUsername || "",
+    managerPin: importedSnapshot.managerPin || prev.managerPin || "",
+    settings: importedSnapshot.settings,
   }));
-  showToast("Excel imported!", "success");
+
+  await syncImportedDataToDb(importedSnapshot);
+  showToast("Excel imported and synced to database!", "success");
 } catch (err) { console.error(err); showToast("Import failed", "error"); }
 };
 
@@ -2037,28 +2164,39 @@ useEffect(() => {
   });
 
   const loadFromDb = async () => {
-    const base = API_BASE_CANDIDATES[0] || "";
-    if (!base) return;
+    if (!API_BASE_CANDIDATES.length) return;
     try {
+      let responses = null;
+      for (const base of API_BASE_CANDIDATES) {
+        const current = await Promise.all([
+          fetch(apiUrl('/api/employees', base), { cache: 'no-store' }),
+          fetch(apiUrl('/api/clients', base), { cache: 'no-store' }),
+          fetch(apiUrl('/api/schedules', base), { cache: 'no-store' }),
+          fetch(apiUrl('/api/clock-entries', base), { cache: 'no-store' }),
+          fetch(apiUrl('/api/invoices', base), { cache: 'no-store' }),
+          fetch(apiUrl('/api/payslips', base), { cache: 'no-store' }),
+          fetch(apiUrl('/api/settings', base), { cache: 'no-store' }),
+          fetch(apiUrl('/api/email-status', base), { cache: 'no-store' }).catch(() => null),
+          fetch(apiUrl('/api/quotes', base), { cache: 'no-store' }).catch(() => null),
+          fetch(apiUrl('/api/photo-uploads', base), { cache: 'no-store' }).catch(() => null),
+          fetch(apiUrl('/api/time-off-requests', base), { cache: 'no-store' }).catch(() => null),
+          fetch(apiUrl('/api/inventory-products', base), { cache: 'no-store' }).catch(() => null),
+          fetch(apiUrl('/api/product-requests', base), { cache: 'no-store' }).catch(() => null),
+          fetch(apiUrl('/api/cleaner-product-holdings', base), { cache: 'no-store' }).catch(() => null),
+          fetch(apiUrl('/api/prospect-visits', base), { cache: 'no-store' }).catch(() => null),
+          fetch(apiUrl('/api/expenses', base), { cache: 'no-store' }).catch(() => null),
+        ]);
+        const [employeesRes, clientsRes, schedulesRes, clocksRes, invoicesRes, payslipsRes, settingsRes] = current;
+        if ([employeesRes, clientsRes, schedulesRes, clocksRes, invoicesRes, payslipsRes, settingsRes].every(r => r?.ok)) {
+          responses = current;
+          break;
+        }
+      }
+
+      if (!responses) throw new Error('Unable to load from any configured API base');
+
       const [employeesRes, clientsRes, schedulesRes, clocksRes, invoicesRes, payslipsRes, settingsRes, emailStatusRes,
-             quotesRes, photoUploadsRes, timeOffRes, inventoryRes, productRequestsRes, holdingsRes, visitsRes, expensesRes] = await Promise.all([
-        fetch(apiUrl('/api/employees', base), { cache: 'no-store' }),
-        fetch(apiUrl('/api/clients', base), { cache: 'no-store' }),
-        fetch(apiUrl('/api/schedules', base), { cache: 'no-store' }),
-        fetch(apiUrl('/api/clock-entries', base), { cache: 'no-store' }),
-        fetch(apiUrl('/api/invoices', base), { cache: 'no-store' }),
-        fetch(apiUrl('/api/payslips', base), { cache: 'no-store' }),
-        fetch(apiUrl('/api/settings', base), { cache: 'no-store' }),
-        fetch(apiUrl('/api/email-status', base), { cache: 'no-store' }).catch(() => null),
-        fetch(apiUrl('/api/quotes', base), { cache: 'no-store' }).catch(() => null),
-        fetch(apiUrl('/api/photo-uploads', base), { cache: 'no-store' }).catch(() => null),
-        fetch(apiUrl('/api/time-off-requests', base), { cache: 'no-store' }).catch(() => null),
-        fetch(apiUrl('/api/inventory-products', base), { cache: 'no-store' }).catch(() => null),
-        fetch(apiUrl('/api/product-requests', base), { cache: 'no-store' }).catch(() => null),
-        fetch(apiUrl('/api/cleaner-product-holdings', base), { cache: 'no-store' }).catch(() => null),
-        fetch(apiUrl('/api/prospect-visits', base), { cache: 'no-store' }).catch(() => null),
-        fetch(apiUrl('/api/expenses', base), { cache: 'no-store' }).catch(() => null),
-      ]);
+             quotesRes, photoUploadsRes, timeOffRes, inventoryRes, productRequestsRes, holdingsRes, visitsRes, expensesRes] = responses;
 
       if (![employeesRes, clientsRes, schedulesRes, clocksRes, invoicesRes, payslipsRes, settingsRes].every(r => r.ok)) return;
 

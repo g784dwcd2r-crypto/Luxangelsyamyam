@@ -1,6 +1,6 @@
 
 
-import { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo, Children, isValidElement } from "react";
 import ExcelJS from "exceljs";
 
 /* ===========================================================
@@ -1855,11 +1855,7 @@ const Field = ({ label, children }) => (
 );
 
 const TextInput = (props) => <input {...props} placeholder={uiText(props.placeholder)} style={{ ...inputSt, ...(props.style || {}) }} />;
-const SelectInput = ({ children, ...props }) => {
-const multiSelectSt = props.multiple ? { height: "auto", minHeight: 120, padding: "8px 12px", lineHeight: 1.35 } : {};
-return <select {...props} style={{ ...inputSt, ...multiSelectSt, appearance: "auto", color: CL.text, colorScheme: INIT_THEME === "dark" ? "dark" : "light", ...(props.style || {}) }}>{children}</select>;
-};
-const MultiSelectInput = ({ options = [], value = [], onChange, placeholder = "0 items", disabled = false }) => {
+const SearchableSelectInput = ({ options = [], value = "", onChange, placeholder = "Select...", disabled = false, multiple = false, noResultsLabel = "No results", style = {} }) => {
 const [open, setOpen] = useState(false);
 const [search, setSearch] = useState("");
 const ref = useRef(null);
@@ -1872,17 +1868,25 @@ useEffect(() => {
   return () => document.removeEventListener("mousedown", onDocClick);
 }, []);
 
-const selected = options.filter(opt => value.includes(opt.value));
+const selectedValues = Array.isArray(value) ? value : value ? [value] : [];
+const selected = options.filter(opt => selectedValues.includes(opt.value));
 const filtered = options.filter(opt => !search || opt.label.toLowerCase().includes(search.toLowerCase()));
 
-const toggleVal = (val) => {
+const selectVal = (val) => {
   if (!onChange) return;
-  onChange(value.includes(val) ? value.filter(v => v !== val) : [...value, val]);
+  if (multiple) {
+    onChange(selectedValues.includes(val) ? selectedValues.filter(v => v !== val) : [...selectedValues, val]);
+    return;
+  }
+  onChange(val);
+  setOpen(false);
 };
 
 const summary = selected.length === 0
   ? placeholder
-  : selected.length <= 2
+  : !multiple
+    ? selected[0]?.label
+    : selected.length <= 2
     ? selected.map(s => s.label).join(", ")
     : `${selected.length} items`;
 
@@ -1892,7 +1896,7 @@ return (
       type="button"
       disabled={disabled}
       onClick={() => !disabled && setOpen(o => !o)}
-      style={{ ...inputSt, display: "flex", alignItems: "center", justifyContent: "space-between", cursor: disabled ? "not-allowed" : "pointer", background: disabled ? CL.s2 : CL.sf }}
+      style={{ ...inputSt, display: "flex", alignItems: "center", justifyContent: "space-between", cursor: disabled ? "not-allowed" : "pointer", background: disabled ? CL.s2 : CL.sf, ...(style || {}) }}
     >
       <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: selected.length ? CL.text : CL.dim }}>{summary}</span>
       <span style={{ color: CL.muted }}>▾</span>
@@ -1908,13 +1912,33 @@ return (
           />
         )}
         <div style={{ maxHeight: 220, overflowY: "auto" }}>
-          {filtered.length === 0 ? <div style={{ fontSize: 12, color: CL.muted, padding: "8px 4px" }}>{uiText("No active employees")}</div> : filtered.map(opt => {
-            const checked = value.includes(opt.value);
+          {filtered.length === 0 ? <div style={{ fontSize: 12, color: CL.muted, padding: "8px 4px" }}>{uiText(noResultsLabel)}</div> : filtered.map(opt => {
+            const checked = selectedValues.includes(opt.value);
+            const optDisabled = Boolean(opt.disabled);
             return (
-              <label key={opt.value} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 6px", borderRadius: 7, cursor: "pointer", fontSize: 13 }}>
-                <input type="checkbox" checked={checked} onChange={() => toggleVal(opt.value)} />
+              <button
+                type="button"
+                key={opt.value}
+                disabled={optDisabled}
+                onClick={() => !optDisabled && selectVal(opt.value)}
+                style={{
+                  width: "100%",
+                  textAlign: "left",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "8px 6px",
+                  borderRadius: 7,
+                  border: "none",
+                  background: checked ? `${CL.gold}22` : "transparent",
+                  cursor: optDisabled ? "not-allowed" : "pointer",
+                  opacity: optDisabled ? 0.6 : 1,
+                  fontSize: 13
+                }}
+              >
+                {multiple ? <input type="checkbox" readOnly checked={checked} /> : <span style={{ color: checked ? CL.green : "transparent" }}>✓</span>}
                 <span style={{ color: CL.text }}>{opt.label}</span>
-              </label>
+              </button>
             );
           })}
         </div>
@@ -1923,6 +1947,43 @@ return (
   </div>
 );
 };
+const SelectInput = ({ children, value, onChange, multiple = false, disabled = false, style = {}, name, ...props }) => {
+  const options = useMemo(() => {
+    const parsed = [];
+    const walk = (nodes) => {
+      Children.forEach(nodes, (node) => {
+        if (!isValidElement(node)) return;
+        if (node.type === "option") {
+          const raw = node.props.children;
+          parsed.push({ value: node.props.value ?? "", label: typeof raw === "string" ? raw : String(raw ?? ""), disabled: node.props.disabled });
+          return;
+        }
+        if (node.props?.children) walk(node.props.children);
+      });
+    };
+    walk(children);
+    return parsed;
+  }, [children]);
+
+  const placeholder = options.find(opt => opt.value === "")?.label || uiText("Select...");
+  const normalizedValue = multiple ? (Array.isArray(value) ? value : value ? [value] : []) : (value ?? "");
+  const handleChange = (next) => onChange?.({ target: { value: next, name } });
+
+  return (
+    <SearchableSelectInput
+      options={options}
+      value={normalizedValue}
+      onChange={handleChange}
+      placeholder={placeholder}
+      disabled={disabled}
+      multiple={multiple}
+      noResultsLabel="No results"
+      style={style}
+      {...props}
+    />
+  );
+};
+const MultiSelectInput = (props) => <SearchableSelectInput {...props} multiple />;
 const TextArea = (props) => <textarea {...props} placeholder={uiText(props.placeholder)} style={{ ...inputSt, height: "auto", minHeight: 80, padding: "12px 16px", resize: "vertical", ...(props.style || {}) }} />;
 const Badge = ({ children, color = CL.gold }) => <span style={{ display: "inline-block", padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 600, background: color + "20", color }}>{uiText(children)}</span>;
 const StatCard = ({ label, value, icon, color = CL.gold }) => (
@@ -3136,20 +3197,20 @@ if (view === "agent-pick") return (
         <label style={{ display: "block", fontSize: 12, color: CL.muted, marginBottom: 6, fontWeight: 600, letterSpacing: ".05em", textTransform: "uppercase" }}>
           {lang === "en" ? "Select your username" : "Sélectionnez votre nom d'utilisateur"}
         </label>
-        <select
+        <SelectInput
           value={selectedAgent ? selectedAgent.id : ""}
           onChange={e => {
             const agent = agentList.find(a => a.id === e.target.value);
             setSelectedAgent(agent || null);
             setError("");
           }}
-          style={{ width: "100%", padding: "11px 14px", background: CL.s2, border: `1px solid ${CL.bd}`, borderRadius: 10, color: selectedAgent ? CL.text : CL.muted, fontSize: 15, fontWeight: 500, cursor: "pointer", outline: "none", appearance: "none", backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")`, backgroundRepeat: "no-repeat", backgroundPosition: "calc(100% - 14px) center" }}
+          style={{ width: "100%" }}
         >
           <option value="" disabled style={{ color: CL.muted }}>{lang === "en" ? "— Choose your username —" : "— Choisissez votre nom d'utilisateur —"}</option>
           {agentList.map(agent => (
             <option key={agent.id} value={agent.id}>{agent.display_name || agent.name}</option>
           ))}
-        </select>
+        </SelectInput>
         <button
           onClick={() => { if (selectedAgent) { setPassword(""); setError(""); setView("agent-pw"); } }}
           disabled={!selectedAgent}
@@ -4558,9 +4619,9 @@ for (let h = 0; h < 24; h++) {
   }
 }
 return (
-  <select value={value || ""} onChange={onChange} disabled={disabled} style={{ ...inputSt, appearance: "auto", WebkitAppearance: "auto" }}>
+  <SelectInput value={value || ""} onChange={onChange} disabled={disabled}>
     {options.map(o => <option key={o.val} value={o.val}>{o.label}</option>)}
-  </select>
+  </SelectInput>
 );
 }
 
@@ -5151,7 +5212,7 @@ clockOutDate: "",
 clockOutTime: "",
 notes: "",
 });
-const [filters, setFilters] = useState({ emp: "", month: getToday().slice(0, 7) });
+const [filters, setFilters] = useState({ empIds: [], month: getToday().slice(0, 7) });
 const [editEntry, setEditEntry] = useState(null);
 
 const setManual = (key, value) => setManualEntry(prev => ({ ...prev, [key]: value }));
@@ -5288,10 +5349,14 @@ showToast(err?.message || "Unable to delete clock entry", "error");
 
 const activeClocks = data.clockEntries.filter(c => !c.clockOut);
 const filteredEntries = data.clockEntries.filter(c => {
-if (filters.emp && c.employeeId !== filters.emp) return false;
+if (filters.empIds?.length && !filters.empIds.includes(c.employeeId)) return false;
 if (filters.month && c.clockIn && !c.clockIn.startsWith(filters.month)) return false;
 return true;
 }).sort((a, b) => new Date(b.clockIn) - new Date(a.clockIn));
+
+const activeEmployeeOptions = data.employees.filter(emp => emp.status === "active").map(emp => ({ value: emp.id, label: emp.name }));
+const activeClientOptions = data.clients.filter(c => c.status === "active").map(c => ({ value: c.id, label: c.name }));
+const employeeFilterOptions = data.employees.map(emp => ({ value: emp.id, label: emp.name }));
 
 return (
 <div>
@@ -5302,18 +5367,24 @@ return (
     <div style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
       <div style={{ flex: 1, minWidth: 160 }}>
         <Field label={uiText("Employee")}>
-          <SelectInput value={selectedEmp} onChange={ev => setSelectedEmp(ev.target.value)}>
-            <option value="">{uiText("Select...")}</option>
-            {data.employees.filter(emp => emp.status === "active").map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
-          </SelectInput>
+          <SearchableSelectInput
+            value={selectedEmp}
+            onChange={setSelectedEmp}
+            options={activeEmployeeOptions}
+            placeholder={uiText("Select...")}
+            noResultsLabel="No employees"
+          />
         </Field>
       </div>
       <div style={{ flex: 1, minWidth: 160 }}>
         <Field label={uiText("Client")}>
-          <SelectInput value={selectedCli} onChange={ev => setSelectedCli(ev.target.value)}>
-            <option value="">{uiText("Select...")}</option>
-            {data.clients.filter(c => c.status === "active").map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </SelectInput>
+          <SearchableSelectInput
+            value={selectedCli}
+            onChange={setSelectedCli}
+            options={activeClientOptions}
+            placeholder={uiText("Select...")}
+            noResultsLabel="No clients"
+          />
         </Field>
       </div>
       <button style={{ ...btnPri, marginBottom: 14, background: CL.green }} onClick={doClockIn}>{uiText("Clock In")}</button>
@@ -5342,16 +5413,22 @@ return (
     <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.blue }}>{uiText("Owner: Add missed clock-in")}</h3>
     <div className="form-grid" style={{ marginBottom: 8 }}>
       <Field label="Employee">
-        <SelectInput value={manualEntry.employeeId} onChange={ev => setManual("employeeId", ev.target.value)}>
-          <option value="">Select...</option>
-          {data.employees.filter(emp => emp.status === "active").map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
-        </SelectInput>
+        <SearchableSelectInput
+          value={manualEntry.employeeId}
+          onChange={(val) => setManual("employeeId", val)}
+          options={activeEmployeeOptions}
+          placeholder={uiText("Select...")}
+          noResultsLabel="No employees"
+        />
       </Field>
       <Field label="Client">
-        <SelectInput value={manualEntry.clientId} onChange={ev => setManual("clientId", ev.target.value)}>
-          <option value="">Select...</option>
-          {data.clients.filter(c => c.status === "active").map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </SelectInput>
+        <SearchableSelectInput
+          value={manualEntry.clientId}
+          onChange={(val) => setManual("clientId", val)}
+          options={activeClientOptions}
+          placeholder={uiText("Select...")}
+          noResultsLabel="No clients"
+        />
       </Field>
       <Field label="In Date"><DatePicker value={manualEntry.clockInDate} onChange={ev => setManual("clockInDate", ev.target.value)} /></Field>
       <Field label="In Time"><TextInput type="time" value={manualEntry.clockInTime} onChange={ev => setManual("clockInTime", ev.target.value)} /></Field>
@@ -5365,10 +5442,16 @@ return (
   </div>
 
   <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
-    <SelectInput value={filters.emp} onChange={ev => setFilters(f => ({ ...f, emp: ev.target.value }))} style={{ width: 160 }}>
-      <option value="">{uiText("All Employees")}</option>
-      {data.employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
-    </SelectInput>
+    <div style={{ width: 260 }}>
+      <SearchableSelectInput
+        value={filters.empIds}
+        onChange={(vals) => setFilters(f => ({ ...f, empIds: vals }))}
+        options={employeeFilterOptions}
+        placeholder={uiText("All Employees")}
+        multiple
+        noResultsLabel="No employees"
+      />
+    </div>
     <TextInput type="month" value={filters.month} onChange={ev => setFilters(f => ({ ...f, month: ev.target.value }))} style={{ width: 160 }} />
   </div>
 
@@ -6448,7 +6531,7 @@ return (
   onChange={e => setFilters(f => ({ ...f, invoiceNumber: e.target.value }))}
   style={{ ...inputSt, width: 140, fontSize: 13 }}
 />
-<select
+<SelectInput
   value={filters.clientId}
   onChange={e => setFilters(f => ({ ...f, clientId: e.target.value }))}
   style={{ ...inputSt, width: 180, fontSize: 13 }}
@@ -6457,8 +6540,8 @@ return (
   {[...data.clients].sort((a, b) => (a.name || "").localeCompare(b.name || "")).map(c => (
     <option key={c.id} value={c.id}>{c.name}</option>
   ))}
-</select>
-<select
+</SelectInput>
+<SelectInput
   value={filters.status}
   onChange={e => setFilters(f => ({ ...f, status: e.target.value }))}
   style={{ ...inputSt, width: 140, fontSize: 13 }}
@@ -6468,7 +6551,7 @@ return (
   <option value="sent">{lang === "fr" ? "Envoyée" : "Sent"}</option>
   <option value="paid">{lang === "fr" ? "Payée" : "Paid"}</option>
   <option value="overdue">{lang === "fr" ? "En retard" : "Overdue"}</option>
-</select>
+</SelectInput>
 <input
   type="date"
   value={filters.dateFrom}
@@ -6494,7 +6577,36 @@ return (
 <thead><tr><th style={thSt}>#</th><th style={thSt}>{t("client")}</th><th style={thSt}>{t("date")}</th><th style={thSt}>{t("total")}</th><th style={thSt}>{t("status")}</th><th style={thSt}>{t("actions")}</th></tr></thead>
 <tbody>
 {filteredInvoices.map(inv => { const client = data.clients.find(c => c.id === inv.clientId); const effStatus = effectiveInvoiceStatus(inv); return (
-<tr key={inv.id}><td style={tdSt}><strong>{inv.invoiceNumber}</strong></td><td style={tdSt}>{client?.name || "-"}</td><td style={tdSt}>{fmtDate(inv.date)}{inv.dueDate ? <div style={{ fontSize: 11, color: effStatus === "overdue" ? CL.red : CL.muted }}>{lang === "fr" ? "Échéance:" : "Due:"} {fmtDate(inv.dueDate)}</div> : null}</td><td style={{ ...tdSt, fontWeight: 600 }}>€{(inv.total || 0).toFixed(2)}</td><td style={tdSt}>{(() => { const statusColor = effStatus === "paid" ? CL.green : effStatus === "overdue" ? CL.red : effStatus === "sent" ? CL.blue : CL.muted; return <select value={effStatus} onChange={e => handleStatusChange(inv, e.target.value)} style={{ background: statusColor + "22", color: statusColor, border: `1.5px solid ${statusColor}`, borderRadius: 20, padding: "3px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer", appearance: "none", WebkitAppearance: "none", outline: "none" }}><option value="draft">{lang === "fr" ? "Brouillon" : "Draft"}</option><option value="sent">{lang === "fr" ? "Envoyée" : "Sent"}</option><option value="paid">{lang === "fr" ? "Payée ✓" : "Paid ✓"}</option><option value="overdue">{lang === "fr" ? "En retard" : "Overdue"}</option></select>; })()}</td><td style={tdSt}><div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}><button style={{ ...btnSec, ...btnSm }} onClick={() => setPreview(inv)}>{t("view")}</button><button style={{ ...btnSec, ...btnSm }} onClick={() => setModal({ ...inv })}>{ICN.edit}</button><button style={{ ...btnSec, ...btnSm }} onClick={() => emailInvoice(inv)}>{ICN.mail}</button><button style={{ ...btnSec, ...btnSm, color: CL.red }} onClick={() => handleDelete(inv.id)}>{ICN.trash}</button></div></td></tr>
+<tr key={inv.id}>
+  <td style={tdSt}><strong>{inv.invoiceNumber}</strong></td>
+  <td style={tdSt}>{client?.name || "-"}</td>
+  <td style={tdSt}>
+    {fmtDate(inv.date)}
+    {inv.dueDate ? <div style={{ fontSize: 11, color: effStatus === "overdue" ? CL.red : CL.muted }}>{lang === "fr" ? "Échéance:" : "Due:"} {fmtDate(inv.dueDate)}</div> : null}
+  </td>
+  <td style={{ ...tdSt, fontWeight: 600 }}>€{(inv.total || 0).toFixed(2)}</td>
+  <td style={tdSt}>
+    {(() => {
+      const statusColor = effStatus === "paid" ? CL.green : effStatus === "overdue" ? CL.red : effStatus === "sent" ? CL.blue : CL.muted;
+      return (
+        <SelectInput value={effStatus} onChange={e => handleStatusChange(inv, e.target.value)} style={{ minWidth: 130, height: 32, fontSize: 12, borderRadius: 20, border: `1.5px solid ${statusColor}`, color: statusColor }}>
+          <option value="draft">{lang === "fr" ? "Brouillon" : "Draft"}</option>
+          <option value="sent">{lang === "fr" ? "Envoyée" : "Sent"}</option>
+          <option value="paid">{lang === "fr" ? "Payée ✓" : "Paid ✓"}</option>
+          <option value="overdue">{lang === "fr" ? "En retard" : "Overdue"}</option>
+        </SelectInput>
+      );
+    })()}
+  </td>
+  <td style={tdSt}>
+    <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+      <button style={{ ...btnSec, ...btnSm }} onClick={() => setPreview(inv)}>{t("view")}</button>
+      <button style={{ ...btnSec, ...btnSm }} onClick={() => setModal({ ...inv })}>{ICN.edit}</button>
+      <button style={{ ...btnSec, ...btnSm }} onClick={() => emailInvoice(inv)}>{ICN.mail}</button>
+      <button style={{ ...btnSec, ...btnSm, color: CL.red }} onClick={() => handleDelete(inv.id)}>{ICN.trash}</button>
+    </div>
+  </td>
+</tr>
 ); })}
 {filteredInvoices.length === 0 && <tr><td colSpan={6} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>{hasFilters ? (lang === "fr" ? "Aucune facture trouvée" : "No invoices match filters") : uiText("No invoices")}</td></tr>}
 </tbody>

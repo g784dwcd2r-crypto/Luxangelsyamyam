@@ -7331,31 +7331,19 @@ const generatePayslips = async (downloadAfter = false) => {
   }
 };
 
-const deleteGeneratedPayslips = async () => {
-  if (!rangeStart || !rangeEnd) { showToast("Select a time range", "error"); return; }
-  const selectedSet = selectedEmployees.length ? new Set(selectedEmployees) : null;
-  const matching = data.payslips.filter(ps => {
-    const hasRange = !!(ps.periodStart && ps.periodEnd);
-    if (!hasRange) return false;
-    if (ps.periodStart !== rangeStart || ps.periodEnd !== rangeEnd) return false;
-    if (selectedSet && !selectedSet.has(ps.employeeId)) return false;
-    return true;
-  });
-  if (matching.length === 0) {
-    showToast("No generated payslips found for this filter", "error");
-    return;
-  }
-  const ok = window.confirm(`Delete ${matching.length} generated payslip(s) for this range?`);
-  if (!ok) return;
-  try {
-    await Promise.all(matching.map(ps => deletePayslipFromApi(ps.id)));
-    const ids = new Set(matching.map(ps => ps.id));
-    updateData("payslips", prev => prev.filter(ps => !ids.has(ps.id)));
-    showToast(`${matching.length} payslip(s) deleted`);
-  } catch (err) {
-    console.error(err);
-    showToast(err?.message || "Unable to delete generated payslips", "error");
-  }
+const deleteSinglePayslip = async (id) => {
+const ps = data.payslips.find(p => p.id === id);
+if (!ps) return;
+const ok = window.confirm(`Delete payslip ${ps.payslipNumber}?`);
+if (!ok) return;
+try {
+await deletePayslipFromApi(id);
+updateData("payslips", prev => prev.filter(p => p.id !== id));
+showToast("Payslip deleted");
+} catch (err) {
+console.error(err);
+showToast(err?.message || "Unable to delete payslip", "error");
+}
 };
 
 const markPaid = async (id) => {
@@ -7396,7 +7384,6 @@ return (
   </div>
   <button style={btnPri} onClick={() => generatePayslips(false)}>{ICN.plus} Generate</button>
   <button style={btnSec} onClick={() => generatePayslips(true)}>{ICN.download} Generate + Download</button>
-  <button style={{ ...btnSec, color: CL.red }} onClick={deleteGeneratedPayslips}>{ICN.trash} Delete generated</button>
 </div>
 </div>
 <div style={cardSt} className="tbl-wrap">
@@ -7417,6 +7404,7 @@ return (
 <div style={{ display: "flex", gap: 4 }}>
 <button style={{ ...btnSec, ...btnSm }} onClick={() => setPreview(ps)}>View</button>
 <button style={{ ...btnSec, ...btnSm }} onClick={() => downloadPayslipFile(ps)}>{ICN.download}</button>
+<button style={{ ...btnSec, ...btnSm, color: CL.red }} onClick={() => deleteSinglePayslip(ps.id)}>{ICN.trash}</button>
 {ps.status !== "paid" && <button style={{ ...btnSec, ...btnSm, color: CL.green }} onClick={() => markPaid(ps.id)}>{ICN.check}</button>}
 </div>
 </td>

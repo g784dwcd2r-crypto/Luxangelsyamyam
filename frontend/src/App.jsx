@@ -5868,9 +5868,13 @@ const [quoteForPdf, setQuoteForPdf] = useState(null);
 const [quoteEmailDraft, setQuoteEmailDraft] = useState(null);
 const previewRef = useRef(null);
 const hiddenQuoteRef = useRef(null);
+const clients = Array.isArray(data?.clients) ? data.clients : [];
+const quotes = Array.isArray(data?.quotes) ? data.quotes : [];
+const invoices = Array.isArray(data?.invoices) ? data.invoices : [];
+const settings = data?.settings || DEFAULTS.settings;
 
 const defaultQuoteColumns = { prestationDate: true, description: true, hours: true, quantity: false, unitPrice: true, total: true, tva: true };
-const defaultVatRate = Number.isFinite(Number(data?.settings?.defaultVatRate)) ? Number(data.settings.defaultVatRate) : 17;
+const defaultVatRate = Number.isFinite(Number(settings?.defaultVatRate)) ? Number(settings.defaultVatRate) : 17;
 
 const newQuoteDraft = (clientId = "", presetDescription = "Cleaning service") => ({ quoteNumber: quoteNumber(), clientId, date: getToday(), validUntil: "", items: [{ prestationDate: getToday(), description: presetDescription, hours: "", quantity: 1, unitPrice: 0, total: 0 }], pricingMode: "hours", visibleColumns: { ...defaultQuoteColumns }, vatRate: defaultVatRate, subtotal: 0, vatAmount: 0, total: 0, status: "draft", notes: "", paymentTerms: "Quote valid for 30 days.", jobSchedule: { dateFrom: "", dateTo: "", frequency: "one-time", startDate: getToday(), employeeId: "", startTime: "08:00", endTime: "12:00" } });
 
@@ -5886,8 +5890,7 @@ if (setDevisSeed) setDevisSeed(null);
 const quoteNumber = (dateStr = getToday()) => {
 const [year, month, day] = (dateStr || getToday()).split("-");
 const prefix = `DEV-${year || new Date().getFullYear()}-${(month || "01").padStart(2, "0")}-${(day || "01").padStart(2, "0")}-`;
-const quotes = Array.isArray(data?.quotes) ? data.quotes : [];
-const nums = quotes.map(q => String(q.quoteNumber || "")).filter(n => n.startsWith(prefix)).map(n => parseInt(n.slice(prefix.length), 10)).filter(n => Number.isFinite(n));
+const nums = quotes.map(q => String(q?.quoteNumber || "")).filter(n => n.startsWith(prefix)).map(n => parseInt(n.slice(prefix.length), 10)).filter(n => Number.isFinite(n));
 return `${prefix}${nums.length ? Math.max(...nums) + 1 : 1}`;
 };
 
@@ -5956,10 +5959,10 @@ showToast("Quote PDF downloaded");
 
 const buildQuoteEmailBody = (q, client, template, emailLang) => {
 const l = emailLang || lang;
-const sig = data.settings.emailSignature
-  ? `\n\n--\n${data.settings.emailSignature}`
-  : `\n\n${l === "fr" ? "Cordialement" : "Best regards"},\n${data.settings.companyName}\n${data.settings.companyEmail || ""}${data.settings.companyPhone ? ` | ${data.settings.companyPhone}` : ""}`;
-const name = client.contactPerson || client.name;
+const sig = settings.emailSignature
+  ? `\n\n--\n${settings.emailSignature}`
+  : `\n\n${l === "fr" ? "Cordialement" : "Best regards"},\n${settings.companyName}\n${settings.companyEmail || ""}${settings.companyPhone ? ` | ${settings.companyPhone}` : ""}`;
+const name = client?.contactPerson || client?.name || (l === "fr" ? "Client" : "Customer");
 const amount = `€${(q.total || 0).toFixed(2)}`;
 const qNum = q.quoteNumber;
 const dateStr = fmtDate(q.date);
@@ -5986,7 +5989,7 @@ return `Dear ${name},\n\nPlease find our quote ${qNum}.\nDate: ${dateStr}\nAmoun
 };
 
 const emailQuote = (q) => {
-const client = data.clients.find(c => c.id === q.clientId);
+const client = clients.find(c => c.id === q.clientId);
 if (!client?.email) { showToast(lang === "fr" ? "Email client manquant" : "Client email missing", "error"); return; }
 const subject = lang === "fr" ? `Devis ${q.quoteNumber}` : `Quote ${q.quoteNumber}`;
 const url = `https://mail.zoho.com/zm/#compose?to=${encodeURIComponent(client.email)}&subject=${encodeURIComponent(subject)}`;
@@ -6041,7 +6044,7 @@ const deleteQuote = async (id) => {
 const toInvoiceNum = () => {
 const [year, month, day] = getToday().split("-");
 const prefix = `LA-${year}-${month}-${day}-`;
-const nums = (data.invoices || []).map(i => String(i.invoiceNumber || "")).filter(n => n.startsWith(prefix)).map(n => parseInt(n.slice(prefix.length), 10)).filter(n => Number.isFinite(n));
+const nums = invoices.map(i => String(i.invoiceNumber || "")).filter(n => n.startsWith(prefix)).map(n => parseInt(n.slice(prefix.length), 10)).filter(n => Number.isFinite(n));
 return `${prefix}${nums.length ? Math.max(...nums) + 1 : 500}`;
 };
 
@@ -6084,7 +6087,7 @@ items: (q.items || []).map(it => ({ ...it })),
 visibleColumns: q.visibleColumns || defaultQuoteColumns,
 pricingMode: q.pricingMode || "hours",
 subtotal: q.subtotal || 0,
-vatRate: q.vatRate || data.settings.defaultVatRate,
+vatRate: q.vatRate || settings.defaultVatRate,
 vatAmount: q.vatAmount || 0,
 total: q.total || 0,
 status: "draft",
@@ -6137,10 +6140,10 @@ return (
 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
 <thead><tr><th style={thSt}>{t("quote")} #</th><th style={thSt}>{t("client")}</th><th style={thSt}>{t("date")}</th><th style={thSt}>{t("total")}</th><th style={thSt}>{t("status")}</th><th style={thSt}>{t("actions")}</th></tr></thead>
 <tbody>
-{(data.quotes || []).sort((a,b)=>(b.date||"").localeCompare(a.date||"")).map(q => { const client = data.clients.find(c => c.id === q.clientId); return (
+{[...quotes].sort((a,b)=>(b?.date||"").localeCompare(a?.date||"")).map(q => { const client = clients.find(c => c.id === q?.clientId); return (
 <tr key={q.id}><td style={tdSt}><strong>{q.quoteNumber}</strong></td><td style={tdSt}>{client?.name || "-"}</td><td style={tdSt}>{fmtDate(q.date)}</td><td style={{ ...tdSt, fontWeight: 600 }}>€{(q.total || 0).toFixed(2)}</td><td style={tdSt}><Badge color={q.status === "accepted" || q.status === "converted" ? CL.green : q.status === "rejected" ? CL.red : CL.blue}>{q.status || t("draft")}</Badge></td><td style={tdSt}><div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}><button style={{ ...btnSec, ...btnSm }} onClick={() => setPreview({ ...q, invoiceNumber: q.quoteNumber, dueDate: q.validUntil })}>{t("view")}</button><button style={{ ...btnSec, ...btnSm }} onClick={() => setModal({ ...q })}>{ICN.edit}</button><button style={{ ...btnSec, ...btnSm }} onClick={() => downloadQuotePdf(q)}>{ICN.download} PDF</button><button style={{ ...btnSec, ...btnSm }} onClick={() => sendQuote(q)}>{ICN.mail}</button>{q.status !== "converted" && <button style={{ ...btnSec, ...btnSm, color: CL.green }} onClick={() => convertToInvoice(q)}>{lang === "en" ? "To Invoice" : "Vers facture"}</button>}<button style={{ ...btnSec, ...btnSm, color: CL.red }} onClick={() => deleteQuote(q.id)}>{ICN.trash}</button></div></td></tr>
 ); })}
-{(data.quotes || []).length === 0 && <tr><td colSpan={6} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>{uiText("No quotes")}</td></tr>}
+{quotes.length === 0 && <tr><td colSpan={6} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>{uiText("No quotes")}</td></tr>}
 </tbody>
 </table>
 </div>
@@ -6156,7 +6159,7 @@ return (
     {["standard", "followup", "reminder"].map(tpl => (
       <button key={tpl} style={{ ...btnSec, ...btnSm, fontWeight: quoteEmailDraft.template === tpl ? 700 : 400, borderColor: quoteEmailDraft.template === tpl ? CL.gold : CL.bd, color: quoteEmailDraft.template === tpl ? CL.gold : CL.muted }}
         onClick={() => {
-          const client = data.clients.find(c => c.id === quoteEmailDraft.q.clientId);
+          const client = clients.find(c => c.id === quoteEmailDraft.q.clientId);
           const newBody = buildQuoteEmailBody(quoteEmailDraft.q, client, tpl, lang);
           const subjectMap = lang === "fr"
             ? { standard: `Devis ${quoteEmailDraft.q.quoteNumber}`, followup: `Relance devis ${quoteEmailDraft.q.quoteNumber}`, reminder: `Rappel — Devis ${quoteEmailDraft.q.quoteNumber}` }
@@ -6186,6 +6189,7 @@ return (
 }
 
 function QuoteForm({ quote, data, onSave, onCancel, generateQuoteNumber }) {
+const { t } = useI18n();
 const defaultColumns = { prestationDate: true, description: true, hours: true, quantity: false, unitPrice: true, total: true, tva: true };
 const defaultJobSchedule = { dateFrom: "", dateTo: "", frequency: "one-time", startDate: "", employeeIds: [], startTime: "08:00", endTime: "12:00" };
 const [form, setForm] = useState({ pricingMode: "hours", jobSchedule: { ...defaultJobSchedule }, ...quote, visibleColumns: { ...defaultColumns, ...(quote.visibleColumns || {}) } });

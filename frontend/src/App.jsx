@@ -258,6 +258,11 @@ const UI_FR = {
 "Personal": "Personnel",
 "Work & Pay": "Travail & Paie",
 "Operations": "Opérations",
+"Management": "Gestion",
+"Human Resources": "Ressources humaines",
+"Support": "Support",
+"Analytics": "Analyse",
+"System": "Système",
 "Emergency": "Urgence",
 "Location Group": "Groupe / Zone",
 "Stage": "Statut embauche",
@@ -2757,7 +2762,7 @@ const dueOrOverdueExpenses = (data.expenses || []).filter(exp => {
 const navGroups = [
   {
     id: "operations",
-    label: "Opérations",
+    label: uiText("Operations"),
     items: [
       { id: "dashboard", label: t("dashboard"), icon: ICN.dash },
       { id: "timeclock", label: t("timeclock"), icon: ICN.clock },
@@ -2767,7 +2772,7 @@ const navGroups = [
   },
   {
     id: "management",
-    label: "Gestion",
+    label: uiText("Management"),
     items: [
       { id: "employees", label: t("employees"), icon: ICN.team },
       { id: "clients", label: t("clients"), icon: ICN.user },
@@ -2775,7 +2780,7 @@ const navGroups = [
   },
   {
     id: "finance",
-    label: "Finance",
+    label: uiText("Finance"),
     items: [
       { id: "devis", label: t("devis"), icon: ICN.doc },
       { id: "invoices", label: t("invoices"), icon: ICN.doc },
@@ -2784,7 +2789,7 @@ const navGroups = [
   },
   {
     id: "hr",
-    label: "Ressources humaines",
+    label: uiText("Human Resources"),
     items: [
       { id: "conges", label: t("conges"), icon: ICN.cal, hasAlert: pendingTimeOffRequests > 0 },
       { id: "payslips", label: t("payslips"), icon: ICN.pay },
@@ -2792,7 +2797,7 @@ const navGroups = [
   },
   {
     id: "support",
-    label: "Support",
+    label: uiText("Support"),
     items: [
       { id: "inventory", label: t("inventory"), icon: ICN.doc, hasAlert: pendingProductRequests > 0 },
       { id: "reminders", label: t("reminders"), icon: ICN.mail },
@@ -2801,7 +2806,7 @@ const navGroups = [
   },
   {
     id: "analysis",
-    label: "Analyse",
+    label: uiText("Analytics"),
     items: [
       { id: "history", label: t("history"), icon: ICN.doc, hasAlert: unseenUploads > 0 },
       { id: "reports", label: t("reports"), icon: ICN.chart },
@@ -2809,7 +2814,7 @@ const navGroups = [
   },
   {
     id: "system",
-    label: "Système",
+    label: uiText("System"),
     items: [
       { id: "settings", label: t("settings"), icon: ICN.gear },
       { id: "download-app", label: t("downloadApp"), icon: ICN.download },

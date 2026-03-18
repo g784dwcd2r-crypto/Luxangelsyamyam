@@ -198,6 +198,7 @@ const UI_FR = {
 "Client email missing": "Email client manquant",
 "Client phone missing": "Téléphone client manquant",
 "Unable to send SMS": "Impossible d'envoyer le SMS",
+"Unable to send email": "Impossible d'envoyer l'email",
 "SMS": "SMS",
 "Reminder opened via": "Rappel ouvert via",
 "Select at least one client for campaign": "Sélectionnez au moins un client pour la campagne",
@@ -211,6 +212,20 @@ const UI_FR = {
 "All workflows": "Tous les workflows",
 "Work reminders / upcoming shifts": "Rappels d'interventions / prestations à venir",
 "Business follow-up": "Suivi commercial",
+"Workflow": "Workflow",
+"Active Clients": "Clients actifs :",
+"Selected": "Sélectionnés :",
+"Client search": "Recherche client",
+"Search by name, contact, email or phone": "Rechercher par nom, contact, email ou téléphone",
+"Hide clients": "Masquer les clients",
+"Show clients": "Afficher les clients",
+"No clients match this search.": "Aucun client ne correspond à cette recherche.",
+"Action": "Action",
+"Send": "Envoyer",
+"more": "en plus",
+"Upcoming shift reminder": "Rappel intervention à venir",
+"Invoice sent notification": "Notification facture envoyée",
+"due": "échéance",
 "WhatsApp": "WhatsApp",
 "Zoho": "Zoho",
 // Dashboard
@@ -7813,12 +7828,22 @@ const [channel, setChannel] = useState("email");
 const [workflowType, setWorkflowType] = useState("all");
 const [selectedOnly, setSelectedOnly] = useState(false);
 const [selectedClientIds, setSelectedClientIds] = useState([]);
+const [clientSearch, setClientSearch] = useState("");
+const [showClientPicker, setShowClientPicker] = useState(false);
 const [campaignFrequency, setCampaignFrequency] = useState("weekly");
 const [campaignChannel, setCampaignChannel] = useState("email");
 const [campaignSubject, setCampaignSubject] = useState(lang === "fr" ? "Actualités Lux Angels" : "Lux Angels update");
 const [campaignBody, setCampaignBody] = useState(lang === "fr" ? "Bonjour, voici notre communication périodique de la part de Lux Angels Cleaning." : "Hello, this is your scheduled client communication from Lux Angels.");
 
 const clients = data.clients.filter(c => c.status === "active");
+const selectedClients = clients.filter(c => selectedClientIds.includes(c.id));
+const normalizedSearch = clientSearch.trim().toLowerCase();
+const visibleClients = normalizedSearch
+  ? clients.filter(c => {
+      const haystack = `${c.name || ""} ${c.contactPerson || ""} ${c.email || ""} ${c.phone || ""} ${c.phoneMobile || ""}`.toLowerCase();
+      return haystack.includes(normalizedSearch);
+    })
+  : clients;
 
 const toggleClient = (id) => setSelectedClientIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
@@ -7880,7 +7905,8 @@ return true;
 const dispatch = async (mode, payload, client) => {
 if (mode === "whatsapp") return openWhatsApp({ phone: client.phoneMobile || client.phone, message: payload.body });
 if (mode === "sms") return sendPlatformSMS({ to: client.phoneMobile || client.phone, body: payload.body });
-if (mode === "email" || mode === "zoho") return openZohoCompose({ to: client.email, subject: payload.subject, body: payload.body });
+if (mode === "email") return sendPlatformEmail({ to: client.email, subject: payload.subject, body: payload.body });
+if (mode === "zoho") return openZohoCompose({ to: client.email, subject: payload.subject, body: payload.body });
 return openZohoCompose({ to: client.email, subject: payload.subject, body: payload.body });
 };
 
@@ -7895,21 +7921,38 @@ return {
 id: `shift-${sched.id}`,
 kind: "work",
 client,
-title: `Upcoming shift reminder · ${client.name}`,
-details: `${fmtDate(sched.date)} ${sched.startTime}-${sched.endTime} · ${employee?.name || "TBA"}`,
+title: `${uiText("Upcoming shift reminder")} · ${client.name}`,
+details: `${fmtDate(sched.date)} ${sched.startTime}-${sched.endTime} · ${employee?.name || uiText("Unassigned")}`,
 buildPayload: () => {
 const sig = data.settings.emailSignature
-  ? `\n\n--\n${data.settings.emailSignature}`
-  : `\n\n${lang === "fr" ? "Cordialement" : "Best regards"},\n${data.settings.companyName}${data.settings.companyEmail ? `\n${data.settings.companyEmail}` : ""}${data.settings.companyPhone ? ` | ${data.settings.companyPhone}` : ""}`;
+  ? `
+
+--
+${data.settings.emailSignature}`
+  : `
+
+${lang === "fr" ? "Cordialement" : "Best regards"},
+${data.settings.companyName}${data.settings.companyEmail ? `
+${data.settings.companyEmail}` : ""}${data.settings.companyPhone ? ` | ${data.settings.companyPhone}` : ""}`;
 const cname = client.contactPerson || client.name;
 return lang === "fr" ? {
   to: client.email,
   subject: `Rappel de rendez-vous — ${fmtDate(sched.date)}`,
-  body: `Bonjour ${cname},\n\nNous vous rappelons votre rendez-vous de nettoyage :\nDate : ${fmtDate(sched.date)}\nHoraire : ${sched.startTime}–${sched.endTime}\nAgent : ${employee?.name || "À définir"}${sig}`,
+  body: `Bonjour ${cname},
+
+Nous vous rappelons votre rendez-vous de nettoyage :
+Date : ${fmtDate(sched.date)}
+Horaire : ${sched.startTime}–${sched.endTime}
+Agent : ${employee?.name || "À définir"}${sig}`,
 } : {
   to: client.email,
   subject: `Appointment reminder — ${fmtDate(sched.date)}`,
-  body: `Hello ${cname},\n\nThis is a reminder for your upcoming cleaning appointment:\nDate: ${fmtDate(sched.date)}\nTime: ${sched.startTime}–${sched.endTime}\nCleaner: ${employee?.name || "TBA"}${sig}`,
+  body: `Hello ${cname},
+
+This is a reminder for your upcoming cleaning appointment:
+Date: ${fmtDate(sched.date)}
+Time: ${sched.startTime}–${sched.endTime}
+Cleaner: ${employee?.name || "TBA"}${sig}`,
 };},
 };
 }).filter(Boolean);
@@ -7923,21 +7966,36 @@ return {
 id: `invoice-${inv.id}`,
 kind: "followup",
 client,
-title: `Invoice sent notification · ${client.name}`,
+title: `${uiText("Invoice sent notification")} · ${client.name}`,
 details: `${inv.invoiceNumber} · ${fmtDate(inv.date)} · €${(inv.total || 0).toFixed(2)}`,
 buildPayload: () => {
 const sig = data.settings.emailSignature
-  ? `\n\n--\n${data.settings.emailSignature}`
-  : `\n\n${lang === "fr" ? "Cordialement" : "Best regards"},\n${data.settings.companyName}${data.settings.companyEmail ? `\n${data.settings.companyEmail}` : ""}${data.settings.companyPhone ? ` | ${data.settings.companyPhone}` : ""}`;
+  ? `
+
+--
+${data.settings.emailSignature}`
+  : `
+
+${lang === "fr" ? "Cordialement" : "Best regards"},
+${data.settings.companyName}${data.settings.companyEmail ? `
+${data.settings.companyEmail}` : ""}${data.settings.companyPhone ? ` | ${data.settings.companyPhone}` : ""}`;
 const cname = client.contactPerson || client.name;
 return lang === "fr" ? {
   to: client.email,
   subject: `Facture ${inv.invoiceNumber} transmise`,
-  body: `Bonjour ${cname},\n\nNous vous informons que votre facture ${inv.invoiceNumber} vous a été transmise.\nMontant : €${(inv.total || 0).toFixed(2)}\nDate : ${fmtDate(inv.date)}${sig}`,
+  body: `Bonjour ${cname},
+
+Nous vous informons que votre facture ${inv.invoiceNumber} vous a été transmise.
+Montant : €${(inv.total || 0).toFixed(2)}
+Date : ${fmtDate(inv.date)}${sig}`,
 } : {
   to: client.email,
   subject: `Invoice ${inv.invoiceNumber} sent`,
-  body: `Hello ${cname},\n\nYour invoice ${inv.invoiceNumber} has been sent to you.\nAmount: €${(inv.total || 0).toFixed(2)}\nDate: ${fmtDate(inv.date)}${sig}`,
+  body: `Hello ${cname},
+
+Your invoice ${inv.invoiceNumber} has been sent to you.
+Amount: €${(inv.total || 0).toFixed(2)}
+Date: ${fmtDate(inv.date)}${sig}`,
 };},
 };
 }).filter(Boolean);
@@ -7951,21 +8009,40 @@ return {
 id: `pay-${inv.id}`,
 kind: "followup",
 client,
-title: `Payment follow-up · ${client.name}`,
-details: `${inv.invoiceNumber} due ${fmtDate(inv.dueDate)} · €${(inv.total || 0).toFixed(2)}`,
+title: `${uiText("Payment follow-up")} · ${client.name}`,
+details: `${inv.invoiceNumber} ${uiText("due")} ${fmtDate(inv.dueDate)} · €${(inv.total || 0).toFixed(2)}`,
 buildPayload: () => {
 const sig = data.settings.emailSignature
-  ? `\n\n--\n${data.settings.emailSignature}`
-  : `\n\n${lang === "fr" ? "Cordialement" : "Best regards"},\n${data.settings.companyName}${data.settings.companyEmail ? `\n${data.settings.companyEmail}` : ""}${data.settings.companyPhone ? ` | ${data.settings.companyPhone}` : ""}`;
+  ? `
+
+--
+${data.settings.emailSignature}`
+  : `
+
+${lang === "fr" ? "Cordialement" : "Best regards"},
+${data.settings.companyName}${data.settings.companyEmail ? `
+${data.settings.companyEmail}` : ""}${data.settings.companyPhone ? ` | ${data.settings.companyPhone}` : ""}`;
 const cname = client.contactPerson || client.name;
 return lang === "fr" ? {
   to: client.email,
   subject: `Relance paiement — ${inv.invoiceNumber}`,
-  body: `Bonjour ${cname},\n\nNous vous contactons concernant la facture ${inv.invoiceNumber} toujours en attente de règlement.\nDate d'échéance : ${fmtDate(inv.dueDate)}\nMontant dû : €${(inv.total || 0).toFixed(2)}\n\nMerci de nous confirmer si ce paiement a déjà été effectué.${sig}`,
+  body: `Bonjour ${cname},
+
+Nous vous contactons concernant la facture ${inv.invoiceNumber} toujours en attente de règlement.
+Date d'échéance : ${fmtDate(inv.dueDate)}
+Montant dû : €${(inv.total || 0).toFixed(2)}
+
+Merci de nous confirmer si ce paiement a déjà été effectué.${sig}`,
 } : {
   to: client.email,
   subject: `Payment follow-up — ${inv.invoiceNumber}`,
-  body: `Hello ${cname},\n\nThis is a friendly follow-up regarding invoice ${inv.invoiceNumber}.\nDue date: ${fmtDate(inv.dueDate)}\nOutstanding amount: €${(inv.total || 0).toFixed(2)}\n\nPlease let us know if payment has already been made.${sig}`,
+  body: `Hello ${cname},
+
+This is a friendly follow-up regarding invoice ${inv.invoiceNumber}.
+Due date: ${fmtDate(inv.dueDate)}
+Outstanding amount: €${(inv.total || 0).toFixed(2)}
+
+Please let us know if payment has already been made.${sig}`,
 };},
 };
 }).filter(Boolean);
@@ -7983,15 +8060,24 @@ const sendCampaign = async () => {
 const recipients = clients.filter(c => selectedClientIds.includes(c.id));
 if (!recipients.length) { showToast(uiText("Select at least one client for campaign"), "error"); return; }
 const sig = data.settings.emailSignature
-  ? `\n\n--\n${data.settings.emailSignature}`
-  : `\n\n${lang === "fr" ? "Cordialement" : "Best regards"},\n${data.settings.companyName}${data.settings.companyEmail ? `\n${data.settings.companyEmail}` : ""}${data.settings.companyPhone ? ` | ${data.settings.companyPhone}` : ""}`;
+  ? `
+
+--
+${data.settings.emailSignature}`
+  : `
+
+${lang === "fr" ? "Cordialement" : "Best regards"},
+${data.settings.companyName}${data.settings.companyEmail ? `
+${data.settings.companyEmail}` : ""}${data.settings.companyPhone ? ` | ${data.settings.companyPhone}` : ""}`;
 let sentCount = 0;
 for (const client of recipients) {
 const greeting = lang === "fr" ? `Bonjour ${client.contactPerson || client.name},` : `Hello ${client.contactPerson || client.name},`;
 const payload = {
 to: client.email,
 subject: campaignSubject,
-body: `${greeting}\n\n${campaignBody}${sig}`,
+body: `${greeting}
+
+${campaignBody}${sig}`,
 };
 const ok = await dispatch(campaignChannel, payload, client);
 if (ok) sentCount += 1;
@@ -7999,40 +8085,116 @@ if (ok) sentCount += 1;
 showToast(`${uiText("Campaign opened for")} ${sentCount} ${uiText("client(s)")}`);
 };
 
+const statChip = {
+padding: "6px 10px",
+borderRadius: 999,
+border: `1px solid ${CL.line}`,
+fontSize: 12,
+color: CL.muted,
+background: CL.s2,
+};
+
 return (
 <div>
 <h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold, marginBottom: 5 }}>{t("reminders")}</h1>
-<p style={{ color: CL.muted, marginBottom: 16 }}>{uiText("Operational reminders + business follow-up + marketing communication workflows.")}</p>
+<p style={{ color: CL.muted, marginBottom: 12 }}>{uiText("Operational reminders + business follow-up + marketing communication workflows.")}</p>
 
-<div style={{ ...cardSt, marginBottom: 12 }}>
-<h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, color: CL.gold }}>{uiText("Recipient Selection")}</h3>
-<div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+<div style={{ ...cardSt, marginBottom: 12, padding: 12 }}>
+<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+<h3 style={{ fontSize: 14, fontWeight: 600, margin: 0, color: CL.gold }}>{uiText("Recipient Selection")}</h3>
+<div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+<div style={statChip}>{uiText("Active Clients")} {clients.length}</div>
+<div style={statChip}>{uiText("Selected")} {selectedClientIds.length}</div>
+</div>
+</div>
+
+<div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 8, marginTop: 10 }}>
+<div>
+<div style={{ fontSize: 12, color: CL.muted, marginBottom: 6 }}>{uiText("Client search")}</div>
+<TextInput placeholder={uiText("Search by name, contact, email or phone")} value={clientSearch} onChange={ev => setClientSearch(ev.target.value)} />
+</div>
+<div style={{ display: "flex", alignItems: "end", gap: 8, flexWrap: "wrap" }}>
 <button style={{ ...btnSec, ...btnSm }} onClick={() => setSelectedClientIds(clients.map(c => c.id))}>{uiText("Select all")}</button>
 <button style={{ ...btnSec, ...btnSm }} onClick={() => setSelectedClientIds([])}>{uiText("Clear")}</button>
-<label style={{ fontSize: 12, color: CL.muted, display: "flex", alignItems: "center", gap: 6 }}><input type="checkbox" checked={selectedOnly} onChange={ev => setSelectedOnly(ev.target.checked)} /> {uiText("Restrict reminders to selected clients only")}</label>
-</div>
-<div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 6 }}>
-{clients.map(c => <label key={c.id} style={{ fontSize: 12, color: CL.text, display: "flex", gap: 6, alignItems: "center" }}><input type="checkbox" checked={selectedClientIds.includes(c.id)} onChange={() => toggleClient(c.id)} /> {c.name}</label>)}
+<button style={{ ...btnSec, ...btnSm }} onClick={() => setShowClientPicker(v => !v)}>{showClientPicker ? uiText("Hide clients") : uiText("Show clients")}</button>
 </div>
 </div>
 
-<div style={{ ...cardSt, marginBottom: 12, padding: 12, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-<SelectInput value={workflowType} onChange={ev => setWorkflowType(ev.target.value)} style={{ width: 220 }}>
+<label style={{ fontSize: 12, color: CL.muted, display: "flex", alignItems: "center", gap: 6, marginTop: 10 }}><input type="checkbox" checked={selectedOnly} onChange={ev => setSelectedOnly(ev.target.checked)} /> {uiText("Restrict reminders to selected clients only")}</label>
+
+{showClientPicker && (
+<div style={{ marginTop: 10, border: `1px solid ${CL.line}`, borderRadius: 10, maxHeight: 210, overflow: "auto", padding: 8, background: CL.white }}>
+{visibleClients.length === 0 ? <div style={{ fontSize: 12, color: CL.muted }}>{uiText("No clients match this search.")}</div> : visibleClients.map(c => (
+<label key={c.id} style={{ fontSize: 12, color: CL.text, display: "flex", gap: 8, alignItems: "center", padding: "5px 4px", borderBottom: `1px solid ${CL.s2}` }}>
+<input type="checkbox" checked={selectedClientIds.includes(c.id)} onChange={() => toggleClient(c.id)} />
+<div style={{ minWidth: 0 }}>
+<div style={{ fontWeight: 600, whiteSpace: "nowrap", textOverflow: "ellipsis", overflow: "hidden" }}>{c.name}</div>
+<div style={{ color: CL.muted, whiteSpace: "nowrap", textOverflow: "ellipsis", overflow: "hidden" }}>{c.email || c.phone || c.phoneMobile || uiText("No contact")}</div>
+</div>
+</label>
+))}
+</div>
+)}
+
+{selectedClients.length > 0 && (
+<div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 6 }}>
+{selectedClients.slice(0, 20).map(c => <span key={c.id} style={{ fontSize: 11, padding: "4px 8px", borderRadius: 999, background: CL.s2, color: CL.blue }}>{c.name}</span>)}
+{selectedClients.length > 20 && <span style={{ fontSize: 11, padding: "4px 8px", borderRadius: 999, background: CL.s2, color: CL.muted }}>+{selectedClients.length - 20} {uiText("more")}</span>}
+</div>
+)}
+</div>
+
+<div style={{ ...cardSt, marginBottom: 12, padding: 12, display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", gap: 8, alignItems: "end" }}>
+<div>
+<div style={{ fontSize: 12, color: CL.muted, marginBottom: 6 }}>{uiText("Workflow")}</div>
+<SelectInput value={workflowType} onChange={ev => setWorkflowType(ev.target.value)}>
 <option value="all">{uiText("All workflows")}</option>
 <option value="work">{uiText("Work reminders / upcoming shifts")}</option>
 <option value="followup">{uiText("Business follow-up")}</option>
 </SelectInput>
-<SelectInput value={channel} onChange={ev => setChannel(ev.target.value)} style={{ width: 170 }}>
+</div>
+<div>
+<div style={{ fontSize: 12, color: CL.muted, marginBottom: 6 }}>{uiText("Channel")}</div>
+<SelectInput value={channel} onChange={ev => setChannel(ev.target.value)}>
 <option value="email">{uiText("Email")}</option>
 <option value="sms">{uiText("SMS")}</option>
 <option value="whatsapp">{uiText("WhatsApp")}</option>
 <option value="zoho">{uiText("Zoho")}</option>
 </SelectInput>
-<div style={{ fontSize: 12, color: CL.muted }}>{uiText("Ready reminders:")} {filtered.length}</div>
+</div>
+<div style={{ ...statChip, textAlign: "center" }}>{uiText("Ready reminders:")} {filtered.length}</div>
 </div>
 
 {filtered.length === 0 ? <div style={{ ...cardSt, textAlign: "center", padding: 26, color: CL.muted }}>{uiText("No reminders ready for this filter.")}</div> : (
-<div>{filtered.map(rem => <div key={rem.id} style={{ ...cardSt, marginBottom: 8 }}><div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 8 }}><div><div style={{ fontWeight: 600, fontSize: 15 }}>{rem.title}</div><div style={{ fontSize: 12, color: CL.muted, marginTop: 3 }}>{rem.details}</div><div style={{ fontSize: 12, color: CL.dim, marginTop: 2 }}>{rem.client.email || rem.client.phone || rem.client.phoneMobile || uiText("No contact")}</div></div><button style={btnPri} onClick={() => sendReminder(rem)}>{ICN.mail} {uiText("Send via")} {channel}</button></div></div>)}</div>
+<div style={{ ...cardSt, padding: 0, overflow: "hidden" }}>
+<div style={{ maxHeight: 420, overflow: "auto" }}>
+<table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+<thead style={{ position: "sticky", top: 0, zIndex: 1, background: CL.s2 }}>
+<tr>
+<th style={{ textAlign: "left", padding: 10, color: CL.muted, borderBottom: `1px solid ${CL.line}` }}>{uiText("Client")}</th>
+<th style={{ textAlign: "left", padding: 10, color: CL.muted, borderBottom: `1px solid ${CL.line}` }}>{uiText("Workflow")}</th>
+<th style={{ textAlign: "left", padding: 10, color: CL.muted, borderBottom: `1px solid ${CL.line}` }}>{uiText("Details")}</th>
+<th style={{ textAlign: "right", padding: 10, color: CL.muted, borderBottom: `1px solid ${CL.line}` }}>{uiText("Action")}</th>
+</tr>
+</thead>
+<tbody>
+{filtered.map(rem => (
+<tr key={rem.id}>
+<td style={{ padding: 10, borderBottom: `1px solid ${CL.s2}` }}>
+<div style={{ fontWeight: 600 }}>{rem.client.name}</div>
+<div style={{ fontSize: 12, color: CL.dim }}>{rem.client.email || rem.client.phone || rem.client.phoneMobile || uiText("No contact")}</div>
+</td>
+<td style={{ padding: 10, borderBottom: `1px solid ${CL.s2}` }}>
+<div style={{ fontWeight: 600 }}>{rem.title}</div>
+</td>
+<td style={{ padding: 10, borderBottom: `1px solid ${CL.s2}`, color: CL.muted }}>{rem.details}</td>
+<td style={{ padding: 10, borderBottom: `1px solid ${CL.s2}`, textAlign: "right" }}><button style={{ ...btnPri, ...btnSm }} onClick={() => sendReminder(rem)}>{ICN.mail} {uiText("Send")}</button></td>
+</tr>
+))}
+</tbody>
+</table>
+</div>
+</div>
 )}
 
 <div style={{ ...cardSt, marginTop: 12 }}>

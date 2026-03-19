@@ -7086,7 +7086,7 @@ if (l === "fr") {
     return `Bonjour ${name},\n\nVeuillez trouver ci-joint votre facture ${invNum} pour les services de nettoyage du ${dateStr}.\nMontant dû : ${amount}${dueStr ? `\nDate d'échéance : ${dueStr}` : ""}\n\nN'hésitez pas à nous contacter si vous avez des questions.${sig}`;
   }
   if (template === "thank_you") {
-    return `Chère/Cher ${name},\n\nNous vous remercions de votre confiance envers Lux Angels Cleaning !\n\nVeuillez trouver ci-joint la facture ${invNum} du ${dateStr}.\nTotal : ${amount}\n\nNous vous remercions et restons à votre disposition pour toute question.${sig}`;
+    return `Chère/Cher ${name},\n\nNous vous remercions de votre confiance envers ${data.settings.companyName || "Lux Angels Cleaning"} !\n\nVeuillez trouver ci-joint la facture ${invNum} du ${dateStr}.\nTotal : ${amount}\n\nNous vous remercions et restons à votre disposition pour toute question.${sig}`;
   }
   if (template === "overdue") {
     return `Chère/Cher ${name},\n\nNous vous rappelons que la facture ${invNum} du ${dateStr} est toujours en attente de règlement.\nMontant restant dû : ${amount}${dueStr ? `\nDate d'échéance dépassée : ${dueStr}` : ""}\n\nNous vous prions de bien vouloir procéder au paiement dans les meilleurs délais. Contactez-nous si vous avez déjà effectué ce virement.${sig}`;
@@ -7098,7 +7098,7 @@ if (template === "friendly") {
   return `Hello ${name},\n\nPlease find your invoice ${invNum} for cleaning services on ${dateStr}.\nAmount due: ${amount}${dueStr ? `\nDue date: ${dueStr}` : ""}\n\nFeel free to reach out if you have any questions.${sig}`;
 }
 if (template === "thank_you") {
-  return `Dear ${name},\n\nThank you for choosing Lux Angels Cleaning!\n\nPlease find attached invoice ${invNum} dated ${dateStr}.\nTotal: ${amount}\n\nWe appreciate your trust and look forward to serving you again.${sig}`;
+  return `Dear ${name},\n\nThank you for choosing ${data.settings.companyName || "Lux Angels Cleaning"}!\n\nPlease find attached invoice ${invNum} dated ${dateStr}.\nTotal: ${amount}\n\nWe appreciate your trust and look forward to serving you again.${sig}`;
 }
 if (template === "overdue") {
   return `Dear ${name},\n\nThis is a reminder that invoice ${invNum} dated ${dateStr} is now overdue.\nOutstanding amount: ${amount}${dueStr ? `\nDue date: ${dueStr}` : ""}\n\nPlease arrange payment at your earliest convenience. Contact us if you have already settled this invoice.${sig}`;
@@ -7482,8 +7482,7 @@ function InvoicePreviewContent({ invoice, data, isQuote = false }) {
 const client = data.clients.find(c => c.id === invoice.clientId);
 const settings = data.settings;
 const cols = { prestationDate: true, description: true, hours: true, quantity: false, unitPrice: true, total: true, tva: true, ...(invoice.visibleColumns || {}) };
-// Always display "Lux Angels Cleaning" as the company name in PDFs
-const companyDisplay = "Lux Angels Cleaning";
+const companyDisplay = settings.companyName || "Lux Angels Cleaning";
 const docLabel = isQuote ? "DEVIS" : "FACTURE";
 return (
 <div style={{ background: "#fff", color: "#1a1a1a", padding: 36, borderRadius: 8, fontFamily: "'Outfit', sans-serif" }}>
@@ -7571,8 +7570,8 @@ return (
   {/* Company signature */}
   <div style={{ flex: 1, minWidth: 200, textAlign: "right" }}>
     <div style={{ fontSize: 11, color: "#555", marginBottom: 6 }}>Signature autorisée :</div>
-    <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 22, color: "#C9A84C", fontWeight: 700, fontStyle: "italic", marginBottom: 2 }}>Lux Angels Cleaning</div>
-    <div style={{ borderTop: "1px solid #C9A84C", paddingTop: 4, fontSize: 10, color: "#999", display: "inline-block", marginTop: 4 }}>Direction — Lux Angels Cleaning S.à r.l.</div>
+    <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 22, color: "#C9A84C", fontWeight: 700, fontStyle: "italic", marginBottom: 2 }}>{companyDisplay}</div>
+    <div style={{ borderTop: "1px solid #C9A84C", paddingTop: 4, fontSize: 10, color: "#999", display: "inline-block", marginTop: 4 }}>Direction — {companyDisplay} S.à r.l.</div>
   </div>
 </div>
 </div>
@@ -7818,7 +7817,7 @@ return (
           <div style={{ background: "#fff", color: "#1a1a1a", padding: 28, borderRadius: 8, fontFamily: "'Outfit', sans-serif" }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 18, flexWrap: "wrap", gap: 12 }}>
               <div>
-                <h1 style={{ fontSize: 22, fontWeight: 700, color: "#C9A84C", fontFamily: "'Cormorant Garamond', serif", margin: 0 }}>Lux Angels Cleaning</h1>
+                <h1 style={{ fontSize: 22, fontWeight: 700, color: "#C9A84C", fontFamily: "'Cormorant Garamond', serif", margin: 0 }}>{settings.companyName || "Lux Angels Cleaning"}</h1>
                 <div style={{ fontSize: 10, color: "#666", marginTop: 2 }}>{settings.companyAddress}</div>
               </div>
               <div style={{ textAlign: "right" }}>
@@ -7876,8 +7875,8 @@ return (
             <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
               <div style={{ textAlign: "right" }}>
                 <div style={{ fontSize: 11, color: "#555", marginBottom: 6 }}>Signature de l'employeur :</div>
-                <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 20, color: "#C9A84C", fontWeight: 700, fontStyle: "italic", marginBottom: 2 }}>Lux Angels Cleaning</div>
-                <div style={{ borderTop: "1px solid #C9A84C", paddingTop: 4, fontSize: 10, color: "#999", display: "inline-block" }}>Direction — Lux Angels Cleaning S.à r.l.</div>
+                <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 20, color: "#C9A84C", fontWeight: 700, fontStyle: "italic", marginBottom: 2 }}>{settings.companyName || "Lux Angels Cleaning"}</div>
+                <div style={{ borderTop: "1px solid #C9A84C", paddingTop: 4, fontSize: 10, color: "#999", display: "inline-block" }}>Direction — {settings.companyName || "Lux Angels Cleaning"} S.à r.l.</div>
               </div>
             </div>
           </div>

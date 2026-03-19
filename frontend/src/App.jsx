@@ -54,7 +54,7 @@ newQuote: "Nouveau devis", editQuote: "Modifier devis", newInvoice: "Nouvelle fa
 invoice: "Facture", quote: "Devis", dueDate: "Date échéance", notes: "Notes", total: "Total", subtotal: "Sous-total", vat: "TVA", item: "Ligne", qty: "Qté", unitPrice: "Prix unitaire", description: "Description",
 managementSystem: "Système de gestion", ownerAccess: "Accès propriétaire", ownerAccessDesc: "Tableau de gestion complet", cleanerAccess: "Accès agent", cleanerAccessDesc: "Planning, heures, pointage et congés",
 back: "Retour", ownerLogin: "Connexion propriétaire", cleanerLogin: "Connexion agent", yourName: "Votre nom", choose: "Choisir...", logout: "Déconnexion", visitation: "Visites", history: "Historique", downloadApp: "Télécharger l'application", ownerPortal: "Portail propriétaire", managerPortal: "Portail manager", visitationSchedule: "Planning des visites", historyImages: "Historique & images", installIntro: "Installez cette app directement depuis votre navigateur (sans App Store / Play Store).", installOnIphone: "Installer sur iPhone", installOnAndroid: "Installer sur Android", installAndroidFallback: "Si rien ne se passe: menu ⋮ du navigateur > Installer l'application / Ajouter à l'écran d'accueil.", installIosHint: "Sur iPhone: bouton Partager (□↑) > Sur l'écran d'accueil.",
-mySchedule: "Mon planning", clockInOut: "Pointage entrée/sortie", photoUploads: "Photos", products: "Produits", upcomingJobs: "Interventions à venir", noUpcomingJobs: "Aucune intervention à venir"
+mySchedule: "Mon planning", clockInOut: "Pointage entrée/sortie", photoUploads: "Photos", products: "Produits", upcomingJobs: "Interventions à venir", noUpcomingJobs: "Aucune intervention à venir", calendarView: "Calendrier", listView: "Liste", noJobsThisDay: "Aucune intervention ce jour", clickDayToSee: "Cliquez sur un jour pour voir les interventions"
 },
 en: {
 language: "Language", french: "French", english: "English", login: "Login", welcome: "Welcome", selectRole: "Role", pin: "PIN", loginBtn: "Sign in",
@@ -63,7 +63,7 @@ newQuote: "New quote", editQuote: "Edit quote", newInvoice: "New invoice", editI
 invoice: "Invoice", quote: "Quote", dueDate: "Due date", notes: "Notes", total: "Total", subtotal: "Subtotal", vat: "VAT", item: "Item", qty: "Qty", unitPrice: "Unit price", description: "Description",
 managementSystem: "Management System", ownerAccess: "Owner Access", ownerAccessDesc: "Full management dashboard", cleanerAccess: "Cleaner Access", cleanerAccessDesc: "Schedule, hours, clock & time-off",
 back: "Back", ownerLogin: "Owner Login", cleanerLogin: "Cleaner Login", yourName: "Your Name", choose: "Choose...", logout: "Logout", visitation: "Visitation", history: "History", downloadApp: "Download App", ownerPortal: "Owner Portal", managerPortal: "Manager Portal", visitationSchedule: "Visitation Schedule", historyImages: "History & Images", installIntro: "Install this app directly from your browser (no App Store / Play Store needed).", installOnIphone: "Install on iPhone", installOnAndroid: "Install on Android", installAndroidFallback: "If nothing happens: browser menu ⋮ > Install app / Add to Home screen.", installIosHint: "On iPhone: Share button (□↑) > Add to Home Screen.",
-mySchedule: "My Schedule", clockInOut: "Clock In/Out", photoUploads: "Photo Uploads", products: "Products", upcomingJobs: "Upcoming Jobs", noUpcomingJobs: "No upcoming jobs"
+mySchedule: "My Schedule", clockInOut: "Clock In/Out", photoUploads: "Photo Uploads", products: "Products", upcomingJobs: "Upcoming Jobs", noUpcomingJobs: "No upcoming jobs", calendarView: "Calendar", listView: "List", noJobsThisDay: "No jobs this day", clickDayToSee: "Click a day to see jobs"
 }
 };
 const LanguageContext = createContext({ lang: "fr", setLang: () => {}, t: (k) => k });
@@ -3592,6 +3592,11 @@ const [timeOffForm, setTimeOffForm] = useState({ startDate: "", endDate: "", rea
 const [productForm, setProductForm] = useState({ productId: "", quantity: 1, note: "", deliveryAt: "" });
 
 const upcoming = data.schedules.filter(s => s.employeeId === auth.employeeId && s.date >= getToday() && s.status !== "cancelled").sort((a, b) => a.date.localeCompare(b.date));
+const [schedViewMode, setSchedViewMode] = useState("calendar");
+const nowCal = new Date();
+const [calYear, setCalYear] = useState(nowCal.getFullYear());
+const [calMonth, setCalMonth] = useState(nowCal.getMonth());
+const [calSelectedDay, setCalSelectedDay] = useState(null);
 const myClocks = data.clockEntries.filter(c => c.employeeId === auth.employeeId).sort((a, b) => new Date(b.clockIn) - new Date(a.clockIn));
 const activeClock = myClocks.find(c => !c.clockOut);
 const monthClocks = myClocks.filter(c => c.clockOut && c.clockIn?.startsWith(monthFilter));
@@ -3791,33 +3796,137 @@ return (
 </div>
 {/* Content */}
 <div style={{ padding: 18, maxWidth: 800, margin: "0 auto" }}>
-{tab === "schedule" && (
-<div>
-<h2 style={{ fontFamily: "'Cormorant Garamond', serif", color: CL.blue, fontSize: 22, marginBottom: 14 }}>{t("upcomingJobs")}</h2>
-{upcoming.length === 0 ? <div style={{ ...cardSt, textAlign: "center", padding: 36, color: CL.muted }}>{t("noUpcomingJobs")}</div> :
-upcoming.slice(0, 20).map(sched => {
-const client = data.clients.find(c => c.id === sched.clientId);
+{tab === "schedule" && (() => {
+const calMonthStr = `${calYear}-${String(calMonth + 1).padStart(2, "0")}`;
+const calDaysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+const calFirstDayOfWeek = (new Date(calYear, calMonth, 1).getDay() + 6) % 7;
+const calMonthLabel = new Date(calYear, calMonth).toLocaleDateString(lang === "en" ? "en-GB" : "fr-FR", { month: "long", year: "numeric" });
+const calTodayStr = getToday();
+const calDayHeaders = lang === "en" ? ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"] : ["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"];
+const calCells = [];
+for (let i = 0; i < calFirstDayOfWeek; i++) calCells.push(null);
+for (let d = 1; d <= calDaysInMonth; d++) calCells.push(d);
+while (calCells.length % 7 !== 0) calCells.push(null);
+const myMonthScheds = data.schedules.filter(s => s.employeeId === auth.employeeId && s.date?.startsWith(calMonthStr) && s.status !== "cancelled").sort((a,b) => `${a.date} ${a.startTime}`.localeCompare(`${b.date} ${b.startTime}`));
+const calSelectedStr = calSelectedDay ? `${calMonthStr}-${String(calSelectedDay).padStart(2,"0")}` : null;
+const calSelectedScheds = calSelectedStr ? myMonthScheds.filter(s => s.date === calSelectedStr) : [];
+const prevCalMonth = () => { if (calMonth === 0) { setCalYear(calYear-1); setCalMonth(11); } else setCalMonth(calMonth-1); setCalSelectedDay(null); };
+const nextCalMonth = () => { if (calMonth === 11) { setCalYear(calYear+1); setCalMonth(0); } else setCalMonth(calMonth+1); setCalSelectedDay(null); };
+const goCalToday = () => { setCalYear(nowCal.getFullYear()); setCalMonth(nowCal.getMonth()); setCalSelectedDay(nowCal.getDate()); };
 return (
-<div key={sched.id} style={{ ...cardSt, marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-<div style={{ flex: 1 }}>
-<div style={{ fontWeight: 600 }}>{client?.name || "?"}</div>
-<div style={{ fontSize: 12, color: CL.muted }}>{client?.address}{client?.apartmentFloor ? `, ${client.apartmentFloor}` : ""} {client?.address && <a href={mapsUrl(`${client.address}${client.apartmentFloor ? ` ${client.apartmentFloor}` : ""} ${client.postalCode || ""} ${client.city || ""}`)} target="_blank" rel="noreferrer" style={{ color: CL.blue, marginLeft: 6, textDecoration: "underline" }}>Map</a>}</div>
-{client?.accessCode && <div style={{ fontSize: 11, color: CL.orange, marginTop: 2 }}>Code: {client.accessCode}</div>}
-{client?.keyLocation && <div style={{ fontSize: 11, color: CL.orange }}>Key: {client.keyLocation}</div>}
-{client?.petInfo && <div style={{ fontSize: 11, color: CL.orange }}>Pets: {client.petInfo}</div>}
-{client?.specialInstructions && <div style={{ fontSize: 11, color: CL.dim, marginTop: 2 }}>{client.specialInstructions}</div>}
-<div style={{ fontSize: 13, color: CL.blue, marginTop: 3 }}>{fmtDate(sched.date)} · {sched.startTime}-{sched.endTime}</div>
+<div>
+<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 8 }}>
+  <h2 style={{ fontFamily: "'Cormorant Garamond', serif", color: CL.blue, fontSize: 22, margin: 0 }}>{t("upcomingJobs")}</h2>
+  <div style={{ display: "flex", background: CL.s2, border: `1px solid ${CL.bd}`, borderRadius: 8, padding: 2, gap: 2 }}>
+    <button style={{ ...btnSec, ...btnSm, background: schedViewMode === "calendar" ? CL.blue : "transparent", border: "none", color: schedViewMode === "calendar" ? "#fff" : CL.muted, padding: "6px 14px" }} onClick={() => setSchedViewMode("calendar")}>{ICN.cal} {t("calendarView")}</button>
+    <button style={{ ...btnSec, ...btnSm, background: schedViewMode === "list" ? CL.blue : "transparent", border: "none", color: schedViewMode === "list" ? "#fff" : CL.muted, padding: "6px 14px" }} onClick={() => setSchedViewMode("list")}>{ICN.doc} {t("listView")}</button>
+  </div>
 </div>
-<div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end" }}>
-<Badge color={sched.date === getToday() ? CL.green : CL.blue}>{sched.date === getToday() ? uiText("Today") : fmtDate(sched.date)}</Badge>
-<Badge color={scheduleStatusColor(sched.status)}>{uiText(sched.status)}</Badge>
+
+{schedViewMode === "calendar" ? (
+<div>
+  {/* Month navigation */}
+  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+    <button onClick={prevCalMonth} style={{ ...btnSec, ...btnSm, padding: "8px 14px", fontSize: 16 }}>‹</button>
+    <button onClick={goCalToday} style={{ ...btnSec, ...btnSm }}>{uiText("Today")}</button>
+    <button onClick={nextCalMonth} style={{ ...btnSec, ...btnSm, padding: "8px 14px", fontSize: 16 }}>›</button>
+    <span style={{ fontSize: 17, fontFamily: "'Cormorant Garamond', serif", color: CL.text, fontWeight: 600, textTransform: "capitalize" }}>{calMonthLabel}</span>
+  </div>
+  {/* Calendar grid */}
+  <div style={{ ...cardSt, padding: 10, marginBottom: 12 }}>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, marginBottom: 4 }}>
+      {calDayHeaders.map(d => <div key={d} style={{ textAlign: "center", padding: "6px 0", fontSize: 11, fontWeight: 600, color: CL.muted, textTransform: "uppercase" }}>{d}</div>)}
+    </div>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2 }}>
+      {calCells.map((day, idx) => {
+        if (day === null) return <div key={`e-${idx}`} style={{ minHeight: 60, background: CL.bg + "40", borderRadius: 6 }} />;
+        const dateStr = `${calMonthStr}-${String(day).padStart(2,"0")}`;
+        const dayScheds = myMonthScheds.filter(s => s.date === dateStr);
+        const isToday = dateStr === calTodayStr;
+        const isSelected = day === calSelectedDay;
+        const isPast = dateStr < calTodayStr;
+        return (
+          <div key={day} onClick={() => setCalSelectedDay(day === calSelectedDay ? null : day)} style={{ minHeight: 60, padding: "4px 3px", borderRadius: 6, cursor: "pointer", background: isSelected ? CL.gold + "18" : isToday ? CL.blue + "12" : CL.s2, border: isSelected ? `2px solid ${CL.gold}` : isToday ? `2px solid ${CL.blue}50` : `1px solid ${CL.bd}50`, opacity: isPast ? 0.65 : 1, transition: "all 0.12s" }}>
+            <div style={{ fontSize: 12, fontWeight: isToday ? 700 : 500, color: isToday ? CL.blue : CL.text, marginBottom: 3, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span>{day}</span>
+              {dayScheds.length > 0 && <span style={{ fontSize: 9, background: CL.gold + "35", color: CL.gold, padding: "1px 5px", borderRadius: 8, fontWeight: 700 }}>{dayScheds.length}</span>}
+            </div>
+            {dayScheds.slice(0, 2).map(sched => {
+              const statusColor = scheduleStatusColor(sched.status);
+              const client = data.clients.find(c => c.id === sched.clientId);
+              return <div key={sched.id} style={{ padding: "2px 4px", marginBottom: 1, borderRadius: 3, fontSize: 9, background: statusColor + "22", borderLeft: `3px solid ${statusColor}`, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis", color: CL.text }}>
+                <span style={{ fontWeight: 600 }}>{sched.startTime} </span>
+                <span style={{ color: CL.muted }}>{client?.name?.slice(0, 8) || "?"}</span>
+              </div>;
+            })}
+            {dayScheds.length > 2 && <div style={{ fontSize: 8, color: CL.muted, textAlign: "center" }}>+{dayScheds.length - 2}</div>}
+          </div>
+        );
+      })}
+    </div>
+  </div>
+  {/* Selected day detail */}
+  {calSelectedStr ? (
+    <div style={{ ...cardSt }}>
+      <h3 style={{ fontFamily: "'Cormorant Garamond', serif", color: CL.gold, fontSize: 17, margin: 0 }}>{fmtDate(calSelectedStr)}</h3>
+      {calSelectedScheds.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "20px 0", color: CL.muted, fontSize: 13 }}>{t("noJobsThisDay")}</div>
+      ) : calSelectedScheds.map(sched => {
+        const client = data.clients.find(c => c.id === sched.clientId);
+        return (
+          <div key={sched.id} style={{ border: `1px solid ${CL.bd}`, borderRadius: 10, padding: "12px 14px", background: CL.s2, borderLeft: `4px solid ${scheduleStatusColor(sched.status)}` }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 600, fontSize: 14 }}>{client?.name || "?"}</div>
+                <div style={{ fontSize: 12, color: CL.muted, marginTop: 2 }}>{client?.address}{client?.apartmentFloor ? `, ${client.apartmentFloor}` : ""} {client?.address && <a href={mapsUrl(`${client.address}${client.apartmentFloor ? ` ${client.apartmentFloor}` : ""} ${client.postalCode || ""} ${client.city || ""}`)} target="_blank" rel="noreferrer" style={{ color: CL.blue, marginLeft: 6, textDecoration: "underline" }}>Map</a>}</div>
+                {client?.accessCode && <div style={{ fontSize: 11, color: CL.orange, marginTop: 2 }}>Code: {client.accessCode}</div>}
+                {client?.keyLocation && <div style={{ fontSize: 11, color: CL.orange }}>Key: {client.keyLocation}</div>}
+                {client?.petInfo && <div style={{ fontSize: 11, color: CL.orange }}>Pets: {client.petInfo}</div>}
+                {client?.specialInstructions && <div style={{ fontSize: 11, color: CL.dim, marginTop: 2 }}>{client.specialInstructions}</div>}
+                <div style={{ fontSize: 13, color: CL.blue, marginTop: 4, fontWeight: 500 }}>{sched.startTime} - {sched.endTime}</div>
+              </div>
+              <Badge color={scheduleStatusColor(sched.status)}>{uiText(sched.status)}</Badge>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  ) : (
+    <div style={{ ...cardSt, textAlign: "center", padding: 28, color: CL.muted }}>
+      <div style={{ marginBottom: 8 }}>{ICN.cal}</div>
+      <div style={{ fontSize: 13 }}>{t("clickDayToSee")}</div>
+    </div>
+  )}
 </div>
-</div>
-);
-})
-}
+) : (
+/* List view */
+<div>
+  {upcoming.length === 0 ? <div style={{ ...cardSt, textAlign: "center", padding: 36, color: CL.muted }}>{t("noUpcomingJobs")}</div> :
+  upcoming.slice(0, 50).map(sched => {
+    const client = data.clients.find(c => c.id === sched.clientId);
+    return (
+      <div key={sched.id} style={{ ...cardSt, marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 600 }}>{client?.name || "?"}</div>
+          <div style={{ fontSize: 12, color: CL.muted }}>{client?.address}{client?.apartmentFloor ? `, ${client.apartmentFloor}` : ""} {client?.address && <a href={mapsUrl(`${client.address}${client.apartmentFloor ? ` ${client.apartmentFloor}` : ""} ${client.postalCode || ""} ${client.city || ""}`)} target="_blank" rel="noreferrer" style={{ color: CL.blue, marginLeft: 6, textDecoration: "underline" }}>Map</a>}</div>
+          {client?.accessCode && <div style={{ fontSize: 11, color: CL.orange, marginTop: 2 }}>Code: {client.accessCode}</div>}
+          {client?.keyLocation && <div style={{ fontSize: 11, color: CL.orange }}>Key: {client.keyLocation}</div>}
+          {client?.petInfo && <div style={{ fontSize: 11, color: CL.orange }}>Pets: {client.petInfo}</div>}
+          {client?.specialInstructions && <div style={{ fontSize: 11, color: CL.dim, marginTop: 2 }}>{client.specialInstructions}</div>}
+          <div style={{ fontSize: 13, color: CL.blue, marginTop: 3 }}>{fmtDate(sched.date)} · {sched.startTime}-{sched.endTime}</div>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end" }}>
+          <Badge color={sched.date === getToday() ? CL.green : CL.blue}>{sched.date === getToday() ? uiText("Today") : fmtDate(sched.date)}</Badge>
+          <Badge color={scheduleStatusColor(sched.status)}>{uiText(sched.status)}</Badge>
+        </div>
+      </div>
+    );
+  })}
 </div>
 )}
+</div>
+);
+})()}
 
     {tab === "clock" && (
       <div>

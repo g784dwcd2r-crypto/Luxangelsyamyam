@@ -301,25 +301,6 @@ DO $$ BEGIN
   END IF;
 END $$;
 
--- Migration: add geolocation columns to clients (GPS pin for the property)
-DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='clients' AND column_name='location_lat') THEN
-    ALTER TABLE clients ADD COLUMN location_lat NUMERIC(10,7);
-    ALTER TABLE clients ADD COLUMN location_lng NUMERIC(10,7);
-  END IF;
-END $$;
-
--- Migration: add geolocation columns to clock_entries (check-in / check-out GPS)
-DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='clock_entries' AND column_name='checkin_lat') THEN
-    ALTER TABLE clock_entries ADD COLUMN checkin_lat  NUMERIC(10,7);
-    ALTER TABLE clock_entries ADD COLUMN checkin_lng  NUMERIC(10,7);
-    ALTER TABLE clock_entries ADD COLUMN checkin_accuracy NUMERIC(8,2);
-    ALTER TABLE clock_entries ADD COLUMN checkout_lat NUMERIC(10,7);
-    ALTER TABLE clock_entries ADD COLUMN checkout_lng NUMERIC(10,7);
-    ALTER TABLE clock_entries ADD COLUMN checkout_accuracy NUMERIC(8,2);
-  END IF;
-END $$;
 
 -- Migration: enrich payslips with selected range and detailed hour audit lines
 DO $$ BEGIN

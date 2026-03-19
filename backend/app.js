@@ -1253,6 +1253,72 @@ app.post('/api/auth/admin-reset-password', async (req, res) => {
   }
 });
 
+// Cleaner self-service: request a password reset email
+app.post('/api/auth/cleaner-forgot-password', async (req, res) => {
+  try {
+    const email = normalizeEmail(req.body?.email);
+    if (!email || !email.includes('@')) {
+      return res.status(400).json({ error: 'A valid email is required' });
+    }
+    const result = await pool.query(
+      `SELECT id, name FROM employees WHERE LOWER(email) = $1 AND LOWER(COALESCE(status,'active')) = 'active' LIMIT 1`,
+      [email]
+    );
+    // Always return success to avoid leaking which emails are registered
+    if (!result.rows.length) return res.json({ success: true });
+
+    const employee = result.rows[0];
+    const token = makeToken();
+    const tokenHash = hashToken(token);
+    await pool.query(
+      `UPDATE employees SET reset_token_hash=$1, reset_token_expires_at=NOW() + INTERVAL '30 minutes' WHERE id=$2`,
+      [tokenHash, employee.id]
+    );
+
+    const frontendUrl = String(process.env.FRONTEND_URL || 'https://luxangelsyamyam-frontend.onrender.com').replace(/\/$/, '');
+    const resetUrl = `${frontendUrl}/?resetToken=${encodeURIComponent(token)}&resetEmail=${encodeURIComponent(email)}`;
+    await sendEmail({
+      to: email,
+      subject: 'Lux Angels — Reset your password',
+      body: `Hi ${employee.name}, reset your password by opening this link (valid 30 minutes): ${resetUrl}`,
+      html: `<p>Hi ${employee.name},</p><p>Click the link below to reset your Lux Angels password (valid 30 minutes):</p><p><a href="${resetUrl}">Reset password</a></p><p>If you did not request this, ignore this email.</p>`,
+    });
+    return res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
+// Cleaner self-service: confirm password reset with token
+app.post('/api/auth/cleaner-reset-password', async (req, res) => {
+  try {
+    const email = normalizeEmail(req.body?.email);
+    const token = String(req.body?.token || '').trim();
+    const newPassword = String(req.body?.newPassword || '');
+    if (!email || !token || newPassword.length < 6) {
+      return res.status(400).json({ error: 'email, token and newPassword (min 6 chars) are required' });
+    }
+    const tokenHash = hashToken(token);
+    const result = await pool.query(
+      `UPDATE employees
+       SET password_hash=$1, reset_token_hash=NULL, reset_token_expires_at=NULL
+       WHERE LOWER(email)=$2
+         AND reset_token_hash=$3
+         AND reset_token_expires_at > NOW()
+       RETURNING id`,
+      [hashPassword(newPassword), email, tokenHash]
+    );
+    if (!result.rows.length) {
+      return res.status(400).json({ error: 'Invalid or expired reset link. Please request a new one.' });
+    }
+    return res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
 // ---------------------------------------------------------------------------
 // SETTINGS
 // ---------------------------------------------------------------------------
@@ -1959,6 +2025,8 @@ async function initDb() {
     "ALTER TABLE expenses ADD COLUMN IF NOT EXISTS frequency TEXT NOT NULL DEFAULT 'monthly'",
     "ALTER TABLE expenses ADD COLUMN IF NOT EXISTS start_date DATE",
     "ALTER TABLE expenses ADD COLUMN IF NOT EXISTS end_date DATE",
+    "ALTER TABLE employees ADD COLUMN IF NOT EXISTS reset_token_hash TEXT",
+    "ALTER TABLE employees ADD COLUMN IF NOT EXISTS reset_token_expires_at TIMESTAMPTZ",
   ];
 
   for (const sql of schemaUpgrades) {

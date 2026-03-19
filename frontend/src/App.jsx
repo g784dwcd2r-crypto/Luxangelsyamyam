@@ -2995,6 +2995,14 @@ return draft;
 });
 }, []);
 
+// Handle password reset link from email (?resetToken=...&resetEmail=...)
+const urlParams = new URLSearchParams(window.location.search);
+const urlResetToken = urlParams.get("resetToken");
+const urlResetEmail = urlParams.get("resetEmail");
+if (!auth && urlResetToken && urlResetEmail) {
+  return <LanguageContext.Provider value={{ lang, setLang, t }}><ResetPasswordScreen token={urlResetToken} email={urlResetEmail} /></LanguageContext.Provider>;
+}
+
 if (!auth) return <LanguageContext.Provider value={{ lang, setLang, t }}><LoginScreen data={data} onAuth={setAuth} /></LanguageContext.Provider>;
 if (auth.role === "cleaner") return <LanguageContext.Provider value={{ lang, setLang, t }}><CleanerPortal data={data} updateData={updateData} auth={auth} onLogout={() => setAuth(null)} showToast={showToast} toast={toast} /></LanguageContext.Provider>;
 
@@ -3186,6 +3194,81 @@ return (
 // ==============================================
 // LOGIN SCREEN
 // ==============================================
+function ResetPasswordScreen({ token, email }) {
+const { lang } = useI18n();
+const [newPassword, setNewPassword] = useState("");
+const [confirmPassword, setConfirmPassword] = useState("");
+const [error, setError] = useState("");
+const [isSubmitting, setIsSubmitting] = useState(false);
+const [done, setDone] = useState(false);
+
+const doReset = async () => {
+  if (newPassword.length < 6) { setError(lang === "en" ? "Password must be at least 6 characters" : "Le mot de passe doit contenir au moins 6 caractères"); return; }
+  if (newPassword !== confirmPassword) { setError(lang === "en" ? "Passwords do not match" : "Les mots de passe ne correspondent pas"); return; }
+  setIsSubmitting(true); setError("");
+  try {
+    let base = null;
+    for (const b of API_BASE_CANDIDATES) {
+      try {
+        const r = await fetch(`${b}/`, { signal: AbortSignal.timeout(8000) });
+        if (r.ok || (r.status >= 200 && r.status < 500)) { base = b; break; }
+      } catch {}
+    }
+    if (!base) { setError(lang === "en" ? "Server unavailable. Please try again." : "Serveur indisponible. Veuillez réessayer."); return; }
+    const res = await fetch(`${base}/api/auth/cleaner-reset-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, token, newPassword }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (res.ok && body.success) {
+      // Remove URL params so page doesn't re-show on refresh
+      window.history.replaceState({}, "", window.location.pathname);
+      setDone(true);
+    } else {
+      setError(body.error || (lang === "en" ? "Reset failed. The link may have expired." : "Échec de la réinitialisation. Le lien a peut-être expiré."));
+    }
+  } catch { setError(lang === "en" ? "Connection error. Please try again." : "Erreur de connexion. Veuillez réessayer."); }
+  finally { setIsSubmitting(false); }
+};
+
+if (done) return (
+  <LoginShell>
+    <div style={{ animation: "fadeIn .4s ease", width: 420, maxWidth: "100%" }}>
+      <LoginLogo lang={lang} />
+      <div style={{ ...cardSt, padding: 28, textAlign: "center" }}>
+        <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
+        <h3 style={{ margin: "0 0 10px", fontFamily: "'Cormorant Garamond', serif", color: CL.gold, fontSize: 21 }}>{lang === "en" ? "Password updated!" : "Mot de passe mis à jour !"}</h3>
+        <p style={{ color: CL.muted, fontSize: 13, marginBottom: 20 }}>{lang === "en" ? "Your password has been changed. You can now log in with your new password." : "Votre mot de passe a été modifié. Vous pouvez maintenant vous connecter avec votre nouveau mot de passe."}</p>
+        <button onClick={() => window.location.replace("/")} style={{ ...btnPri, width: "100%", justifyContent: "center" }}>{lang === "en" ? "Go to login" : "Aller à la connexion"}</button>
+      </div>
+    </div>
+  </LoginShell>
+);
+
+return (
+  <LoginShell>
+    <div style={{ animation: "fadeIn .4s ease", width: 420, maxWidth: "100%" }}>
+      <LoginLogo lang={lang} />
+      <div style={{ ...cardSt, padding: 28 }}>
+        <h3 style={{ margin: "0 0 16px", fontFamily: "'Cormorant Garamond', serif", color: CL.gold, fontSize: 21 }}>{lang === "en" ? "Set new password" : "Définir un nouveau mot de passe"}</h3>
+        <p style={{ color: CL.muted, fontSize: 13, marginBottom: 16 }}>{lang === "en" ? `Resetting password for ${email}` : `Réinitialisation du mot de passe pour ${email}`}</p>
+        <Field label={lang === "en" ? "New password" : "Nouveau mot de passe"}>
+          <TextInput type="password" maxLength={64} value={newPassword} autoFocus onChange={ev => { setNewPassword(ev.target.value); setError(""); }} placeholder="••••••••" onKeyDown={ev => ev.key === "Enter" && doReset()} />
+        </Field>
+        <Field label={lang === "en" ? "Confirm password" : "Confirmer le mot de passe"}>
+          <TextInput type="password" maxLength={64} value={confirmPassword} onChange={ev => { setConfirmPassword(ev.target.value); setError(""); }} placeholder="••••••••" onKeyDown={ev => ev.key === "Enter" && doReset()} />
+        </Field>
+        {error && <div style={{ color: CL.red, fontSize: 13, marginBottom: 10, textAlign: "center" }}>{error}</div>}
+        <button disabled={isSubmitting} onClick={() => void doReset()} style={{ ...btnPri, width: "100%", justifyContent: "center", opacity: isSubmitting ? 0.7 : 1, cursor: isSubmitting ? "not-allowed" : "pointer" }}>
+          {isSubmitting ? (lang === "en" ? "Saving…" : "Enregistrement…") : (lang === "en" ? "Set password" : "Définir le mot de passe")}
+        </button>
+      </div>
+    </div>
+  </LoginShell>
+);
+}
+
 function LoginScreen({ data, onAuth }) {
 const { lang } = useI18n();
 // "home" | "admin" | "agent-pick" | "agent-pw"
@@ -3197,6 +3280,7 @@ const [username, setUsername] = useState("");
 const [password, setPassword] = useState("");
 const [error, setError] = useState("");
 const [isSubmitting, setIsSubmitting] = useState(false);
+const [forgotEmail, setForgotEmail] = useState("");
 
 const REQUEST_TIMEOUT_MS = 8000;
 const WARMUP_TIMEOUT_MS = 10000;
@@ -3307,7 +3391,28 @@ const doAgentLogin = async () => {
   finally { setIsSubmitting(false); }
 };
 
-const goBack = () => { setError(""); setPassword(""); setUsername(""); setSelectedAgent(null); setView("home"); };
+const doForgotPassword = async () => {
+  const email = String(forgotEmail || "").trim();
+  if (!email || !email.includes("@")) { setError(lang === "en" ? "Enter a valid email address" : "Saisissez une adresse email valide"); return; }
+  setIsSubmitting(true); setError("");
+  try {
+    const base = await getWarmBase();
+    if (!base) { setError(lang === "en" ? "Server is starting up — please wait and try again." : "Le serveur démarre — réessayez dans un moment."); return; }
+    const res = await tryFetch(base, "/api/auth/cleaner-forgot-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+    if (res && (res.ok || res.status === 200)) {
+      setView("forgot-sent");
+    } else {
+      setError(lang === "en" ? "Could not send reset email. Please try again." : "Impossible d'envoyer l'email. Veuillez réessayer.");
+    }
+  } catch { setError(lang === "en" ? "Connection error. Please try again." : "Erreur de connexion. Veuillez réessayer."); }
+  finally { setIsSubmitting(false); }
+};
+
+const goBack = () => { setError(""); setPassword(""); setUsername(""); setSelectedAgent(null); setForgotEmail(""); setView("home"); };
 
 // ── HOME: choose role ─────────────────────────────────────────────────────
 if (view === "home") return (
@@ -3427,14 +3532,58 @@ if (view === "agent-pw") return (
             <div style={{ fontSize: 12, color: CL.muted }}>{lang === "en" ? "Cleaning Agent" : "Agent de nettoyage"}</div>
           </div>
         </div>
-        <Field label={lang === "en" ? "Password" : "Mot de passe"}>
+        <Field label={lang === "en" ? "Password / PIN" : "Mot de passe / PIN"}>
           <TextInput type="password" maxLength={32} value={password} autoFocus onChange={ev => { setPassword(ev.target.value); setError(""); }} placeholder="••••••••" onKeyDown={ev => ev.key === "Enter" && doAgentLogin()} />
         </Field>
+        <p style={{ margin: "2px 0 10px", fontSize: 11, color: CL.muted }}>{lang === "en" ? "Default PIN is 0000 if no password was set." : "Le PIN par défaut est 0000 si aucun mot de passe n'a été défini."}</p>
         {error && <div style={{ color: CL.red, fontSize: 13, marginBottom: 10, textAlign: "center" }}>{error}</div>}
         <button disabled={isSubmitting} onClick={() => void doAgentLogin()} style={{ ...btnPri, width: "100%", justifyContent: "center", opacity: isSubmitting ? 0.7 : 1, cursor: isSubmitting ? "not-allowed" : "pointer" }}>
           {isSubmitting ? (lang === "en" ? "Connecting…" : "Connexion…") : (lang === "en" ? "Sign In" : "Se connecter")}
         </button>
         {isSubmitting && <p style={{ marginTop: 6, fontSize: 11, color: CL.muted, textAlign: "center" }}>{lang === "en" ? "Server may need a moment to wake up…" : "Le serveur démarre, merci de patienter…"}</p>}
+        <button onClick={() => { setError(""); setPassword(""); setForgotEmail(""); setView("forgot-pw"); }} style={{ background: "none", border: "none", color: CL.muted, fontSize: 12, cursor: "pointer", marginTop: 12, width: "100%", textAlign: "center", textDecoration: "underline" }}>
+          {lang === "en" ? "Forgot password?" : "Mot de passe oublié ?"}
+        </button>
+      </div>
+    </div>
+  </LoginShell>
+);
+
+// ── FORGOT PASSWORD: enter email ──────────────────────────────────────────
+if (view === "forgot-pw") return (
+  <LoginShell>
+    <div style={{ animation: "fadeIn .4s ease", width: 420, maxWidth: "100%" }}>
+      <LoginLogo lang={lang} />
+      <div style={{ ...cardSt, padding: 28 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+          <button onClick={() => { setView("agent-pw"); setError(""); }} style={{ background: "none", border: "none", color: CL.muted, cursor: "pointer", padding: 4, lineHeight: 0 }}>
+            <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <h3 style={{ margin: 0, fontFamily: "'Cormorant Garamond', serif", color: CL.gold, fontSize: 21 }}>{lang === "en" ? "Reset Password" : "Réinitialiser le mot de passe"}</h3>
+        </div>
+        <p style={{ color: CL.muted, fontSize: 13, marginBottom: 16 }}>{lang === "en" ? "Enter the email address linked to your agent account. We'll send you a reset link." : "Saisissez l'adresse email liée à votre compte agent. Nous vous enverrons un lien de réinitialisation."}</p>
+        <Field label={lang === "en" ? "Email address" : "Adresse email"}>
+          <TextInput type="email" value={forgotEmail} autoFocus onChange={ev => { setForgotEmail(ev.target.value); setError(""); }} placeholder="agent@example.com" onKeyDown={ev => ev.key === "Enter" && doForgotPassword()} />
+        </Field>
+        {error && <div style={{ color: CL.red, fontSize: 13, marginBottom: 10, textAlign: "center" }}>{error}</div>}
+        <button disabled={isSubmitting} onClick={() => void doForgotPassword()} style={{ ...btnPri, width: "100%", justifyContent: "center", opacity: isSubmitting ? 0.7 : 1, cursor: isSubmitting ? "not-allowed" : "pointer" }}>
+          {isSubmitting ? (lang === "en" ? "Sending…" : "Envoi…") : (lang === "en" ? "Send reset link" : "Envoyer le lien")}
+        </button>
+      </div>
+    </div>
+  </LoginShell>
+);
+
+// ── FORGOT PASSWORD: email sent confirmation ──────────────────────────────
+if (view === "forgot-sent") return (
+  <LoginShell>
+    <div style={{ animation: "fadeIn .4s ease", width: 420, maxWidth: "100%" }}>
+      <LoginLogo lang={lang} />
+      <div style={{ ...cardSt, padding: 28, textAlign: "center" }}>
+        <div style={{ fontSize: 40, marginBottom: 12 }}>📧</div>
+        <h3 style={{ margin: "0 0 10px", fontFamily: "'Cormorant Garamond', serif", color: CL.gold, fontSize: 21 }}>{lang === "en" ? "Check your email" : "Vérifiez votre email"}</h3>
+        <p style={{ color: CL.muted, fontSize: 13, marginBottom: 20 }}>{lang === "en" ? "If that email is linked to an agent account, a reset link has been sent. Check your inbox and click the link within 30 minutes." : "Si cet email est lié à un compte agent, un lien de réinitialisation a été envoyé. Vérifiez votre boîte mail et cliquez sur le lien dans les 30 minutes."}</p>
+        <button onClick={goBack} style={{ ...btnPri, width: "100%", justifyContent: "center" }}>{lang === "en" ? "Back to login" : "Retour à la connexion"}</button>
       </div>
     </div>
   </LoginShell>

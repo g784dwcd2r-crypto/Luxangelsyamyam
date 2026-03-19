@@ -3498,8 +3498,7 @@ if (view === "agent-pw") return (
         <Field label={lang === "en" ? "Password / PIN" : "Mot de passe / PIN"}>
           <TextInput type="password" maxLength={32} value={password} autoFocus onChange={ev => { setPassword(ev.target.value); setError(""); }} placeholder="••••••••" onKeyDown={ev => ev.key === "Enter" && doAgentLogin()} />
         </Field>
-        <p style={{ margin: "2px 0 10px", fontSize: 11, color: CL.muted }}>{lang === "en" ? "Default PIN is 0000 if no password was set." : "Le PIN par défaut est 0000 si aucun mot de passe n'a été défini."}</p>
-        {error && <div style={{ color: CL.red, fontSize: 13, marginBottom: 10, textAlign: "center" }}>{error}</div>}
+        {error &&<div style={{ color: CL.red, fontSize: 13, marginBottom: 10, textAlign: "center" }}>{error}</div>}
         <button disabled={isSubmitting} onClick={() => void doAgentLogin()} style={{ ...btnPri, width: "100%", justifyContent: "center", opacity: isSubmitting ? 0.7 : 1, cursor: isSubmitting ? "not-allowed" : "pointer" }}>
           {isSubmitting ? (lang === "en" ? "Connecting…" : "Connexion…") : (lang === "en" ? "Sign In" : "Se connecter")}
         </button>

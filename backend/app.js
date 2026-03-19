@@ -512,10 +512,17 @@ app.post('/api/auth/pin-login', async (req, res) => {
         return res.status(403).json({ error: 'Account is waiting for owner approval' });
       }
 
+      const storedPin = String(employee.pin || '').trim();
       const passwordHash = String(employee.password_hash || '').trim();
-      if (passwordHash) {
-        if (!verifyPassword(submittedPin, passwordHash)) return res.status(401).json({ error: 'Invalid credentials' });
-      } else if (submittedPin !== String(employee.pin).trim()) {
+
+      // Try PIN first (exact match), then fall back to password hash.
+      // This lets cleaners always log in with their PIN even when a
+      // password_hash is also stored on the account (e.g. self-registration
+      // or admin password reset).
+      const pinMatches = storedPin && submittedPin === storedPin;
+      const passwordMatches = !pinMatches && passwordHash && verifyPassword(submittedPin, passwordHash);
+
+      if (!pinMatches && !passwordMatches) {
         return res.status(401).json({ error: 'Invalid credentials' });
       }
       return res.json({ success: true, role: 'cleaner', employeeId: employee.id, lang: employee.lang || 'fr', theme: employee.theme || 'dark' });

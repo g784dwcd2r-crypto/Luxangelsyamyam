@@ -6350,7 +6350,7 @@ const invoices = Array.isArray(data?.invoices) ? data.invoices : [];
 const settings = data?.settings || DEFAULTS.settings;
 
 const defaultQuoteColumns = { prestationDate: true, description: true, hours: true, quantity: false, unitPrice: true, total: true, tva: true };
-const defaultVatRate = Number.isFinite(Number(settings?.defaultVatRate)) ? Number(settings.defaultVatRate) : 17;
+const defaultVatRate = Number.isFinite(Number(settings?.financeVatRate)) ? Number(settings.financeVatRate) : (Number.isFinite(Number(settings?.defaultVatRate)) ? Number(settings.defaultVatRate) : 17);
 
 const newQuoteDraft = (clientId = "", presetDescription = "Cleaning service") => ({ quoteNumber: quoteNumber(), clientId, date: getToday(), validUntil: "", items: [{ prestationDate: getToday(), description: presetDescription, hours: "", quantity: 1, unitPrice: 0, total: 0 }], pricingMode: "hours", visibleColumns: { ...defaultQuoteColumns }, vatRate: defaultVatRate, subtotal: 0, vatAmount: 0, total: 0, status: "draft", notes: "", paymentTerms: "Quote valid for 30 days.", jobSchedule: { dateFrom: "", dateTo: "", frequency: "one-time", startDate: getToday(), employeeId: "", startTime: "08:00", endTime: "12:00" } });
 
@@ -6568,7 +6568,7 @@ vatAmount: q.vatAmount || 0,
 total: q.total || 0,
 status: "draft",
 notes: q.notes || "",
-paymentTerms: q.paymentTerms || "Payment due within 30 days.",
+paymentTerms: q.paymentTerms || settings.paymentTermsDays || "Payment due within 30 days.",
 };
 try {
 await createInvoiceInApi(invoice);
@@ -7142,7 +7142,7 @@ return (
 <div>
 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
 <h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold }}>{t("invoices")}</h1>
-<button style={btnPri} onClick={() => setModal({ clientId: "", date: getToday(), dueDate: "", invoiceNumber: nextInvoiceNum(), items: [{ prestationDate: getToday(), description: "", hours: "", quantity: 1, unitPrice: 0, total: 0 }], visibleColumns: { prestationDate: true, description: true, hours: true, quantity: false, unitPrice: true, total: true, tva: true }, subtotal: 0, vatRate: data.settings.defaultVatRate, vatAmount: 0, total: 0, status: "draft", notes: "", paymentTerms: "Payment due within 30 days.", emailTemplate: "standard", zohoEmail: "" })}>{ICN.plus} {t("newInvoice")}</button>
+<button style={btnPri} onClick={() => setModal({ clientId: "", date: getToday(), dueDate: "", invoiceNumber: nextInvoiceNum(), items: [{ prestationDate: getToday(), description: "", hours: "", quantity: 1, unitPrice: 0, total: 0 }], visibleColumns: { prestationDate: true, description: true, hours: true, quantity: false, unitPrice: true, total: true, tva: true }, subtotal: 0, vatRate: Number(data.settings.financeVatRate ?? data.settings.defaultVatRate ?? 17), vatAmount: 0, total: 0, status: "draft", notes: "", paymentTerms: data.settings.paymentTermsDays || "Payment due within 30 days.", emailTemplate: "standard", zohoEmail: data.settings.companyEmail || "" })}>{ICN.plus} {t("newInvoice")}</button>
 </div>
 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12, alignItems: "flex-end" }}>
 <input
@@ -7488,13 +7488,16 @@ return (
 <div style={{ background: "#fff", color: "#1a1a1a", padding: 36, borderRadius: 8, fontFamily: "'Outfit', sans-serif" }}>
 {/* Header */}
 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 28, flexWrap: "wrap", gap: 16, alignItems: "flex-start" }}>
-  <div>
-    <h1 style={{ fontSize: 26, fontWeight: 700, color: "#C9A84C", fontFamily: "'Cormorant Garamond', serif", margin: 0, letterSpacing: "0.01em" }}>{companyDisplay}</h1>
-    <div style={{ fontSize: 11, color: "#666", marginTop: 4, lineHeight: 1.7 }}>
-      {settings.companyAddress}<br />
-      {settings.companyEmail}<br />
-      {settings.companyPhone}<br />
-      TVA: {settings.vatNumber}
+  <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+    {settings.companyLogo && <img src={settings.companyLogo} alt="logo" style={{ width: 56, height: 56, borderRadius: 8, objectFit: "cover" }} />}
+    <div>
+      <h1 style={{ fontSize: 26, fontWeight: 700, color: "#C9A84C", fontFamily: "'Cormorant Garamond', serif", margin: 0, letterSpacing: "0.01em" }}>{companyDisplay}</h1>
+      <div style={{ fontSize: 11, color: "#666", marginTop: 4, lineHeight: 1.7 }}>
+        {settings.companyAddress}<br />
+        {settings.companyEmail}<br />
+        {settings.companyPhone}<br />
+        TVA: {settings.vatNumber}
+      </div>
     </div>
   </div>
   <div style={{ textAlign: "right" }}>
@@ -7574,6 +7577,13 @@ return (
     <div style={{ borderTop: "1px solid #C9A84C", paddingTop: 4, fontSize: 10, color: "#999", display: "inline-block", marginTop: 4 }}>Direction — {companyDisplay} S.à r.l.</div>
   </div>
 </div>
+
+{/* Legal footer text from settings */}
+{settings.invoiceFooterText && (
+  <div style={{ marginTop: 24, paddingTop: 12, borderTop: "1px solid #eee", fontSize: 9, color: "#999", lineHeight: 1.6, textAlign: "center", whiteSpace: "pre-line" }}>
+    {settings.invoiceFooterText}
+  </div>
+)}
 </div>
 );
 }
@@ -9447,6 +9457,7 @@ return (
         {errors.companyEmail && <div style={{ color: CL.red, fontSize: 12, marginTop: -8, marginBottom: 10 }}>{uiText(errors.companyEmail)}</div>}
         <Field label="VAT Number"><TextInput value={form.vatNumber || ""} onChange={ev => setField("vatNumber", ev.target.value)} /></Field>
         <Field label="Default Currency (€)"><TextInput value={form.defaultCurrency || "EUR"} onChange={ev => setField("defaultCurrency", ev.target.value)} /></Field>
+        <Field label="Bank IBAN"><TextInput value={form.bankIban || ""} onChange={ev => setField("bankIban", ev.target.value)} placeholder="LU..." /></Field>
         <Field label="Logo upload"><input type="file" accept="image/*" onChange={ev => onLogoUpload(ev.target.files?.[0])} style={{ ...inputSt, padding: 8 }} /></Field>
       </div>
       <div>

@@ -3340,18 +3340,16 @@ const doAdminLogin = async () => {
   finally { setIsSubmitting(false); }
 };
 
-// Agent login (after picking name)
+// Agent login (no password required — just pick name and go)
 const doAgentLogin = async () => {
-  const pass = String(password || "").trim();
-  if (!pass) { setError(lang === "en" ? "Enter your password" : "Saisissez votre mot de passe"); return; }
   setIsSubmitting(true); setError("");
   try {
-    const result = await loginWithServer({ pass, roleHints: [
+    const result = await loginWithServer({ pass: "", roleHints: [
       { role: "cleaner", employeeId: selectedAgent.id },
     ]});
     if (result.status === "success") return;
     if (result.status === "unreachable") setError(lang === "en" ? "Server is starting up — please wait 30s and retry." : "Le serveur démarre — attendez 30 secondes et réessayez.");
-    else setError(lang === "en" ? "Incorrect password" : "Mot de passe incorrect");
+    else setError(lang === "en" ? "Login failed. Please try again." : "Échec de connexion. Veuillez réessayer.");
   } catch { setError(lang === "en" ? "Connection error. Please try again." : "Erreur de connexion. Veuillez réessayer."); }
   finally { setIsSubmitting(false); }
 };
@@ -3465,11 +3463,11 @@ if (view === "agent-pick") return (
           ))}
         </SelectInput>
         <button
-          onClick={() => { if (selectedAgent) { setPassword(""); setError(""); setView("agent-pw"); } }}
-          disabled={!selectedAgent}
-          style={{ marginTop: 18, width: "100%", padding: "13px", background: selectedAgent ? CL.gold : `${CL.gold}44`, border: "none", borderRadius: 10, color: selectedAgent ? "#0a0c12" : CL.muted, fontSize: 15, fontWeight: 700, cursor: selectedAgent ? "pointer" : "not-allowed", transition: "background .2s" }}
+          onClick={() => { if (selectedAgent) { setError(""); void doAgentLogin(); } }}
+          disabled={!selectedAgent || isSubmitting}
+          style={{ marginTop: 18, width: "100%", padding: "13px", background: selectedAgent ? CL.gold : `${CL.gold}44`, border: "none", borderRadius: 10, color: selectedAgent ? "#0a0c12" : CL.muted, fontSize: 15, fontWeight: 700, cursor: (selectedAgent && !isSubmitting) ? "pointer" : "not-allowed", transition: "background .2s" }}
         >
-          {lang === "en" ? "Continue" : "Continuer"}
+          {isSubmitting ? (lang === "en" ? "Connecting…" : "Connexion…") : (lang === "en" ? "Sign In" : "Se connecter")}
         </button>
         {error && <div style={{ color: CL.red, fontSize: 13, marginTop: 12, textAlign: "center" }}>{error}</div>}
       </div>

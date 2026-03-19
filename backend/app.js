@@ -439,7 +439,8 @@ app.post('/api/auth/pin-login', async (req, res) => {
       .map(v => (v == null ? '' : String(v).trim()))
       .find(Boolean);
 
-    if (!requestedRole || !submittedPin) return res.status(400).json({ error: 'role and pin are required' });
+    if (!requestedRole) return res.status(400).json({ error: 'role is required' });
+    if (!submittedPin && requestedRole !== 'cleaner' && requestedRole !== 'employee') return res.status(400).json({ error: 'role and pin are required' });
 
     if (requestedRole === 'owner') {
       const result = await pool.query(
@@ -515,19 +516,7 @@ app.post('/api/auth/pin-login', async (req, res) => {
         return res.status(403).json({ error: 'Account is waiting for owner approval' });
       }
 
-      const storedPin = String(employee.pin || '').trim();
-      const passwordHash = String(employee.password_hash || '').trim();
-
-      // Try PIN first (exact match), then fall back to password hash.
-      // This lets cleaners always log in with their PIN even when a
-      // password_hash is also stored on the account (e.g. self-registration
-      // or admin password reset).
-      const pinMatches = storedPin && submittedPin === storedPin;
-      const passwordMatches = !pinMatches && passwordHash && verifyPassword(submittedPin, passwordHash);
-
-      if (!pinMatches && !passwordMatches) {
-        return res.status(401).json({ error: 'Invalid credentials' });
-      }
+      // No password or PIN required for cleaners — identity is confirmed by selecting from the list.
       return res.json({ success: true, role: 'cleaner', employeeId: employee.id, lang: employee.lang || 'fr', theme: employee.theme || 'dark' });
     }
 

@@ -3340,11 +3340,11 @@ const doAdminLogin = async () => {
   finally { setIsSubmitting(false); }
 };
 
-// Agent login (no password required — just pick name and go)
+// Agent login — submits selected agent ID with password/PIN
 const doAgentLogin = async () => {
   setIsSubmitting(true); setError("");
   try {
-    const result = await loginWithServer({ pass: "", roleHints: [
+    const result = await loginWithServer({ pass: String(password || "").trim(), roleHints: [
       { role: "cleaner", employeeId: selectedAgent.id },
     ]});
     if (result.status === "success") return;
@@ -3463,11 +3463,11 @@ if (view === "agent-pick") return (
           ))}
         </SelectInput>
         <button
-          onClick={() => { if (selectedAgent) { setError(""); void doAgentLogin(); } }}
+          onClick={() => { if (selectedAgent) { setError(""); setPassword(""); setView("agent-pw"); } }}
           disabled={!selectedAgent || isSubmitting}
           style={{ marginTop: 18, width: "100%", padding: "13px", background: selectedAgent ? CL.gold : `${CL.gold}44`, border: "none", borderRadius: 10, color: selectedAgent ? "#0a0c12" : CL.muted, fontSize: 15, fontWeight: 700, cursor: (selectedAgent && !isSubmitting) ? "pointer" : "not-allowed", transition: "background .2s" }}
         >
-          {isSubmitting ? (lang === "en" ? "Connecting…" : "Connexion…") : (lang === "en" ? "Sign In" : "Se connecter")}
+          {lang === "en" ? "Next" : "Suivant"}
         </button>
         {error && <div style={{ color: CL.red, fontSize: 13, marginTop: 12, textAlign: "center" }}>{error}</div>}
       </div>

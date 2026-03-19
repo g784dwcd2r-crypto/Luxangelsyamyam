@@ -56,12 +56,15 @@ app.options('*', cors(corsOptions)); // Handle preflight for all routes
 app.use(bodyParser.json({ limit: '15mb' }));
 
 // Rate limiting — stricter on auth to prevent PIN brute-force
+// The agent-list endpoint is skipped: it returns only public names/IDs
+// and should not consume login-attempt budget (especially on shared IPs).
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 20,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many login attempts, please try again later.' },
+  skip: (req) => req.method === 'GET' && req.originalUrl.split('?')[0] === '/api/auth/agent-list',
 });
 
 const apiLimiter = rateLimit({
@@ -508,7 +511,7 @@ app.post('/api/auth/pin-login', async (req, res) => {
       if (!shouldUseEmployeeId && !employee.email_verified) {
         return res.status(403).json({ error: 'Email is not verified yet' });
       }
-      if (String(employee.account_status || 'approved') !== 'approved') {
+      if (String(employee.account_status || 'approved').toLowerCase() !== 'approved') {
         return res.status(403).json({ error: 'Account is waiting for owner approval' });
       }
 

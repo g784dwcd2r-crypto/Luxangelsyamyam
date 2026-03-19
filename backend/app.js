@@ -22,7 +22,7 @@ app.use((_req, res, next) => {
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(self)');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
   next();
 });
 
@@ -871,8 +871,8 @@ app.post('/api/clients', async (req, res) => {
         apartment_floor, city, postal_code, country, type, cleaning_frequency, billing_type,
         price_per_hour, price_fixed, status, language, access_code, key_location, parking_info,
         pet_info, preferred_day, preferred_time, contract_start, contract_end, square_meters,
-        tax_id, special_instructions, notes, meta, location_lat, location_lng)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33)
+        tax_id, special_instructions, notes, meta)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31)
        RETURNING *`,
       [b.id, b.name, b.contact_person||'', b.email||'', b.phone||'', b.phone_mobile||'',
        b.address||'', b.apartment_floor||'', b.city||'', b.postal_code||'',
@@ -881,7 +881,7 @@ app.post('/api/clients', async (req, res) => {
        b.language||'FR', b.access_code||'', b.key_location||'', b.parking_info||'',
        b.pet_info||'', b.preferred_day||'', b.preferred_time||'', b.contract_start||null,
        b.contract_end||null, b.square_meters||null, b.tax_id||'', b.special_instructions||'',
-       b.notes||'', b.meta || {}, b.location_lat||null, b.location_lng||null]
+       b.notes||'', b.meta || {}]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -900,8 +900,8 @@ app.put('/api/clients/:id', async (req, res) => {
         status=$16, language=$17, access_code=$18, key_location=$19, parking_info=$20,
         pet_info=$21, preferred_day=$22, preferred_time=$23, contract_start=$24,
         contract_end=$25, square_meters=$26, tax_id=$27, special_instructions=$28, notes=$29,
-        meta=$30, location_lat=$31, location_lng=$32
-       WHERE id=$33 RETURNING *`,
+        meta=$30
+       WHERE id=$31 RETURNING *`,
       [b.name, b.contact_person||'', b.email||'', b.phone||'', b.phone_mobile||'',
        b.address||'', b.apartment_floor||'', b.city||'', b.postal_code||'',
        b.country||'Luxembourg', b.type||'Residential', b.cleaning_frequency||'Weekly',
@@ -909,7 +909,7 @@ app.put('/api/clients/:id', async (req, res) => {
        b.language||'FR', b.access_code||'', b.key_location||'', b.parking_info||'',
        b.pet_info||'', b.preferred_day||'', b.preferred_time||'', b.contract_start||null,
        b.contract_end||null, b.square_meters||null, b.tax_id||'', b.special_instructions||'',
-       b.notes||'', b.meta || {}, b.location_lat||null, b.location_lng||null, req.params.id]
+       b.notes||'', b.meta || {}, req.params.id]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Client not found' });
     res.json(result.rows[0]);
@@ -1030,11 +1030,9 @@ app.post('/api/clock-entries', async (req, res) => {
     if (absent.length) return res.status(400).json({ error: `Missing required fields: ${absent.join(', ')}` });
 
     const result = await pool.query(
-      `INSERT INTO clock_entries (id, employee_id, client_id, clock_in, notes,
-         checkin_lat, checkin_lng, checkin_accuracy)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
-      [b.id, b.employee_id, b.client_id||null, b.clock_in, b.notes||'',
-       b.checkin_lat||null, b.checkin_lng||null, b.checkin_accuracy||null]
+      `INSERT INTO clock_entries (id, employee_id, client_id, clock_in, notes)
+       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+      [b.id, b.employee_id, b.client_id||null, b.clock_in, b.notes||'']
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -1047,12 +1045,9 @@ app.put('/api/clock-entries/:id', async (req, res) => {
   try {
     const b = req.body;
     const result = await pool.query(
-      `UPDATE clock_entries SET clock_out=$1, notes=$2,
-         checkout_lat=$3, checkout_lng=$4, checkout_accuracy=$5
-       WHERE id=$6 RETURNING *`,
-      [b.clock_out||null, b.notes||'',
-       b.checkout_lat||null, b.checkout_lng||null, b.checkout_accuracy||null,
-       req.params.id]
+      `UPDATE clock_entries SET clock_out=$1, notes=$2
+       WHERE id=$3 RETURNING *`,
+      [b.clock_out||null, b.notes||'', req.params.id]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Clock entry not found' });
     res.json(result.rows[0]);

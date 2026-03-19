@@ -1098,9 +1098,9 @@ const normalizeSettingValue = (key, value, fallback) => {
   return value;
 };
 const normalizeSettingsPayload = (incoming = {}, baseSettings = DEFAULTS.settings) => {
-  const normalized = { ...baseSettings };
+  const normalized = {};
   Object.entries(incoming || {}).forEach(([key, value]) => {
-    normalized[key] = normalizeSettingValue(key, value, normalized[key]);
+    normalized[key] = normalizeSettingValue(key, value, baseSettings[key]);
   });
   return normalized;
 };

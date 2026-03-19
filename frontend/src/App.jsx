@@ -9269,13 +9269,13 @@ const validate = () => {
   if (form.financeVatRate < 0 || form.financeVatRate > 100) e.financeVatRate = "VAT must be between 0 and 100";
   if (form.latePaymentPenalty < 0 || form.latePaymentPenalty > 100) e.latePaymentPenalty = "Penalty must be between 0 and 100";
   if (parseNum(form.defaultHourlyRate, 0) < 0) e.defaultHourlyRate = "Hourly rate must be positive";
-  if (parseNum(form.maxJobsPerEmployeePerDay, 0) < 1) e.maxJobsPerEmployeePerDay = "Minimum is 1 job";
+  if (form.maxJobsPerEmployeePerDay !== undefined && form.maxJobsPerEmployeePerDay !== "" && parseNum(form.maxJobsPerEmployeePerDay, 1) < 1) e.maxJobsPerEmployeePerDay = "Minimum is 1 job";
   if (parseNum(form.lateToleranceMinutes, 0) < 0) e.lateToleranceMinutes = "Cannot be negative";
   if (parseNum(form.minStockThreshold, 0) < 0) e.minStockThreshold = "Cannot be negative";
-  if (parseNum(form.autoClockOutAfterHours, 0) < 1) e.autoClockOutAfterHours = "Minimum 1 hour";
+  if (form.autoClockOutAfterHours !== undefined && form.autoClockOutAfterHours !== "" && parseNum(form.autoClockOutAfterHours, 1) < 1) e.autoClockOutAfterHours = "Minimum 1 hour";
   if (!String(form.defaultCurrency || "").trim()) e.defaultCurrency = "Currency is required";
-  if (!["FR", "EN"].includes(form.defaultLanguage || "")) e.defaultLanguage = "Choose FR or EN";
-  if (!["24h", "12h"].includes(form.timeFormat || "")) e.timeFormat = "Choose a valid time format";
+  if (form.defaultLanguage && !["FR", "EN"].includes(form.defaultLanguage)) e.defaultLanguage = "Choose FR or EN";
+  if (form.timeFormat && !["24h", "12h"].includes(form.timeFormat)) e.timeFormat = "Choose a valid time format";
   setErrors(e);
   return Object.keys(e).length === 0;
 };
@@ -9392,6 +9392,7 @@ const tabs = [
   { id: "notifications", label: "Notifications" },
   { id: "security", label: "Security" },
   { id: "system", label: "System" },
+  ...(auth?.role === "owner" ? [{ id: "danger", label: "Zone rouge" }] : []),
 ];
 
 return (
@@ -9433,13 +9434,6 @@ return (
         </Field>
       </div>
     </div>
-    {auth?.role === "owner" && <div style={{ marginTop: 14, border: `1px solid ${CL.red}`, borderRadius: 10, padding: 14, background: `${CL.red}10` }}>
-      <h4 style={{ marginTop: 0, marginBottom: 6, color: CL.red }}>{uiText("Owner only danger zone")}</h4>
-      <p style={{ marginTop: 0, marginBottom: 10, color: CL.muted, fontSize: 12 }}>{uiText("Permanently delete all business data from the app and database.")}</p>
-      <button style={{ ...btnDng, opacity: isWipingData ? 0.7 : 1 }} onClick={wipeAllData} disabled={isWipingData}>
-        {isWipingData ? uiText("Wiping data...") : uiText("Wipe all data")}
-      </button>
-    </div>}
     <button style={btnPri} onClick={persistSettings}>{ICN.check} {uiText("Save changes")}</button>
   </div>}
 
@@ -9624,6 +9618,14 @@ return (
       <Field label="Theme"><SelectInput value={form.theme || "dark"} onChange={ev => setField("theme", ev.target.value)}><option value="dark">{uiText("Dark")}</option><option value="light">{uiText("Light")}</option></SelectInput></Field>
     </div>
     <button style={btnPri} onClick={persistSettings}>{ICN.check} {uiText("Save changes")}</button>
+  </div>}
+
+  {activeTab === "danger" && auth?.role === "owner" && <div style={{ ...cardSt, marginTop: 14, border: `1px solid ${CL.red}`, background: `${CL.red}08` }}>
+    <h3 style={{ color: CL.red, marginTop: 0 }}>{uiText("Owner only danger zone")}</h3>
+    <p style={{ color: CL.muted, fontSize: 13, marginTop: 0 }}>{uiText("Permanently delete all business data from the app and database.")}</p>
+    <button style={{ ...btnDng, opacity: isWipingData ? 0.7 : 1 }} onClick={wipeAllData} disabled={isWipingData}>
+      {isWipingData ? uiText("Wiping data...") : uiText("Wipe all data")}
+    </button>
   </div>}
 </div>
 );

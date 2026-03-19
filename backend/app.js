@@ -2014,6 +2014,9 @@ async function initDb() {
     "ALTER TABLE expenses ADD COLUMN IF NOT EXISTS end_date DATE",
     "ALTER TABLE employees ADD COLUMN IF NOT EXISTS reset_token_hash TEXT",
     "ALTER TABLE employees ADD COLUMN IF NOT EXISTS reset_token_expires_at TIMESTAMPTZ",
+    "ALTER TABLE employees ADD COLUMN IF NOT EXISTS lang TEXT NOT NULL DEFAULT 'fr'",
+    "ALTER TABLE employees ADD COLUMN IF NOT EXISTS theme TEXT NOT NULL DEFAULT 'dark'",
+    "ALTER TABLE employees ADD COLUMN IF NOT EXISTS profile_picture TEXT",
   ];
 
   for (const sql of schemaUpgrades) {

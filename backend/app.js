@@ -516,7 +516,17 @@ app.post('/api/auth/pin-login', async (req, res) => {
         return res.status(403).json({ error: 'Account is waiting for owner approval' });
       }
 
-      // No password or PIN required for cleaners — identity is confirmed by selecting from the list.
+      // Verify PIN or password for cleaners.
+      // If a password_hash is set, validate against it; otherwise compare the plain PIN (default "0000").
+      let authenticated = false;
+      if (employee.password_hash) {
+        authenticated = verifyPassword(submittedPin, employee.password_hash);
+      } else {
+        const storedPin = String(employee.pin || '0000').trim();
+        authenticated = submittedPin === storedPin;
+      }
+      if (!authenticated) return res.status(401).json({ error: 'Invalid PIN or password' });
+
       return res.json({ success: true, role: 'cleaner', employeeId: employee.id, lang: employee.lang || 'fr', theme: employee.theme || 'dark' });
     }
 

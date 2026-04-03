@@ -1013,26 +1013,26 @@ return sameSlotSchedules.reduce((sum, sched) => (
   sum + calcHrs(makeISO(workDate, sched.startTime || "00:00"), makeISO(workDate, sched.endTime || "00:00"))
 ), 0);
 };
-const calcPayableClockHours = (entry, schedules = [], relatedEntries = []) => {
+const EARLY_CLOCK_IN_PAYABLE_MINUTES = 15;
+const calcPayableClockHours = (entry, schedules = []) => {
 const actual = calcHrs(entry?.clockIn, entry?.clockOut);
-const plannedTotal = getPlannedHoursForClockEntry(entry, schedules);
-if (plannedTotal <= 0) return actual;
-const sameWorkDayEntries = (relatedEntries?.length ? relatedEntries : [entry])
-  .filter(e =>
-    e?.clockIn
-    && e?.clockOut
-    && isSameId(e.employeeId, entry?.employeeId)
-    && isSameId(e.clientId, entry?.clientId)
-    && e.clockIn.slice(0, 10) === entry?.clockIn?.slice(0, 10)
-  )
-  .sort((a, b) => new Date(a.clockIn) - new Date(b.clockIn));
-let remaining = plannedTotal;
-for (const row of sameWorkDayEntries) {
-  const payable = Math.max(0, Math.min(calcHrs(row.clockIn, row.clockOut), remaining));
-  if (row.id === entry?.id) return payable;
-  remaining = Math.max(0, remaining - payable);
-}
-return Math.min(actual, plannedTotal);
+if (!entry?.clockIn || !entry?.clockOut || actual <= 0) return actual;
+const workDate = entry.clockIn.slice(0, 10);
+const scheduled = getScheduleForClockEvent(schedules, {
+  employeeId: entry.employeeId,
+  clientId: entry.clientId,
+  date: workDate
+});
+if (!scheduled?.startTime) return actual;
+const scheduledStartAt = safeDate(makeISO(workDate, scheduled.startTime));
+const clockOutAt = safeDate(entry.clockOut);
+if (!scheduledStartAt || !clockOutAt) return actual;
+const earliestPayableStartAt = new Date(scheduledStartAt.getTime() - (EARLY_CLOCK_IN_PAYABLE_MINUTES * 60 * 1000));
+const clockInAt = safeDate(entry.clockIn);
+if (!clockInAt) return actual;
+const payableStartAt = clockInAt < earliestPayableStartAt ? earliestPayableStartAt : clockInAt;
+if (clockOutAt <= payableStartAt) return 0;
+return calcHrs(payableStartAt.toISOString(), clockOutAt.toISOString());
 };
 const makeISO = (d, t) => `${d}T${t}:00`;
 const mapsUrl = (address = "") => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
@@ -3837,6 +3837,7 @@ const handleRemoveCleanerProfilePic = async () => {
 const tabItems = [
 { id: "schedule", label: t("mySchedule"), icon: ICN.cal },
 { id: "clock", label: t("clockInOut"), icon: ICN.clock },
+{ id: "hours", label: t("myHours"), icon: ICN.chart },
 { id: "photos", label: t("photoUploads"), icon: ICN.doc },
 { id: "products", label: t("products"), icon: ICN.doc, hasAlert: hasPendingProductRequest },
 { id: "timeoff", label: t("conges"), icon: ICN.cal, hasAlert: hasPendingTimeOffRequest },

@@ -998,6 +998,35 @@ const time = fmtTime(d);
 return [date, time].filter(Boolean).join(" ");
 };
 const calcHrs = (a, b) => (a && b) ? Math.max(0, Math.round((new Date(b) - new Date(a)) / 36e5 * 100) / 100) : 0;
+const getPlannedHoursForClockEntry = (entry, schedules = []) => {
+if (!entry?.clockIn || !entry?.employeeId || !entry?.clientId) return 0;
+const workDate = entry.clockIn.slice(0, 10);
+const sameSlotSchedules = (schedules || []).filter(s =>
+  s?.status !== "cancelled"
+  && s?.employeeId === entry.employeeId
+  && s?.clientId === entry.clientId
+  && s?.date === workDate
+);
+if (!sameSlotSchedules.length) return 0;
+if (sameSlotSchedules.length === 1) {
+  return calcHrs(makeISO(workDate, sameSlotSchedules[0].startTime || "00:00"), makeISO(workDate, sameSlotSchedules[0].endTime || "00:00"));
+}
+const entryStart = new Date(entry.clockIn).getTime();
+const pick = sameSlotSchedules
+  .map(s => {
+    const plannedStart = new Date(makeISO(workDate, s.startTime || "00:00")).getTime();
+    const plannedHours = calcHrs(makeISO(workDate, s.startTime || "00:00"), makeISO(workDate, s.endTime || "00:00"));
+    return { schedule: s, distance: Math.abs(entryStart - plannedStart), plannedHours };
+  })
+  .sort((a, b) => a.distance - b.distance)[0];
+return pick?.plannedHours || 0;
+};
+const calcPayableClockHours = (entry, schedules = []) => {
+const actual = calcHrs(entry?.clockIn, entry?.clockOut);
+const planned = getPlannedHoursForClockEntry(entry, schedules);
+if (planned > 0) return Math.min(actual, planned);
+return actual;
+};
 const makeISO = (d, t) => `${d}T${t}:00`;
 const mapsUrl = (address = "") => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
 const normalizeCity = (value = "") => String(value || "").trim().toLowerCase();
@@ -2320,7 +2349,7 @@ addSheet("Clients", data.clients.map(cl => ({ ID: cl.id, Name: cl.name, Contact:
 addSheet("Schedule", data.schedules.map(sc => { const cl = data.clients.find(c => c.id === sc.clientId); const em = data.employees.find(e => e.id === sc.employeeId); return { ID: sc.id, Date: sc.date, Client: cl?.name || "", CliID: sc.clientId, Employee: em?.name || "", EmpID: sc.employeeId, Start: sc.startTime, End: sc.endTime, Status: sc.status, PaymentStatus: sc.paymentStatus || "unpaid", Notes: sc.notes || "" }; }),
 ["ID","Date","Client","CliID","Employee","EmpID","Start","End","Status","PaymentStatus","Notes"]);
 
-addSheet("TimeClock", data.clockEntries.map(ce => { const em = data.employees.find(e => e.id === ce.employeeId); const cl = data.clients.find(c => c.id === ce.clientId); const h = calcHrs(ce.clockIn, ce.clockOut); return { ID: ce.id, Employee: em?.name || "", EmpID: ce.employeeId, Client: cl?.name || "", CliID: ce.clientId, In: ce.clockIn || "", Out: ce.clockOut || "", Hours: ce.clockOut ? h : "Active", Late: ce.isLate ? "yes" : "no", LateMins: ce.lateMinutes || 0, Note: ce.notes || "", Rate: em?.hourlyRate || 0, Cost: ce.clockOut ? Math.round(h * (em?.hourlyRate || 0) * 100) / 100 : "" }; }),
+addSheet("TimeClock", data.clockEntries.map(ce => { const em = data.employees.find(e => e.id === ce.employeeId); const cl = data.clients.find(c => c.id === ce.clientId); const h = calcPayableClockHours(ce, data.schedules); return { ID: ce.id, Employee: em?.name || "", EmpID: ce.employeeId, Client: cl?.name || "", CliID: ce.clientId, In: ce.clockIn || "", Out: ce.clockOut || "", Hours: ce.clockOut ? h : "Active", Late: ce.isLate ? "yes" : "no", LateMins: ce.lateMinutes || 0, Note: ce.notes || "", Rate: em?.hourlyRate || 0, Cost: ce.clockOut ? Math.round(h * (em?.hourlyRate || 0) * 100) / 100 : "" }; }),
 ["ID","Employee","EmpID","Client","CliID","In","Out",uiText("Hours"),"Rate","Cost"]);
 
 const invRows = [];
@@ -2349,8 +2378,8 @@ addSheet("Settings", [
 const months = [...new Set(data.clockEntries.filter(c => c.clockOut && c.clockIn).map(c => c.clockIn.slice(0, 7)))].sort();
 addSheet("Summary", months.map(mo => {
 const ents = data.clockEntries.filter(c => c.clockOut && c.clockIn?.startsWith(mo));
-const totalH = ents.reduce((sum, ce) => sum + calcHrs(ce.clockIn, ce.clockOut), 0);
-const laborCost = ents.reduce((sum, ce) => { const em = data.employees.find(x => x.id === ce.employeeId); return sum + calcHrs(ce.clockIn, ce.clockOut) * (em?.hourlyRate || 0); }, 0);
+const totalH = ents.reduce((sum, ce) => sum + calcPayableClockHours(ce, data.schedules), 0);
+const laborCost = ents.reduce((sum, ce) => { const em = data.employees.find(x => x.id === ce.employeeId); return sum + calcPayableClockHours(ce, data.schedules) * (em?.hourlyRate || 0); }, 0);
 const revenue = data.invoices.filter(inv => inv.date?.startsWith(mo)).reduce((sum, inv) => sum + (inv.total || 0), 0);
 return { Month: mo, Hours: Math.round(totalH * 100) / 100, Labor: Math.round(laborCost * 100) / 100, Revenue: Math.round(revenue * 100) / 100, Profit: Math.round((revenue - laborCost) * 100) / 100 };
 }), ["Month", uiText("Hours"), "Labor", uiText("Revenue"), uiText("Profit")]);
@@ -3633,7 +3662,7 @@ const [calSelectedDay, setCalSelectedDay] = useState(null);
 const myClocks = data.clockEntries.filter(c => c.employeeId === auth.employeeId).sort((a, b) => new Date(b.clockIn) - new Date(a.clockIn));
 const activeClock = myClocks.find(c => !c.clockOut);
 const monthClocks = myClocks.filter(c => c.clockOut && c.clockIn?.startsWith(monthFilter));
-const monthHours = monthClocks.reduce((sum, c) => sum + calcHrs(c.clockIn, c.clockOut), 0);
+const monthHours = monthClocks.reduce((sum, c) => sum + calcPayableClockHours(c, data.schedules), 0);
 const myUploads = (data.photoUploads || []).filter(u => u.employeeId === auth.employeeId).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 const myTimeOffRequests = (data.timeOffRequests || []).filter(r => r.employeeId === auth.employeeId).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 const leaveSummary = getLeaveSummary(data, auth.employeeId);
@@ -4014,7 +4043,7 @@ return (
             <thead><tr><th style={thSt}>{uiText("Date")}</th><th style={thSt}>{uiText("Client")}</th><th style={thSt}>{uiText("In")}</th><th style={thSt}>{uiText("Out")}</th><th style={thSt}>{uiText("Hours")}</th></tr></thead>
             <tbody>
               {monthClocks.map(clk => { const client = data.clients.find(c => c.id === clk.clientId); return (
-                <tr key={clk.id}><td style={tdSt}>{fmtDate(clk.clockIn)}</td><td style={tdSt}>{client?.name || "-"}</td><td style={tdSt}>{fmtTime(clk.clockIn)}</td><td style={tdSt}>{fmtTime(clk.clockOut)}</td><td style={{ ...tdSt, fontWeight: 600 }}>{calcHrs(clk.clockIn, clk.clockOut).toFixed(2)}h</td></tr>
+                <tr key={clk.id}><td style={tdSt}>{fmtDate(clk.clockIn)}</td><td style={tdSt}>{client?.name || "-"}</td><td style={tdSt}>{fmtTime(clk.clockIn)}</td><td style={tdSt}>{fmtTime(clk.clockOut)}</td><td style={{ ...tdSt, fontWeight: 600 }}>{calcPayableClockHours(clk, data.schedules).toFixed(2)}h</td></tr>
               ); })}
               {monthClocks.length === 0 && <tr><td colSpan={5} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>{uiText("No entries")}</td></tr>}
             </tbody>
@@ -6060,7 +6089,7 @@ return (
         {filteredEntries.map(entry => {
           const employee = data.employees.find(e => e.id === entry.employeeId);
           const client = data.clients.find(c => c.id === entry.clientId);
-          const hours = calcHrs(entry.clockIn, entry.clockOut);
+          const hours = calcPayableClockHours(entry, data.schedules);
           return (
             <tr key={entry.id}>
               <td style={tdSt}>{employee?.name || "-"}</td>
@@ -6932,7 +6961,7 @@ if (!prev || score > prev.score) latestBySlot.set(slotKey, { sched: s, score });
 const scheduleRows = [...latestBySlot.values()].map(({ sched: s }) => {
 const employee = data.employees.find(e => e.id === s.employeeId);
 const sameDayClocks = data.clockEntries.filter(c => c.clientId === s.clientId && c.employeeId === s.employeeId && c.clockIn?.slice(0, 10) === s.date && c.clockOut);
-const clockHours = sameDayClocks.reduce((sum, c) => sum + calcHrs(c.clockIn, c.clockOut), 0);
+const clockHours = sameDayClocks.reduce((sum, c) => sum + calcPayableClockHours(c, data.schedules), 0);
 const schedHours = calcHrs(makeISO(s.date, s.startTime || "00:00"), makeISO(s.date, s.endTime || "00:00"));
 const hours = clockHours > 0 ? clockHours : schedHours;
 return {
@@ -6955,7 +6984,7 @@ id: `clock-${c.id}`,
 source: "clock",
 prestationDate: c.clockIn.slice(0, 10),
 description: `Prestation ${c.clockIn.slice(0, 10)} (clock ${fmtTime(c.clockIn)}-${fmtTime(c.clockOut)})`,
-hours: Math.round(calcHrs(c.clockIn, c.clockOut) * 100) / 100,
+hours: Math.round(calcPayableClockHours(c, data.schedules) * 100) / 100,
 employeeName: employee?.name || "Unassigned",
 };
 })
@@ -7608,7 +7637,7 @@ const collectEntries = (employeeId, startDate, endDate) => (
 
 const buildBreakdown = (entries) => entries.map(entry => {
   const client = data.clients.find(c => c.id === entry.clientId);
-  const hours = calcHrs(entry.clockIn, entry.clockOut);
+  const hours = calcPayableClockHours(entry, data.schedules);
   return {
     date: entry.clockIn?.slice(0, 10) || "",
     from: fmtTime(entry.clockIn),
@@ -7688,7 +7717,7 @@ const generatePayslips = async (downloadAfter = false) => {
 
   const payslips = employeesToGenerate.map(emp => {
     const entries = collectEntries(emp.id, rangeStart, rangeEnd);
-    const totalH = entries.reduce((sum, ce) => sum + calcHrs(ce.clockIn, ce.clockOut), 0);
+    const totalH = entries.reduce((sum, ce) => sum + calcPayableClockHours(ce, data.schedules), 0);
     const gross = Math.round(totalH * (emp.hourlyRate || 0) * 100) / 100;
     const existing = existingPayslipByEmployeeAndPeriod.get(`${emp.id}-${rangeStart}-${rangeEnd}`);
     return {
@@ -8972,13 +9001,13 @@ const monthEntries = data.clockEntries.filter(c => c.clockOut && c.clockIn?.star
 
 const empSummary = data.employees.filter(emp => emp.status === "active").map(emp => {
 const entries = monthEntries.filter(c => c.employeeId === emp.id);
-const totalH = entries.reduce((sum, ce) => sum + calcHrs(ce.clockIn, ce.clockOut), 0);
+const totalH = entries.reduce((sum, ce) => sum + calcPayableClockHours(ce, data.schedules), 0);
 return { ...emp, totalH: Math.round(totalH * 100) / 100, cost: Math.round(totalH * emp.hourlyRate * 100) / 100 };
 }).filter(e => e.totalH > 0);
 
 const clientSummary = data.clients.filter(c => c.status === "active").map(client => {
 const entries = monthEntries.filter(c => c.clientId === client.id);
-const totalH = entries.reduce((sum, ce) => sum + calcHrs(ce.clockIn, ce.clockOut), 0);
+const totalH = entries.reduce((sum, ce) => sum + calcPayableClockHours(ce, data.schedules), 0);
 const revenue = client.billingType === "fixed" ? Number(client.priceFixed) : totalH * Number(client.pricePerHour);
 const invoiced = data.invoices.filter(inv => inv.clientId === client.id && inv.date?.startsWith(month)).reduce((sum, inv) => sum + (inv.total || 0), 0);
 return { ...client, totalH: Math.round(totalH * 100) / 100, revenue: Math.round(revenue * 100) / 100, invoiced: Math.round(invoiced * 100) / 100 };

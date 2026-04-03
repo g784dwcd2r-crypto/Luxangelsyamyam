@@ -460,6 +460,8 @@ const UI_FR = {
 "Late reason, traffic, access issues...": "Raison du retard, trafic, problème d'accès...",
 "Late reason, traffic, access issue...": "Raison du retard, trafic, problème d'accès...",
 "TODAY'S CLIENTS:": "CLIENTS DU JOUR :",
+"Today's remaining jobs:": "Interventions restantes aujourd'hui :",
+"Current": "En cours",
 "OTHER:": "AUTRES :",
 "My Hours": "Mes heures",
 "Days": "Jours",
@@ -3998,47 +4000,72 @@ return (
     {tab === "clock" && (
       <div>
         <h2 style={{ fontFamily: "'Cormorant Garamond', serif", color: CL.blue, fontSize: 22, marginBottom: 14 }}>{t("clockInOut")}</h2>
+        {(() => {
+          const todayJobs = data.schedules
+            .filter(sc => sc.date === getToday() && isSameId(sc.employeeId, auth.employeeId) && sc.status !== "cancelled")
+            .sort((a, b) => `${a.startTime || ""}`.localeCompare(`${b.startTime || ""}`));
+          return (
+            <>
         {activeClock ? (
-          <div style={{ ...cardSt, borderColor: CL.green, textAlign: "center", marginBottom: 18 }}>
-            <div style={{ color: CL.green, marginBottom: 4 }}>{ICN.clock}</div>
-            <div style={{ fontSize: 17, fontWeight: 600, color: CL.green }}>{uiText("Clocked In")}</div>
-            <div style={{ color: CL.muted }}>Since {fmtBoth(activeClock.clockIn)} at {data.clients.find(c => c.id === activeClock.clientId)?.name || "?"}</div>
-            <button onClick={doClockOut} style={{ ...btnPri, background: CL.red, marginTop: 12 }}>{uiText("Clock Out Now")}</button>
-          </div>
+          <>
+            <div style={{ ...cardSt, borderColor: CL.green, textAlign: "center", marginBottom: 18 }}>
+              <div style={{ color: CL.green, marginBottom: 4 }}>{ICN.clock}</div>
+              <div style={{ fontSize: 17, fontWeight: 600, color: CL.green }}>{uiText("Clocked In")}</div>
+              <div style={{ color: CL.muted }}>Since {fmtBoth(activeClock.clockIn)} at {data.clients.find(c => c.id === activeClock.clientId)?.name || "?"}</div>
+              <button onClick={doClockOut} style={{ ...btnPri, background: CL.red, marginTop: 12 }}>{uiText("Clock Out Now")}</button>
+            </div>
+            <div style={cardSt}>
+              <p style={{ color: CL.muted, marginBottom: 12 }}>{uiText("Today's remaining jobs:")}</p>
+              {todayJobs.length > 0 ? todayJobs.map(job => {
+                const client = data.clients.find(c => isSameId(c.id, job.clientId));
+                const isCurrentClient = isSameId(activeClock.clientId, job.clientId);
+                return (
+                  <div key={job.id} style={{ ...cardSt, width: "100%", padding: "12px 16px", marginBottom: 5, textAlign: "left", borderColor: isCurrentClient ? CL.green + "60" : CL.bd }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
+                      <div>
+                        <div style={{ fontWeight: 600 }}>{client?.name || "?"}</div>
+                        <div style={{ fontSize: 11, color: CL.muted }}>
+                          {job.startTime || "--:--"}-{job.endTime || "--:--"} · {client?.address || uiText("No address")}
+                          {client?.address && <a href={mapsUrl(`${client.address} ${client.postalCode || ""} ${client.city || ""}`)} target="_blank" rel="noreferrer" style={{ color: CL.blue, marginLeft: 6, textDecoration: "underline" }}>{uiText("Map")}</a>}
+                        </div>
+                      </div>
+                      {isCurrentClient ? <span style={{ color: CL.green, fontWeight: 600, fontSize: 12 }}>{uiText("Current")}</span> : null}
+                    </div>
+                  </div>
+                );
+              }) : <div style={{ color: CL.muted, fontSize: 12 }}>{uiText("No jobs scheduled today")}</div>}
+            </div>
+          </>
         ) : (
           <div style={cardSt}>
             <p style={{ color: CL.muted, marginBottom: 12 }}>{uiText("Select client to clock in:")}</p>
             <Field label={uiText("Clock-in note (optional)")}>
               <TextArea value={clockInNote} onChange={ev => setClockInNote(ev.target.value)} placeholder={uiText("Late reason, traffic, access issues...")} />
             </Field>
-            {(() => {
-              const todayJobs = data.schedules
-                .filter(sc => sc.date === getToday() && isSameId(sc.employeeId, auth.employeeId) && sc.status !== "cancelled")
-                .sort((a, b) => `${a.startTime || ""}`.localeCompare(`${b.startTime || ""}`));
-              return (
-                <>
-                  {todayJobs.length > 0 && <div style={{ fontSize: 11, color: CL.green, fontWeight: 600, marginBottom: 5 }}>{uiText("TODAY'S CLIENTS:")}</div>}
-                  {todayJobs.map(job => {
-                    const client = data.clients.find(c => isSameId(c.id, job.clientId));
-                    return (
-                      <button key={job.id} onClick={() => doClockIn(job.clientId)} style={{ ...cardSt, width: "100%", padding: "12px 16px", marginBottom: 5, cursor: "pointer", textAlign: "left", display: "flex", justifyContent: "space-between", borderColor: CL.green + "60" }}>
-                        <div>
-                          <div style={{ fontWeight: 600 }}>{client?.name || "?"}</div>
-                          <div style={{ fontSize: 11, color: CL.muted }}>
-                            {job.startTime || "--:--"}-{job.endTime || "--:--"} · {client?.address || uiText("No address")}
-                            {client?.address && <a href={mapsUrl(`${client.address} ${client.postalCode || ""} ${client.city || ""}`)} target="_blank" rel="noreferrer" onClick={ev => ev.stopPropagation()} style={{ color: CL.blue, marginLeft: 6, textDecoration: "underline" }}>{uiText("Map")}</a>}
-                          </div>
-                        </div>
-                        <span style={{ color: CL.green, fontWeight: 600, fontSize: 13 }}>{uiText("Clock In →")}</span>
-                      </button>
-                    );
-                  })}
-                  {todayJobs.length === 0 && <div style={{ color: CL.muted, fontSize: 12 }}>{uiText("No jobs scheduled today")}</div>}
-                </>
-              );
-            })()}
+            <>
+              {todayJobs.length > 0 && <div style={{ fontSize: 11, color: CL.green, fontWeight: 600, marginBottom: 5 }}>{uiText("TODAY'S CLIENTS:")}</div>}
+              {todayJobs.map(job => {
+                const client = data.clients.find(c => isSameId(c.id, job.clientId));
+                return (
+                  <button key={job.id} onClick={() => doClockIn(job.clientId)} style={{ ...cardSt, width: "100%", padding: "12px 16px", marginBottom: 5, cursor: "pointer", textAlign: "left", display: "flex", justifyContent: "space-between", borderColor: CL.green + "60" }}>
+                    <div>
+                      <div style={{ fontWeight: 600 }}>{client?.name || "?"}</div>
+                      <div style={{ fontSize: 11, color: CL.muted }}>
+                        {job.startTime || "--:--"}-{job.endTime || "--:--"} · {client?.address || uiText("No address")}
+                        {client?.address && <a href={mapsUrl(`${client.address} ${client.postalCode || ""} ${client.city || ""}`)} target="_blank" rel="noreferrer" onClick={ev => ev.stopPropagation()} style={{ color: CL.blue, marginLeft: 6, textDecoration: "underline" }}>{uiText("Map")}</a>}
+                      </div>
+                    </div>
+                    <span style={{ color: CL.green, fontWeight: 600, fontSize: 13 }}>{uiText("Clock In →")}</span>
+                  </button>
+                );
+              })}
+              {todayJobs.length === 0 && <div style={{ color: CL.muted, fontSize: 12 }}>{uiText("No jobs scheduled today")}</div>}
+            </>
           </div>
         )}
+            </>
+          );
+        })()}
       </div>
     )}
 

@@ -1021,12 +1021,18 @@ return cityMatched || preferred[0];
 };
 const scheduleStatusColor = (status) => status === "completed" ? CL.green : status === "in-progress" ? CL.orange : status === "cancelled" ? CL.red : CL.blue;
 const isSameId = (a, b) => String(a ?? "") === String(b ?? "");
-const getScheduleForClockEvent = (schedules, { employeeId, clientId, date }) => schedules
-.filter(s => isSameId(s.employeeId, employeeId) && isSameId(s.clientId, clientId) && s.date === date && s.status !== "cancelled")
-.sort((a, b) => (a.startTime || "").localeCompare(b.startTime || ""))[0];
-const getLateMeta = (schedules, { employeeId, clientId, clockInAt = new Date() }) => {
+const getScheduleForClockEvent = (schedules, { employeeId, clientId, date, scheduleId }) => {
+if (scheduleId) {
+  const exact = (schedules || []).find(s => isSameId(s.id, scheduleId) && s.status !== "cancelled");
+  if (exact) return exact;
+}
+return (schedules || [])
+  .filter(s => isSameId(s.employeeId, employeeId) && isSameId(s.clientId, clientId) && s.date === date && s.status !== "cancelled")
+  .sort((a, b) => (a.startTime || "").localeCompare(b.startTime || ""))[0];
+};
+const getLateMeta = (schedules, { employeeId, clientId, scheduleId, clockInAt = new Date() }) => {
 const date = clockInAt.toISOString().slice(0, 10);
-const scheduled = getScheduleForClockEvent(schedules, { employeeId, clientId, date });
+const scheduled = getScheduleForClockEvent(schedules, { employeeId, clientId, date, scheduleId });
 if (!scheduled?.startTime) return { isLate: false, lateMinutes: 0, scheduledStart: null, scheduleId: scheduled?.id || null, workDate: date };
 const scheduledAt = new Date(makeISO(date, scheduled.startTime));
 const lateMinutes = Math.max(0, Math.round((clockInAt - scheduledAt) / 60000));
@@ -1038,6 +1044,24 @@ const start = new Date(`${startDate}T00:00:00`);
 const end = new Date(`${endDate}T00:00:00`);
 if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) return 0;
 return Math.floor((end - start) / 86400000) + 1;
+};
+const getScheduledHoursCap = (schedule) => {
+if (!schedule?.date || !schedule?.startTime || !schedule?.endTime) return null;
+const start = new Date(makeISO(schedule.date, schedule.startTime));
+const end = new Date(makeISO(schedule.date, schedule.endTime));
+if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) return null;
+return Math.round(((end - start) / 36e5) * 100) / 100;
+};
+const getPayableHoursForClockEntry = (entry, schedules = []) => {
+const actual = calcHrs(entry?.clockIn, entry?.clockOut);
+if (!actual) return 0;
+const workDate = entry?.clockIn?.slice(0, 10);
+if (!workDate) return actual;
+const matchedSchedule = (entry?.scheduleId
+? (schedules || []).find(s => isSameId(s.id, entry.scheduleId))
+: null) || getScheduleForClockEvent(schedules, { employeeId: entry?.employeeId, clientId: entry?.clientId, date: workDate, scheduleId: null });
+const cap = getScheduledHoursCap(matchedSchedule);
+return cap == null ? actual : Math.min(actual, cap);
 };
 
 const DEFAULT_API_BASES = [
@@ -1897,8 +1921,10 @@ const approvedDays = requests.filter(r => r.status === "approved").reduce((sum, 
 const pendingDays = requests.filter(r => r.status === "pending").reduce((sum, r) => sum + leaveDaysInclusive(r.startDate, r.endDate), 0);
 return { allowance, approvedDays, pendingDays, remaining: Math.max(0, allowance - approvedDays), requests };
 };
-const updateScheduleStatusForJob = (schedules, { employeeId, clientId, date, from, to }) => {
-const idx = schedules.findIndex(s => s.employeeId === employeeId && s.clientId === clientId && s.date === date && s.status === from);
+const updateScheduleStatusForJob = (schedules, { scheduleId, employeeId, clientId, date, from, to }) => {
+const idx = scheduleId
+? schedules.findIndex(s => isSameId(s.id, scheduleId) && s.status === from)
+: schedules.findIndex(s => s.employeeId === employeeId && s.clientId === clientId && s.date === date && s.status === from);
 if (idx === -1) return schedules;
 const next = [...schedules];
 next[idx] = { ...next[idx], status: to };
@@ -3633,7 +3659,7 @@ const [calSelectedDay, setCalSelectedDay] = useState(null);
 const myClocks = data.clockEntries.filter(c => c.employeeId === auth.employeeId).sort((a, b) => new Date(b.clockIn) - new Date(a.clockIn));
 const activeClock = myClocks.find(c => !c.clockOut);
 const monthClocks = myClocks.filter(c => c.clockOut && c.clockIn?.startsWith(monthFilter));
-const monthHours = monthClocks.reduce((sum, c) => sum + calcHrs(c.clockIn, c.clockOut), 0);
+const monthHours = monthClocks.reduce((sum, c) => sum + getPayableHoursForClockEntry(c, data.schedules), 0);
 const myUploads = (data.photoUploads || []).filter(u => u.employeeId === auth.employeeId).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 const myTimeOffRequests = (data.timeOffRequests || []).filter(r => r.employeeId === auth.employeeId).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 const leaveSummary = getLeaveSummary(data, auth.employeeId);
@@ -3646,25 +3672,26 @@ const myInHandTotal = myHoldings.reduce((sum, h) => sum + (Number(h.qtyInHand) |
 const hasPendingProductRequest = myProductRequests.some(r => r.status === "pending");
 const hasPendingTimeOffRequest = myTimeOffRequests.some(r => r.status === "pending");
 
-const doClockIn = async (clientId) => {
+const doClockIn = async (schedule) => {
 if (activeClock) { showToast("Already clocked in!", "error"); return; }
-const isCompletedToday = data.schedules.some(sc => isSameId(sc.employeeId, auth.employeeId) && isSameId(sc.clientId, clientId) && sc.date === getToday() && sc.status === "completed");
-if (isCompletedToday) { showToast("This job is already completed and locked", "error"); return; }
+if (!schedule?.clientId) { showToast("Missing scheduled client", "error"); return; }
+if (schedule.status === "completed") { showToast("This job is already completed and locked", "error"); return; }
 const nowAt = new Date();
-const lateMeta = getLateMeta(data.schedules, { employeeId: auth.employeeId, clientId, clockInAt: nowAt });
+const lateMeta = getLateMeta(data.schedules, { employeeId: auth.employeeId, clientId: schedule.clientId, scheduleId: schedule.id, clockInAt: nowAt });
 const newEntry = {
-id: makeId(), employeeId: auth.employeeId, clientId,
+id: makeId(), employeeId: auth.employeeId, clientId: schedule.clientId,
 clockIn: nowAt.toISOString(), clockOut: null,
 notes: clockInNote.trim(),
 isLate: lateMeta.isLate, lateMinutes: lateMeta.lateMinutes,
 scheduledStart: lateMeta.scheduledStart,
+scheduleId: schedule.id || lateMeta.scheduleId || null,
 };
 try {
 await createClockEntryInApi(newEntry);
 updateData("clockEntries", prev => [...prev, newEntry]);
-const schedToSyncIn = (data.schedules || []).find(s => isSameId(s.employeeId, auth.employeeId) && isSameId(s.clientId, clientId) && s.date === lateMeta.workDate && s.status === "scheduled");
+const schedToSyncIn = (data.schedules || []).find(s => isSameId(s.id, newEntry.scheduleId));
 if (schedToSyncIn) syncScheduleToApi({ ...schedToSyncIn, status: "in-progress" }).catch(console.error);
-updateData("schedules", prev => updateScheduleStatusForJob(prev, { employeeId: auth.employeeId, clientId, date: lateMeta.workDate, from: "scheduled", to: "in-progress" }));
+updateData("schedules", prev => updateScheduleStatusForJob(prev, { scheduleId: newEntry.scheduleId, employeeId: auth.employeeId, clientId: schedule.clientId, date: lateMeta.workDate, from: "scheduled", to: "in-progress" }));
 setClockInNote("");
 showToast(lateMeta.isLate ? `Clocked in (Late by ${lateMeta.lateMinutes} min)` : "Clocked in!");
 } catch (err) {
@@ -3679,9 +3706,10 @@ const updatedEntry = { ...activeClock, clockOut: new Date().toISOString() };
 try {
 await syncClockEntryToApi(updatedEntry);
 updateData("clockEntries", prev => prev.map(c => c.id === activeClock.id ? updatedEntry : c));
-const schedToSyncOut = (data.schedules || []).find(s => isSameId(s.employeeId, auth.employeeId) && isSameId(s.clientId, activeClock.clientId) && s.date === today && s.status === "in-progress");
+const schedToSyncOut = (data.schedules || []).find(s => isSameId(s.id, activeClock.scheduleId))
+|| (data.schedules || []).find(s => isSameId(s.employeeId, auth.employeeId) && isSameId(s.clientId, activeClock.clientId) && s.date === today && s.status === "in-progress");
 if (schedToSyncOut) syncScheduleToApi({ ...schedToSyncOut, status: "completed" }).catch(console.error);
-updateData("schedules", prev => updateScheduleStatusForJob(prev, { employeeId: auth.employeeId, clientId: activeClock.clientId, date: today, from: "in-progress", to: "completed" }));
+updateData("schedules", prev => updateScheduleStatusForJob(prev, { scheduleId: activeClock.scheduleId, employeeId: auth.employeeId, clientId: activeClock.clientId, date: today, from: "in-progress", to: "completed" }));
 showToast("Clocked out!");
 } catch (err) {
 console.error(err);
@@ -3978,19 +4006,41 @@ return (
               <TextArea value={clockInNote} onChange={ev => setClockInNote(ev.target.value)} placeholder={uiText("Late reason, traffic, access issues...")} />
             </Field>
             {(() => {
-              const todayJobs = data.schedules.filter(sc => sc.date === getToday() && isSameId(sc.employeeId, auth.employeeId) && sc.status !== "cancelled");
-              const todayClientIds = todayJobs.map(sc => sc.clientId);
-              const todayClients = data.clients.filter(c => todayClientIds.includes(c.id));
+              const todayJobs = data.schedules
+                .filter(sc => sc.date === getToday() && isSameId(sc.employeeId, auth.employeeId) && sc.status !== "cancelled")
+                .sort((a, b) => `${a.startTime || ""}`.localeCompare(`${b.startTime || ""}`));
               return (
                 <>
-                  {todayClients.length > 0 && <div style={{ fontSize: 11, color: CL.green, fontWeight: 600, marginBottom: 5 }}>{uiText("TODAY'S CLIENTS:")}</div>}
-                  {todayClients.map(client => (
-                    <button key={client.id} onClick={() => doClockIn(client.id)} style={{ ...cardSt, width: "100%", padding: "12px 16px", marginBottom: 5, cursor: "pointer", textAlign: "left", display: "flex", justifyContent: "space-between", borderColor: CL.green + "60" }}>
-                      <div><div style={{ fontWeight: 600 }}>{client.name}</div><div style={{ fontSize: 11, color: CL.muted }}>{client.address} {client.address && <a href={mapsUrl(`${client.address} ${client.postalCode || ""} ${client.city || ""}`)} target="_blank" rel="noreferrer" onClick={ev => ev.stopPropagation()} style={{ color: CL.blue, marginLeft: 6, textDecoration: "underline" }}>{uiText("Map")}</a>}</div></div>
-                      <span style={{ color: CL.green, fontWeight: 600, fontSize: 13 }}>{uiText("Clock In →")}</span>
-                    </button>
-                  ))}
-                  {todayClients.length === 0 && <div style={{ color: CL.muted, fontSize: 12 }}>{uiText("No jobs scheduled today")}</div>}
+                  {todayJobs.length > 0 && <div style={{ fontSize: 11, color: CL.green, fontWeight: 600, marginBottom: 5 }}>{uiText("TODAY'S SCHEDULE:")}</div>}
+                  {todayJobs.map(job => {
+                    const client = data.clients.find(c => isSameId(c.id, job.clientId));
+                    const canClockIn = job.status === "scheduled";
+                    const statusLabel = job.status !== "scheduled"
+                      ? uiText(job.status)
+                      : canClockIn
+                        ? uiText("Clock In →")
+                        : `${uiText("Scheduled")} ${job.startTime || "--:--"}`;
+                    return (
+                      <button
+                        key={job.id}
+                        onClick={() => canClockIn && doClockIn(job)}
+                        disabled={!canClockIn}
+                        style={{
+                          ...cardSt, width: "100%", padding: "12px 16px", marginBottom: 5, textAlign: "left", display: "flex",
+                          justifyContent: "space-between", borderColor: canClockIn ? CL.green + "60" : CL.bd, cursor: canClockIn ? "pointer" : "not-allowed",
+                          opacity: canClockIn ? 1 : 0.72,
+                        }}
+                      >
+                        <div>
+                          <div style={{ fontWeight: 600 }}>{client?.name || "?"}</div>
+                          <div style={{ fontSize: 12, color: CL.blue, marginTop: 1 }}>{job.startTime || "--:--"} - {job.endTime || "--:--"}</div>
+                          <div style={{ fontSize: 11, color: CL.muted }}>{client?.address} {client?.address && <a href={mapsUrl(`${client.address} ${client.postalCode || ""} ${client.city || ""}`)} target="_blank" rel="noreferrer" onClick={ev => ev.stopPropagation()} style={{ color: CL.blue, marginLeft: 6, textDecoration: "underline" }}>{uiText("Map")}</a>}</div>
+                        </div>
+                        <span style={{ color: canClockIn ? CL.green : CL.muted, fontWeight: 600, fontSize: 12, textAlign: "right" }}>{statusLabel}</span>
+                      </button>
+                    );
+                  })}
+                  {todayJobs.length === 0 && <div style={{ color: CL.muted, fontSize: 12 }}>{uiText("No jobs scheduled today")}</div>}
                 </>
               );
             })()}
@@ -4014,7 +4064,7 @@ return (
             <thead><tr><th style={thSt}>{uiText("Date")}</th><th style={thSt}>{uiText("Client")}</th><th style={thSt}>{uiText("In")}</th><th style={thSt}>{uiText("Out")}</th><th style={thSt}>{uiText("Hours")}</th></tr></thead>
             <tbody>
               {monthClocks.map(clk => { const client = data.clients.find(c => c.id === clk.clientId); return (
-                <tr key={clk.id}><td style={tdSt}>{fmtDate(clk.clockIn)}</td><td style={tdSt}>{client?.name || "-"}</td><td style={tdSt}>{fmtTime(clk.clockIn)}</td><td style={tdSt}>{fmtTime(clk.clockOut)}</td><td style={{ ...tdSt, fontWeight: 600 }}>{calcHrs(clk.clockIn, clk.clockOut).toFixed(2)}h</td></tr>
+                <tr key={clk.id}><td style={tdSt}>{fmtDate(clk.clockIn)}</td><td style={tdSt}>{client?.name || "-"}</td><td style={tdSt}>{fmtTime(clk.clockIn)}</td><td style={tdSt}>{fmtTime(clk.clockOut)}</td><td style={{ ...tdSt, fontWeight: 600 }}>{getPayableHoursForClockEntry(clk, data.schedules).toFixed(2)}h</td></tr>
               ); })}
               {monthClocks.length === 0 && <tr><td colSpan={5} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>{uiText("No entries")}</td></tr>}
             </tbody>
@@ -7608,7 +7658,7 @@ const collectEntries = (employeeId, startDate, endDate) => (
 
 const buildBreakdown = (entries) => entries.map(entry => {
   const client = data.clients.find(c => c.id === entry.clientId);
-  const hours = calcHrs(entry.clockIn, entry.clockOut);
+  const hours = getPayableHoursForClockEntry(entry, data.schedules);
   return {
     date: entry.clockIn?.slice(0, 10) || "",
     from: fmtTime(entry.clockIn),
@@ -7688,7 +7738,7 @@ const generatePayslips = async (downloadAfter = false) => {
 
   const payslips = employeesToGenerate.map(emp => {
     const entries = collectEntries(emp.id, rangeStart, rangeEnd);
-    const totalH = entries.reduce((sum, ce) => sum + calcHrs(ce.clockIn, ce.clockOut), 0);
+    const totalH = entries.reduce((sum, ce) => sum + getPayableHoursForClockEntry(ce, data.schedules), 0);
     const gross = Math.round(totalH * (emp.hourlyRate || 0) * 100) / 100;
     const existing = existingPayslipByEmployeeAndPeriod.get(`${emp.id}-${rangeStart}-${rangeEnd}`);
     return {

@@ -1013,6 +1013,13 @@ return sameSlotSchedules.reduce((sum, sched) => (
   sum + calcHrs(makeISO(workDate, sched.startTime || "00:00"), makeISO(workDate, sched.endTime || "00:00"))
 ), 0);
 };
+const calcAccountedClockHours = (entry, schedules = []) => {
+const actual = calcHrs(entry?.clockIn, entry?.clockOut);
+if (actual <= 0) return 0;
+const planned = getPlannedHoursForClockEntry(entry, schedules);
+if (planned <= 0) return actual;
+return Math.min(actual, planned);
+};
 const EARLY_CLOCK_IN_PAYABLE_MINUTES = 15;
 const calcPayableClockHours = (entry, schedules = []) => {
 const actual = calcHrs(entry?.clockIn, entry?.clockOut);
@@ -3669,7 +3676,7 @@ const [calSelectedDay, setCalSelectedDay] = useState(null);
 const myClocks = data.clockEntries.filter(c => c.employeeId === auth.employeeId).sort((a, b) => new Date(b.clockIn) - new Date(a.clockIn));
 const activeClock = myClocks.find(c => !c.clockOut);
 const monthClocks = myClocks.filter(c => c.clockOut && c.clockIn?.startsWith(monthFilter));
-const monthHours = monthClocks.reduce((sum, c) => sum + calcPayableClockHours(c, data.schedules, monthClocks), 0);
+const monthHours = monthClocks.reduce((sum, c) => sum + calcAccountedClockHours(c, data.schedules), 0);
 const myUploads = (data.photoUploads || []).filter(u => u.employeeId === auth.employeeId).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 const myTimeOffRequests = (data.timeOffRequests || []).filter(r => r.employeeId === auth.employeeId).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 const leaveSummary = getLeaveSummary(data, auth.employeeId);
@@ -4085,7 +4092,7 @@ return (
             <thead><tr><th style={thSt}>{uiText("Date")}</th><th style={thSt}>{uiText("Client")}</th><th style={thSt}>{uiText("In")}</th><th style={thSt}>{uiText("Out")}</th><th style={thSt}>{uiText("Hours")}</th></tr></thead>
             <tbody>
               {monthClocks.map(clk => { const client = data.clients.find(c => c.id === clk.clientId); return (
-                <tr key={clk.id}><td style={tdSt}>{fmtDate(clk.clockIn)}</td><td style={tdSt}>{client?.name || "-"}</td><td style={tdSt}>{fmtTime(clk.clockIn)}</td><td style={tdSt}>{fmtTime(clk.clockOut)}</td><td style={{ ...tdSt, fontWeight: 600 }}>{calcPayableClockHours(clk, data.schedules, monthClocks).toFixed(2)}h</td></tr>
+                <tr key={clk.id}><td style={tdSt}>{fmtDate(clk.clockIn)}</td><td style={tdSt}>{client?.name || "-"}</td><td style={tdSt}>{fmtTime(clk.clockIn)}</td><td style={tdSt}>{fmtTime(clk.clockOut)}</td><td style={{ ...tdSt, fontWeight: 600 }}>{calcAccountedClockHours(clk, data.schedules).toFixed(2)}h</td></tr>
               ); })}
               {monthClocks.length === 0 && <tr><td colSpan={5} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>{uiText("No entries")}</td></tr>}
             </tbody>

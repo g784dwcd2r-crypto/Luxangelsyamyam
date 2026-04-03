@@ -1020,8 +1020,9 @@ const cityMatched = preferred.find(e => normalizeCity(e.city) && normalizeCity(e
 return cityMatched || preferred[0];
 };
 const scheduleStatusColor = (status) => status === "completed" ? CL.green : status === "in-progress" ? CL.orange : status === "cancelled" ? CL.red : CL.blue;
+const isSameId = (a, b) => String(a ?? "") === String(b ?? "");
 const getScheduleForClockEvent = (schedules, { employeeId, clientId, date }) => schedules
-.filter(s => s.employeeId === employeeId && s.clientId === clientId && s.date === date && s.status !== "cancelled")
+.filter(s => isSameId(s.employeeId, employeeId) && isSameId(s.clientId, clientId) && s.date === date && s.status !== "cancelled")
 .sort((a, b) => (a.startTime || "").localeCompare(b.startTime || ""))[0];
 const getLateMeta = (schedules, { employeeId, clientId, clockInAt = new Date() }) => {
 const date = clockInAt.toISOString().slice(0, 10);
@@ -3623,7 +3624,7 @@ const [clockInNote, setClockInNote] = useState("");
 const [timeOffForm, setTimeOffForm] = useState({ startDate: "", endDate: "", reason: "", leaveType: "conge" });
 const [productForm, setProductForm] = useState({ productId: "", quantity: 1, note: "", deliveryAt: "" });
 
-const upcoming = data.schedules.filter(s => s.employeeId === auth.employeeId && s.date >= getToday() && s.status !== "cancelled").sort((a, b) => a.date.localeCompare(b.date));
+const upcoming = data.schedules.filter(s => isSameId(s.employeeId, auth.employeeId) && s.date >= getToday() && s.status !== "cancelled").sort((a, b) => a.date.localeCompare(b.date));
 const [schedViewMode, setSchedViewMode] = useState("calendar");
 const nowCal = new Date();
 const [calYear, setCalYear] = useState(nowCal.getFullYear());
@@ -3647,7 +3648,7 @@ const hasPendingTimeOffRequest = myTimeOffRequests.some(r => r.status === "pendi
 
 const doClockIn = async (clientId) => {
 if (activeClock) { showToast("Already clocked in!", "error"); return; }
-const isCompletedToday = data.schedules.some(sc => sc.employeeId === auth.employeeId && sc.clientId === clientId && sc.date === getToday() && sc.status === "completed");
+const isCompletedToday = data.schedules.some(sc => isSameId(sc.employeeId, auth.employeeId) && isSameId(sc.clientId, clientId) && sc.date === getToday() && sc.status === "completed");
 if (isCompletedToday) { showToast("This job is already completed and locked", "error"); return; }
 const nowAt = new Date();
 const lateMeta = getLateMeta(data.schedules, { employeeId: auth.employeeId, clientId, clockInAt: nowAt });
@@ -3661,7 +3662,7 @@ scheduledStart: lateMeta.scheduledStart,
 try {
 await createClockEntryInApi(newEntry);
 updateData("clockEntries", prev => [...prev, newEntry]);
-const schedToSyncIn = (data.schedules || []).find(s => s.employeeId === auth.employeeId && s.clientId === clientId && s.date === lateMeta.workDate && s.status === "scheduled");
+const schedToSyncIn = (data.schedules || []).find(s => isSameId(s.employeeId, auth.employeeId) && isSameId(s.clientId, clientId) && s.date === lateMeta.workDate && s.status === "scheduled");
 if (schedToSyncIn) syncScheduleToApi({ ...schedToSyncIn, status: "in-progress" }).catch(console.error);
 updateData("schedules", prev => updateScheduleStatusForJob(prev, { employeeId: auth.employeeId, clientId, date: lateMeta.workDate, from: "scheduled", to: "in-progress" }));
 setClockInNote("");
@@ -3678,7 +3679,7 @@ const updatedEntry = { ...activeClock, clockOut: new Date().toISOString() };
 try {
 await syncClockEntryToApi(updatedEntry);
 updateData("clockEntries", prev => prev.map(c => c.id === activeClock.id ? updatedEntry : c));
-const schedToSyncOut = (data.schedules || []).find(s => s.employeeId === auth.employeeId && s.clientId === activeClock.clientId && s.date === today && s.status === "in-progress");
+const schedToSyncOut = (data.schedules || []).find(s => isSameId(s.employeeId, auth.employeeId) && isSameId(s.clientId, activeClock.clientId) && s.date === today && s.status === "in-progress");
 if (schedToSyncOut) syncScheduleToApi({ ...schedToSyncOut, status: "completed" }).catch(console.error);
 updateData("schedules", prev => updateScheduleStatusForJob(prev, { employeeId: auth.employeeId, clientId: activeClock.clientId, date: today, from: "in-progress", to: "completed" }));
 showToast("Clocked out!");
@@ -3818,7 +3819,7 @@ return (
 </div>
 <div><div style={{ fontWeight: 600, fontSize: 14 }}>{emp?.name || "Cleaner"}</div><div style={{ fontSize: 10, color: CL.muted }}>{emp?.role}</div></div>
 </div>
-<div style={{ display: "flex", alignItems: "center", gap: 8 }}><LanguageSwitcher compact /><button onClick={onLogout} style={{ ...btnSec, ...btnSm, color: CL.red }}>{ICN.logout} {t("logout")}</button></div>
+<div style={{ display: "flex", alignItems: "center", gap: 8 }}><ThemeToggle /><LanguageSwitcher compact /><button onClick={onLogout} style={{ ...btnSec, ...btnSm, color: CL.red }}>{ICN.logout} {t("logout")}</button></div>
 </div>
 {/* Tabs */}
 <div style={{ display: "flex", background: CL.sf, borderBottom: `1px solid ${CL.bd}`, overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
@@ -3839,7 +3840,7 @@ const calCells = [];
 for (let i = 0; i < calFirstDayOfWeek; i++) calCells.push(null);
 for (let d = 1; d <= calDaysInMonth; d++) calCells.push(d);
 while (calCells.length % 7 !== 0) calCells.push(null);
-const myMonthScheds = data.schedules.filter(s => s.employeeId === auth.employeeId && s.date?.startsWith(calMonthStr) && s.status !== "cancelled").sort((a,b) => `${a.date} ${a.startTime}`.localeCompare(`${b.date} ${b.startTime}`));
+const myMonthScheds = data.schedules.filter(s => isSameId(s.employeeId, auth.employeeId) && s.date?.startsWith(calMonthStr) && s.status !== "cancelled").sort((a,b) => `${a.date} ${a.startTime}`.localeCompare(`${b.date} ${b.startTime}`));
 const calSelectedStr = calSelectedDay ? `${calMonthStr}-${String(calSelectedDay).padStart(2,"0")}` : null;
 const calSelectedScheds = calSelectedStr ? myMonthScheds.filter(s => s.date === calSelectedStr) : [];
 const prevCalMonth = () => { if (calMonth === 0) { setCalYear(calYear-1); setCalMonth(11); } else setCalMonth(calMonth-1); setCalSelectedDay(null); };
@@ -3977,10 +3978,9 @@ return (
               <TextArea value={clockInNote} onChange={ev => setClockInNote(ev.target.value)} placeholder={uiText("Late reason, traffic, access issues...")} />
             </Field>
             {(() => {
-              const todayJobs = data.schedules.filter(sc => sc.date === getToday() && sc.employeeId === auth.employeeId && sc.status !== "cancelled");
+              const todayJobs = data.schedules.filter(sc => sc.date === getToday() && isSameId(sc.employeeId, auth.employeeId) && sc.status !== "cancelled");
               const todayClientIds = todayJobs.map(sc => sc.clientId);
               const todayClients = data.clients.filter(c => todayClientIds.includes(c.id));
-              const otherClients = data.clients.filter(c => c.status === "active" && !todayClientIds.includes(c.id));
               return (
                 <>
                   {todayClients.length > 0 && <div style={{ fontSize: 11, color: CL.green, fontWeight: 600, marginBottom: 5 }}>{uiText("TODAY'S CLIENTS:")}</div>}
@@ -3990,13 +3990,7 @@ return (
                       <span style={{ color: CL.green, fontWeight: 600, fontSize: 13 }}>{uiText("Clock In →")}</span>
                     </button>
                   ))}
-                  {otherClients.length > 0 && <div style={{ fontSize: 11, color: CL.muted, fontWeight: 600, margin: "10px 0 5px" }}>{uiText("OTHER:")}</div>}
-                  {otherClients.map(client => (
-                    <button key={client.id} onClick={() => doClockIn(client.id)} style={{ ...cardSt, width: "100%", padding: "10px 16px", marginBottom: 5, cursor: "pointer", textAlign: "left", display: "flex", justifyContent: "space-between" }}>
-                      <div><div style={{ fontWeight: 600 }}>{client.name}</div><div style={{ fontSize: 11, color: CL.muted }}>{client.address} {client.address && <a href={mapsUrl(`${client.address} ${client.postalCode || ""} ${client.city || ""}`)} target="_blank" rel="noreferrer" onClick={ev => ev.stopPropagation()} style={{ color: CL.blue, marginLeft: 6, textDecoration: "underline" }}>{uiText("Map")}</a>}</div></div>
-                      <span style={{ color: CL.blue, fontSize: 13 }}>{uiText("Clock In →")}</span>
-                    </button>
-                  ))}
+                  {todayClients.length === 0 && <div style={{ color: CL.muted, fontSize: 12 }}>{uiText("No jobs scheduled today")}</div>}
                 </>
               );
             })()}

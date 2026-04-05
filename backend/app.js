@@ -342,7 +342,7 @@ function buildNotificationText({ greeting, bodyLines, ctaText, ctaUrl, footer })
   return parts.join('\n\n');
 }
 
-async function sendEmail({ to, subject, body, html, from }) {
+async function sendEmail({ to, subject, body, html, from, attachments }) {
   const settingsResult = await pool.query(
     "SELECT key, value FROM settings WHERE key IN ('companyEmail','companyName','emailProvider','smtpHost','smtpPort','smtpSecure','smtpUser','smtpPass','zeptoApiToken','zeptoApiUrl','zeptoFromAddress','resendApiKey','resendFrom')"
   );
@@ -373,6 +373,13 @@ async function sendEmail({ to, subject, body, html, from }) {
         text: body || undefined,
         html: html || undefined,
         replyTo: smtpFrom,
+        ...(attachments && attachments.length ? {
+          attachments: attachments.map(a => ({
+            filename: a.filename,
+            content: Buffer.from(a.content, 'base64'),
+            contentType: a.contentType || 'application/pdf',
+          })),
+        } : {}),
       });
       return { ok: true, provider: 'smtp' };
     } catch (err) {
@@ -393,6 +400,13 @@ async function sendEmail({ to, subject, body, html, from }) {
         textbody: body || undefined,
         htmlbody: html || undefined,
         reply_to: [{ address: senderEmail }],
+        ...(attachments && attachments.length ? {
+          attachments: attachments.map(a => ({
+            name: a.filename,
+            content: a.content,
+            mime_type: a.contentType || 'application/pdf',
+          })),
+        } : {}),
       },
     });
     if (!response.ok) {
@@ -413,6 +427,12 @@ async function sendEmail({ to, subject, body, html, from }) {
       text: body || undefined,
       html: html || undefined,
       reply_to: [senderEmail],
+      ...(attachments && attachments.length ? {
+        attachments: attachments.map(a => ({
+          filename: a.filename,
+          content: a.content,
+        })),
+      } : {}),
     },
   });
   if (!response.ok) {
@@ -1565,12 +1585,12 @@ app.post('/api/admin/test-email', async (req, res) => {
 
 app.post('/api/notifications/email', async (req, res) => {
   try {
-    const { to, subject, body, html, from } = req.body || {};
+    const { to, subject, body, html, from, attachments } = req.body || {};
     if (!to || !subject || (!body && !html)) {
       return res.status(400).json({ error: 'to, subject and body/html are required' });
     }
 
-    const sent = await sendEmail({ to, subject, body, html, from });
+    const sent = await sendEmail({ to, subject, body, html, from, attachments });
     if (!sent.ok) return res.status(sent.status || 500).json({ error: sent.error || 'Unable to send email notification' });
     return res.json({ success: true, provider: sent.provider });
   } catch (err) {
@@ -1581,7 +1601,7 @@ app.post('/api/notifications/email', async (req, res) => {
 
 app.post('/api/notifications/send-document', async (req, res) => {
   try {
-    const { type, documentId, template, emailLang } = req.body || {};
+    const { type, documentId, template, emailLang, attachments } = req.body || {};
     if (!type || !documentId) return res.status(400).json({ error: 'type and documentId are required' });
 
     const settingsResult = await pool.query("SELECT key, value FROM settings");
@@ -1659,7 +1679,7 @@ app.post('/api/notifications/send-document', async (req, res) => {
     }
 
     const htmlBody = body.replace(/\n/g, '<br>');
-    const sent = await sendEmail({ to: client.email, subject, body, html: htmlBody });
+    const sent = await sendEmail({ to: client.email, subject, body, html: htmlBody, attachments });
     if (!sent.ok) return res.status(sent.status || 500).json({ error: sent.error || 'Unable to send email' });
     return res.json({ success: true, provider: sent.provider });
   } catch (err) {

@@ -900,6 +900,7 @@ const LU_PUBLIC_HOLIDAYS = [
   "26 Décembre — 2ème jour de Noël",
 ];
 
+
 const DEFAULTS = {
 employees: [], clients: [], schedules: [], clockEntries: [], quotes: [], invoices: [], payslips: [],
 photoUploads: [], timeOffRequests: [], inventoryProducts: [], productRequests: [], cleanerProductHoldings: [], prospectVisits: [], expenses: [],
@@ -948,7 +949,7 @@ notifNewInvoices: false,
 notifOverdueInvoices: false,
 notifLowStock: false,
 notifPushEnabled: false,
-publicHolidays: [...LUX_PUBLIC_HOLIDAY_KEYS],
+publicHolidays: ["newYear", "easterMonday", "labourDay", "europeDay", "ascensionDay", "whitMonday", "nationalDay", "assumptionDay", "allSaintsDay", "christmasDay", "stStephensDay"],
 customRoles: [],
 emailSignature: "Best regards,\nLux Angels Cleaning Team\ninfo@luxangels.lu | +352 123 456",
 communicationChannel: "email",

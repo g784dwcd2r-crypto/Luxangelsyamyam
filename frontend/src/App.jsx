@@ -5324,6 +5324,7 @@ const [viewMode, setViewMode] = useState("calendar");
 const now = new Date();
 const [viewYear, setViewYear] = useState(now.getFullYear());
 const [viewMonth, setViewMonth] = useState(now.getMonth());
+const safeSchedules = Array.isArray(data?.schedules) ? data.schedules.filter(s => s && typeof s === "object") : [];
 
 const emptySchedule = { clientId: "", employeeId: "", employeeIds: [], date: getToday(), dateTo: "", startTime: "08:00", endTime: "12:00", status: "scheduled", paymentStatus: "unpaid", notes: "", recurrence: "none", recurrenceDays: [] };
 const dayHeaders = [uiText("Mon"), uiText("Tue"), uiText("Wed"), uiText("Thu"), uiText("Fri"), uiText("Sat"), uiText("Sun")];
@@ -5363,7 +5364,7 @@ setFocusWindow("nextweek");
 jumpToDate(nextWeek);
 };
 
-const monthSchedules = data.schedules.filter(s => {
+const monthSchedules = safeSchedules.filter(s => {
 if (!s.date?.startsWith(monthStr)) return false;
 if (filterEmp && s.employeeId !== filterEmp) return false;
 if (filterClient && s.clientId !== filterClient) return false;
@@ -5393,7 +5394,7 @@ const focusMeta = {
   nextweek: { label: uiText("Next 7 Days"), from: todayStr, to: nextWeekStr },
 };
 const focused = focusMeta[focusWindow];
-const focusedJobs = (data.schedules || [])
+const focusedJobs = safeSchedules
   .filter(s => s.date && s.date >= focused.from && s.date <= focused.to && (!filterEmp || s.employeeId === filterEmp) && (!filterClient || s.clientId === filterClient))
   .sort((a, b) => `${a.date} ${a.startTime}`.localeCompare(`${b.date} ${b.startTime}`));
 const focusedHolidays = (() => {

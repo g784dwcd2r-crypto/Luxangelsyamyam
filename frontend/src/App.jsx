@@ -6683,6 +6683,7 @@ const [modal, setModal] = useState(null);
 const [preview, setPreview] = useState(null);
 const [quoteForPdf, setQuoteForPdf] = useState(null);
 const [quoteEmailDraft, setQuoteEmailDraft] = useState(null);
+const [sendingQuoteEmail, setSendingQuoteEmail] = useState(false);
 const previewRef = useRef(null);
 const hiddenQuoteRef = useRef(null);
 const clients = Array.isArray(data?.clients) ? data.clients : [];
@@ -6714,17 +6715,40 @@ return `${prefix}${nums.length ? Math.max(...nums) + 1 : 1}`;
 const ensureLib = (src, check) => new Promise((resolve, reject) => {
 if (check()) return resolve();
 const existing = document.querySelector(`script[src="${src}"]`);
-if (existing) { existing.addEventListener("load", () => resolve()); return; }
+if (existing) {
+  if (existing.dataset.loaded === "1") {
+    return setTimeout(() => check() ? resolve() : reject(new Error(`Library not available after loading: ${src}`)), 50);
+  }
+  if (existing.dataset.errored === "1") {
+    existing.remove();
+  } else {
+    const timeout = setTimeout(() => reject(new Error(`Timeout loading library: ${src}`)), 10000);
+    existing.addEventListener("load", () => { clearTimeout(timeout); check() ? resolve() : reject(new Error(`Library not available: ${src}`)); });
+    existing.addEventListener("error", () => { clearTimeout(timeout); reject(new Error(`Failed to load: ${src}`)); });
+    return;
+  }
+}
 const script = document.createElement("script");
 script.src = src;
 script.async = true;
-script.onload = () => resolve();
-script.onerror = reject;
+const timeout = setTimeout(() => reject(new Error(`Timeout loading library: ${src}`)), 10000);
+script.onload = () => { clearTimeout(timeout); script.dataset.loaded = "1"; resolve(); };
+script.onerror = () => { clearTimeout(timeout); script.dataset.errored = "1"; reject(new Error(`Failed to load: ${src}`)); };
 document.body.appendChild(script);
 });
 
 const toQuotePreviewShape = (q) => ({ ...q, invoiceNumber: q.quoteNumber, dueDate: q.validUntil });
 const waitForPaint = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+const waitForRef = (ref, maxMs = 2000) => new Promise((resolve, reject) => {
+if (ref.current) return resolve(ref.current);
+const start = Date.now();
+const check = () => {
+  if (ref.current) return resolve(ref.current);
+  if (Date.now() - start > maxMs) return reject(new Error("Hidden PDF element not ready in time"));
+  requestAnimationFrame(check);
+};
+requestAnimationFrame(check);
+});
 
 const buildPdfFromElement = async (element, fileName, shouldDownload = false) => {
 await ensureLib("https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js", () => Boolean(window.html2canvas));
@@ -6817,16 +6841,20 @@ setQuoteEmailDraft({ to: client.email, subject: subjectMap[template] || subjectM
 };
 
 const sendQuoteEmailDraft = async () => {
-if (!quoteEmailDraft) return;
+if (!quoteEmailDraft || sendingQuoteEmail) return;
+setSendingQuoteEmail(true);
+try {
 let pdfAttachments;
 try {
   const q = quoteEmailDraft.q;
   const currentPreview = preview?.id === q.id ? preview : null;
-  if (!currentPreview) {
+  let target;
+  if (currentPreview) {
+    target = previewRef.current;
+  } else {
     setQuoteForPdf(toQuotePreviewShape(q));
-    await waitForPaint();
+    target = await waitForRef(hiddenQuoteRef);
   }
-  const target = currentPreview ? previewRef.current : hiddenQuoteRef.current;
   if (target) {
     const pdfBlob = await buildPdfFromElement(target, `${q.quoteNumber || "devis"}.pdf`);
     const base64 = await blobToBase64(pdfBlob);
@@ -6835,9 +6863,14 @@ try {
   if (!currentPreview) setQuoteForPdf(null);
 } catch (err) {
   console.error("PDF generation for quote email attachment failed:", err);
+  setQuoteForPdf(null);
+  showToast(lang === "fr" ? "Le PDF n'a pas pu être généré — l'email sera envoyé sans pièce jointe" : "PDF generation failed — email will be sent without attachment", "error");
 }
 const ok = await sendPlatformEmail({ to: quoteEmailDraft.to, subject: quoteEmailDraft.subject, body: quoteEmailDraft.body, attachments: pdfAttachments }, { showToast, lang });
 if (ok) setQuoteEmailDraft(null);
+} finally {
+  setSendingQuoteEmail(false);
+}
 };
 
 const sendQuote = (q) => emailQuote(q);
@@ -7018,7 +7051,7 @@ return (
 </div>
 <div className="email-modal-footer" style={{ display: "flex", gap: 10, justifyContent: "flex-end", paddingTop: 14, borderTop: `1px solid ${CL.bd}` }}>
   <button style={{ ...btnSec, padding: "10px 24px" }} onClick={() => setQuoteEmailDraft(null)}>{t("cancel")}</button>
-  <button style={{ ...btnPri, padding: "10px 28px" }} onClick={sendQuoteEmailDraft}>{ICN.mail} {lang === "fr" ? "Envoyer" : "Send"}</button>
+  <button style={{ ...btnPri, padding: "10px 28px", opacity: sendingQuoteEmail ? 0.6 : 1 }} onClick={sendQuoteEmailDraft} disabled={sendingQuoteEmail}>{ICN.mail} {sendingQuoteEmail ? (lang === "fr" ? "Envoi…" : "Sending…") : (lang === "fr" ? "Envoyer" : "Send")}</button>
 </div>
 </ModalBox>
 )}
@@ -7277,6 +7310,7 @@ const [preview, setPreview] = useState(null);
 const [emailDraft, setEmailDraft] = useState(null);
 const [filters, setFilters] = useState({ invoiceNumber: "", clientId: "", status: "", dateFrom: "", dateTo: "" });
 const [invoiceForPdf, setInvoiceForPdf] = useState(null);
+const [sendingEmail, setSendingEmail] = useState(false);
 const hiddenInvoiceRef = useRef(null);
 
 const nextInvoiceNum = (dateStr = getToday()) => {
@@ -7418,16 +7452,39 @@ const previewRef = useRef(null);
 const ensureLib = (src, check) => new Promise((resolve, reject) => {
 if (check()) return resolve();
 const existing = document.querySelector(`script[src="${src}"]`);
-if (existing) { existing.addEventListener("load", () => resolve()); return; }
+if (existing) {
+  if (existing.dataset.loaded === "1") {
+    return setTimeout(() => check() ? resolve() : reject(new Error(`Library not available after loading: ${src}`)), 50);
+  }
+  if (existing.dataset.errored === "1") {
+    existing.remove();
+  } else {
+    const timeout = setTimeout(() => reject(new Error(`Timeout loading library: ${src}`)), 10000);
+    existing.addEventListener("load", () => { clearTimeout(timeout); check() ? resolve() : reject(new Error(`Library not available: ${src}`)); });
+    existing.addEventListener("error", () => { clearTimeout(timeout); reject(new Error(`Failed to load: ${src}`)); });
+    return;
+  }
+}
 const script = document.createElement("script");
 script.src = src;
 script.async = true;
-script.onload = () => resolve();
-script.onerror = reject;
+const timeout = setTimeout(() => reject(new Error(`Timeout loading library: ${src}`)), 10000);
+script.onload = () => { clearTimeout(timeout); script.dataset.loaded = "1"; resolve(); };
+script.onerror = () => { clearTimeout(timeout); script.dataset.errored = "1"; reject(new Error(`Failed to load: ${src}`)); };
 document.body.appendChild(script);
 });
 
 const waitForPaint = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+const waitForRef = (ref, maxMs = 2000) => new Promise((resolve, reject) => {
+if (ref.current) return resolve(ref.current);
+const start = Date.now();
+const check = () => {
+  if (ref.current) return resolve(ref.current);
+  if (Date.now() - start > maxMs) return reject(new Error("Hidden PDF element not ready in time"));
+  requestAnimationFrame(check);
+};
+requestAnimationFrame(check);
+});
 
 const buildPdfFromElement = async (element, fileName, shouldDownload = false) => {
 await ensureLib("https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js", () => Boolean(window.html2canvas));
@@ -7539,16 +7596,20 @@ setEmailDraft({ to: client.email, subject: subjectMap[template] || subjectMap.st
 };
 
 const sendEmailDraft = async () => {
-if (!emailDraft) return;
+if (!emailDraft || sendingEmail) return;
+setSendingEmail(true);
+try {
 let pdfAttachments;
 try {
   const inv = emailDraft.inv;
   const currentPreview = preview?.id === inv.id ? preview : null;
-  if (!currentPreview) {
+  let target;
+  if (currentPreview) {
+    target = previewRef.current;
+  } else {
     setInvoiceForPdf(inv);
-    await waitForPaint();
+    target = await waitForRef(hiddenInvoiceRef);
   }
-  const target = currentPreview ? previewRef.current : hiddenInvoiceRef.current;
   if (target) {
     const pdfBlob = await buildPdfFromElement(target, `${inv.invoiceNumber || "invoice"}.pdf`);
     const base64 = await blobToBase64(pdfBlob);
@@ -7558,9 +7619,13 @@ try {
 } catch (err) {
   console.error("PDF generation for invoice email attachment failed:", err);
   setInvoiceForPdf(null);
+  showToast(lang === "fr" ? "Le PDF n'a pas pu être généré — l'email sera envoyé sans pièce jointe" : "PDF generation failed — email will be sent without attachment", "error");
 }
 const ok = await sendPlatformEmail({ to: emailDraft.to, subject: emailDraft.subject, body: emailDraft.body, attachments: pdfAttachments }, { showToast, lang });
 if (ok) setEmailDraft(null);
+} finally {
+  setSendingEmail(false);
+}
 };
 
 const filteredInvoices = data.invoices
@@ -7720,7 +7785,7 @@ return (
 </div>
 <div className="email-modal-footer" style={{ display: "flex", gap: 10, justifyContent: "flex-end", paddingTop: 14, borderTop: `1px solid ${CL.bd}` }}>
   <button style={{ ...btnSec, padding: "10px 24px" }} onClick={() => setEmailDraft(null)}>{t("cancel")}</button>
-  <button style={{ ...btnPri, padding: "10px 28px" }} onClick={sendEmailDraft}>{ICN.mail} {lang === "fr" ? "Envoyer" : "Send"}</button>
+  <button style={{ ...btnPri, padding: "10px 28px", opacity: sendingEmail ? 0.6 : 1 }} onClick={sendEmailDraft} disabled={sendingEmail}>{ICN.mail} {sendingEmail ? (lang === "fr" ? "Envoi…" : "Sending…") : (lang === "fr" ? "Envoyer" : "Send")}</button>
 </div>
 </ModalBox>
 )}

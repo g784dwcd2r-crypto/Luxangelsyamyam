@@ -3132,6 +3132,15 @@ return draft;
 const urlParams = new URLSearchParams(window.location.search);
 const urlResetToken = urlParams.get("resetToken");
 const urlResetEmail = urlParams.get("resetEmail");
+
+// Handle email verification link from registration email (/verify-email?email=...&token=...)
+const isVerifyEmailPage = window.location.pathname === "/verify-email";
+const urlVerifyEmail = urlParams.get("email") || "";
+const urlVerifyToken = urlParams.get("token") || "";
+if (!auth && isVerifyEmailPage && urlVerifyToken) {
+  return <LanguageContext.Provider value={{ lang, setLang, t }}><EmailVerificationScreen email={urlVerifyEmail} token={urlVerifyToken} /></LanguageContext.Provider>;
+}
+
 if (!auth && urlResetToken && urlResetEmail) {
   return <LanguageContext.Provider value={{ lang, setLang, t }}><ResetPasswordScreen token={urlResetToken} email={urlResetEmail} /></LanguageContext.Provider>;
 }
@@ -3321,6 +3330,86 @@ return (
 
 </LanguageContext.Provider>
 
+);
+}
+
+// ==============================================
+// EMAIL VERIFICATION SCREEN
+// ==============================================
+function EmailVerificationScreen({ token, email }) {
+const { lang } = useI18n();
+const [status, setStatus] = useState("loading"); // loading | success | error
+const [error, setError] = useState("");
+
+useEffect(() => {
+  let cancelled = false;
+  (async () => {
+    try {
+      let base = null;
+      for (const b of API_BASE_CANDIDATES) {
+        try {
+          const r = await fetch(`${b}/`, { signal: AbortSignal.timeout(8000) });
+          if (r.ok || (r.status >= 200 && r.status < 500)) { base = b; break; }
+        } catch {}
+      }
+      if (!base) { if (!cancelled) { setError(lang === "en" ? "Server unavailable. Please try again later." : "Serveur indisponible. Veuillez réessayer plus tard."); setStatus("error"); } return; }
+      const res = await fetch(`${base}/api/auth/verify-email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, token }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (cancelled) return;
+      if (res.ok && body.success) {
+        setStatus("success");
+      } else {
+        setError(body.error || (lang === "en" ? "Invalid or expired verification link." : "Lien de vérification invalide ou expiré."));
+        setStatus("error");
+      }
+    } catch {
+      if (!cancelled) { setError(lang === "en" ? "Connection error. Please try again." : "Erreur de connexion. Veuillez réessayer."); setStatus("error"); }
+    }
+  })();
+  return () => { cancelled = true; };
+}, []);
+
+if (status === "loading") return (
+  <LoginShell>
+    <div style={{ animation: "fadeIn .4s ease", width: 420, maxWidth: "100%" }}>
+      <LoginLogo lang={lang} />
+      <div style={{ ...cardSt, padding: 28, textAlign: "center" }}>
+        <p style={{ color: CL.muted, fontSize: 14 }}>{lang === "en" ? "Verifying your email…" : "Vérification de votre email…"}</p>
+      </div>
+    </div>
+  </LoginShell>
+);
+
+if (status === "success") return (
+  <LoginShell>
+    <div style={{ animation: "fadeIn .4s ease", width: 420, maxWidth: "100%" }}>
+      <LoginLogo lang={lang} />
+      <div style={{ ...cardSt, padding: 28, textAlign: "center" }}>
+        <div style={{ fontSize: 40, marginBottom: 12 }}>&#x2705;</div>
+        <h3 style={{ margin: "0 0 10px", fontFamily: "'Cormorant Garamond', serif", color: CL.gold, fontSize: 21 }}>{lang === "en" ? "Email verified!" : "Email vérifié !"}</h3>
+        <p style={{ color: CL.muted, fontSize: 13, marginBottom: 20 }}>{lang === "en" ? "Your email has been verified. Your account is now awaiting owner approval. You will receive an email once your account is approved." : "Votre email a été vérifié. Votre compte est en attente d'approbation. Vous recevrez un email une fois votre compte approuvé."}</p>
+        <button onClick={() => window.location.replace("/")} style={{ ...btnPri, width: "100%", justifyContent: "center" }}>{lang === "en" ? "Go to login" : "Aller à la connexion"}</button>
+      </div>
+    </div>
+  </LoginShell>
+);
+
+return (
+  <LoginShell>
+    <div style={{ animation: "fadeIn .4s ease", width: 420, maxWidth: "100%" }}>
+      <LoginLogo lang={lang} />
+      <div style={{ ...cardSt, padding: 28, textAlign: "center" }}>
+        <div style={{ fontSize: 40, marginBottom: 12 }}>&#x274C;</div>
+        <h3 style={{ margin: "0 0 10px", fontFamily: "'Cormorant Garamond', serif", color: CL.red, fontSize: 21 }}>{lang === "en" ? "Verification failed" : "Échec de la vérification"}</h3>
+        <p style={{ color: CL.muted, fontSize: 13, marginBottom: 20 }}>{error}</p>
+        <button onClick={() => window.location.replace("/")} style={{ ...btnPri, width: "100%", justifyContent: "center" }}>{lang === "en" ? "Go to login" : "Aller à la connexion"}</button>
+      </div>
+    </div>
+  </LoginShell>
 );
 }
 
@@ -6674,11 +6763,15 @@ if (template === "reminder") {
 return `Dear ${name},\n\nPlease find our quote ${qNum}.\nDate: ${dateStr}\nAmount: ${amount}${validStr ? `\nValid until: ${validStr}` : ""}\n\nDo not hesitate to contact us for any questions or adjustments.${sig}`;
 };
 
-const emailQuote = async (q) => {
+const emailQuote = (q) => {
 const client = clients.find(c => c.id === q.clientId);
 if (!client?.email) { showToast(lang === "fr" ? "Email client manquant" : "Client email missing", "error"); return; }
-const emailLang = client.language?.toLowerCase() === "en" ? "en" : "fr";
-await sendDocumentEmail({ type: "quote", documentId: q.id, template: q.emailTemplate || "standard", emailLang });
+const template = q.emailTemplate || "standard";
+const body = buildQuoteEmailBody(q, client, template, lang);
+const subjectMap = lang === "fr"
+  ? { standard: `Devis ${q.quoteNumber}`, followup: `Relance devis ${q.quoteNumber}`, reminder: `Rappel — Devis ${q.quoteNumber}` }
+  : { standard: `Quote ${q.quoteNumber}`, followup: `Follow-up: Quote ${q.quoteNumber}`, reminder: `Reminder — Quote ${q.quoteNumber}` };
+setQuoteEmailDraft({ to: client.email, subject: subjectMap[template] || subjectMap.standard, body, template, q, from: data.settings.companyEmail || "" });
 };
 
 const sendQuoteEmailDraft = async () => {
@@ -7314,12 +7407,15 @@ if (template === "overdue") {
 return `Dear ${name},\n\nInvoice: ${invNum}\nDate: ${dateStr}${dueStr ? `\nDue date: ${dueStr}` : ""}\nTotal: ${amount}\n\nPlease find your invoice details above. Do not hesitate to contact us for any questions.${sig}`;
 };
 
-const emailInvoice = async (inv) => {
+const emailInvoice = (inv) => {
 const client = data.clients.find(c => c.id === inv.clientId);
 if (!client?.email) { showToast(lang === "fr" ? "Email client manquant" : "Client email missing", "error"); return; }
 const template = inv.emailTemplate || "standard";
-const emailLang = client.language?.toLowerCase() === "en" ? "en" : "fr";
-await sendDocumentEmail({ type: "invoice", documentId: inv.id, template, emailLang });
+const body = buildEmailBody(inv, client, template, lang);
+const subjectMap = lang === "fr"
+  ? { standard: `Facture ${inv.invoiceNumber}`, friendly: `Facture ${inv.invoiceNumber}`, thank_you: `Merci — Facture ${inv.invoiceNumber}`, overdue: `Relance — Facture ${inv.invoiceNumber}` }
+  : { standard: `Invoice ${inv.invoiceNumber}`, friendly: `Invoice ${inv.invoiceNumber}`, thank_you: `Thank you — Invoice ${inv.invoiceNumber}`, overdue: `Overdue: Invoice ${inv.invoiceNumber}` };
+setEmailDraft({ to: client.email, subject: subjectMap[template] || subjectMap.standard, body, template, inv, from: data.settings.companyEmail || "" });
 };
 
 const sendEmailDraft = async () => {

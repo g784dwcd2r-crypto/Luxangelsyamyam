@@ -7014,6 +7014,7 @@ return (
   <div style={{ fontSize: 12, color: CL.muted, marginBottom: 4 }}>{lang === "fr" ? "Corps de l'email" : "Email Body"}</div>
   <textarea className="email-modal-textarea" value={quoteEmailDraft.body} onChange={ev => setQuoteEmailDraft(prev => ({ ...prev, body: ev.target.value }))} style={{ ...inputSt, width: "100%", minHeight: 220, fontFamily: "monospace", fontSize: 13, resize: "vertical", whiteSpace: "pre-wrap" }} />
   <div style={{ fontSize: 11, color: CL.muted, marginTop: 6 }}>{lang === "fr" ? "Expéditeur" : "From"}: {quoteEmailDraft.from}</div>
+  <div style={{ fontSize: 12, color: "#2e7d32", marginTop: 8 }}>{"\u{1F4CE}"} {lang === "fr" ? "PDF devis joint" : "Quote PDF attached"}</div>
 </div>
 <div className="email-modal-footer" style={{ display: "flex", gap: 10, justifyContent: "flex-end", paddingTop: 14, borderTop: `1px solid ${CL.bd}` }}>
   <button style={{ ...btnSec, padding: "10px 24px" }} onClick={() => setQuoteEmailDraft(null)}>{t("cancel")}</button>
@@ -7541,30 +7542,22 @@ const sendEmailDraft = async () => {
 if (!emailDraft) return;
 let pdfAttachments;
 try {
-  const canvas = await capturePreviewCanvas();
-  await ensureLib("https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js", () => Boolean(window.jspdf));
-  const { jsPDF } = window.jspdf;
-  const pdf = new jsPDF("p", "mm", "a4");
-  const pageWidth = pdf.internal.pageSize.getWidth();
-  const pageHeight = pdf.internal.pageSize.getHeight();
-  const imgData = canvas.toDataURL("image/png");
-  const imgWidth = pageWidth;
-  const imgHeight = (canvas.height * imgWidth) / canvas.width;
-  if (imgHeight <= pageHeight) {
-    pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
-  } else {
-    let y = 0;
-    while (y < imgHeight) {
-      pdf.addImage(imgData, "PNG", 0, -y, imgWidth, imgHeight);
-      y += pageHeight;
-      if (y < imgHeight) pdf.addPage();
-    }
+  const inv = emailDraft.inv;
+  const currentPreview = preview?.id === inv.id ? preview : null;
+  if (!currentPreview) {
+    setInvoiceForPdf(inv);
+    await waitForPaint();
   }
-  const pdfBlob = pdf.output("blob");
-  const base64 = await blobToBase64(pdfBlob);
-  pdfAttachments = [{ filename: `${emailDraft.inv?.invoiceNumber || "invoice"}.pdf`, content: base64, contentType: "application/pdf" }];
+  const target = currentPreview ? previewRef.current : hiddenInvoiceRef.current;
+  if (target) {
+    const pdfBlob = await buildPdfFromElement(target, `${inv.invoiceNumber || "invoice"}.pdf`);
+    const base64 = await blobToBase64(pdfBlob);
+    pdfAttachments = [{ filename: `${inv.invoiceNumber || "invoice"}.pdf`, content: base64, contentType: "application/pdf" }];
+  }
+  if (!currentPreview) setInvoiceForPdf(null);
 } catch (err) {
   console.error("PDF generation for invoice email attachment failed:", err);
+  setInvoiceForPdf(null);
 }
 const ok = await sendPlatformEmail({ to: emailDraft.to, subject: emailDraft.subject, body: emailDraft.body, attachments: pdfAttachments }, { showToast, lang });
 if (ok) setEmailDraft(null);
@@ -7723,6 +7716,7 @@ return (
   <div style={{ fontSize: 12, color: CL.muted, marginBottom: 4 }}>{lang === "fr" ? "Corps de l'email" : "Email Body"}</div>
   <textarea className="email-modal-textarea" value={emailDraft.body} onChange={ev => setEmailDraft(prev => ({ ...prev, body: ev.target.value }))} style={{ ...inputSt, width: "100%", minHeight: 220, fontFamily: "monospace", fontSize: 13, resize: "vertical", whiteSpace: "pre-wrap" }} />
   <div style={{ fontSize: 11, color: CL.muted, marginTop: 6 }}>{lang === "fr" ? "Expéditeur" : "From"}: {emailDraft.from}</div>
+  <div style={{ fontSize: 12, color: "#2e7d32", marginTop: 8 }}>{"\u{1F4CE}"} {lang === "fr" ? "PDF facture joint" : "Invoice PDF attached"}</div>
 </div>
 <div className="email-modal-footer" style={{ display: "flex", gap: 10, justifyContent: "flex-end", paddingTop: 14, borderTop: `1px solid ${CL.bd}` }}>
   <button style={{ ...btnSec, padding: "10px 24px" }} onClick={() => setEmailDraft(null)}>{t("cancel")}</button>

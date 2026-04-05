@@ -1183,13 +1183,20 @@ envApiBase,
 ].filter(Boolean)));
 const apiUrl = (path, base = API_BASE_CANDIDATES[0] || "") => `${base}${path.startsWith("/") ? path : `/${path}`}`;
 
-const sendPlatformEmail = async ({ to, subject, body, html }, { showToast, lang }) => {
+const blobToBase64 = (blob) => new Promise((resolve, reject) => {
+const reader = new FileReader();
+reader.onloadend = () => resolve(reader.result.split(',')[1]);
+reader.onerror = reject;
+reader.readAsDataURL(blob);
+});
+
+const sendPlatformEmail = async ({ to, subject, body, html, attachments }, { showToast, lang }) => {
 if (!to) { showToast(uiText("Client email missing"), "error"); return false; }
 try {
 const response = await fetch(apiUrl('/api/notifications/email'), {
 method: 'POST',
 headers: { 'Content-Type': 'application/json' },
-body: JSON.stringify({ to, subject, body, html }),
+body: JSON.stringify({ to, subject, body, html, attachments }),
 });
 if (!response.ok) {
 const errPayload = await response.json().catch(() => ({}));
@@ -6811,7 +6818,25 @@ setQuoteEmailDraft({ to: client.email, subject: subjectMap[template] || subjectM
 
 const sendQuoteEmailDraft = async () => {
 if (!quoteEmailDraft) return;
-const ok = await sendPlatformEmail({ to: quoteEmailDraft.to, subject: quoteEmailDraft.subject, body: quoteEmailDraft.body }, { showToast, lang });
+let pdfAttachments;
+try {
+  const q = quoteEmailDraft.q;
+  const currentPreview = preview?.id === q.id ? preview : null;
+  if (!currentPreview) {
+    setQuoteForPdf(toQuotePreviewShape(q));
+    await waitForPaint();
+  }
+  const target = currentPreview ? previewRef.current : hiddenQuoteRef.current;
+  if (target) {
+    const pdfBlob = await buildPdfFromElement(target, `${q.quoteNumber || "devis"}.pdf`);
+    const base64 = await blobToBase64(pdfBlob);
+    pdfAttachments = [{ filename: `${q.quoteNumber || "devis"}.pdf`, content: base64, contentType: "application/pdf" }];
+  }
+  if (!currentPreview) setQuoteForPdf(null);
+} catch (err) {
+  console.error("PDF generation for quote email attachment failed:", err);
+}
+const ok = await sendPlatformEmail({ to: quoteEmailDraft.to, subject: quoteEmailDraft.subject, body: quoteEmailDraft.body, attachments: pdfAttachments }, { showToast, lang });
 if (ok) setQuoteEmailDraft(null);
 };
 
@@ -7455,7 +7480,34 @@ setEmailDraft({ to: client.email, subject: subjectMap[template] || subjectMap.st
 
 const sendEmailDraft = async () => {
 if (!emailDraft) return;
-const ok = await sendPlatformEmail({ to: emailDraft.to, subject: emailDraft.subject, body: emailDraft.body }, { showToast, lang });
+let pdfAttachments;
+try {
+  const canvas = await capturePreviewCanvas();
+  await ensureLib("https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js", () => Boolean(window.jspdf));
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF("p", "mm", "a4");
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  const imgData = canvas.toDataURL("image/png");
+  const imgWidth = pageWidth;
+  const imgHeight = (canvas.height * imgWidth) / canvas.width;
+  if (imgHeight <= pageHeight) {
+    pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
+  } else {
+    let y = 0;
+    while (y < imgHeight) {
+      pdf.addImage(imgData, "PNG", 0, -y, imgWidth, imgHeight);
+      y += pageHeight;
+      if (y < imgHeight) pdf.addPage();
+    }
+  }
+  const pdfBlob = pdf.output("blob");
+  const base64 = await blobToBase64(pdfBlob);
+  pdfAttachments = [{ filename: `${emailDraft.inv?.invoiceNumber || "invoice"}.pdf`, content: base64, contentType: "application/pdf" }];
+} catch (err) {
+  console.error("PDF generation for invoice email attachment failed:", err);
+}
+const ok = await sendPlatformEmail({ to: emailDraft.to, subject: emailDraft.subject, body: emailDraft.body, attachments: pdfAttachments }, { showToast, lang });
 if (ok) setEmailDraft(null);
 };
 

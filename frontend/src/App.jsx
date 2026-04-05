@@ -1183,6 +1183,28 @@ envApiBase,
 ].filter(Boolean)));
 const apiUrl = (path, base = API_BASE_CANDIDATES[0] || "") => `${base}${path.startsWith("/") ? path : `/${path}`}`;
 
+const sendPlatformEmail = async ({ to, subject, body, html }, { showToast, lang }) => {
+if (!to) { showToast(uiText("Client email missing"), "error"); return false; }
+try {
+const response = await fetch(apiUrl('/api/notifications/email'), {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ to, subject, body, html }),
+});
+if (!response.ok) {
+const errPayload = await response.json().catch(() => ({}));
+throw new Error(errPayload.error || 'Unable to send email');
+}
+showToast(lang === "fr" ? "Email envoyé" : "Email sent", "success");
+return true;
+} catch (err) {
+console.error(err);
+const fallbackEmailError = !err?.message || /load failed|failed to fetch/i.test(err.message);
+showToast(fallbackEmailError ? uiText("Unable to send email") : err.message, "error");
+return false;
+}
+};
+
 const BOOLEAN_SETTING_KEYS = new Set([
   "allowOverlappingJobs", "autoAssignEmployee", "groupByLocationSuggestion", "allowManualEntry",
   "requireReasonManualEdits", "requireCheckinValidation", "enableStockAlerts", "notifLateEmployees",
@@ -6789,7 +6811,7 @@ setQuoteEmailDraft({ to: client.email, subject: subjectMap[template] || subjectM
 
 const sendQuoteEmailDraft = async () => {
 if (!quoteEmailDraft) return;
-const ok = await sendPlatformEmail({ to: quoteEmailDraft.to, subject: quoteEmailDraft.subject, body: quoteEmailDraft.body });
+const ok = await sendPlatformEmail({ to: quoteEmailDraft.to, subject: quoteEmailDraft.subject, body: quoteEmailDraft.body }, { showToast, lang });
 if (ok) setQuoteEmailDraft(null);
 };
 
@@ -7433,7 +7455,7 @@ setEmailDraft({ to: client.email, subject: subjectMap[template] || subjectMap.st
 
 const sendEmailDraft = async () => {
 if (!emailDraft) return;
-const ok = await sendPlatformEmail({ to: emailDraft.to, subject: emailDraft.subject, body: emailDraft.body });
+const ok = await sendPlatformEmail({ to: emailDraft.to, subject: emailDraft.subject, body: emailDraft.body }, { showToast, lang });
 if (ok) setEmailDraft(null);
 };
 
@@ -8759,28 +8781,6 @@ return false;
 }
 };
 
-const sendPlatformEmail = async ({ to, subject, body, html }) => {
-if (!to) { showToast(uiText("Client email missing"), "error"); return false; }
-try {
-const response = await fetch(apiUrl('/api/notifications/email'), {
-method: 'POST',
-headers: { 'Content-Type': 'application/json' },
-body: JSON.stringify({ to, subject, body, html }),
-});
-if (!response.ok) {
-const errPayload = await response.json().catch(() => ({}));
-throw new Error(errPayload.error || 'Unable to send email');
-}
-showToast(lang === "fr" ? "Email envoyé" : "Email sent", "success");
-return true;
-} catch (err) {
-console.error(err);
-const fallbackEmailError = !err?.message || /load failed|failed to fetch/i.test(err.message);
-showToast(fallbackEmailError ? uiText("Unable to send email") : err.message, "error");
-return false;
-}
-};
-
 const sendDocumentEmail = async ({ type, documentId, template, emailLang }) => {
 try {
 const response = await fetch(apiUrl('/api/notifications/send-document'), {
@@ -8822,11 +8822,11 @@ if (mode === "whatsapp") {
 }
 if (mode === "sms") return sendPlatformSMS({ to: client.phoneMobile || client.phone, body: payload.body });
 if (mode === "zoho") {
-  const sent = await sendPlatformEmail({ to: client.email, subject: payload.subject, body: payload.body });
+  const sent = await sendPlatformEmail({ to: client.email, subject: payload.subject, body: payload.body }, { showToast, lang });
   if (sent) return true;
   return openZohoCompose({ to: client.email, subject: payload.subject, body: payload.body });
 }
-const sent = await sendPlatformEmail({ to: client.email, subject: payload.subject, body: payload.body });
+const sent = await sendPlatformEmail({ to: client.email, subject: payload.subject, body: payload.body }, { showToast, lang });
 if (sent) return true;
 return openZohoCompose({ to: client.email, subject: payload.subject, body: payload.body });
 };

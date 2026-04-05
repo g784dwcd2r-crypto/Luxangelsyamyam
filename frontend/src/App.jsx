@@ -6674,19 +6674,17 @@ if (template === "reminder") {
 return `Dear ${name},\n\nPlease find our quote ${qNum}.\nDate: ${dateStr}\nAmount: ${amount}${validStr ? `\nValid until: ${validStr}` : ""}\n\nDo not hesitate to contact us for any questions or adjustments.${sig}`;
 };
 
-const emailQuote = (q) => {
+const emailQuote = async (q) => {
 const client = clients.find(c => c.id === q.clientId);
 if (!client?.email) { showToast(lang === "fr" ? "Email client manquant" : "Client email missing", "error"); return; }
-const subject = lang === "fr" ? `Devis ${q.quoteNumber}` : `Quote ${q.quoteNumber}`;
-const url = `https://mail.zoho.com/zm/#compose?to=${encodeURIComponent(client.email)}&subject=${encodeURIComponent(subject)}`;
-window.open(url, '_blank');
+const emailLang = client.language?.toLowerCase() === "en" ? "en" : "fr";
+await sendDocumentEmail({ type: "quote", documentId: q.id, template: q.emailTemplate || "standard", emailLang });
 };
 
-const sendQuoteEmailDraft = () => {
+const sendQuoteEmailDraft = async () => {
 if (!quoteEmailDraft) return;
-const url = `https://mail.zoho.com/zm/#compose?to=${encodeURIComponent(quoteEmailDraft.to)}&subject=${encodeURIComponent(quoteEmailDraft.subject)}&body=${encodeURIComponent(quoteEmailDraft.body)}`;
-window.open(url, '_blank');
-setQuoteEmailDraft(null);
+const ok = await sendPlatformEmail({ to: quoteEmailDraft.to, subject: quoteEmailDraft.subject, body: quoteEmailDraft.body });
+if (ok) setQuoteEmailDraft(null);
 };
 
 const sendQuote = (q) => emailQuote(q);
@@ -7316,23 +7314,18 @@ if (template === "overdue") {
 return `Dear ${name},\n\nInvoice: ${invNum}\nDate: ${dateStr}${dueStr ? `\nDue date: ${dueStr}` : ""}\nTotal: ${amount}\n\nPlease find your invoice details above. Do not hesitate to contact us for any questions.${sig}`;
 };
 
-const emailInvoice = (inv) => {
+const emailInvoice = async (inv) => {
 const client = data.clients.find(c => c.id === inv.clientId);
 if (!client?.email) { showToast(lang === "fr" ? "Email client manquant" : "Client email missing", "error"); return; }
 const template = inv.emailTemplate || "standard";
-const subjectMap = lang === "fr"
-  ? { standard: `Facture ${inv.invoiceNumber}`, friendly: `Facture ${inv.invoiceNumber}`, thank_you: `Merci — Facture ${inv.invoiceNumber}`, overdue: `Relance — Facture ${inv.invoiceNumber}` }
-  : { standard: `Invoice ${inv.invoiceNumber}`, friendly: `Invoice ${inv.invoiceNumber}`, thank_you: `Thank you — Invoice ${inv.invoiceNumber}`, overdue: `Overdue: Invoice ${inv.invoiceNumber}` };
-const subject = subjectMap[template] || subjectMap.standard;
-const url = `https://mail.zoho.com/zm/#compose?to=${encodeURIComponent(client.email)}&subject=${encodeURIComponent(subject)}`;
-window.open(url, '_blank');
+const emailLang = client.language?.toLowerCase() === "en" ? "en" : "fr";
+await sendDocumentEmail({ type: "invoice", documentId: inv.id, template, emailLang });
 };
 
-const sendEmailDraft = () => {
+const sendEmailDraft = async () => {
 if (!emailDraft) return;
-const url = `https://mail.zoho.com/zm/#compose?to=${encodeURIComponent(emailDraft.to)}&subject=${encodeURIComponent(emailDraft.subject)}&body=${encodeURIComponent(emailDraft.body)}`;
-window.open(url, '_blank');
-setEmailDraft(null);
+const ok = await sendPlatformEmail({ to: emailDraft.to, subject: emailDraft.subject, body: emailDraft.body });
+if (ok) setEmailDraft(null);
 };
 
 const filteredInvoices = data.invoices
@@ -8657,6 +8650,49 @@ return false;
 }
 };
 
+const sendPlatformEmail = async ({ to, subject, body, html }) => {
+if (!to) { showToast(uiText("Client email missing"), "error"); return false; }
+try {
+const response = await fetch(apiUrl('/api/notifications/email'), {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ to, subject, body, html }),
+});
+if (!response.ok) {
+const errPayload = await response.json().catch(() => ({}));
+throw new Error(errPayload.error || 'Unable to send email');
+}
+showToast(lang === "fr" ? "Email envoyé" : "Email sent", "success");
+return true;
+} catch (err) {
+console.error(err);
+const fallbackEmailError = !err?.message || /load failed|failed to fetch/i.test(err.message);
+showToast(fallbackEmailError ? uiText("Unable to send email") : err.message, "error");
+return false;
+}
+};
+
+const sendDocumentEmail = async ({ type, documentId, template, emailLang }) => {
+try {
+const response = await fetch(apiUrl('/api/notifications/send-document'), {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ type, documentId, template, emailLang }),
+});
+if (!response.ok) {
+const errPayload = await response.json().catch(() => ({}));
+throw new Error(errPayload.error || 'Unable to send email');
+}
+showToast(lang === "fr" ? "Email envoyé" : "Email sent", "success");
+return true;
+} catch (err) {
+console.error(err);
+const fallbackError = !err?.message || /load failed|failed to fetch/i.test(err.message);
+showToast(fallbackError ? uiText("Unable to send email") : err.message, "error");
+return false;
+}
+};
+
 const openZohoCompose = ({ to, subject, body }) => {
 if (!to) { showToast(uiText("Client email missing"), "error"); return false; }
 const url = `https://mail.zoho.com/zm/#compose?to=${encodeURIComponent(to)}&subject=${encodeURIComponent(subject || "")}&body=${encodeURIComponent(body || "")}`;
@@ -8676,7 +8712,13 @@ if (mode === "whatsapp") {
   return openWhatsApp({ phone: targetPhone, message: payload.body });
 }
 if (mode === "sms") return sendPlatformSMS({ to: client.phoneMobile || client.phone, body: payload.body });
-if (mode === "zoho") return openZohoCompose({ to: client.email, subject: payload.subject, body: payload.body });
+if (mode === "zoho") {
+  const sent = await sendPlatformEmail({ to: client.email, subject: payload.subject, body: payload.body });
+  if (sent) return true;
+  return openZohoCompose({ to: client.email, subject: payload.subject, body: payload.body });
+}
+const sent = await sendPlatformEmail({ to: client.email, subject: payload.subject, body: payload.body });
+if (sent) return true;
 return openZohoCompose({ to: client.email, subject: payload.subject, body: payload.body });
 };
 

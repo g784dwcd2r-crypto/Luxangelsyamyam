@@ -308,6 +308,40 @@ async function sendWhatsApp({ to, body }) {
   return { ok: true, provider: 'twilio-whatsapp' };
 }
 
+function buildNotificationHtml({ title, greeting, bodyLines, ctaText, ctaUrl, footer }) {
+  const rows = (bodyLines || []).map(l => `<p style="margin:0 0 10px;color:#333;font-size:15px;line-height:1.5">${l}</p>`).join('');
+  const ctaBlock = ctaText && ctaUrl
+    ? `<p style="margin:20px 0;text-align:center"><a href="${ctaUrl}" style="display:inline-block;padding:12px 28px;background:#3498db;color:#fff;text-decoration:none;border-radius:5px;font-size:15px">${ctaText}</a></p>`
+    : '';
+  const footerBlock = footer ? `<p style="margin:0;color:#999;font-size:12px;line-height:1.4">${footer}</p>` : '';
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f4f4f7;font-family:Arial,Helvetica,sans-serif">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f7;padding:30px 0">
+<tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#fff;border-radius:8px;overflow:hidden">
+<tr><td style="background:#2c3e50;padding:24px 30px"><h1 style="margin:0;color:#fff;font-size:20px">${title || 'Lux Angels'}</h1></td></tr>
+<tr><td style="padding:30px">
+${greeting ? `<p style="margin:0 0 16px;color:#333;font-size:16px;font-weight:600">${greeting}</p>` : ''}
+${rows}
+${ctaBlock}
+</td></tr>
+<tr><td style="padding:20px 30px;background:#f9f9f9;border-top:1px solid #eee">
+${footerBlock}
+</td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
+}
+
+function buildNotificationText({ greeting, bodyLines, ctaText, ctaUrl, footer }) {
+  const parts = [];
+  if (greeting) parts.push(greeting);
+  if (bodyLines) parts.push(...bodyLines);
+  if (ctaText && ctaUrl) parts.push(`${ctaText}: ${ctaUrl}`);
+  if (footer) parts.push('---', footer);
+  return parts.join('\n\n');
+}
+
 async function sendEmail({ to, subject, body, html, from }) {
   const settingsResult = await pool.query(
     "SELECT key, value FROM settings WHERE key IN ('companyEmail','companyName','emailProvider','smtpHost','smtpPort','smtpSecure','smtpUser','smtpPass','zeptoApiToken','zeptoApiUrl','zeptoFromAddress','resendApiKey','resendFrom')"
@@ -686,12 +720,21 @@ app.patch('/api/account-requests/:id/decision', async (req, res) => {
     const pending = reqResult.rows[0];
     if (!pending.email_verified) return res.status(400).json({ error: 'Email must be verified before approval decision' });
 
+    const frontendUrl = String(process.env.FRONTEND_URL || 'https://luxangelsyamyam-frontend.onrender.com').replace(/\/$/, '');
+
     if (decision === 'reject') {
       await pool.query(
         `UPDATE account_requests SET approval_status='rejected', rejection_reason=$1, decided_at=NOW() WHERE id=$2`,
         [rejectionReason || null, req.params.id]
       );
-      return res.json({ success: true, status: 'rejected' });
+      res.json({ success: true, status: 'rejected' });
+      sendEmail({
+        to: pending.email,
+        subject: 'Lux Angels — Account request update',
+        body: buildNotificationText({ greeting: `Hi ${pending.name},`, bodyLines: ['Your account request for Lux Angels has not been approved.', rejectionReason ? `Reason: ${rejectionReason}` : 'Please contact us if you have any questions.'] }),
+        html: buildNotificationHtml({ title: 'Account Update', greeting: `Hi ${pending.name},`, bodyLines: ['Your account request for Lux Angels has not been approved.', rejectionReason ? `Reason: ${rejectionReason}` : 'Please contact us if you have any questions.'] }),
+      }).catch(err => console.error('Account rejection email failed:', err));
+      return;
     }
 
     const employeeInsert = await pool.query(
@@ -708,7 +751,14 @@ app.patch('/api/account-requests/:id/decision', async (req, res) => {
       [req.params.id]
     );
 
-    return res.json({ success: true, status: 'approved', employeeId: employeeInsert.rows[0].id });
+    res.json({ success: true, status: 'approved', employeeId: employeeInsert.rows[0].id });
+    sendEmail({
+      to: pending.email,
+      subject: 'Lux Angels — Your account has been approved!',
+      body: buildNotificationText({ greeting: `Hi ${pending.name},`, bodyLines: ['Great news! Your Lux Angels account has been approved.', 'You can now log in and start using the platform.'], ctaText: 'Log in now', ctaUrl: frontendUrl }),
+      html: buildNotificationHtml({ title: 'Account Approved', greeting: `Hi ${pending.name},`, bodyLines: ['Great news! Your Lux Angels account has been approved.', 'You can now log in and start using the platform.'], ctaText: 'Log in now', ctaUrl: frontendUrl }),
+    }).catch(err => console.error('Account approval email failed:', err));
+    return;
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: err.message || 'Internal server error' });
@@ -967,7 +1017,25 @@ app.post('/api/schedules', async (req, res) => {
        b.end_time||'12:00', b.status||'scheduled', b.notes||'', b.recurrence||'none',
        b.payment_status||'unpaid']
     );
-    res.status(201).json(result.rows[0]);
+    const sched = result.rows[0];
+    res.status(201).json(sched);
+    if (sched.employee_id) {
+      Promise.all([
+        pool.query('SELECT email, name FROM employees WHERE id=$1 LIMIT 1', [sched.employee_id]),
+        sched.client_id ? pool.query('SELECT name FROM clients WHERE id=$1 LIMIT 1', [sched.client_id]) : { rows: [] },
+      ]).then(([empR, cliR]) => {
+        const emp = empR.rows[0];
+        if (!emp?.email) return;
+        const clientName = cliR.rows[0]?.name || '';
+        const dateStr = new Date(sched.date).toLocaleDateString('fr-FR');
+        sendEmail({
+          to: emp.email,
+          subject: `Nouveau planning — ${dateStr}`,
+          body: buildNotificationText({ greeting: `Bonjour ${emp.name},`, bodyLines: [`Vous avez été assigné(e) à un service de nettoyage le ${dateStr}.`, `Horaires : ${sched.start_time} – ${sched.end_time}`, clientName ? `Client : ${clientName}` : ''].filter(Boolean) }),
+          html: buildNotificationHtml({ title: 'Nouveau planning', greeting: `Bonjour ${emp.name},`, bodyLines: [`Vous avez été assigné(e) à un service de nettoyage le <strong>${dateStr}</strong>.`, `Horaires : <strong>${sched.start_time} – ${sched.end_time}</strong>`, clientName ? `Client : ${clientName}` : ''].filter(Boolean) }),
+        }).catch(err => console.error('Schedule create email failed:', err));
+      }).catch(err => console.error('Schedule notification lookup failed:', err));
+    }
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message || 'Internal server error' });
@@ -986,7 +1054,25 @@ app.put('/api/schedules/:id', async (req, res) => {
        b.payment_status||'unpaid', req.params.id]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Schedule not found' });
-    res.json(result.rows[0]);
+    const sched = result.rows[0];
+    res.json(sched);
+    if (sched.employee_id) {
+      Promise.all([
+        pool.query('SELECT email, name FROM employees WHERE id=$1 LIMIT 1', [sched.employee_id]),
+        sched.client_id ? pool.query('SELECT name FROM clients WHERE id=$1 LIMIT 1', [sched.client_id]) : { rows: [] },
+      ]).then(([empR, cliR]) => {
+        const emp = empR.rows[0];
+        if (!emp?.email) return;
+        const clientName = cliR.rows[0]?.name || '';
+        const dateStr = new Date(sched.date).toLocaleDateString('fr-FR');
+        sendEmail({
+          to: emp.email,
+          subject: `Planning mis à jour — ${dateStr}`,
+          body: buildNotificationText({ greeting: `Bonjour ${emp.name},`, bodyLines: [`Votre planning du ${dateStr} a été mis à jour.`, `Horaires : ${sched.start_time} – ${sched.end_time}`, clientName ? `Client : ${clientName}` : ''].filter(Boolean) }),
+          html: buildNotificationHtml({ title: 'Planning mis à jour', greeting: `Bonjour ${emp.name},`, bodyLines: [`Votre planning du <strong>${dateStr}</strong> a été mis à jour.`, `Horaires : <strong>${sched.start_time} – ${sched.end_time}</strong>`, clientName ? `Client : ${clientName}` : ''].filter(Boolean) }),
+        }).catch(err => console.error('Schedule update email failed:', err));
+      }).catch(err => console.error('Schedule update notification lookup failed:', err));
+    }
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message || 'Internal server error' });
@@ -1133,7 +1219,33 @@ app.patch('/api/invoices/:id/status', async (req, res) => {
       [status, req.params.id]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Invoice not found' });
-    res.json(result.rows[0]);
+    const inv = result.rows[0];
+    res.json(inv);
+    if ((status === 'sent' || status === 'overdue') && inv.client_id) {
+      pool.query('SELECT email, name, contact_person FROM clients WHERE id=$1 LIMIT 1', [inv.client_id])
+        .then(cr => {
+          const client = cr.rows[0];
+          if (!client?.email) return;
+          const cname = client.contact_person || client.name;
+          const amount = `€${(Number(inv.total) || 0).toFixed(2)}`;
+          const dueStr = inv.due_date ? new Date(inv.due_date).toLocaleDateString('fr-FR') : '';
+          if (status === 'sent') {
+            sendEmail({
+              to: client.email,
+              subject: `Facture ${inv.invoice_number} — Lux Angels`,
+              body: buildNotificationText({ greeting: `Bonjour ${cname},`, bodyLines: [`Veuillez trouver ci-dessous votre facture ${inv.invoice_number}.`, `Total : ${amount}`, dueStr ? `Échéance : ${dueStr}` : ''].filter(Boolean) }),
+              html: buildNotificationHtml({ title: `Facture ${inv.invoice_number}`, greeting: `Bonjour ${cname},`, bodyLines: [`Veuillez trouver ci-dessous votre facture <strong>${inv.invoice_number}</strong>.`, `Total : <strong>${amount}</strong>`, dueStr ? `Échéance : ${dueStr}` : ''].filter(Boolean) }),
+            }).catch(err => console.error('Invoice sent email failed:', err));
+          } else {
+            sendEmail({
+              to: client.email,
+              subject: `Relance — Facture ${inv.invoice_number}`,
+              body: buildNotificationText({ greeting: `Bonjour ${cname},`, bodyLines: [`Nous vous rappelons que la facture ${inv.invoice_number} est toujours en attente de règlement.`, `Montant : ${amount}`, dueStr ? `Date d'échéance : ${dueStr}` : '', 'Merci de procéder au paiement dans les meilleurs délais.'].filter(Boolean) }),
+              html: buildNotificationHtml({ title: 'Rappel de paiement', greeting: `Bonjour ${cname},`, bodyLines: [`Nous vous rappelons que la facture <strong>${inv.invoice_number}</strong> est toujours en attente de règlement.`, `Montant : <strong>${amount}</strong>`, dueStr ? `Date d'échéance : ${dueStr}` : '', 'Merci de procéder au paiement dans les meilleurs délais.'].filter(Boolean) }),
+            }).catch(err => console.error('Invoice overdue email failed:', err));
+          }
+        }).catch(err => console.error('Invoice status notification lookup failed:', err));
+    }
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message || 'Internal server error' });
@@ -1177,7 +1289,23 @@ app.post('/api/payslips', async (req, res) => {
       [b.id, b.payslip_number, b.employee_id, b.month, b.period_start || null, b.period_end || null, b.total_hours || 0, b.hourly_rate || 0,
        b.gross_pay || 0, b.social_charges || 0, b.tax_estimate || 0, b.net_pay || 0, JSON.stringify(Array.isArray(b.hour_breakdown) ? b.hour_breakdown : []), b.status || 'draft']
     );
-    res.status(201).json(result.rows[0]);
+    const payslip = result.rows[0];
+    res.status(201).json(payslip);
+    if (payslip.employee_id) {
+      pool.query('SELECT email, name FROM employees WHERE id=$1 LIMIT 1', [payslip.employee_id])
+        .then(empR => {
+          const emp = empR.rows[0];
+          if (!emp?.email) return;
+          const gross = `€${(Number(payslip.gross_pay) || 0).toFixed(2)}`;
+          const net = `€${(Number(payslip.net_pay) || 0).toFixed(2)}`;
+          sendEmail({
+            to: emp.email,
+            subject: `Fiche de paie — ${payslip.month}`,
+            body: buildNotificationText({ greeting: `Bonjour ${emp.name},`, bodyLines: [`Votre fiche de paie pour ${payslip.month} est disponible.`, `Salaire brut : ${gross}`, `Salaire net : ${net}`] }),
+            html: buildNotificationHtml({ title: 'Fiche de paie', greeting: `Bonjour ${emp.name},`, bodyLines: [`Votre fiche de paie pour <strong>${payslip.month}</strong> est disponible.`, `Salaire brut : <strong>${gross}</strong>`, `Salaire net : <strong>${net}</strong>`] }),
+          }).catch(err => console.error('Payslip email failed:', err));
+        }).catch(err => console.error('Payslip notification lookup failed:', err));
+    }
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message || 'Internal server error' });
@@ -1451,6 +1579,95 @@ app.post('/api/notifications/email', async (req, res) => {
   }
 });
 
+app.post('/api/notifications/send-document', async (req, res) => {
+  try {
+    const { type, documentId, template, emailLang } = req.body || {};
+    if (!type || !documentId) return res.status(400).json({ error: 'type and documentId are required' });
+
+    const settingsResult = await pool.query("SELECT key, value FROM settings");
+    const s = Object.fromEntries(settingsResult.rows.map(r => [r.key, r.value || '']));
+    const companyName = s.companyName || 'Lux Angels Cleaning';
+    const l = emailLang || 'fr';
+    const fmtD = (d) => d ? new Date(d).toLocaleDateString(l === 'fr' ? 'fr-FR' : 'en-GB') : '';
+    const buildSig = () => s.emailSignature
+      ? `\n\n--\n${s.emailSignature}`
+      : `\n\n${l === 'fr' ? 'Cordialement' : 'Best regards'},\n${companyName}\n${s.companyEmail || ''}${s.companyPhone ? ` | ${s.companyPhone}` : ''}`;
+    const sig = buildSig();
+
+    let doc, client, subject, body;
+
+    if (type === 'invoice') {
+      const docResult = await pool.query('SELECT * FROM invoices WHERE id=$1 LIMIT 1', [documentId]);
+      if (!docResult.rows.length) return res.status(404).json({ error: 'Invoice not found' });
+      doc = docResult.rows[0];
+      const clientResult = await pool.query('SELECT * FROM clients WHERE id=$1 LIMIT 1', [doc.client_id]);
+      if (!clientResult.rows.length || !clientResult.rows[0].email) return res.status(400).json({ error: 'Client email missing' });
+      client = clientResult.rows[0];
+      const name = client.contact_person || client.name;
+      const amount = `€${(Number(doc.total) || 0).toFixed(2)}`;
+      const invNum = doc.invoice_number;
+      const dateStr = fmtD(doc.date);
+      const dueStr = doc.due_date ? fmtD(doc.due_date) : null;
+      const tmpl = template || 'standard';
+
+      const subjectMap = l === 'fr'
+        ? { standard: `Facture ${invNum}`, friendly: `Facture ${invNum}`, thank_you: `Merci — Facture ${invNum}`, overdue: `Relance — Facture ${invNum}` }
+        : { standard: `Invoice ${invNum}`, friendly: `Invoice ${invNum}`, thank_you: `Thank you — Invoice ${invNum}`, overdue: `Overdue: Invoice ${invNum}` };
+      subject = subjectMap[tmpl] || subjectMap.standard;
+
+      if (l === 'fr') {
+        if (tmpl === 'friendly') body = `Bonjour ${name},\n\nVeuillez trouver ci-joint votre facture ${invNum} pour les services de nettoyage du ${dateStr}.\nMontant dû : ${amount}${dueStr ? `\nDate d'échéance : ${dueStr}` : ''}\n\nN'hésitez pas à nous contacter si vous avez des questions.${sig}`;
+        else if (tmpl === 'thank_you') body = `Chère/Cher ${name},\n\nNous vous remercions de votre confiance envers ${companyName} !\n\nVeuillez trouver ci-joint la facture ${invNum} du ${dateStr}.\nTotal : ${amount}\n\nNous vous remercions et restons à votre disposition pour toute question.${sig}`;
+        else if (tmpl === 'overdue') body = `Chère/Cher ${name},\n\nNous vous rappelons que la facture ${invNum} du ${dateStr} est toujours en attente de règlement.\nMontant restant dû : ${amount}${dueStr ? `\nDate d'échéance dépassée : ${dueStr}` : ''}\n\nNous vous prions de bien vouloir procéder au paiement dans les meilleurs délais. Contactez-nous si vous avez déjà effectué ce virement.${sig}`;
+        else body = `Chère/Cher ${name},\n\nVeuillez trouver ci-dessous les détails de votre facture :\n\nFacture : ${invNum}\nDate : ${dateStr}${dueStr ? `\nÉchéance : ${dueStr}` : ''}\nTotal : ${amount}\n\nNous restons disponibles pour toute question.${sig}`;
+      } else {
+        if (tmpl === 'friendly') body = `Hello ${name},\n\nPlease find your invoice ${invNum} for cleaning services on ${dateStr}.\nAmount due: ${amount}${dueStr ? `\nDue date: ${dueStr}` : ''}\n\nFeel free to reach out if you have any questions.${sig}`;
+        else if (tmpl === 'thank_you') body = `Dear ${name},\n\nThank you for choosing ${companyName}!\n\nPlease find attached invoice ${invNum} dated ${dateStr}.\nTotal: ${amount}\n\nWe appreciate your trust and look forward to serving you again.${sig}`;
+        else if (tmpl === 'overdue') body = `Dear ${name},\n\nThis is a reminder that invoice ${invNum} dated ${dateStr} is now overdue.\nOutstanding amount: ${amount}${dueStr ? `\nDue date: ${dueStr}` : ''}\n\nPlease arrange payment at your earliest convenience. Contact us if you have already settled this invoice.${sig}`;
+        else body = `Dear ${name},\n\nInvoice: ${invNum}\nDate: ${dateStr}${dueStr ? `\nDue date: ${dueStr}` : ''}\nTotal: ${amount}\n\nPlease find your invoice details above. Do not hesitate to contact us for any questions.${sig}`;
+      }
+    } else if (type === 'quote') {
+      const docResult = await pool.query('SELECT * FROM quotes WHERE id=$1 LIMIT 1', [documentId]);
+      if (!docResult.rows.length) return res.status(404).json({ error: 'Quote not found' });
+      doc = docResult.rows[0];
+      const clientResult = await pool.query('SELECT * FROM clients WHERE id=$1 LIMIT 1', [doc.client_id]);
+      if (!clientResult.rows.length || !clientResult.rows[0].email) return res.status(400).json({ error: 'Client email missing' });
+      client = clientResult.rows[0];
+      const name = client.contact_person || client.name;
+      const amount = `€${(Number(doc.total) || 0).toFixed(2)}`;
+      const qNum = doc.quote_number;
+      const dateStr = fmtD(doc.date);
+      const validStr = doc.valid_until ? fmtD(doc.valid_until) : null;
+      const tmpl = template || 'standard';
+
+      const subjectMap = l === 'fr'
+        ? { standard: `Devis ${qNum}`, followup: `Suivi — Devis ${qNum}`, reminder: `Rappel — Devis ${qNum}` }
+        : { standard: `Quote ${qNum}`, followup: `Follow-up — Quote ${qNum}`, reminder: `Reminder — Quote ${qNum}` };
+      subject = subjectMap[tmpl] || subjectMap.standard;
+
+      if (l === 'fr') {
+        if (tmpl === 'followup') body = `Bonjour ${name},\n\nNous revenons vers vous concernant notre devis ${qNum} du ${dateStr}.\nMontant : ${amount}${validStr ? `\nValable jusqu'au : ${validStr}` : ''}\n\nN'hésitez pas à nous contacter pour toute question ou pour confirmer votre accord.${sig}`;
+        else if (tmpl === 'reminder') body = `Bonjour ${name},\n\nNous vous rappelons que notre devis ${qNum}${validStr ? ` expire le ${validStr}` : ' est en attente de votre réponse'}.\nMontant : ${amount}\n\nMerci de nous faire part de votre décision dès que possible.${sig}`;
+        else body = `Bonjour ${name},\n\nVeuillez trouver ci-joint notre devis ${qNum}.\nDate : ${dateStr}\nMontant : ${amount}${validStr ? `\nValidité : ${validStr}` : ''}\n\nNous restons disponibles pour toute question ou ajustement.${sig}`;
+      } else {
+        if (tmpl === 'followup') body = `Hello ${name},\n\nWe are following up on our quote ${qNum} dated ${dateStr}.\nAmount: ${amount}${validStr ? `\nValid until: ${validStr}` : ''}\n\nPlease feel free to contact us for any questions or to confirm your acceptance.${sig}`;
+        else if (tmpl === 'reminder') body = `Hello ${name},\n\nThis is a reminder that our quote ${qNum}${validStr ? ` expires on ${validStr}` : ' is awaiting your response'}.\nAmount: ${amount}\n\nKindly let us know your decision at your earliest convenience.${sig}`;
+        else body = `Dear ${name},\n\nPlease find our quote ${qNum}.\nDate: ${dateStr}\nAmount: ${amount}${validStr ? `\nValid until: ${validStr}` : ''}\n\nDo not hesitate to contact us for any questions or adjustments.${sig}`;
+      }
+    } else {
+      return res.status(400).json({ error: 'type must be invoice or quote' });
+    }
+
+    const htmlBody = body.replace(/\n/g, '<br>');
+    const sent = await sendEmail({ to: client.email, subject, body, html: htmlBody });
+    if (!sent.ok) return res.status(sent.status || 500).json({ error: sent.error || 'Unable to send email' });
+    return res.json({ success: true, provider: sent.provider });
+  } catch (err) {
+    console.error('send-document error:', err);
+    return res.status(500).json({ error: 'Unable to send document email' });
+  }
+});
+
 app.post('/api/notifications/sms', async (req, res) => {
   try {
     const { to, body } = req.body || {};
@@ -1568,7 +1785,25 @@ app.post('/api/photo-uploads', async (req, res) => {
       [b.id, b.employeeId || null, b.clientId || null, b.clockEntryId || null,
        b.fileName || '', b.imageData || '', b.note || '', b.type || 'issue', b.seenByOwner || false]
     );
-    res.status(201).json(result.rows[0]);
+    const photo = result.rows[0];
+    res.status(201).json(photo);
+    if ((b.type || 'issue') === 'issue') {
+      Promise.all([
+        pool.query("SELECT value FROM settings WHERE key='ownerEmail' LIMIT 1"),
+        b.employeeId ? pool.query('SELECT name FROM employees WHERE id=$1 LIMIT 1', [b.employeeId]) : { rows: [] },
+      ]).then(([ownerR, empR]) => {
+        const ownerEmail = ownerR.rows[0]?.value;
+        if (!ownerEmail) return;
+        const empName = empR.rows[0]?.name || 'Un employé';
+        const frontendUrl = String(process.env.FRONTEND_URL || 'https://luxangelsyamyam-frontend.onrender.com').replace(/\/$/, '');
+        sendEmail({
+          to: ownerEmail,
+          subject: 'Nouveau signalement photo — Lux Angels',
+          body: buildNotificationText({ greeting: 'Bonjour,', bodyLines: [`${empName} a signalé un problème via une photo.`, b.note ? `Note : ${b.note}` : ''].filter(Boolean), ctaText: 'Voir dans la plateforme', ctaUrl: frontendUrl }),
+          html: buildNotificationHtml({ title: 'Signalement photo', greeting: 'Bonjour,', bodyLines: [`<strong>${empName}</strong> a signalé un problème via une photo.`, b.note ? `Note : ${b.note}` : ''].filter(Boolean), ctaText: 'Voir dans la plateforme', ctaUrl: frontendUrl }),
+        }).catch(err => console.error('Photo upload email failed:', err));
+      }).catch(err => console.error('Photo upload notification lookup failed:', err));
+    }
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message || 'Internal server error' });
@@ -1634,7 +1869,24 @@ app.patch('/api/time-off-requests/:id', async (req, res) => {
       [status, reviewedBy || null, reviewNote || '', req.params.id]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Time-off request not found' });
-    res.json(result.rows[0]);
+    const tor = result.rows[0];
+    res.json(tor);
+    if ((status === 'approved' || status === 'rejected') && tor.employee_id) {
+      pool.query('SELECT email, name FROM employees WHERE id=$1 LIMIT 1', [tor.employee_id])
+        .then(empR => {
+          const emp = empR.rows[0];
+          if (!emp?.email) return;
+          const fromDate = new Date(tor.start_date).toLocaleDateString('fr-FR');
+          const toDate = new Date(tor.end_date).toLocaleDateString('fr-FR');
+          const approved = status === 'approved';
+          sendEmail({
+            to: emp.email,
+            subject: approved ? `Congé approuvé — ${fromDate} au ${toDate}` : `Congé refusé — ${fromDate} au ${toDate}`,
+            body: buildNotificationText({ greeting: `Bonjour ${emp.name},`, bodyLines: [approved ? `Votre demande de congé du ${fromDate} au ${toDate} a été approuvée.` : `Votre demande de congé du ${fromDate} au ${toDate} a été refusée.`, reviewNote ? `Note : ${reviewNote}` : ''].filter(Boolean) }),
+            html: buildNotificationHtml({ title: approved ? 'Congé approuvé' : 'Congé refusé', greeting: `Bonjour ${emp.name},`, bodyLines: [approved ? `Votre demande de congé du <strong>${fromDate}</strong> au <strong>${toDate}</strong> a été approuvée.` : `Votre demande de congé du <strong>${fromDate}</strong> au <strong>${toDate}</strong> a été refusée.`, reviewNote ? `Note : ${reviewNote}` : ''].filter(Boolean) }),
+          }).catch(err => console.error('Time-off decision email failed:', err));
+        }).catch(err => console.error('Time-off notification lookup failed:', err));
+    }
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message || 'Internal server error' });
@@ -1745,7 +1997,25 @@ app.patch('/api/product-requests/:id', async (req, res) => {
       [b.status, b.approvedQty || 0, b.deliveredQty || 0, req.params.id]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Product request not found' });
-    res.json(result.rows[0]);
+    const pr = result.rows[0];
+    res.json(pr);
+    if ((b.status === 'approved' || b.status === 'rejected') && pr.employee_id) {
+      Promise.all([
+        pool.query('SELECT email, name FROM employees WHERE id=$1 LIMIT 1', [pr.employee_id]),
+        pr.product_id ? pool.query('SELECT name FROM inventory_products WHERE id=$1 LIMIT 1', [pr.product_id]) : { rows: [] },
+      ]).then(([empR, prodR]) => {
+        const emp = empR.rows[0];
+        if (!emp?.email) return;
+        const productName = prodR.rows[0]?.name || 'produit';
+        const approved = b.status === 'approved';
+        sendEmail({
+          to: emp.email,
+          subject: approved ? `Demande de produit approuvée — ${productName}` : `Demande de produit refusée — ${productName}`,
+          body: buildNotificationText({ greeting: `Bonjour ${emp.name},`, bodyLines: [approved ? `Votre demande pour "${productName}" a été approuvée.` : `Votre demande pour "${productName}" a été refusée.`, approved && pr.approved_qty ? `Quantité approuvée : ${pr.approved_qty}` : ''].filter(Boolean) }),
+          html: buildNotificationHtml({ title: approved ? 'Demande approuvée' : 'Demande refusée', greeting: `Bonjour ${emp.name},`, bodyLines: [approved ? `Votre demande pour "<strong>${productName}</strong>" a été approuvée.` : `Votre demande pour "<strong>${productName}</strong>" a été refusée.`, approved && pr.approved_qty ? `Quantité approuvée : <strong>${pr.approved_qty}</strong>` : ''].filter(Boolean) }),
+        }).catch(err => console.error('Product request email failed:', err));
+      }).catch(err => console.error('Product request notification lookup failed:', err));
+    }
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message || 'Internal server error' });

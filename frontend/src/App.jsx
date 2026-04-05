@@ -2105,7 +2105,7 @@ receipt: <SvgIcon paths={<><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1V2l-2 1-2
 // -- UI Components --
 const ModalBox = ({ title, onClose, children, wide }) => (
 
-  <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "20px" }} onClick={onClose}>
+  <div className="modal-overlay" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "20px" }} onClick={onClose}>
     <div className={wide ? "modal-wide" : "modal-normal"} style={{ ...cardSt, overflow: "auto", display: "flex", flexDirection: "column" }} onClick={ev => ev.stopPropagation()}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28, position: "sticky", top: 0, background: CL.sf, paddingBottom: 16, borderBottom: `1px solid ${CL.bd}`, zIndex: 1 }}>
         <h2 style={{ margin: 0, fontSize: 22, color: CL.gold, fontFamily: "'Cormorant Garamond', serif", letterSpacing: "0.02em" }}>{uiText(title)}</h2>
@@ -2752,12 +2752,25 @@ const globalCSS = `
 .grid-span-2 { grid-column: span 1; }
 .stat-row > div { min-width: calc(50% - 8px) !important; flex: 1 1 calc(50% - 8px) !important; }
 .modal-normal, .modal-wide { width: 100% !important; max-width: 100vw !important; max-height: 100vh !important; border-radius: 0 !important; padding: 22px !important; }
+.modal-overlay { padding: 0 !important; }
+.action-btn-row button { min-height: 38px; min-width: 38px; padding: 6px 10px !important; font-size: 12px !important; }
+.email-template-btns button { min-height: 40px; padding: 8px 14px !important; font-size: 13px !important; flex: 1 1 auto; }
+.email-modal-textarea { min-height: 140px !important; }
+.email-modal-footer { flex-wrap: wrap; }
+.email-modal-footer button { flex: 1 1 auto; min-height: 44px; justify-content: center; }
 }
 @media (max-width: 480px) {
 .sched-grid { grid-template-columns: repeat(7, 1fr); }
 .grid-3 { grid-template-columns: 1fr; }
 .stat-row > div { min-width: 100% !important; flex: 1 1 100% !important; }
 .main-content { padding: 14px 10px 82px 10px; }
+.modal-overlay { padding: 0 !important; }
+.action-btn-row button { min-height: 36px; padding: 5px 8px !important; font-size: 11px !important; }
+.email-template-btns { flex-direction: column; gap: 6px !important; }
+.email-template-btns button { width: 100%; min-height: 42px; justify-content: center; }
+.email-modal-textarea { min-height: 120px !important; }
+.email-modal-footer { flex-direction: column; gap: 8px !important; }
+.email-modal-footer button { width: 100%; min-height: 46px; justify-content: center; }
 }
 `;
 
@@ -6918,7 +6931,7 @@ return (
 <thead><tr><th style={thSt}>{t("quote")} #</th><th style={thSt}>{t("client")}</th><th style={thSt}>{t("date")}</th><th style={thSt}>{t("total")}</th><th style={thSt}>{t("status")}</th><th style={thSt}>{t("actions")}</th></tr></thead>
 <tbody>
 {[...quotes].sort((a,b)=>(b?.date||"").localeCompare(a?.date||"")).map(q => { const client = clients.find(c => c.id === q?.clientId); return (
-<tr key={q.id}><td style={tdSt}><strong>{q.quoteNumber}</strong></td><td style={tdSt}>{client?.name || "-"}</td><td style={tdSt}>{fmtDate(q.date)}</td><td style={{ ...tdSt, fontWeight: 600 }}>€{(q.total || 0).toFixed(2)}</td><td style={tdSt}><Badge color={q.status === "accepted" || q.status === "converted" ? CL.green : q.status === "rejected" ? CL.red : CL.blue}>{q.status || t("draft")}</Badge></td><td style={tdSt}><div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}><button style={{ ...btnSec, ...btnSm }} onClick={() => setPreview({ ...q, invoiceNumber: q.quoteNumber, dueDate: q.validUntil })}>{t("view")}</button><button style={{ ...btnSec, ...btnSm }} onClick={() => setModal({ ...q })}>{ICN.edit}</button><button style={{ ...btnSec, ...btnSm }} onClick={() => downloadQuotePdf(q)}>{ICN.download} PDF</button><button style={{ ...btnSec, ...btnSm }} onClick={() => sendQuote(q)}>{ICN.mail}</button>{q.status !== "converted" && <button style={{ ...btnSec, ...btnSm, color: CL.green }} onClick={() => convertToInvoice(q)}>{lang === "en" ? "To Invoice" : "Vers facture"}</button>}<button style={{ ...btnSec, ...btnSm, color: CL.red }} onClick={() => deleteQuote(q.id)}>{ICN.trash}</button></div></td></tr>
+<tr key={q.id}><td style={tdSt}><strong>{q.quoteNumber}</strong></td><td style={tdSt}>{client?.name || "-"}</td><td style={tdSt}>{fmtDate(q.date)}</td><td style={{ ...tdSt, fontWeight: 600 }}>€{(q.total || 0).toFixed(2)}</td><td style={tdSt}><Badge color={q.status === "accepted" || q.status === "converted" ? CL.green : q.status === "rejected" ? CL.red : CL.blue}>{q.status || t("draft")}</Badge></td><td style={tdSt}><div className="action-btn-row" style={{ display: "flex", gap: 4, flexWrap: "wrap" }}><button style={{ ...btnSec, ...btnSm }} onClick={() => setPreview({ ...q, invoiceNumber: q.quoteNumber, dueDate: q.validUntil })}>{t("view")}</button><button style={{ ...btnSec, ...btnSm }} onClick={() => setModal({ ...q })}>{ICN.edit}</button><button style={{ ...btnSec, ...btnSm }} onClick={() => downloadQuotePdf(q)}>{ICN.download} PDF</button><button style={{ ...btnSec, ...btnSm }} onClick={() => sendQuote(q)}>{ICN.mail}</button>{q.status !== "converted" && <button style={{ ...btnSec, ...btnSm, color: CL.green }} onClick={() => convertToInvoice(q)}>{lang === "en" ? "To Invoice" : "Vers facture"}</button>}<button style={{ ...btnSec, ...btnSm, color: CL.red }} onClick={() => deleteQuote(q.id)}>{ICN.trash}</button></div></td></tr>
 ); })}
 {quotes.length === 0 && <tr><td colSpan={6} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>{uiText("No quotes")}</td></tr>}
 </tbody>
@@ -6932,7 +6945,7 @@ return (
 {quoteEmailDraft && (
 <ModalBox title={lang === "fr" ? "Aperçu de l'email — Devis" : "Email Preview — Quote"} onClose={() => setQuoteEmailDraft(null)}>
 <div style={{ marginBottom: 14 }}>
-  <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
+  <div className="email-template-btns" style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
     {["standard", "followup", "reminder"].map(tpl => (
       <button key={tpl} style={{ ...btnSec, ...btnSm, fontWeight: quoteEmailDraft.template === tpl ? 700 : 400, borderColor: quoteEmailDraft.template === tpl ? CL.gold : CL.bd, color: quoteEmailDraft.template === tpl ? CL.gold : CL.muted }}
         onClick={() => {
@@ -6952,10 +6965,10 @@ return (
   <div style={{ fontSize: 12, color: CL.muted, marginBottom: 4 }}>{lang === "fr" ? "Objet" : "Subject"}</div>
   <input value={quoteEmailDraft.subject} onChange={ev => setQuoteEmailDraft(prev => ({ ...prev, subject: ev.target.value }))} style={{ ...inputSt, width: "100%", marginBottom: 10 }} />
   <div style={{ fontSize: 12, color: CL.muted, marginBottom: 4 }}>{lang === "fr" ? "Corps de l'email" : "Email Body"}</div>
-  <textarea value={quoteEmailDraft.body} onChange={ev => setQuoteEmailDraft(prev => ({ ...prev, body: ev.target.value }))} style={{ ...inputSt, width: "100%", minHeight: 220, fontFamily: "monospace", fontSize: 13, resize: "vertical", whiteSpace: "pre-wrap" }} />
+  <textarea className="email-modal-textarea" value={quoteEmailDraft.body} onChange={ev => setQuoteEmailDraft(prev => ({ ...prev, body: ev.target.value }))} style={{ ...inputSt, width: "100%", minHeight: 220, fontFamily: "monospace", fontSize: 13, resize: "vertical", whiteSpace: "pre-wrap" }} />
   <div style={{ fontSize: 11, color: CL.muted, marginTop: 6 }}>{lang === "fr" ? "Expéditeur" : "From"}: {quoteEmailDraft.from}</div>
 </div>
-<div style={{ display: "flex", gap: 10, justifyContent: "flex-end", paddingTop: 14, borderTop: `1px solid ${CL.bd}` }}>
+<div className="email-modal-footer" style={{ display: "flex", gap: 10, justifyContent: "flex-end", paddingTop: 14, borderTop: `1px solid ${CL.bd}` }}>
   <button style={{ ...btnSec, padding: "10px 24px" }} onClick={() => setQuoteEmailDraft(null)}>{t("cancel")}</button>
   <button style={{ ...btnPri, padding: "10px 28px" }} onClick={sendQuoteEmailDraft}>{ICN.mail} {lang === "fr" ? "Envoyer" : "Send"}</button>
 </div>
@@ -7518,7 +7531,7 @@ return (
     })()}
   </td>
   <td style={tdSt}>
-    <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+    <div className="action-btn-row" style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
       <button style={{ ...btnSec, ...btnSm }} onClick={() => setPreview(inv)}>{t("view")}</button>
       <button style={{ ...btnSec, ...btnSm }} onClick={() => setModal({ ...inv })}>{ICN.edit}</button>
       <button style={{ ...btnSec, ...btnSm }} onClick={() => emailInvoice(inv)}>{ICN.mail}</button>
@@ -7553,7 +7566,7 @@ return (
 {emailDraft && (
 <ModalBox title={lang === "fr" ? "Aperçu de l'email" : "Email Preview"} onClose={() => setEmailDraft(null)}>
 <div style={{ marginBottom: 14 }}>
-  <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
+  <div className="email-template-btns" style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
     {["standard","friendly","thank_you","overdue"].map(tpl => (
       <button key={tpl} style={{ ...btnSec, ...btnSm, fontWeight: emailDraft.template === tpl ? 700 : 400, borderColor: emailDraft.template === tpl ? CL.gold : CL.bd, color: emailDraft.template === tpl ? CL.gold : CL.muted }}
         onClick={() => {
@@ -7573,10 +7586,10 @@ return (
   <div style={{ fontSize: 12, color: CL.muted, marginBottom: 4 }}>{lang === "fr" ? "Objet" : "Subject"}</div>
   <input value={emailDraft.subject} onChange={ev => setEmailDraft(prev => ({ ...prev, subject: ev.target.value }))} style={{ ...inputSt, width: "100%", marginBottom: 10 }} />
   <div style={{ fontSize: 12, color: CL.muted, marginBottom: 4 }}>{lang === "fr" ? "Corps de l'email" : "Email Body"}</div>
-  <textarea value={emailDraft.body} onChange={ev => setEmailDraft(prev => ({ ...prev, body: ev.target.value }))} style={{ ...inputSt, width: "100%", minHeight: 220, fontFamily: "monospace", fontSize: 13, resize: "vertical", whiteSpace: "pre-wrap" }} />
+  <textarea className="email-modal-textarea" value={emailDraft.body} onChange={ev => setEmailDraft(prev => ({ ...prev, body: ev.target.value }))} style={{ ...inputSt, width: "100%", minHeight: 220, fontFamily: "monospace", fontSize: 13, resize: "vertical", whiteSpace: "pre-wrap" }} />
   <div style={{ fontSize: 11, color: CL.muted, marginTop: 6 }}>{lang === "fr" ? "Expéditeur" : "From"}: {emailDraft.from}</div>
 </div>
-<div style={{ display: "flex", gap: 10, justifyContent: "flex-end", paddingTop: 14, borderTop: `1px solid ${CL.bd}` }}>
+<div className="email-modal-footer" style={{ display: "flex", gap: 10, justifyContent: "flex-end", paddingTop: 14, borderTop: `1px solid ${CL.bd}` }}>
   <button style={{ ...btnSec, padding: "10px 24px" }} onClick={() => setEmailDraft(null)}>{t("cancel")}</button>
   <button style={{ ...btnPri, padding: "10px 28px" }} onClick={sendEmailDraft}>{ICN.mail} {lang === "fr" ? "Envoyer" : "Send"}</button>
 </div>

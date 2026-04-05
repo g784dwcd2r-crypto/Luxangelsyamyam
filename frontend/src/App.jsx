@@ -1193,11 +1193,24 @@ reader.readAsDataURL(blob);
 const sendPlatformEmail = async ({ to, subject, body, html, attachments }, { showToast, lang }) => {
 if (!to) { showToast(uiText("Client email missing"), "error"); return false; }
 try {
-const response = await fetch(apiUrl('/api/notifications/email'), {
-method: 'POST',
-headers: { 'Content-Type': 'application/json' },
-body: JSON.stringify({ to, subject, body, html, attachments }),
-});
+let fetchOptions;
+const hasBlobs = attachments?.length && attachments[0].blob instanceof Blob;
+if (hasBlobs) {
+  const formData = new FormData();
+  formData.append('to', to);
+  formData.append('subject', subject);
+  if (body) formData.append('body', body);
+  if (html) formData.append('html', html);
+  attachments.forEach(a => formData.append('attachments', a.blob, a.filename));
+  fetchOptions = { method: 'POST', body: formData };
+} else {
+  fetchOptions = {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ to, subject, body, html, attachments }),
+  };
+}
+const response = await fetch(apiUrl('/api/notifications/email'), fetchOptions);
 if (!response.ok) {
 const errPayload = await response.json().catch(() => ({}));
 throw new Error(errPayload.error || 'Unable to send email');
@@ -6753,20 +6766,20 @@ requestAnimationFrame(check);
 const buildPdfFromElement = async (element, fileName, shouldDownload = false) => {
 await ensureLib("https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js", () => Boolean(window.html2canvas));
 await ensureLib("https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js", () => Boolean(window.jspdf));
-const canvas = await window.html2canvas(element, { backgroundColor: "#ffffff", scale: 2, useCORS: true });
+const canvas = await window.html2canvas(element, { backgroundColor: "#ffffff", scale: 1.5, useCORS: true });
 const { jsPDF } = window.jspdf;
 const pdf = new jsPDF("p", "mm", "a4");
 const pageWidth = pdf.internal.pageSize.getWidth();
 const pageHeight = pdf.internal.pageSize.getHeight();
-const imgData = canvas.toDataURL("image/png");
+const imgData = canvas.toDataURL("image/jpeg", 0.85);
 const imgWidth = pageWidth;
 const imgHeight = (canvas.height * imgWidth) / canvas.width;
 if (imgHeight <= pageHeight) {
-pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
+pdf.addImage(imgData, "JPEG", 0, 0, imgWidth, imgHeight);
 } else {
 let y = 0;
 while (y < imgHeight) {
-pdf.addImage(imgData, "PNG", 0, -y, imgWidth, imgHeight);
+pdf.addImage(imgData, "JPEG", 0, -y, imgWidth, imgHeight);
 y += pageHeight;
 if (y < imgHeight) pdf.addPage();
 }
@@ -6837,7 +6850,7 @@ const body = buildQuoteEmailBody(q, client, template, lang);
 const subjectMap = lang === "fr"
   ? { standard: `Devis ${q.quoteNumber}`, followup: `Relance devis ${q.quoteNumber}`, reminder: `Rappel — Devis ${q.quoteNumber}` }
   : { standard: `Quote ${q.quoteNumber}`, followup: `Follow-up: Quote ${q.quoteNumber}`, reminder: `Reminder — Quote ${q.quoteNumber}` };
-setQuoteEmailDraft({ to: client.email, subject: subjectMap[template] || subjectMap.standard, body, template, q, from: data.settings.companyEmail || "" });
+setQuoteEmailDraft({ to: client.email, subject: subjectMap[template] || subjectMap.standard, body, template, q, from: data.settings.companyEmail || "", attachPdf: true });
 };
 
 const sendQuoteEmailDraft = async () => {
@@ -6845,6 +6858,7 @@ if (!quoteEmailDraft || sendingQuoteEmail) return;
 setSendingQuoteEmail(true);
 try {
 let pdfAttachments;
+if (quoteEmailDraft.attachPdf) {
 try {
   const q = quoteEmailDraft.q;
   const currentPreview = preview?.id === q.id ? preview : null;
@@ -6857,14 +6871,14 @@ try {
   }
   if (target) {
     const pdfBlob = await buildPdfFromElement(target, `${q.quoteNumber || "devis"}.pdf`);
-    const base64 = await blobToBase64(pdfBlob);
-    pdfAttachments = [{ filename: `${q.quoteNumber || "devis"}.pdf`, content: base64, contentType: "application/pdf" }];
+    pdfAttachments = [{ blob: pdfBlob, filename: `${q.quoteNumber || "devis"}.pdf` }];
   }
   if (!currentPreview) setQuoteForPdf(null);
 } catch (err) {
   console.error("PDF generation for quote email attachment failed:", err);
   setQuoteForPdf(null);
   showToast(lang === "fr" ? "Le PDF n'a pas pu être généré — l'email sera envoyé sans pièce jointe" : "PDF generation failed — email will be sent without attachment", "error");
+}
 }
 const ok = await sendPlatformEmail({ to: quoteEmailDraft.to, subject: quoteEmailDraft.subject, body: quoteEmailDraft.body, attachments: pdfAttachments }, { showToast, lang });
 if (ok) setQuoteEmailDraft(null);
@@ -7047,7 +7061,10 @@ return (
   <div style={{ fontSize: 12, color: CL.muted, marginBottom: 4 }}>{lang === "fr" ? "Corps de l'email" : "Email Body"}</div>
   <textarea className="email-modal-textarea" value={quoteEmailDraft.body} onChange={ev => setQuoteEmailDraft(prev => ({ ...prev, body: ev.target.value }))} style={{ ...inputSt, width: "100%", minHeight: 220, fontFamily: "monospace", fontSize: 13, resize: "vertical", whiteSpace: "pre-wrap" }} />
   <div style={{ fontSize: 11, color: CL.muted, marginTop: 6 }}>{lang === "fr" ? "Expéditeur" : "From"}: {quoteEmailDraft.from}</div>
-  <div style={{ fontSize: 12, color: "#2e7d32", marginTop: 8 }}>{"\u{1F4CE}"} {lang === "fr" ? "PDF devis joint" : "Quote PDF attached"}</div>
+  <label style={{ fontSize: 12, color: quoteEmailDraft.attachPdf ? "#2e7d32" : CL.muted, marginTop: 8, display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+    <input type="checkbox" checked={quoteEmailDraft.attachPdf || false} onChange={e => setQuoteEmailDraft(prev => ({ ...prev, attachPdf: e.target.checked }))} />
+    {"\u{1F4CE}"} {lang === "fr" ? "Joindre le PDF devis" : "Attach Quote PDF"}
+  </label>
 </div>
 <div className="email-modal-footer" style={{ display: "flex", gap: 10, justifyContent: "flex-end", paddingTop: 14, borderTop: `1px solid ${CL.bd}` }}>
   <button style={{ ...btnSec, padding: "10px 24px" }} onClick={() => setQuoteEmailDraft(null)}>{t("cancel")}</button>
@@ -7391,8 +7408,7 @@ if (shouldEmail) {
     const target = hiddenInvoiceRef.current;
     if (target) {
       const pdfBlob = await buildPdfFromElement(target, `${inv.invoiceNumber || "invoice"}.pdf`);
-      const base64 = await blobToBase64(pdfBlob);
-      pdfAttachments = [{ filename: `${inv.invoiceNumber || "invoice"}.pdf`, content: base64, contentType: "application/pdf" }];
+      pdfAttachments = [{ blob: pdfBlob, filename: `${inv.invoiceNumber || "invoice"}.pdf` }];
     }
     setInvoiceForPdf(null);
   } catch (pdfErr) {
@@ -7489,20 +7505,20 @@ requestAnimationFrame(check);
 const buildPdfFromElement = async (element, fileName, shouldDownload = false) => {
 await ensureLib("https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js", () => Boolean(window.html2canvas));
 await ensureLib("https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js", () => Boolean(window.jspdf));
-const canvas = await window.html2canvas(element, { backgroundColor: "#ffffff", scale: 2, useCORS: true });
+const canvas = await window.html2canvas(element, { backgroundColor: "#ffffff", scale: 1.5, useCORS: true });
 const { jsPDF } = window.jspdf;
 const pdf = new jsPDF("p", "mm", "a4");
 const pageWidth = pdf.internal.pageSize.getWidth();
 const pageHeight = pdf.internal.pageSize.getHeight();
-const imgData = canvas.toDataURL("image/png");
+const imgData = canvas.toDataURL("image/jpeg", 0.85);
 const imgWidth = pageWidth;
 const imgHeight = (canvas.height * imgWidth) / canvas.width;
 if (imgHeight <= pageHeight) {
-  pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
+  pdf.addImage(imgData, "JPEG", 0, 0, imgWidth, imgHeight);
 } else {
   let y = 0;
   while (y < imgHeight) {
-    pdf.addImage(imgData, "PNG", 0, -y, imgWidth, imgHeight);
+    pdf.addImage(imgData, "JPEG", 0, -y, imgWidth, imgHeight);
     y += pageHeight;
     if (y < imgHeight) pdf.addPage();
   }
@@ -7592,7 +7608,7 @@ const body = buildEmailBody(inv, client, template, lang);
 const subjectMap = lang === "fr"
   ? { standard: `Facture ${inv.invoiceNumber}`, friendly: `Facture ${inv.invoiceNumber}`, thank_you: `Merci — Facture ${inv.invoiceNumber}`, overdue: `Relance — Facture ${inv.invoiceNumber}` }
   : { standard: `Invoice ${inv.invoiceNumber}`, friendly: `Invoice ${inv.invoiceNumber}`, thank_you: `Thank you — Invoice ${inv.invoiceNumber}`, overdue: `Overdue: Invoice ${inv.invoiceNumber}` };
-setEmailDraft({ to: client.email, subject: subjectMap[template] || subjectMap.standard, body, template, inv, from: data.settings.companyEmail || "" });
+setEmailDraft({ to: client.email, subject: subjectMap[template] || subjectMap.standard, body, template, inv, from: data.settings.companyEmail || "", attachPdf: true });
 };
 
 const sendEmailDraft = async () => {
@@ -7600,6 +7616,7 @@ if (!emailDraft || sendingEmail) return;
 setSendingEmail(true);
 try {
 let pdfAttachments;
+if (emailDraft.attachPdf) {
 try {
   const inv = emailDraft.inv;
   const currentPreview = preview?.id === inv.id ? preview : null;
@@ -7612,14 +7629,14 @@ try {
   }
   if (target) {
     const pdfBlob = await buildPdfFromElement(target, `${inv.invoiceNumber || "invoice"}.pdf`);
-    const base64 = await blobToBase64(pdfBlob);
-    pdfAttachments = [{ filename: `${inv.invoiceNumber || "invoice"}.pdf`, content: base64, contentType: "application/pdf" }];
+    pdfAttachments = [{ blob: pdfBlob, filename: `${inv.invoiceNumber || "invoice"}.pdf` }];
   }
   if (!currentPreview) setInvoiceForPdf(null);
 } catch (err) {
   console.error("PDF generation for invoice email attachment failed:", err);
   setInvoiceForPdf(null);
   showToast(lang === "fr" ? "Le PDF n'a pas pu être généré — l'email sera envoyé sans pièce jointe" : "PDF generation failed — email will be sent without attachment", "error");
+}
 }
 const ok = await sendPlatformEmail({ to: emailDraft.to, subject: emailDraft.subject, body: emailDraft.body, attachments: pdfAttachments }, { showToast, lang });
 if (ok) setEmailDraft(null);
@@ -7781,7 +7798,10 @@ return (
   <div style={{ fontSize: 12, color: CL.muted, marginBottom: 4 }}>{lang === "fr" ? "Corps de l'email" : "Email Body"}</div>
   <textarea className="email-modal-textarea" value={emailDraft.body} onChange={ev => setEmailDraft(prev => ({ ...prev, body: ev.target.value }))} style={{ ...inputSt, width: "100%", minHeight: 220, fontFamily: "monospace", fontSize: 13, resize: "vertical", whiteSpace: "pre-wrap" }} />
   <div style={{ fontSize: 11, color: CL.muted, marginTop: 6 }}>{lang === "fr" ? "Expéditeur" : "From"}: {emailDraft.from}</div>
-  <div style={{ fontSize: 12, color: "#2e7d32", marginTop: 8 }}>{"\u{1F4CE}"} {lang === "fr" ? "PDF facture joint" : "Invoice PDF attached"}</div>
+  <label style={{ fontSize: 12, color: emailDraft.attachPdf ? "#2e7d32" : CL.muted, marginTop: 8, display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+    <input type="checkbox" checked={emailDraft.attachPdf || false} onChange={e => setEmailDraft(prev => ({ ...prev, attachPdf: e.target.checked }))} />
+    {"\u{1F4CE}"} {lang === "fr" ? "Joindre le PDF facture" : "Attach Invoice PDF"}
+  </label>
 </div>
 <div className="email-modal-footer" style={{ display: "flex", gap: 10, justifyContent: "flex-end", paddingTop: 14, borderTop: `1px solid ${CL.bd}` }}>
   <button style={{ ...btnSec, padding: "10px 24px" }} onClick={() => setEmailDraft(null)}>{t("cancel")}</button>

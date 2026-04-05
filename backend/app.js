@@ -9,9 +9,12 @@ const crypto = require('crypto');
 const https = require('https');
 const http = require('http');
 const nodemailer = require('nodemailer');
+const compression = require('compression');
+const multer = require('multer');
 const pool = require('./db');
 
 const app = express();
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 // Trust reverse proxy (Render, etc.) so rate-limiting uses real IPs
 app.set('trust proxy', 1);
@@ -53,6 +56,7 @@ app.use(cors(corsOptions));
 app.options('*', cors(corsOptions)); // Handle preflight for all routes
 // Photos are sent as base64 data URLs for some endpoints (e.g. prospect visits).
 // Increase JSON body limit so those requests are not rejected with 413 payload-too-large.
+app.use(compression());
 app.use(bodyParser.json({ limit: '15mb' }));
 
 // Rate limiting — stricter on auth to prevent PIN brute-force
@@ -1583,11 +1587,24 @@ app.post('/api/admin/test-email', async (req, res) => {
   }
 });
 
-app.post('/api/notifications/email', async (req, res) => {
+app.post('/api/notifications/email', upload.array('attachments', 5), async (req, res) => {
   try {
-    const { to, subject, body, html, from, attachments } = req.body || {};
+    const { to, subject, body, html, from } = req.body || {};
     if (!to || !subject || (!body && !html)) {
       return res.status(400).json({ error: 'to, subject and body/html are required' });
+    }
+
+    let attachments;
+    if (req.files && req.files.length) {
+      attachments = req.files.map(f => ({
+        filename: f.originalname,
+        content: f.buffer.toString('base64'),
+        contentType: f.mimetype,
+      }));
+    } else if (req.body.attachments) {
+      attachments = typeof req.body.attachments === 'string'
+        ? JSON.parse(req.body.attachments)
+        : req.body.attachments;
     }
 
     const sent = await sendEmail({ to, subject, body, html, from, attachments });

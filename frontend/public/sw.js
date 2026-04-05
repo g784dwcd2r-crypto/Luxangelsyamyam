@@ -1,5 +1,5 @@
 // Bump this version string whenever you deploy changes to force cache refresh
-const CACHE_VERSION = 'v5';
+const CACHE_VERSION = 'v6';
 const CACHE_NAME = `lux-angels-cache-${CACHE_VERSION}`;
 const APP_SHELL = ['/', '/manifest.webmanifest'];
 
@@ -27,7 +27,12 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // For app shell: network-first with cache fallback
+  // For app shell: network-first with cache fallback.
+  // Important: only return /index.html for real navigation requests.
+  // Returning HTML for JS/CSS requests causes a blank screen when the browser
+  // tries to execute HTML as JavaScript.
+  const isNavigation = event.request.mode === 'navigate';
+
   event.respondWith(
     fetch(event.request)
       .then((response) => {
@@ -38,6 +43,11 @@ self.addEventListener('fetch', (event) => {
         }
         return response;
       })
-      .catch(() => caches.match(event.request).then((cached) => cached || caches.match('/')))
+      .catch(async () => {
+        const cached = await caches.match(event.request);
+        if (cached) return cached;
+        if (isNavigation) return caches.match('/');
+        return Response.error();
+      })
   );
 });

@@ -1,11 +1,19 @@
 
 
 import { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo, Children, isValidElement } from "react";
-import ExcelJS from "exceljs";
 
 /* ===========================================================
 LUX ANGELS CLEANING - Management System v3 (Bug-free) 
 =========================================================== */
+
+
+let excelJsPromise;
+const loadExcelJS = async () => {
+  if (!excelJsPromise) {
+    excelJsPromise = import("exceljs").then((mod) => mod.default || mod);
+  }
+  return excelJsPromise;
+};
 
 // -- Persistence --
 // Database-only persistence for business data: no local cache/offline shadow copies.
@@ -2420,6 +2428,7 @@ const FormTabs = ({ tabs, active, onChange }) => (
 
 // -- Excel Export --
 const exportExcel = async (data) => {
+const ExcelJS = await loadExcelJS();
 const wb = new ExcelJS.Workbook();
 const addSheet = (name, rows, cols) => {
 const ws = wb.addWorksheet(name);
@@ -2497,6 +2506,7 @@ URL.revokeObjectURL(url);
 const importExcel = async (file, setData, showToast) => {
 try {
 const buffer = await file.arrayBuffer();
+const ExcelJS = await loadExcelJS();
 const wb = new ExcelJS.Workbook();
 await wb.xlsx.load(buffer);
 const sheet = (name) => {

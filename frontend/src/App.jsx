@@ -9636,7 +9636,7 @@ function PasswordResetTab({ data, showToast, ownerUsername, managerUsername }) {
 // ==============================================
 // SETTINGS PAGE
 // ==============================================
-function SettingsPage({ data, updateData, setData, showToast, auth }) {
+function SettingsPage({ data, updateData, setData, showToast, auth, emailConfigured, setEmailConfigured }) {
 const [activeTab, setActiveTab] = useState("company");
 const [form, setForm] = useState(data.settings);
 const [ownerUsername, setOwnerUsername] = useState(data.ownerUsername || "");
@@ -9724,6 +9724,15 @@ const persistSettings = async () => {
   } catch (err) {
     console.error(err);
   }
+
+  // Re-check email configuration status after saving
+  try {
+    const emailRes = await fetch(apiUrl("/api/email-status"), { cache: "no-store" });
+    if (emailRes.ok) {
+      const emailStatus = await emailRes.json();
+      if (setEmailConfigured) setEmailConfigured(!!emailStatus.configured);
+    }
+  } catch {}
 
   setSaveBanner(uiText("Changes saved successfully."));
   showToast(uiText("Settings updated"), "success");
@@ -10003,6 +10012,11 @@ return (
 
   {activeTab === "notifications" && <div style={{ ...cardSt, marginTop: 14 }}>
     <h3 style={{ color: CL.gold, marginTop: 0 }}>{uiText("Notifications")}</h3>
+    <div style={{ marginBottom: 14, padding: "10px 12px", borderRadius: 8, border: `1px solid ${emailConfigured ? CL.green : CL.red}`, background: `${emailConfigured ? CL.green : CL.red}15`, color: emailConfigured ? CL.green : CL.red, fontSize: 13 }}>
+      {emailConfigured
+        ? uiText("Email configured") + (form.emailProvider ? ` (${form.emailProvider})` : "")
+        : uiText("Email not configured — select a provider and enter credentials below, then save.")}
+    </div>
     <div style={{ marginBottom: 16 }}>
       <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 13, color: CL.muted, textTransform: "uppercase", letterSpacing: "0.05em" }}>{uiText("WhatsApp")}</div>
       <Field label="Business WhatsApp number (for reminder drafts)">

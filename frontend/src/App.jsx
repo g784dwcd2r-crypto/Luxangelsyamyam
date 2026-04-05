@@ -7275,6 +7275,8 @@ const [modal, setModal] = useState(null);
 const [preview, setPreview] = useState(null);
 const [emailDraft, setEmailDraft] = useState(null);
 const [filters, setFilters] = useState({ invoiceNumber: "", clientId: "", status: "", dateFrom: "", dateTo: "" });
+const [invoiceForPdf, setInvoiceForPdf] = useState(null);
+const hiddenInvoiceRef = useRef(null);
 
 const nextInvoiceNum = (dateStr = getToday()) => {
 const [year, month, day] = (dateStr || getToday()).split("-");
@@ -7333,14 +7335,44 @@ return [...scheduleRows, ...manualClockRows].sort((a, b) => `${a.prestationDate}
 
 const handleStatusChange = async (inv, newStatus) => {
 try {
+const shouldEmail = (newStatus === "sent" || newStatus === "overdue");
 const res = await fetch(apiUrl(`/api/invoices/${inv.id}/status`), {
 method: "PATCH",
 headers: { "Content-Type": "application/json" },
-body: JSON.stringify({ status: newStatus }),
+body: JSON.stringify({ status: newStatus, skipEmail: shouldEmail }),
 });
 if (!res.ok) throw new Error("Failed to update status");
 updateData("invoices", prev => prev.map(i => i.id === inv.id ? { ...i, status: newStatus } : i));
 showToast(lang === "fr" ? "Statut mis à jour" : "Status updated");
+
+if (shouldEmail) {
+  const client = data.clients.find(c => c.id === inv.clientId);
+  if (!client?.email) return;
+
+  let pdfAttachments;
+  try {
+    setInvoiceForPdf(inv);
+    await waitForPaint();
+    const target = hiddenInvoiceRef.current;
+    if (target) {
+      const pdfBlob = await buildPdfFromElement(target, `${inv.invoiceNumber || "invoice"}.pdf`);
+      const base64 = await blobToBase64(pdfBlob);
+      pdfAttachments = [{ filename: `${inv.invoiceNumber || "invoice"}.pdf`, content: base64, contentType: "application/pdf" }];
+    }
+    setInvoiceForPdf(null);
+  } catch (pdfErr) {
+    console.error("PDF generation for status-change email failed:", pdfErr);
+    setInvoiceForPdf(null);
+  }
+
+  const template = newStatus === "overdue" ? "overdue" : "friendly";
+  const body = buildEmailBody(inv, client, template, lang);
+  const subject = newStatus === "overdue"
+    ? (lang === "fr" ? `Relance — Facture ${inv.invoiceNumber}` : `Overdue: Invoice ${inv.invoiceNumber}`)
+    : (lang === "fr" ? `Facture ${inv.invoiceNumber} — Lux Angels` : `Invoice ${inv.invoiceNumber} — Lux Angels`);
+
+  await sendPlatformEmail({ to: client.email, subject, body, attachments: pdfAttachments }, { showToast, lang });
+}
 } catch (err) {
 console.error(err);
 showToast(lang === "fr" ? "Impossible de mettre à jour le statut" : "Unable to update status", "error");
@@ -7393,6 +7425,33 @@ script.onload = () => resolve();
 script.onerror = reject;
 document.body.appendChild(script);
 });
+
+const waitForPaint = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+const buildPdfFromElement = async (element, fileName, shouldDownload = false) => {
+await ensureLib("https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js", () => Boolean(window.html2canvas));
+await ensureLib("https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js", () => Boolean(window.jspdf));
+const canvas = await window.html2canvas(element, { backgroundColor: "#ffffff", scale: 2, useCORS: true });
+const { jsPDF } = window.jspdf;
+const pdf = new jsPDF("p", "mm", "a4");
+const pageWidth = pdf.internal.pageSize.getWidth();
+const pageHeight = pdf.internal.pageSize.getHeight();
+const imgData = canvas.toDataURL("image/png");
+const imgWidth = pageWidth;
+const imgHeight = (canvas.height * imgWidth) / canvas.width;
+if (imgHeight <= pageHeight) {
+  pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
+} else {
+  let y = 0;
+  while (y < imgHeight) {
+    pdf.addImage(imgData, "PNG", 0, -y, imgWidth, imgHeight);
+    y += pageHeight;
+    if (y < imgHeight) pdf.addPage();
+  }
+}
+if (shouldDownload) { pdf.save(fileName); return null; }
+return pdf.output("blob");
+};
 
 const capturePreviewCanvas = async () => {
 if (!previewRef.current) throw new Error("Preview not ready");
@@ -7452,7 +7511,7 @@ if (l === "fr") {
   if (template === "overdue") {
     return `Chère/Cher ${name},\n\nNous vous rappelons que la facture ${invNum} du ${dateStr} est toujours en attente de règlement.\nMontant restant dû : ${amount}${dueStr ? `\nDate d'échéance dépassée : ${dueStr}` : ""}\n\nNous vous prions de bien vouloir procéder au paiement dans les meilleurs délais. Contactez-nous si vous avez déjà effectué ce virement.${sig}`;
   }
-  return `Chère/Cher ${name},\n\nVeuillez trouver ci-dessous les détails de votre facture :\n\nFacture : ${invNum}\nDate : ${dateStr}${dueStr ? `\nÉchéance : ${dueStr}` : ""}\nTotal : ${amount}\n\nNous restons disponibles pour toute question.${sig}`;
+  return `Chère/Cher ${name},\n\nVeuillez trouver ci-joint les détails de votre facture :\n\nFacture : ${invNum}\nDate : ${dateStr}${dueStr ? `\nÉchéance : ${dueStr}` : ""}\nTotal : ${amount}\n\nNous restons disponibles pour toute question.${sig}`;
 }
 
 if (template === "friendly") {
@@ -7618,6 +7677,8 @@ return (
 </tbody>
 </table>
 </div>
+
+{invoiceForPdf && <div style={{ position: "fixed", left: -10000, top: 0, width: 1200, background: "#fff", zIndex: -1 }}><div ref={hiddenInvoiceRef}><InvoicePreviewContent invoice={invoiceForPdf} data={data} /></div></div>}
 
 {preview && (
 <ModalBox title="" onClose={() => setPreview(null)} wide>

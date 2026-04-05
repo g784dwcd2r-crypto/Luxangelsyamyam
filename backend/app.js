@@ -1231,7 +1231,7 @@ app.put('/api/invoices/:id', async (req, res) => {
 
 app.patch('/api/invoices/:id/status', async (req, res) => {
   try {
-    const { status } = req.body;
+    const { status, skipEmail } = req.body;
     const allowed = ['draft', 'sent', 'paid', 'overdue'];
     if (!allowed.includes(status)) return res.status(400).json({ error: 'Invalid status' });
     const result = await pool.query(
@@ -1241,7 +1241,7 @@ app.patch('/api/invoices/:id/status', async (req, res) => {
     if (!result.rows.length) return res.status(404).json({ error: 'Invoice not found' });
     const inv = result.rows[0];
     res.json(inv);
-    if ((status === 'sent' || status === 'overdue') && inv.client_id) {
+    if (!skipEmail && (status === 'sent' || status === 'overdue') && inv.client_id) {
       pool.query('SELECT email, name, contact_person FROM clients WHERE id=$1 LIMIT 1', [inv.client_id])
         .then(cr => {
           const client = cr.rows[0];
@@ -1253,8 +1253,8 @@ app.patch('/api/invoices/:id/status', async (req, res) => {
             sendEmail({
               to: client.email,
               subject: `Facture ${inv.invoice_number} — Lux Angels`,
-              body: buildNotificationText({ greeting: `Bonjour ${cname},`, bodyLines: [`Veuillez trouver ci-dessous votre facture ${inv.invoice_number}.`, `Total : ${amount}`, dueStr ? `Échéance : ${dueStr}` : ''].filter(Boolean) }),
-              html: buildNotificationHtml({ title: `Facture ${inv.invoice_number}`, greeting: `Bonjour ${cname},`, bodyLines: [`Veuillez trouver ci-dessous votre facture <strong>${inv.invoice_number}</strong>.`, `Total : <strong>${amount}</strong>`, dueStr ? `Échéance : ${dueStr}` : ''].filter(Boolean) }),
+              body: buildNotificationText({ greeting: `Bonjour ${cname},`, bodyLines: [`Veuillez trouver ci-joint votre facture ${inv.invoice_number}.`, `Total : ${amount}`, dueStr ? `Échéance : ${dueStr}` : ''].filter(Boolean) }),
+              html: buildNotificationHtml({ title: `Facture ${inv.invoice_number}`, greeting: `Bonjour ${cname},`, bodyLines: [`Veuillez trouver ci-joint votre facture <strong>${inv.invoice_number}</strong>.`, `Total : <strong>${amount}</strong>`, dueStr ? `Échéance : ${dueStr}` : ''].filter(Boolean) }),
             }).catch(err => console.error('Invoice sent email failed:', err));
           } else {
             sendEmail({
@@ -1639,7 +1639,7 @@ app.post('/api/notifications/send-document', async (req, res) => {
         if (tmpl === 'friendly') body = `Bonjour ${name},\n\nVeuillez trouver ci-joint votre facture ${invNum} pour les services de nettoyage du ${dateStr}.\nMontant dû : ${amount}${dueStr ? `\nDate d'échéance : ${dueStr}` : ''}\n\nN'hésitez pas à nous contacter si vous avez des questions.${sig}`;
         else if (tmpl === 'thank_you') body = `Chère/Cher ${name},\n\nNous vous remercions de votre confiance envers ${companyName} !\n\nVeuillez trouver ci-joint la facture ${invNum} du ${dateStr}.\nTotal : ${amount}\n\nNous vous remercions et restons à votre disposition pour toute question.${sig}`;
         else if (tmpl === 'overdue') body = `Chère/Cher ${name},\n\nNous vous rappelons que la facture ${invNum} du ${dateStr} est toujours en attente de règlement.\nMontant restant dû : ${amount}${dueStr ? `\nDate d'échéance dépassée : ${dueStr}` : ''}\n\nNous vous prions de bien vouloir procéder au paiement dans les meilleurs délais. Contactez-nous si vous avez déjà effectué ce virement.${sig}`;
-        else body = `Chère/Cher ${name},\n\nVeuillez trouver ci-dessous les détails de votre facture :\n\nFacture : ${invNum}\nDate : ${dateStr}${dueStr ? `\nÉchéance : ${dueStr}` : ''}\nTotal : ${amount}\n\nNous restons disponibles pour toute question.${sig}`;
+        else body = `Chère/Cher ${name},\n\nVeuillez trouver ci-joint les détails de votre facture :\n\nFacture : ${invNum}\nDate : ${dateStr}${dueStr ? `\nÉchéance : ${dueStr}` : ''}\nTotal : ${amount}\n\nNous restons disponibles pour toute question.${sig}`;
       } else {
         if (tmpl === 'friendly') body = `Hello ${name},\n\nPlease find your invoice ${invNum} for cleaning services on ${dateStr}.\nAmount due: ${amount}${dueStr ? `\nDue date: ${dueStr}` : ''}\n\nFeel free to reach out if you have any questions.${sig}`;
         else if (tmpl === 'thank_you') body = `Dear ${name},\n\nThank you for choosing ${companyName}!\n\nPlease find attached invoice ${invNum} dated ${dateStr}.\nTotal: ${amount}\n\nWe appreciate your trust and look forward to serving you again.${sig}`;

@@ -10013,6 +10013,69 @@ return (
       </div>
     </div>
     <div style={{ marginBottom: 16 }}>
+      <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 13, color: CL.muted, textTransform: "uppercase", letterSpacing: "0.05em" }}>{uiText("Email provider")}</div>
+      <Field label="Provider">
+        <SelectInput value={form.emailProvider || ""} onChange={ev => setField("emailProvider", ev.target.value)}>
+          <option value="">-- {uiText("Select provider")} --</option>
+          <option value="smtp">SMTP</option>
+          <option value="zeptomail">ZeptoMail</option>
+          <option value="resend">Resend</option>
+        </SelectInput>
+      </Field>
+
+      {form.emailProvider === "smtp" && <>
+        <div className="grid-2">
+          <Field label="SMTP Host">
+            <TextInput value={form.smtpHost || ""} onChange={ev => setField("smtpHost", ev.target.value)} placeholder="mail.infomaniak.com" />
+          </Field>
+          <Field label="SMTP Port">
+            <TextInput value={form.smtpPort || "465"} onChange={ev => setField("smtpPort", ev.target.value)} placeholder="465" />
+          </Field>
+        </div>
+        <label style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 14 }}>
+          <input type="checkbox" checked={form.smtpSecure !== false && form.smtpSecure !== "false"} onChange={ev => setField("smtpSecure", ev.target.checked)} />
+          {uiText("Use TLS/SSL (secure)")}
+        </label>
+        <div className="grid-2">
+          <Field label="SMTP Username">
+            <TextInput value={form.smtpUser || ""} onChange={ev => setField("smtpUser", ev.target.value)} placeholder="user@domain.com" />
+          </Field>
+          <Field label="SMTP Password">
+            <TextInput type="password" value={form.smtpPass || ""} onChange={ev => setField("smtpPass", ev.target.value)} placeholder="••••••••" />
+          </Field>
+        </div>
+      </>}
+
+      {form.emailProvider === "zeptomail" && <>
+        <Field label="ZeptoMail API Token">
+          <TextInput type="password" value={form.zeptoApiToken || ""} onChange={ev => setField("zeptoApiToken", ev.target.value)} placeholder="Zoho-enczapikey ..." />
+        </Field>
+        <div className="grid-2">
+          <Field label="API URL">
+            <TextInput value={form.zeptoApiUrl || "https://api.zeptomail.eu/v1.1/email"} onChange={ev => setField("zeptoApiUrl", ev.target.value)} />
+          </Field>
+          <Field label="From address">
+            <TextInput value={form.zeptoFromAddress || ""} onChange={ev => setField("zeptoFromAddress", ev.target.value)} placeholder="noreply@yourdomain.com" />
+          </Field>
+        </div>
+      </>}
+
+      {form.emailProvider === "resend" && <>
+        <div className="grid-2">
+          <Field label="Resend API Key">
+            <TextInput type="password" value={form.resendApiKey || ""} onChange={ev => setField("resendApiKey", ev.target.value)} placeholder="re_..." />
+          </Field>
+          <Field label="From address">
+            <TextInput value={form.resendFrom || ""} onChange={ev => setField("resendFrom", ev.target.value)} placeholder="noreply@yourdomain.com" />
+          </Field>
+        </div>
+      </>}
+    </div>
+    <div style={{ marginBottom: 16 }}>
+      <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 13, color: CL.muted, textTransform: "uppercase", letterSpacing: "0.05em" }}>{uiText("Email signature")}</div>
+      <textarea value={form.emailSignature || ""} onChange={ev => setField("emailSignature", ev.target.value)} placeholder={uiText("Your email signature...")} style={{ ...inputSt, minHeight: 80, resize: "vertical" }} />
+    </div>
+    <div style={{ marginBottom: 16 }}>
       <div style={{ fontWeight: 600, marginBottom: 10, fontSize: 13, color: CL.muted, textTransform: "uppercase", letterSpacing: "0.05em" }}>{uiText("Email alerts")}</div>
       <div className="grid-2">
         {[

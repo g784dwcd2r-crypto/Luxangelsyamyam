@@ -384,7 +384,7 @@ async function sendEmail({ to, subject, body, html, from }) {
   if (gateway.provider === 'zeptomail') {
     const response = await postJson(gateway.url, {
       headers: {
-        Authorization: `Zoho-enczapikey ${gateway.token}`,
+        Authorization: gateway.token.startsWith('Zoho-enczapikey') ? gateway.token : `Zoho-enczapikey ${gateway.token}`,
       },
       body: {
         from: { address: senderEmail, name: senderName },

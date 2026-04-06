@@ -2814,6 +2814,33 @@ const globalCSS = `
 .email-modal-footer { flex-direction: column; gap: 8px !important; }
 .email-modal-footer button { width: 100%; min-height: 46px; justify-content: center; }
 }
+
+/* Cleaner calendar mobile fixes */
+.cleaner-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+.cleaner-cal-grid .cal-hdr { text-align: center; padding: 6px 0; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+.cleaner-cal-cell { min-height: 62px; padding: 4px; border-radius: 6px; cursor: pointer; transition: all 0.12s; overflow: hidden; }
+.cleaner-cal-cell .day-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; }
+.cleaner-cal-cell .day-num { font-size: 12px; line-height: 1; }
+.cleaner-cal-cell .day-badge { font-size: 9px; padding: 1px 4px; border-radius: 8px; font-weight: 700; line-height: 1.2; flex-shrink: 0; }
+.cleaner-cal-cell .cal-evt { padding: 1px 3px; margin-bottom: 1px; border-radius: 3px; font-size: 9px; border-left-width: 3px; border-left-style: solid; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; line-height: 1.35; }
+.cleaner-cal-cell .cal-evt .evt-time { font-weight: 600; }
+.cleaner-cal-cell .cal-evt .evt-name { font-size: 8px; }
+@media (max-width: 768px) {
+  .cleaner-cal-grid { gap: 2px; }
+  .cleaner-cal-cell { min-height: 56px; padding: 3px; }
+  .cleaner-cal-cell .day-num { font-size: 11px; }
+  .cleaner-cal-cell .cal-evt { font-size: 8px; padding: 1px 2px; border-left-width: 2px; }
+  .cleaner-cal-cell .cal-evt .evt-name { display: none; }
+}
+@media (max-width: 380px) {
+  .cleaner-cal-grid { gap: 1px; }
+  .cleaner-cal-cell { min-height: 48px; padding: 2px; }
+  .cleaner-cal-cell .day-num { font-size: 10px; }
+  .cleaner-cal-cell .day-badge { font-size: 8px; padding: 0px 3px; }
+  .cleaner-cal-cell .cal-evt { font-size: 7px; padding: 1px 2px; }
+  .cleaner-cal-hdr { font-size: 9px !important; padding: 4px 0 !important; }
+  .cleaner-portal-content { padding: 10px 6px !important; }
+}
 `;
 
 // ==============================================
@@ -4107,7 +4134,7 @@ return (
 ))}
 </div>
 {/* Content */}
-<div style={{ padding: 18, maxWidth: 800, margin: "0 auto" }}>
+<div className="cleaner-portal-content" style={{ padding: 18, maxWidth: 800, margin: "0 auto" }}>
 {tab === "schedule" && (() => {
 const calMonthStr = `${calYear}-${String(calMonth + 1).padStart(2, "0")}`;
 const calDaysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
@@ -4132,30 +4159,30 @@ const goCalToday = () => { setCalYear(nowCal.getFullYear()); setCalMonth(nowCal.
 return (
 <div>
 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 8 }}>
-  <h2 style={{ fontFamily: "'Cormorant Garamond', serif", color: CL.blue, fontSize: 22, margin: 0 }}>{t("upcomingJobs")}</h2>
+  <h2 style={{ fontFamily: "'Cormorant Garamond', serif", color: CL.blue, fontSize: 20, margin: 0 }}>{t("upcomingJobs")}</h2>
   <div style={{ display: "flex", background: CL.s2, border: `1px solid ${CL.bd}`, borderRadius: 8, padding: 2, gap: 2 }}>
-    <button style={{ ...btnSec, ...btnSm, background: schedViewMode === "calendar" ? CL.blue : "transparent", border: "none", color: schedViewMode === "calendar" ? "#fff" : CL.muted, padding: "6px 14px" }} onClick={() => setSchedViewMode("calendar")}>{ICN.cal} {t("calendarView")}</button>
-    <button style={{ ...btnSec, ...btnSm, background: schedViewMode === "list" ? CL.blue : "transparent", border: "none", color: schedViewMode === "list" ? "#fff" : CL.muted, padding: "6px 14px" }} onClick={() => setSchedViewMode("list")}>{ICN.doc} {t("listView")}</button>
+    <button style={{ ...btnSec, ...btnSm, background: schedViewMode === "calendar" ? CL.blue : "transparent", border: "none", color: schedViewMode === "calendar" ? "#fff" : CL.muted, padding: "6px 10px", fontSize: 12 }} onClick={() => setSchedViewMode("calendar")}>{ICN.cal} {t("calendarView")}</button>
+    <button style={{ ...btnSec, ...btnSm, background: schedViewMode === "list" ? CL.blue : "transparent", border: "none", color: schedViewMode === "list" ? "#fff" : CL.muted, padding: "6px 10px", fontSize: 12 }} onClick={() => setSchedViewMode("list")}>{ICN.doc} {t("listView")}</button>
   </div>
 </div>
 
 {schedViewMode === "calendar" ? (
 <div>
   {/* Month navigation */}
-  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
-    <button onClick={prevCalMonth} style={{ ...btnSec, ...btnSm, padding: "8px 14px", fontSize: 16 }}>‹</button>
-    <button onClick={goCalToday} style={{ ...btnSec, ...btnSm }}>{uiText("Today")}</button>
-    <button onClick={nextCalMonth} style={{ ...btnSec, ...btnSm, padding: "8px 14px", fontSize: 16 }}>›</button>
-    <span style={{ fontSize: 17, fontFamily: "'Cormorant Garamond', serif", color: CL.text, fontWeight: 600, textTransform: "capitalize" }}>{calMonthLabel}</span>
+  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
+    <button onClick={prevCalMonth} style={{ ...btnSec, ...btnSm, padding: "6px 12px", fontSize: 16 }}>‹</button>
+    <button onClick={goCalToday} style={{ ...btnSec, ...btnSm, fontSize: 12 }}>{uiText("Today")}</button>
+    <button onClick={nextCalMonth} style={{ ...btnSec, ...btnSm, padding: "6px 12px", fontSize: 16 }}>›</button>
+    <span style={{ fontSize: 16, fontFamily: "'Cormorant Garamond', serif", color: CL.text, fontWeight: 600, textTransform: "capitalize" }}>{calMonthLabel}</span>
   </div>
   {/* Calendar grid */}
-  <div style={{ ...cardSt, padding: 10, marginBottom: 12 }}>
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, marginBottom: 4 }}>
-      {calDayHeaders.map(d => <div key={d} style={{ textAlign: "center", padding: "6px 0", fontSize: 11, fontWeight: 600, color: CL.muted, textTransform: "uppercase" }}>{d}</div>)}
+  <div style={{ ...cardSt, padding: 8, marginBottom: 12 }}>
+    <div className="cleaner-cal-grid" style={{ marginBottom: 4 }}>
+      {calDayHeaders.map(d => <div key={d} className="cal-hdr cleaner-cal-hdr" style={{ color: CL.muted }}>{d}</div>)}
     </div>
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2 }}>
+    <div className="cleaner-cal-grid">
       {calCells.map((day, idx) => {
-        if (day === null) return <div key={`e-${idx}`} style={{ minHeight: 60, background: CL.bg + "40", borderRadius: 6 }} />;
+        if (day === null) return <div key={`e-${idx}`} className="cleaner-cal-cell" style={{ background: CL.bg + "40", cursor: "default" }} />;
         const dateStr = `${calMonthStr}-${String(day).padStart(2,"0")}`;
         const dayScheds = myMonthScheds.filter(s => s.date === dateStr);
         const dayHoliday = holidayByDate[dateStr];
@@ -4163,21 +4190,21 @@ return (
         const isSelected = day === calSelectedDay;
         const isPast = dateStr < calTodayStr;
         return (
-          <div key={day} onClick={() => setCalSelectedDay(day === calSelectedDay ? null : day)} style={{ minHeight: 60, padding: "4px 3px", borderRadius: 6, cursor: "pointer", background: dayHoliday ? `${CL.red}0E` : isSelected ? CL.gold + "18" : isToday ? CL.blue + "12" : CL.s2, border: isSelected ? `2px solid ${CL.gold}` : dayHoliday ? `1px solid ${CL.red}60` : isToday ? `2px solid ${CL.blue}50` : `1px solid ${CL.bd}50`, opacity: isPast ? 0.65 : 1, transition: "all 0.12s" }}>
-            <div style={{ fontSize: 12, fontWeight: isToday ? 700 : 500, color: isToday ? CL.blue : CL.text, marginBottom: 3, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span>{day}</span>
-              {dayScheds.length > 0 && <span style={{ fontSize: 9, background: CL.gold + "35", color: CL.gold, padding: "1px 5px", borderRadius: 8, fontWeight: 700 }}>{dayScheds.length}</span>}
+          <div key={day} className="cleaner-cal-cell" onClick={() => setCalSelectedDay(day === calSelectedDay ? null : day)} style={{ background: dayHoliday ? `${CL.red}0E` : isSelected ? CL.gold + "18" : isToday ? CL.blue + "12" : CL.s2, border: isSelected ? `2px solid ${CL.gold}` : dayHoliday ? `1px solid ${CL.red}60` : isToday ? `2px solid ${CL.blue}50` : `1px solid ${CL.bd}50`, opacity: isPast ? 0.65 : 1 }}>
+            <div className="day-row">
+              <span className="day-num" style={{ fontWeight: isToday ? 700 : 500, color: isToday ? CL.blue : CL.text }}>{day}</span>
+              {dayScheds.length > 0 && <span className="day-badge" style={{ background: CL.gold + "35", color: CL.gold }}>{dayScheds.length}</span>}
             </div>
-            {dayHoliday && <div style={{ fontSize: 8, color: CL.red, fontWeight: 700, marginBottom: 2 }} title={getLuxHolidayLabel(dayHoliday.key, lang)}>{uiText("Holiday")}</div>}
+            {dayHoliday && <div style={{ fontSize: 8, color: CL.red, fontWeight: 700, marginBottom: 1, lineHeight: 1.1, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }} title={getLuxHolidayLabel(dayHoliday.key, lang)}>{uiText("Holiday")}</div>}
             {dayScheds.slice(0, 2).map(sched => {
               const statusColor = scheduleStatusColor(sched.status);
               const client = data.clients.find(c => c.id === sched.clientId);
-              return <div key={sched.id} style={{ padding: "2px 4px", marginBottom: 1, borderRadius: 3, fontSize: 9, background: statusColor + "22", borderLeft: `3px solid ${statusColor}`, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis", color: CL.text }}>
-                <span style={{ fontWeight: 600 }}>{sched.startTime} </span>
-                <span style={{ color: CL.muted }}>{client?.name?.slice(0, 8) || "?"}</span>
+              return <div key={sched.id} className="cal-evt" style={{ background: statusColor + "22", borderLeftColor: statusColor, color: CL.text }}>
+                <span className="evt-time">{sched.startTime} </span>
+                <span className="evt-name" style={{ color: CL.muted }}>{client?.name?.slice(0, 10) || "?"}</span>
               </div>;
             })}
-            {dayScheds.length > 2 && <div style={{ fontSize: 8, color: CL.muted, textAlign: "center" }}>+{dayScheds.length - 2}</div>}
+            {dayScheds.length > 2 && <div style={{ fontSize: 8, color: CL.muted, textAlign: "center", lineHeight: 1 }}>+{dayScheds.length - 2}</div>}
           </div>
         );
       })}
@@ -5866,13 +5893,13 @@ return (
 {viewMode === "calendar" ? (
 <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
 <div style={{ flex: "1 1 600px", minWidth: 0 }}>
-<div style={{ ...cardSt, padding: 12 }}>
-<div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, marginBottom: 4 }}>
-{dayHeaders.map(d => <div key={d} style={{ textAlign: "center", padding: "6px 0", fontSize: 11, fontWeight: 600, color: CL.muted, textTransform: "uppercase" }}>{d}</div>)}
+<div style={{ ...cardSt, padding: 8 }}>
+<div className="cleaner-cal-grid" style={{ marginBottom: 4 }}>
+{dayHeaders.map(d => <div key={d} className="cal-hdr cleaner-cal-hdr" style={{ color: CL.muted }}>{d}</div>)}
 </div>
-<div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2 }}>
+<div className="cleaner-cal-grid">
 {calendarCells.map((day, idx) => {
-if (day === null) return <div key={`empty-${idx}`} style={{ minHeight: 70, background: CL.bg + "40", borderRadius: 6 }} />;
+if (day === null) return <div key={`empty-${idx}`} className="cleaner-cal-cell" style={{ background: CL.bg + "40", cursor: "default", minHeight: 70 }} />;
 const dateStr = `${monthStr}-${String(day).padStart(2, "0")}`;
 const dayScheds = orderedMonthSchedules.filter(s => s.date === dateStr);
 const dayHoliday = holidayByDate[dateStr];
@@ -5880,16 +5907,16 @@ const isToday = dateStr === todayStr;
 const isSelected = day === selectedDate;
 const isPast = dateStr < todayStr;
 return (
-<div key={day} onClick={() => setSelectedDate(day === selectedDate ? null : day)} style={{ minHeight: 70, padding: 4, borderRadius: 6, cursor: "pointer", background: dayHoliday ? `${CL.red}0E` : isSelected ? CL.gold + "15" : isToday ? CL.blue + "08" : CL.s2, border: isSelected ? `2px solid ${CL.gold}` : dayHoliday ? `1px solid ${CL.red}60` : isToday ? `2px solid ${CL.blue}40` : `1px solid ${CL.bd}50`, opacity: isPast ? 0.7 : 1, transition: "all 0.15s" }}>
-<div style={{ fontSize: 12, fontWeight: isToday ? 700 : 500, color: isToday ? CL.blue : CL.text, marginBottom: 3, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-<span>{day}</span>
-{dayScheds.length > 0 && <span style={{ fontSize: 9, background: CL.gold + "30", color: CL.gold, padding: "1px 5px", borderRadius: 8, fontWeight: 600 }}>{dayScheds.length}</span>}
+<div key={day} className="cleaner-cal-cell" onClick={() => setSelectedDate(day === selectedDate ? null : day)} style={{ minHeight: 70, background: dayHoliday ? `${CL.red}0E` : isSelected ? CL.gold + "15" : isToday ? CL.blue + "08" : CL.s2, border: isSelected ? `2px solid ${CL.gold}` : dayHoliday ? `1px solid ${CL.red}60` : isToday ? `2px solid ${CL.blue}40` : `1px solid ${CL.bd}50`, opacity: isPast ? 0.7 : 1 }}>
+<div className="day-row">
+<span className="day-num" style={{ fontWeight: isToday ? 700 : 500, color: isToday ? CL.blue : CL.text }}>{day}</span>
+{dayScheds.length > 0 && <span className="day-badge" style={{ background: CL.gold + "30", color: CL.gold }}>{dayScheds.length}</span>}
 </div>
-{dayHoliday && <div style={{ fontSize: 8, color: CL.red, fontWeight: 700, marginBottom: 2 }} title={getLuxHolidayLabel(dayHoliday.key, CURRENT_LANG)}>{uiText("Holiday")}</div>}
+{dayHoliday && <div style={{ fontSize: 8, color: CL.red, fontWeight: 700, marginBottom: 1, lineHeight: 1.1, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }} title={getLuxHolidayLabel(dayHoliday.key, CURRENT_LANG)}>{uiText("Holiday")}</div>}
 {dayScheds.slice(0, 3).map(sched => {
 const client = data.clients.find(c => c.id === sched.clientId);
 const statusColor = scheduleStatusColor(sched.status);
-return <div key={sched.id} style={{ padding: "2px 4px", marginBottom: 1, borderRadius: 3, fontSize: 9, background: statusColor + "20", borderLeft: `3px solid ${statusColor}`, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2 }}><div onClick={ev => { ev.stopPropagation(); setModal({ ...sched }); }} style={{ cursor: "pointer", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis", flex: 1, minWidth: 0 }}><span style={{ fontWeight: 600, color: CL.text }}>{sched.startTime} </span><span style={{ color: CL.muted }}>{client?.name?.slice(0, 10) || "?"}</span></div><button onClick={ev => { ev.stopPropagation(); handleDelete(sched.id); }} style={{ background: "transparent", border: "none", cursor: "pointer", color: CL.red, padding: "0 1px", fontSize: 9, lineHeight: 1, flexShrink: 0, opacity: 0.7, display: "flex", alignItems: "center" }} title="Supprimer">✕</button></div>;
+return <div key={sched.id} className="cal-evt" style={{ background: statusColor + "20", borderLeftColor: statusColor, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2 }}><div onClick={ev => { ev.stopPropagation(); setModal({ ...sched }); }} style={{ cursor: "pointer", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis", flex: 1, minWidth: 0 }}><span className="evt-time" style={{ color: CL.text }}>{sched.startTime} </span><span className="evt-name" style={{ color: CL.muted }}>{client?.name?.slice(0, 10) || "?"}</span></div><button onClick={ev => { ev.stopPropagation(); handleDelete(sched.id); }} style={{ background: "transparent", border: "none", cursor: "pointer", color: CL.red, padding: "0 1px", fontSize: 9, lineHeight: 1, flexShrink: 0, opacity: 0.7, display: "flex", alignItems: "center" }} title="Supprimer">✕</button></div>;
 })}
 {dayScheds.length > 3 && <div style={{ fontSize: 8, color: CL.muted, textAlign: "center" }}>+{dayScheds.length - 3} more</div>}
 </div>

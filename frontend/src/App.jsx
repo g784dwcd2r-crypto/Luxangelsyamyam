@@ -60,16 +60,16 @@ language: "Langue", french: "Français", english: "Anglais", login: "Connexion",
 dashboard: "Tableau de bord", employees: "Employés", clients: "Clients", schedule: "Planning", timeclock: "Pointage", inventory: "Stock", devis: "Devis", invoices: "Factures", payslips: "Fiches de paie", expenses: "Dépenses", conges: "Congés", communications: "Communications", reports: "Rapports", database: "Base Excel", settings: "Paramètres",
 newQuote: "Nouveau devis", editQuote: "Modifier devis", newInvoice: "Nouvelle facture", editInvoice: "Modifier facture", save: "Enregistrer", cancel: "Annuler", actions: "Actions", status: "Statut", client: "Client", date: "Date", amount: "Montant", view: "Voir", sendEmail: "Envoyer email", draft: "Brouillon", sent: "Envoyée", paid: "Payée", overdue: "En retard", auto: "Auto", select: "Sélectionner...", prestationDate: "Date de prestation", invoiceDate: "Date de facturation",
 invoice: "Facture", quote: "Devis", dueDate: "Date échéance", notes: "Notes", total: "Total", subtotal: "Sous-total", vat: "TVA", item: "Ligne", qty: "Qté", unitPrice: "Prix unitaire", description: "Description",
-managementSystem: "Système de gestion", ownerAccess: "Accès propriétaire", ownerAccessDesc: "Tableau de gestion complet", cleanerAccess: "Accès agent", cleanerAccessDesc: "Planning, heures, pointage et congés",
+managementSystem: "Système de gestion", ownerAccess: "Accès propriétaire", ownerAccessDesc: "Tableau de gestion complet", cleanerAccess: "Accès agent", cleanerAccessDesc: "Planning, heures, validation et congés",
 back: "Retour", ownerLogin: "Connexion propriétaire", cleanerLogin: "Connexion agent", yourName: "Votre nom", choose: "Choisir...", logout: "Déconnexion", visitation: "Visites", history: "Historique", downloadApp: "Télécharger l'application", ownerPortal: "Portail propriétaire", managerPortal: "Portail manager", visitationSchedule: "Planning des visites", historyImages: "Historique & images", installIntro: "Installez cette app directement depuis votre navigateur (sans App Store / Play Store).", installOnIphone: "Installer sur iPhone", installOnAndroid: "Installer sur Android", installAndroidFallback: "Si rien ne se passe: menu ⋮ du navigateur > Installer l'application / Ajouter à l'écran d'accueil.", installIosHint: "Sur iPhone: bouton Partager (□↑) > Sur l'écran d'accueil.",
-mySchedule: "Mon planning", clockInOut: "Pointage entrée/sortie", photoUploads: "Photos", products: "Produits", upcomingJobs: "Interventions à venir", noUpcomingJobs: "Aucune intervention à venir", calendarView: "Calendrier", listView: "Liste", noJobsThisDay: "Aucune intervention ce jour", clickDayToSee: "Cliquez sur un jour pour voir les interventions"
+mySchedule: "Mon planning", clockInOut: "Pointage", photoUploads: "Photos", products: "Produits", upcomingJobs: "Interventions à venir", noUpcomingJobs: "Aucune intervention à venir", calendarView: "Calendrier", listView: "Liste", noJobsThisDay: "Aucune intervention ce jour", clickDayToSee: "Cliquez sur un jour pour voir les interventions"
 },
 en: {
 language: "Language", french: "French", english: "English", login: "Login", welcome: "Welcome", selectRole: "Role", pin: "PIN", loginBtn: "Sign in",
 dashboard: "Dashboard", employees: "Employees", clients: "Clients", schedule: "Schedule", timeclock: "Time Clock", inventory: "Inventory", devis: "Quotes", invoices: "Invoices", payslips: "Payslips", expenses: "Expenses", conges: "Leave", communications: "Communications", reports: "Reports", database: "Excel DB", settings: "Settings",
 newQuote: "New quote", editQuote: "Edit quote", newInvoice: "New invoice", editInvoice: "Edit invoice", save: "Save", cancel: "Cancel", actions: "Actions", status: "Status", client: "Client", date: "Date", amount: "Amount", view: "View", sendEmail: "Send email", draft: "Draft", sent: "Sent", paid: "Paid", overdue: "Overdue", auto: "Auto", select: "Select...", prestationDate: "Service date", invoiceDate: "Invoice date",
 invoice: "Invoice", quote: "Quote", dueDate: "Due date", notes: "Notes", total: "Total", subtotal: "Subtotal", vat: "VAT", item: "Item", qty: "Qty", unitPrice: "Unit price", description: "Description",
-managementSystem: "Management System", ownerAccess: "Owner Access", ownerAccessDesc: "Full management dashboard", cleanerAccess: "Cleaner Access", cleanerAccessDesc: "Schedule, hours, clock & time-off",
+managementSystem: "Management System", ownerAccess: "Owner Access", ownerAccessDesc: "Full management dashboard", cleanerAccess: "Cleaner Access", cleanerAccessDesc: "Schedule, hours, validation & time-off",
 back: "Back", ownerLogin: "Owner Login", cleanerLogin: "Cleaner Login", yourName: "Your Name", choose: "Choose...", logout: "Logout", visitation: "Visitation", history: "History", downloadApp: "Download App", ownerPortal: "Owner Portal", managerPortal: "Manager Portal", visitationSchedule: "Visitation Schedule", historyImages: "History & Images", installIntro: "Install this app directly from your browser (no App Store / Play Store needed).", installOnIphone: "Install on iPhone", installOnAndroid: "Install on Android", installAndroidFallback: "If nothing happens: browser menu ⋮ > Install app / Add to Home screen.", installIosHint: "On iPhone: Share button (□↑) > Add to Home Screen.",
 mySchedule: "My Schedule", clockInOut: "Clock In/Out", photoUploads: "Photo Uploads", products: "Products", upcomingJobs: "Upcoming Jobs", noUpcomingJobs: "No upcoming jobs", calendarView: "Calendar", listView: "List", noJobsThisDay: "No jobs this day", clickDayToSee: "Click a day to see jobs"
 }
@@ -475,6 +475,36 @@ const UI_FR = {
 "Days": "Jours",
 "Clocked In": "Pointé",
 "Clock In →": "Pointer →",
+// Validation-based time tracking
+"Validate Hours": "Valider les heures",
+"Validate": "Valider",
+"Validated": "Validé",
+"Planned hours": "Heures planifiées",
+"Adjust hours if needed:": "Ajuster les heures si nécessaire :",
+"h": "h",
+"min": "min",
+"No jobs scheduled for today": "Aucune intervention planifiée aujourd'hui",
+"Hours validated!": "Heures validées !",
+"Already validated for today": "Déjà validé pour aujourd'hui",
+"TODAY'S JOBS:": "INTERVENTIONS DU JOUR :",
+"Planned": "Planifié",
+"Adjust & Validate": "Ajuster et valider",
+"Validated today": "Validé aujourd'hui",
+"pending validation": "en attente de validation",
+"All Dates": "Toutes les dates",
+"Validate All Today": "Tout valider aujourd'hui",
+"Modify Hours": "Modifier les heures",
+"Save Hours": "Enregistrer les heures",
+"Adjusted by manager": "Ajusté par le manager",
+"Date": "Date",
+"Client": "Client",
+"Employee": "Employé",
+"Planned Hours": "Heures planifiées",
+"Actual Hours": "Heures réelles",
+"validated": "validé",
+"All validated": "Tout validé",
+"planned": "planifié",
+"Cancel": "Annuler",
 // Photos / CleanerPortal
 "Photo Uploads": "Photos",
 "Photo type": "Type de photo",
@@ -3926,6 +3956,7 @@ const [monthFilter, setMonthFilter] = useState(getToday().slice(0, 7));
 const [uploadNote, setUploadNote] = useState("");
 const [uploadType, setUploadType] = useState("issue");
 const [clockInNote, setClockInNote] = useState("");
+const [adjustHours, setAdjustHours] = useState({});
 const [timeOffForm, setTimeOffForm] = useState({ startDate: "", endDate: "", reason: "", leaveType: "conge" });
 const [productForm, setProductForm] = useState({ productId: "", quantity: 1, note: "", deliveryAt: "" });
 
@@ -3936,7 +3967,6 @@ const [calYear, setCalYear] = useState(nowCal.getFullYear());
 const [calMonth, setCalMonth] = useState(nowCal.getMonth());
 const [calSelectedDay, setCalSelectedDay] = useState(null);
 const myClocks = data.clockEntries.filter(c => c.employeeId === auth.employeeId).sort((a, b) => new Date(b.clockIn) - new Date(a.clockIn));
-const activeClock = myClocks.find(c => !c.clockOut);
 const monthClocks = myClocks.filter(c => c.clockOut && c.clockIn?.startsWith(monthFilter));
 const monthHours = monthClocks.reduce((sum, c) => sum + calcAccountedClockHours(c, data.schedules), 0);
 const myUploads = (data.photoUploads || []).filter(u => u.employeeId === auth.employeeId).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
@@ -3951,46 +3981,42 @@ const myInHandTotal = myHoldings.reduce((sum, h) => sum + (Number(h.qtyInHand) |
 const hasPendingProductRequest = myProductRequests.some(r => r.status === "pending");
 const hasPendingTimeOffRequest = myTimeOffRequests.some(r => r.status === "pending");
 
-const doClockIn = async (clientId) => {
-if (activeClock) { showToast("Already clocked in!", "error"); return; }
-const isCompletedToday = data.schedules.some(sc => isSameId(sc.employeeId, auth.employeeId) && isSameId(sc.clientId, clientId) && sc.date === getToday() && sc.status === "completed");
-if (isCompletedToday) { showToast("This job is already completed and locked", "error"); return; }
-const nowAt = new Date();
-const lateMeta = getLateMeta(data.schedules, { employeeId: auth.employeeId, clientId, clockInAt: nowAt });
+const doValidateHours = async (sched) => {
+const today = getToday();
+const alreadyValidated = data.clockEntries.some(c => isSameId(c.employeeId, auth.employeeId) && isSameId(c.clientId, sched.clientId) && c.clockIn?.slice(0, 10) === today);
+if (alreadyValidated) { showToast(uiText("Already validated for today"), "error"); return; }
+const plannedH = calcHrs(makeISO(today, sched.startTime), makeISO(today, sched.endTime));
+const adj = adjustHours[sched.id];
+const validatedH = adj != null ? (Number(adj.hours || 0) + Number(adj.minutes || 0) / 60) : plannedH;
+const validatedMinutes = Math.round(validatedH * 60);
+const clockIn = makeISO(today, sched.startTime);
+const clockOutDate = new Date(new Date(clockIn).getTime() + validatedMinutes * 60000);
+const clockOut = clockOutDate.toISOString();
 const newEntry = {
-id: makeId(), employeeId: auth.employeeId, clientId,
-clockIn: nowAt.toISOString(), clockOut: null,
+id: makeId(), employeeId: auth.employeeId, clientId: sched.clientId,
+clockIn, clockOut,
 notes: clockInNote.trim(),
-isLate: lateMeta.isLate, lateMinutes: lateMeta.lateMinutes,
-scheduledStart: lateMeta.scheduledStart,
+isLate: false, lateMinutes: 0,
+scheduledStart: sched.startTime,
+validatedByAgent: true,
+plannedHours: plannedH,
 };
 try {
 await createClockEntryInApi(newEntry);
 updateData("clockEntries", prev => [...prev, newEntry]);
-const schedToSyncIn = (data.schedules || []).find(s => isSameId(s.employeeId, auth.employeeId) && isSameId(s.clientId, clientId) && s.date === lateMeta.workDate && s.status === "scheduled");
-if (schedToSyncIn) syncScheduleToApi({ ...schedToSyncIn, status: "in-progress" }).catch(console.error);
-updateData("schedules", prev => updateScheduleStatusForJob(prev, { employeeId: auth.employeeId, clientId, date: lateMeta.workDate, from: "scheduled", to: "in-progress" }));
+const schedToSync = (data.schedules || []).find(s => isSameId(s.employeeId, auth.employeeId) && isSameId(s.clientId, sched.clientId) && s.date === today && (s.status === "scheduled" || s.status === "in-progress"));
+if (schedToSync) syncScheduleToApi({ ...schedToSync, status: "completed" }).catch(console.error);
+updateData("schedules", prev => {
+let result = updateScheduleStatusForJob(prev, { employeeId: auth.employeeId, clientId: sched.clientId, date: today, from: "scheduled", to: "completed" });
+if (result === prev) result = updateScheduleStatusForJob(prev, { employeeId: auth.employeeId, clientId: sched.clientId, date: today, from: "in-progress", to: "completed" });
+return result;
+});
 setClockInNote("");
-showToast(lateMeta.isLate ? `Clocked in (Late by ${lateMeta.lateMinutes} min)` : "Clocked in!");
+setAdjustHours(prev => { const n = { ...prev }; delete n[sched.id]; return n; });
+showToast(uiText("Hours validated!"));
 } catch (err) {
 console.error(err);
-showToast(err?.message || "Unable to clock in", "error");
-}
-};
-const doClockOut = async () => {
-if (!activeClock) return;
-const today = activeClock.clockIn?.slice(0, 10) || getToday();
-const updatedEntry = { ...activeClock, clockOut: new Date().toISOString() };
-try {
-await syncClockEntryToApi(updatedEntry);
-updateData("clockEntries", prev => prev.map(c => c.id === activeClock.id ? updatedEntry : c));
-const schedToSyncOut = (data.schedules || []).find(s => isSameId(s.employeeId, auth.employeeId) && isSameId(s.clientId, activeClock.clientId) && s.date === today && s.status === "in-progress");
-if (schedToSyncOut) syncScheduleToApi({ ...schedToSyncOut, status: "completed" }).catch(console.error);
-updateData("schedules", prev => updateScheduleStatusForJob(prev, { employeeId: auth.employeeId, clientId: activeClock.clientId, date: today, from: "in-progress", to: "completed" }));
-showToast("Clocked out!");
-} catch (err) {
-console.error(err);
-showToast(err?.message || "Unable to clock out", "error");
+showToast(err?.message || "Unable to validate hours", "error");
 }
 };
 
@@ -4001,17 +4027,24 @@ fr.onerror = reject;
 fr.readAsDataURL(file);
 });
 
+const todayJobsForPhotos = data.schedules.filter(sc => sc.date === getToday() && isSameId(sc.employeeId, auth.employeeId) && sc.status !== "cancelled");
+const activeClockForPhotos = myClocks.find(c => !c.clockOut);
+const todayValidatedEntries = data.clockEntries.filter(c => isSameId(c.employeeId, auth.employeeId) && c.clockIn?.slice(0, 10) === getToday() && c.clockOut);
+const photoClientId = activeClockForPhotos?.clientId || todayValidatedEntries[todayValidatedEntries.length - 1]?.clientId || todayJobsForPhotos[0]?.clientId || null;
+const photoClockEntryId = activeClockForPhotos?.id || todayValidatedEntries[todayValidatedEntries.length - 1]?.id || null;
+const canUploadPhoto = !!(photoClientId);
+
 const onUploadPhoto = async (file) => {
 if (!file) return;
 if (!file.type?.startsWith("image/")) { showToast(uiText("Please upload an image file"), "error"); return; }
-if (!activeClock) { showToast("Clock in to a job before uploading photos", "error"); return; }
+if (!canUploadPhoto) { showToast(uiText("No jobs scheduled for today"), "error"); return; }
 try {
 const imageData = await readAsDataUrl(file);
 const newPhoto = {
   id: makeId(), employeeId: auth.employeeId, createdAt: new Date().toISOString(),
   fileName: file.name, imageData, note: uploadNote.trim(),
   type: uploadType, seenByOwner: false,
-  clockEntryId: activeClock.id, clientId: activeClock.clientId,
+  clockEntryId: photoClockEntryId, clientId: photoClientId,
 };
 try {
   const response = await fetch(apiUrl("/api/photo-uploads"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(newPhoto) });
@@ -4282,71 +4315,74 @@ return (
 
     {tab === "clock" && (
       <div>
-        <h2 style={{ fontFamily: "'Cormorant Garamond', serif", color: CL.blue, fontSize: 22, marginBottom: 14 }}>{t("clockInOut")}</h2>
+        <h2 style={{ fontFamily: "'Cormorant Garamond', serif", color: CL.blue, fontSize: 22, marginBottom: 14 }}>{uiText("Validate Hours")}</h2>
         {(() => {
+          const today = getToday();
           const todayJobs = data.schedules
-            .filter(sc => sc.date === getToday() && isSameId(sc.employeeId, auth.employeeId) && sc.status !== "cancelled")
+            .filter(sc => sc.date === today && isSameId(sc.employeeId, auth.employeeId) && sc.status !== "cancelled")
             .sort((a, b) => `${a.startTime || ""}`.localeCompare(`${b.startTime || ""}`));
           return (
-            <>
-        {activeClock ? (
-          <>
-            <div style={{ ...cardSt, borderColor: CL.green, textAlign: "center", marginBottom: 18 }}>
-              <div style={{ color: CL.green, marginBottom: 4 }}>{ICN.clock}</div>
-              <div style={{ fontSize: 17, fontWeight: 600, color: CL.green }}>{uiText("Clocked In")}</div>
-              <div style={{ color: CL.muted }}>Since {fmtBoth(activeClock.clockIn)} at {data.clients.find(c => c.id === activeClock.clientId)?.name || "?"}</div>
-              <button onClick={doClockOut} style={{ ...btnPri, background: CL.red, marginTop: 12 }}>{uiText("Clock Out Now")}</button>
-            </div>
-            <div style={cardSt}>
-              <p style={{ color: CL.muted, marginBottom: 12 }}>{uiText("Today's remaining jobs:")}</p>
-              {todayJobs.length > 0 ? todayJobs.map(job => {
+            <div>
+              {todayJobs.length > 0 && <div style={{ fontSize: 11, color: CL.gold, fontWeight: 600, marginBottom: 8 }}>{uiText("TODAY'S JOBS:")}</div>}
+              {todayJobs.map(job => {
                 const client = data.clients.find(c => isSameId(c.id, job.clientId));
-                const isCurrentClient = isSameId(activeClock.clientId, job.clientId);
+                const plannedH = calcHrs(makeISO(today, job.startTime), makeISO(today, job.endTime));
+                const plannedHours = Math.floor(plannedH);
+                const plannedMins = Math.round((plannedH - plannedHours) * 60);
+                const isValidated = data.clockEntries.some(c => isSameId(c.employeeId, auth.employeeId) && isSameId(c.clientId, job.clientId) && c.clockIn?.slice(0, 10) === today);
+                const adj = adjustHours[job.id];
+                const isAdjusting = adj != null;
                 return (
-                  <div key={job.id} style={{ ...cardSt, width: "100%", padding: "12px 16px", marginBottom: 5, textAlign: "left", borderColor: isCurrentClient ? CL.green + "60" : CL.bd }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
-                      <div>
-                        <div style={{ fontWeight: 600 }}>{client?.name || "?"}</div>
-                        <div style={{ fontSize: 11, color: CL.muted }}>
-                          {job.startTime || "--:--"}-{job.endTime || "--:--"} · {client?.address || uiText("No address")}
+                  <div key={job.id} style={{ ...cardSt, marginBottom: 10, borderColor: isValidated ? CL.green + "60" : CL.bd, borderLeft: `4px solid ${isValidated ? CL.green : CL.gold}` }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 8 }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 600, fontSize: 15 }}>{client?.name || "?"}</div>
+                        <div style={{ fontSize: 12, color: CL.muted, marginTop: 2 }}>
+                          {job.startTime || "--:--"} - {job.endTime || "--:--"} · {client?.address || ""}
                           {client?.address && <a href={mapsUrl(`${client.address} ${client.postalCode || ""} ${client.city || ""}`)} target="_blank" rel="noreferrer" style={{ color: CL.blue, marginLeft: 6, textDecoration: "underline" }}>{uiText("Map")}</a>}
                         </div>
                       </div>
-                      {isCurrentClient ? <span style={{ color: CL.green, fontWeight: 600, fontSize: 12 }}>{uiText("Current")}</span> : null}
+                      {isValidated && <Badge color={CL.green}>{uiText("Validated")}</Badge>}
                     </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderTop: `1px solid ${CL.bd}`, flexWrap: "wrap" }}>
+                      <div style={{ fontSize: 13, color: CL.text }}>
+                        <span style={{ color: CL.muted, marginRight: 6 }}>{uiText("Planned")}:</span>
+                        <strong>{plannedHours}{uiText("h")}{plannedMins > 0 ? `${String(plannedMins).padStart(2, "0")}${uiText("min")}` : ""}</strong>
+                      </div>
+                      {!isValidated && !isAdjusting && (
+                        <div style={{ display: "flex", gap: 6, marginLeft: "auto" }}>
+                          <button onClick={() => setAdjustHours(prev => ({ ...prev, [job.id]: { hours: plannedHours, minutes: plannedMins } }))} style={{ ...btnSec, ...btnSm, fontSize: 11 }}>{ICN.edit} {uiText("Adjust & Validate")}</button>
+                          <button onClick={() => doValidateHours(job)} style={{ ...btnPri, ...btnSm, background: CL.green, fontSize: 12 }}>{ICN.check} {uiText("Validate")}</button>
+                        </div>
+                      )}
+                    </div>
+                    {!isValidated && isAdjusting && (
+                      <div style={{ padding: "10px 0", borderTop: `1px solid ${CL.bd}` }}>
+                        <div style={{ fontSize: 12, color: CL.muted, marginBottom: 6 }}>{uiText("Adjust hours if needed:")}</div>
+                        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                            <TextInput type="number" min="0" max="23" value={adj.hours} onChange={ev => setAdjustHours(prev => ({ ...prev, [job.id]: { ...prev[job.id], hours: ev.target.value } }))} style={{ width: 60, textAlign: "center" }} />
+                            <span style={{ color: CL.muted, fontSize: 12 }}>{uiText("h")}</span>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                            <TextInput type="number" min="0" max="59" value={adj.minutes} onChange={ev => setAdjustHours(prev => ({ ...prev, [job.id]: { ...prev[job.id], minutes: ev.target.value } }))} style={{ width: 60, textAlign: "center" }} />
+                            <span style={{ color: CL.muted, fontSize: 12 }}>{uiText("min")}</span>
+                          </div>
+                          <button onClick={() => doValidateHours(job)} style={{ ...btnPri, ...btnSm, background: CL.green, fontSize: 12 }}>{ICN.check} {uiText("Validate")}</button>
+                          <button onClick={() => setAdjustHours(prev => { const n = { ...prev }; delete n[job.id]; return n; })} style={{ ...btnSec, ...btnSm, fontSize: 11 }}>{uiText("Cancel")}</button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
-              }) : <div style={{ color: CL.muted, fontSize: 12 }}>{uiText("No jobs scheduled today")}</div>}
-            </div>
-          </>
-        ) : (
-          <div style={cardSt}>
-            <p style={{ color: CL.muted, marginBottom: 12 }}>{uiText("Select client to clock in:")}</p>
-            <Field label={uiText("Clock-in note (optional)")}>
-              <TextArea value={clockInNote} onChange={ev => setClockInNote(ev.target.value)} placeholder={uiText("Late reason, traffic, access issues...")} />
-            </Field>
-            <>
-              {todayJobs.length > 0 && <div style={{ fontSize: 11, color: CL.green, fontWeight: 600, marginBottom: 5 }}>{uiText("TODAY'S CLIENTS:")}</div>}
-              {todayJobs.map(job => {
-                const client = data.clients.find(c => isSameId(c.id, job.clientId));
-                return (
-                  <button key={job.id} onClick={() => doClockIn(job.clientId)} style={{ ...cardSt, width: "100%", padding: "12px 16px", marginBottom: 5, cursor: "pointer", textAlign: "left", display: "flex", justifyContent: "space-between", borderColor: CL.green + "60" }}>
-                    <div>
-                      <div style={{ fontWeight: 600 }}>{client?.name || "?"}</div>
-                      <div style={{ fontSize: 11, color: CL.muted }}>
-                        {job.startTime || "--:--"}-{job.endTime || "--:--"} · {client?.address || uiText("No address")}
-                        {client?.address && <a href={mapsUrl(`${client.address} ${client.postalCode || ""} ${client.city || ""}`)} target="_blank" rel="noreferrer" onClick={ev => ev.stopPropagation()} style={{ color: CL.blue, marginLeft: 6, textDecoration: "underline" }}>{uiText("Map")}</a>}
-                      </div>
-                    </div>
-                    <span style={{ color: CL.green, fontWeight: 600, fontSize: 13 }}>{uiText("Clock In →")}</span>
-                  </button>
-                );
               })}
-              {todayJobs.length === 0 && <div style={{ color: CL.muted, fontSize: 12 }}>{uiText("No jobs scheduled today")}</div>}
-            </>
-          </div>
-        )}
-            </>
+              {todayJobs.length === 0 && (
+                <div style={{ ...cardSt, textAlign: "center", padding: 36, color: CL.muted }}>
+                  <div style={{ marginBottom: 8 }}>{ICN.cal}</div>
+                  <div style={{ fontSize: 13 }}>{uiText("No jobs scheduled for today")}</div>
+                </div>
+              )}
+            </div>
           );
         })()}
       </div>
@@ -4364,10 +4400,10 @@ return (
         </div>
         <div style={cardSt} className="tbl-wrap">
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-            <thead><tr><th style={thSt}>{uiText("Date")}</th><th style={thSt}>{uiText("Client")}</th><th style={thSt}>{uiText("In")}</th><th style={thSt}>{uiText("Out")}</th><th style={thSt}>{uiText("Hours")}</th></tr></thead>
+            <thead><tr><th style={thSt}>{uiText("Date")}</th><th style={thSt}>{uiText("Client")}</th><th style={thSt}>{uiText("Planned")}</th><th style={thSt}>{uiText("Hours")}</th><th style={thSt}>{uiText("Status")}</th></tr></thead>
             <tbody>
-              {monthClocks.map(clk => { const client = data.clients.find(c => c.id === clk.clientId); return (
-                <tr key={clk.id}><td style={tdSt}>{fmtDate(clk.clockIn)}</td><td style={tdSt}>{client?.name || "-"}</td><td style={tdSt}>{fmtTime(clk.clockIn)}</td><td style={tdSt}>{fmtTime(clk.clockOut)}</td><td style={{ ...tdSt, fontWeight: 600 }}>{calcAccountedClockHours(clk, data.schedules).toFixed(2)}h</td></tr>
+              {monthClocks.map(clk => { const client = data.clients.find(c => c.id === clk.clientId); const actualH = calcAccountedClockHours(clk, data.schedules); const plannedH = clk.plannedHours != null ? clk.plannedHours : actualH; return (
+                <tr key={clk.id}><td style={tdSt}>{fmtDate(clk.clockIn)}</td><td style={tdSt}>{client?.name || "-"}</td><td style={tdSt}>{plannedH.toFixed(2)}h</td><td style={{ ...tdSt, fontWeight: 600 }}>{actualH.toFixed(2)}h</td><td style={tdSt}><Badge color={CL.green}>{uiText("Validated")}</Badge></td></tr>
               ); })}
               {monthClocks.length === 0 && <tr><td colSpan={5} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>{uiText("No entries")}</td></tr>}
             </tbody>
@@ -4380,23 +4416,23 @@ return (
       <div>
         <h2 style={{ fontFamily: "'Cormorant Garamond', serif", color: CL.blue, fontSize: 22, marginBottom: 14 }}>{t("photoUploads")}</h2>
         <div style={{ ...cardSt, marginBottom: 14 }}>
-          <p style={{ fontSize: 12, color: activeClock ? CL.green : CL.orange, marginBottom: 12 }}>
-            {activeClock
-              ? `Clocked in at ${data.clients.find(c => c.id === activeClock.clientId)?.name || "this job"}. Photos will be saved to this active job.`
-              : "You must clock in before uploading job photos."}
+          <p style={{ fontSize: 12, color: canUploadPhoto ? CL.green : CL.orange, marginBottom: 12 }}>
+            {canUploadPhoto
+              ? `${data.clients.find(c => c.id === photoClientId)?.name || uiText("Today's job")} — ${uiText("Photos")}`
+              : uiText("No jobs scheduled for today")}
           </p>
           <Field label={uiText("Photo type")}>
-            <SelectInput value={uploadType} onChange={ev => setUploadType(ev.target.value)} disabled={!activeClock}>
+            <SelectInput value={uploadType} onChange={ev => setUploadType(ev.target.value)} disabled={!canUploadPhoto}>
               <option value="before">{uiText("Before")}</option>
               <option value="after">{uiText("After")}</option>
               <option value="issue">{uiText("Issue / Damage Proof")}</option>
             </SelectInput>
           </Field>
           <Field label={uiText("Upload cleaning photo")}>
-            <TextInput type="file" accept="image/*" disabled={!activeClock} onChange={ev => onUploadPhoto(ev.target.files?.[0])} />
+            <TextInput type="file" accept="image/*" disabled={!canUploadPhoto} onChange={ev => onUploadPhoto(ev.target.files?.[0])} />
           </Field>
           <Field label={uiText("Optional note")}>
-            <TextArea value={uploadNote} onChange={ev => setUploadNote(ev.target.value)} disabled={!activeClock} placeholder={uiText("Add context for this photo")} />
+            <TextArea value={uploadNote} onChange={ev => setUploadNote(ev.target.value)} disabled={!canUploadPhoto} placeholder={uiText("Add context for this photo")} />
           </Field>
         </div>
         <div style={cardSt}>
@@ -4598,7 +4634,8 @@ const next7Days = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
 const todayScheds = data.schedules.filter(s => s.date === todayStr && s.status !== "cancelled");
 const tomorrowStr = new Date(Date.now() + 864e5).toISOString().slice(0, 10);
 const tomorrowScheds = data.schedules.filter(s => s.date === tomorrowStr && s.status !== "cancelled");
-const activeClocks = data.clockEntries.filter(c => !c.clockOut);
+const todayValidatedCount = data.clockEntries.filter(c => c.clockIn?.slice(0, 10) === todayStr && c.clockOut).length;
+const todayPendingScheds = todayScheds.filter(s => !data.clockEntries.some(c => c.employeeId === s.employeeId && c.clientId === s.clientId && c.clockIn?.slice(0, 10) === todayStr));
 const activeEmployees = data.employees.filter(e => e.status === "active").length;
 const monthStr = todayStr.slice(0, 7);
 const monthRev = data.invoices.filter(inv => inv.date?.startsWith(monthStr)).reduce((sum, inv) => sum + (inv.total || 0), 0);
@@ -4633,7 +4670,7 @@ return (
 
 <div className="stat-row" style={{ marginBottom: 22 }}>
 <StatCard label={uiText("Today's Jobs")} value={todayScheds.length} icon={ICN.cal} color={CL.blue} />
-<StatCard label={uiText("Clocked In")} value={activeClocks.length} icon={ICN.clock} color={CL.green} />
+<StatCard label={uiText("Validated")} value={todayValidatedCount} icon={ICN.check} color={CL.green} />
 <StatCard label={uiText("Active Staff")} value={`${activeEmployees}/${data.employees.length}`} icon={ICN.team} color={CL.gold} />
 {auth?.role !== "manager" && <StatCard label={uiText("Month Rev")} value={`€${monthRev.toFixed(0)}`} icon={ICN.chart} color={CL.goldLight} />}
 {auth?.role !== "manager" && unpaidTotal > 0 && <StatCard label={uiText("Unpaid")} value={`€${unpaidTotal.toFixed(0)}`} icon={ICN.pay} color={CL.red} />}
@@ -4648,15 +4685,14 @@ initialVisible={4}
 items={todayScheds.map(sched => {
 const client = data.clients.find(c => c.id === sched.clientId);
 const employee = data.employees.find(e => e.id === sched.employeeId);
-const clockInfo = data.clockEntries.find(c => c.employeeId === sched.employeeId && c.clientId === sched.clientId && c.clockIn?.slice(0, 10) === sched.date);
+const isJobValidated = data.clockEntries.some(c => c.employeeId === sched.employeeId && c.clientId === sched.clientId && c.clockIn?.slice(0, 10) === sched.date && c.clockOut);
 return (
 <div key={sched.id} style={{ padding: "7px 0", borderBottom: `1px solid ${CL.bd}`, display: "flex", justifyContent: "space-between", gap: 8 }}>
 <div>
 <div style={{ fontWeight: 600, fontSize: 13 }}>{client?.name || "Unassigned"}</div>
 <div style={{ fontSize: 11, color: CL.muted }}>{employee?.name || "—"} · {sched.startTime}–{sched.endTime}</div>
-{clockInfo?.isLate && <div style={{ fontSize: 11, color: CL.orange, fontWeight: 600 }}>Late by {clockInfo.lateMinutes || 0} min</div>}
 </div>
-<Badge color={scheduleStatusColor(sched.status)}>{sched.status}</Badge>
+<Badge color={isJobValidated ? CL.green : scheduleStatusColor(sched.status)}>{isJobValidated ? uiText("Validated") : uiText(sched.status)}</Badge>
 </div>
 );
 })}
@@ -4679,20 +4715,20 @@ return (
 })}
 />
 <DashboardListCard
-title={uiText("Active Clocks")}
-count={activeClocks.length}
-color={CL.green}
-emptyText={uiText("No one clocked in right now")}
+title={uiText("pending validation")}
+count={todayPendingScheds.length}
+color={CL.orange}
+emptyText={uiText("All validated")}
 initialVisible={3}
-items={activeClocks.map(clk => {
-const employee = data.employees.find(e => e.id === clk.employeeId);
-const client = data.clients.find(c => c.id === clk.clientId);
-const elapsed = Math.round((Date.now() - new Date(clk.clockIn)) / 60000);
+items={todayPendingScheds.map(sched => {
+const employee = data.employees.find(e => e.id === sched.employeeId);
+const client = data.clients.find(c => c.id === sched.clientId);
+const plannedH = calcHrs(makeISO(sched.date, sched.startTime), makeISO(sched.date, sched.endTime));
 return (
-<div key={clk.id} style={{ padding: "7px 0", borderBottom: `1px solid ${CL.bd}` }}>
+<div key={sched.id} style={{ padding: "7px 0", borderBottom: `1px solid ${CL.bd}` }}>
 <div style={{ fontWeight: 600, fontSize: 13 }}>{employee?.name || "?"}</div>
-<div style={{ fontSize: 11, color: CL.muted }}>{uiText("At")} {client?.name || "?"} · {uiText("since")} {fmtTime(clk.clockIn)}</div>
-<div style={{ fontSize: 11, color: CL.green }}>{elapsed}{uiText("m elapsed")}</div>
+<div style={{ fontSize: 11, color: CL.muted }}>{client?.name || "?"} · {sched.startTime}-{sched.endTime}</div>
+<div style={{ fontSize: 11, color: CL.orange }}>{plannedH.toFixed(1)}h {uiText("planned")}</div>
 </div>
 );
 })}
@@ -6179,9 +6215,7 @@ return (
 // TIME CLOCK PAGE
 // ==============================================
 function TimeClockPage({ data, updateData, showToast }) {
-const [selectedEmp, setSelectedEmp] = useState("");
-const [selectedCli, setSelectedCli] = useState("");
-const [clockInNote, setClockInNote] = useState("");
+const [validateDate, setValidateDate] = useState(getToday());
 const [manualEntry, setManualEntry] = useState({
 employeeIds: [],
 clientIds: [],
@@ -6193,52 +6227,45 @@ notes: "",
 });
 const [filters, setFilters] = useState({ empIds: [], month: getToday().slice(0, 7) });
 const [editEntry, setEditEntry] = useState(null);
+const [adjustMap, setAdjustMap] = useState({});
 
 const setManual = (key, value) => setManualEntry(prev => ({ ...prev, [key]: value }));
 
-const doClockIn = async () => {
-if (!selectedEmp || !selectedCli) { showToast("Select both", "error"); return; }
-if (data.clockEntries.find(c => c.employeeId === selectedEmp && !c.clockOut)) { showToast("Already in!", "error"); return; }
-const isCompletedToday = data.schedules.some(sc => sc.employeeId === selectedEmp && sc.clientId === selectedCli && sc.date === getToday() && sc.status === "completed");
-if (isCompletedToday) { showToast("Job already completed for today", "error"); return; }
-const nowAt = new Date();
-const lateMeta = getLateMeta(data.schedules, { employeeId: selectedEmp, clientId: selectedCli, clockInAt: nowAt });
+const doManagerValidate = async (sched, customHours) => {
+const workDate = sched.date || validateDate;
+const alreadyExists = data.clockEntries.some(c => c.employeeId === sched.employeeId && c.clientId === sched.clientId && c.clockIn?.slice(0, 10) === workDate);
+if (alreadyExists) { showToast(uiText("Already validated for today"), "error"); return; }
+const plannedH = calcHrs(makeISO(workDate, sched.startTime), makeISO(workDate, sched.endTime));
+const validatedH = customHours != null ? customHours : plannedH;
+const validatedMinutes = Math.round(validatedH * 60);
+const clockIn = makeISO(workDate, sched.startTime);
+const clockOutDate = new Date(new Date(clockIn).getTime() + validatedMinutes * 60000);
+const clockOut = clockOutDate.toISOString();
 const newEntry = {
-id: makeId(), employeeId: selectedEmp, clientId: selectedCli,
-clockIn: nowAt.toISOString(), clockOut: null,
-notes: clockInNote.trim(),
-isLate: lateMeta.isLate, lateMinutes: lateMeta.lateMinutes,
-scheduledStart: lateMeta.scheduledStart,
+id: makeId(), employeeId: sched.employeeId, clientId: sched.clientId,
+clockIn, clockOut,
+notes: customHours != null && customHours !== plannedH ? uiText("Adjusted by manager") : "",
+isLate: false, lateMinutes: 0,
+scheduledStart: sched.startTime,
+validatedByAgent: false,
+validatedByManager: true,
+plannedHours: plannedH,
 };
 try {
 await createClockEntryInApi(newEntry);
 updateData("clockEntries", prev => [...prev, newEntry]);
-const adminSchedToSyncIn = (data.schedules || []).find(s => s.employeeId === selectedEmp && s.clientId === selectedCli && s.date === lateMeta.workDate && s.status === "scheduled");
-if (adminSchedToSyncIn) syncScheduleToApi({ ...adminSchedToSyncIn, status: "in-progress" }).catch(console.error);
-updateData("schedules", prev => updateScheduleStatusForJob(prev, { employeeId: selectedEmp, clientId: selectedCli, date: lateMeta.workDate, from: "scheduled", to: "in-progress" }));
-setClockInNote("");
-showToast(lateMeta.isLate ? `Clocked in (Late by ${lateMeta.lateMinutes} min)` : "Clocked in!");
+const schedToSync = (data.schedules || []).find(s => s.id === sched.id && (s.status === "scheduled" || s.status === "in-progress"));
+if (schedToSync) syncScheduleToApi({ ...schedToSync, status: "completed" }).catch(console.error);
+updateData("schedules", prev => {
+let result = updateScheduleStatusForJob(prev, { employeeId: sched.employeeId, clientId: sched.clientId, date: workDate, from: "scheduled", to: "completed" });
+if (result === prev) result = updateScheduleStatusForJob(prev, { employeeId: sched.employeeId, clientId: sched.clientId, date: workDate, from: "in-progress", to: "completed" });
+return result;
+});
+setAdjustMap(prev => { const n = { ...prev }; delete n[sched.id]; return n; });
+showToast(uiText("Hours validated!"));
 } catch (err) {
 console.error(err);
-showToast(err?.message || "Unable to clock in", "error");
-}
-};
-
-const doClockOut = async (id) => {
-const entry = data.clockEntries.find(c => c.id === id);
-if (!entry) return;
-const updatedEntry = { ...entry, clockOut: new Date().toISOString() };
-try {
-await syncClockEntryToApi(updatedEntry);
-updateData("clockEntries", prev => prev.map(c => c.id === id ? updatedEntry : c));
-const workDate = entry.clockIn?.slice(0, 10) || getToday();
-const adminSchedToSyncOut = (data.schedules || []).find(s => s.employeeId === entry.employeeId && s.clientId === entry.clientId && s.date === workDate && s.status === "in-progress");
-if (adminSchedToSyncOut) syncScheduleToApi({ ...adminSchedToSyncOut, status: "completed" }).catch(console.error);
-updateData("schedules", prev => updateScheduleStatusForJob(prev, { employeeId: entry.employeeId, clientId: entry.clientId, date: workDate, from: "in-progress", to: "completed" }));
-showToast("Clocked out!");
-} catch (err) {
-console.error(err);
-showToast(err?.message || "Unable to clock out", "error");
+showToast(err?.message || "Unable to validate hours", "error");
 }
 };
 
@@ -6258,20 +6285,17 @@ return;
 }
 
 const combinations = selectedEmployeeIds.flatMap(employeeId => selectedClientIds.map(clientId => ({ employeeId, clientId })));
-const newManualEntries = combinations.map(({ employeeId, clientId }) => {
-  const lateMeta = getLateMeta(data.schedules, { employeeId, clientId, clockInAt: new Date(clockInISO) });
-  return {
-    id: makeId(),
-    employeeId,
-    clientId,
-    clockIn: clockInISO,
-    clockOut: clockOutISO,
-    notes: manualEntry.notes.trim(),
-    isLate: lateMeta.isLate,
-    lateMinutes: lateMeta.lateMinutes,
-    scheduledStart: lateMeta.scheduledStart,
-  };
-});
+const newManualEntries = combinations.map(({ employeeId, clientId }) => ({
+  id: makeId(),
+  employeeId,
+  clientId,
+  clockIn: clockInISO,
+  clockOut: clockOutISO,
+  notes: manualEntry.notes.trim(),
+  isLate: false,
+  lateMinutes: 0,
+  validatedByManager: true,
+}));
 
 try {
 await Promise.all(newManualEntries.map(createClockEntryInApi));
@@ -6297,10 +6321,10 @@ clockOutDate: "",
 clockOutTime: "",
 notes: "",
 });
-showToast(newManualEntries.length > 1 ? `${newManualEntries.length} manual clock entries added` : "Manual clock entry added");
+showToast(newManualEntries.length > 1 ? `${newManualEntries.length} entries added` : "Entry added");
 } catch (err) {
 console.error(err);
-showToast(err?.message || "Unable to add manual clock entry", "error");
+showToast(err?.message || "Unable to add manual entry", "error");
 }
 };
 
@@ -6312,90 +6336,98 @@ showToast("Updated");
 setEditEntry(null);
 } catch (err) {
 console.error(err);
-showToast(err?.message || "Unable to update clock entry", "error");
+showToast(err?.message || "Unable to update entry", "error");
 }
 };
 
 const deleteEntry = async (id) => {
 try {
 const response = await fetch(apiUrl(`/api/clock-entries/${id}`), { method: "DELETE" });
-await ensureApiOk(response, "Failed to delete clock entry");
+await ensureApiOk(response, "Failed to delete entry");
 updateData("clockEntries", prev => prev.filter(c => c.id !== id));
 showToast("Deleted", "error");
 } catch (err) {
 console.error(err);
-showToast(err?.message || "Unable to delete clock entry", "error");
+showToast(err?.message || "Unable to delete entry", "error");
 }
 };
 
-const activeClocks = data.clockEntries.filter(c => !c.clockOut);
 const filteredEntries = data.clockEntries.filter(c => {
 if (filters.empIds?.length && !filters.empIds.includes(c.employeeId)) return false;
 if (filters.month && c.clockIn && !c.clockIn.startsWith(filters.month)) return false;
-return true;
+return c.clockOut;
 }).sort((a, b) => new Date(b.clockIn) - new Date(a.clockIn));
 
 const activeEmployeeOptions = data.employees.filter(emp => emp.status === "active").map(emp => ({ value: emp.id, label: emp.name }));
 const activeClientOptions = data.clients.filter(c => c.status === "active").map(c => ({ value: c.id, label: c.name }));
 const employeeFilterOptions = data.employees.map(emp => ({ value: emp.id, label: emp.name }));
 
+const dateScheds = data.schedules.filter(s => s.date === validateDate && s.status !== "cancelled").sort((a, b) => {
+const empA = data.employees.find(e => e.id === a.employeeId)?.name || "";
+const empB = data.employees.find(e => e.id === b.employeeId)?.name || "";
+return empA.localeCompare(empB) || `${a.startTime}`.localeCompare(`${b.startTime}`);
+});
+
 return (
 <div>
 <h1 style={{ fontSize: 26, fontFamily: "'Cormorant Garamond', serif", color: CL.gold, marginBottom: 16 }}>{uiText("Time Clock")}</h1>
 
+  {/* Validate scheduled jobs */}
   <div style={{ ...cardSt, marginBottom: 16 }}>
-    <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.gold }}>{uiText("Quick Clock In")}</h3>
-    <div style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
-      <div style={{ flex: 1, minWidth: 160 }}>
-        <Field label={uiText("Employee")}>
-          <SearchableSelectInput
-            value={selectedEmp}
-            onChange={setSelectedEmp}
-            options={activeEmployeeOptions}
-            placeholder={uiText("Select...")}
-            noResultsLabel="No employees"
-            searchThreshold={0}
-          />
-        </Field>
-      </div>
-      <div style={{ flex: 1, minWidth: 160 }}>
-        <Field label={uiText("Client")}>
-          <SearchableSelectInput
-            value={selectedCli}
-            onChange={setSelectedCli}
-            options={activeClientOptions}
-            placeholder={uiText("Select...")}
-            noResultsLabel="No clients"
-            searchThreshold={0}
-          />
-        </Field>
-      </div>
-      <button style={{ ...btnPri, marginBottom: 14, background: CL.green }} onClick={doClockIn}>{uiText("Clock In")}</button>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
+      <h3 style={{ fontSize: 14, fontWeight: 600, color: CL.gold, margin: 0 }}>{uiText("Validate Hours")}</h3>
+      <DatePicker value={validateDate} onChange={ev => setValidateDate(ev.target.value)} style={{ width: 160 }} />
     </div>
-    <Field label={uiText("Clock-in note (optional)")}>
-      <TextInput value={clockInNote} onChange={ev => setClockInNote(ev.target.value)} placeholder={uiText("Late reason, traffic, access issue...")} />
-    </Field>
-    {activeClocks.length > 0 && (
-      <div style={{ marginTop: 6 }}>
-        <div style={{ fontSize: 12, color: CL.green, fontWeight: 600, marginBottom: 4 }}>{uiText("Active:")}</div>
-        {activeClocks.map(clk => {
-          const employee = data.employees.find(e => e.id === clk.employeeId);
-          const client = data.clients.find(c => c.id === clk.clientId);
-          return (
-            <div key={clk.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: `1px solid ${CL.bd}` }}>
-              <span><strong>{employee?.name}</strong> at {client?.name} · {fmtTime(clk.clockIn)} {clk.isLate ? `· Late ${clk.lateMinutes || 0}m` : ""}</span>
-              <button style={{ ...btnDng, ...btnSm }} onClick={() => doClockOut(clk.id)}>{uiText("Out")}</button>
+    {dateScheds.length > 0 ? dateScheds.map(sched => {
+      const employee = data.employees.find(e => e.id === sched.employeeId);
+      const client = data.clients.find(c => c.id === sched.clientId);
+      const plannedH = calcHrs(makeISO(sched.date, sched.startTime), makeISO(sched.date, sched.endTime));
+      const plannedHours = Math.floor(plannedH);
+      const plannedMins = Math.round((plannedH - plannedHours) * 60);
+      const isValidated = data.clockEntries.some(c => c.employeeId === sched.employeeId && c.clientId === sched.clientId && c.clockIn?.slice(0, 10) === sched.date);
+      const adj = adjustMap[sched.id];
+      const isAdjusting = adj != null;
+      return (
+        <div key={sched.id} style={{ border: `1px solid ${isValidated ? CL.green + "50" : CL.bd}`, borderRadius: 10, padding: "10px 14px", background: CL.s2, marginBottom: 8, borderLeft: `4px solid ${isValidated ? CL.green : CL.gold}` }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 600, fontSize: 14 }}>{employee?.name || "?"} <span style={{ color: CL.muted, fontWeight: 400 }}>→</span> {client?.name || "?"}</div>
+              <div style={{ fontSize: 12, color: CL.muted, marginTop: 2 }}>{sched.startTime} - {sched.endTime} · {uiText("Planned")}: <strong>{plannedHours}{uiText("h")}{plannedMins > 0 ? `${String(plannedMins).padStart(2, "0")}${uiText("min")}` : ""}</strong></div>
             </div>
-          );
-        })}
-      </div>
-    )}
+            {isValidated && <Badge color={CL.green}>{uiText("Validated")}</Badge>}
+          </div>
+          {!isValidated && !isAdjusting && (
+            <div style={{ display: "flex", gap: 6, marginTop: 8, justifyContent: "flex-end" }}>
+              <button onClick={() => setAdjustMap(prev => ({ ...prev, [sched.id]: { hours: plannedHours, minutes: plannedMins } }))} style={{ ...btnSec, ...btnSm, fontSize: 11 }}>{ICN.edit} {uiText("Modify Hours")}</button>
+              <button onClick={() => doManagerValidate(sched)} style={{ ...btnPri, ...btnSm, background: CL.green, fontSize: 12 }}>{ICN.check} {uiText("Validate")}</button>
+            </div>
+          )}
+          {!isValidated && isAdjusting && (
+            <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${CL.bd}` }}>
+              <div style={{ fontSize: 12, color: CL.muted, marginBottom: 6 }}>{uiText("Adjust hours if needed:")}</div>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <TextInput type="number" min="0" max="23" value={adj.hours} onChange={ev => setAdjustMap(prev => ({ ...prev, [sched.id]: { ...prev[sched.id], hours: ev.target.value } }))} style={{ width: 60, textAlign: "center" }} />
+                  <span style={{ color: CL.muted, fontSize: 12 }}>{uiText("h")}</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <TextInput type="number" min="0" max="59" value={adj.minutes} onChange={ev => setAdjustMap(prev => ({ ...prev, [sched.id]: { ...prev[sched.id], minutes: ev.target.value } }))} style={{ width: 60, textAlign: "center" }} />
+                  <span style={{ color: CL.muted, fontSize: 12 }}>{uiText("min")}</span>
+                </div>
+                <button onClick={() => doManagerValidate(sched, Number(adj.hours || 0) + Number(adj.minutes || 0) / 60)} style={{ ...btnPri, ...btnSm, background: CL.green, fontSize: 12 }}>{ICN.check} {uiText("Validate")}</button>
+                <button onClick={() => setAdjustMap(prev => { const n = { ...prev }; delete n[sched.id]; return n; })} style={{ ...btnSec, ...btnSm, fontSize: 11 }}>{uiText("Cancel")}</button>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }) : <div style={{ textAlign: "center", padding: 20, color: CL.muted, fontSize: 13 }}>{uiText("No jobs scheduled for today")}</div>}
   </div>
 
   <div style={{ ...cardSt, marginBottom: 16 }}>
     <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: CL.blue }}>{uiText("Owner: Add missed clock-in")}</h3>
     <div className="form-grid" style={{ marginBottom: 8 }}>
-      <Field label="Employee">
+      <Field label={uiText("Employee")}>
         <MultiSelectInput
           value={manualEntry.employeeIds}
           onChange={(vals) => setManual("employeeIds", vals)}
@@ -6405,7 +6437,7 @@ return (
           searchThreshold={0}
         />
       </Field>
-      <Field label="Client">
+      <Field label={uiText("Client")}>
         <MultiSelectInput
           value={manualEntry.clientIds}
           onChange={(vals) => setManual("clientIds", vals)}
@@ -6415,13 +6447,13 @@ return (
           searchThreshold={0}
         />
       </Field>
-      <Field label="In Date"><DatePicker value={manualEntry.clockInDate} onChange={ev => setManual("clockInDate", ev.target.value)} /></Field>
-      <Field label="In Time"><TimePicker value={manualEntry.clockInTime} onChange={ev => setManual("clockInTime", ev.target.value)} /></Field>
-      <Field label="Out Date (optional)"><DatePicker value={manualEntry.clockOutDate} onChange={ev => setManual("clockOutDate", ev.target.value)} /></Field>
-      <Field label="Out Time (optional)"><TimePicker value={manualEntry.clockOutTime} onChange={ev => setManual("clockOutTime", ev.target.value)} /></Field>
+      <Field label={uiText("In Date")}><DatePicker value={manualEntry.clockInDate} onChange={ev => setManual("clockInDate", ev.target.value)} /></Field>
+      <Field label={uiText("In Time")}><TimePicker value={manualEntry.clockInTime} onChange={ev => setManual("clockInTime", ev.target.value)} /></Field>
+      <Field label={uiText("Out Date (optional)")}><DatePicker value={manualEntry.clockOutDate} onChange={ev => setManual("clockOutDate", ev.target.value)} /></Field>
+      <Field label={uiText("Out Time (optional)")}><TimePicker value={manualEntry.clockOutTime} onChange={ev => setManual("clockOutTime", ev.target.value)} /></Field>
     </div>
-    <Field label="Reason / note (optional)">
-      <TextInput value={manualEntry.notes} onChange={ev => setManual("notes", ev.target.value)} placeholder="Forgot to clock in, adjusted by owner..." />
+    <Field label={uiText("Reason / note (optional)")}>
+      <TextInput value={manualEntry.notes} onChange={ev => setManual("notes", ev.target.value)} placeholder={uiText("Forgot to clock in, adjusted by owner...")} />
     </Field>
     <button style={{ ...btnPri, background: CL.blue }} onClick={addManualEntry}>{uiText("Add Manual Entry")}</button>
   </div>
@@ -6442,21 +6474,21 @@ return (
 
   <div style={cardSt} className="tbl-wrap">
     <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-      <thead><tr><th style={thSt}>{uiText("Employee")}</th><th style={thSt}>{uiText("Client")}</th><th style={thSt}>{uiText("In")}</th><th style={thSt}>{uiText("Out")}</th><th style={thSt}>{uiText("Late")}</th><th style={thSt}>{uiText("Notes")}</th><th style={thSt}>{uiText("Hours")}</th><th style={thSt}>{uiText("Actions")}</th></tr></thead>
+      <thead><tr><th style={thSt}>{uiText("Date")}</th><th style={thSt}>{uiText("Employee")}</th><th style={thSt}>{uiText("Client")}</th><th style={thSt}>{uiText("Planned Hours")}</th><th style={thSt}>{uiText("Actual Hours")}</th><th style={thSt}>{uiText("Notes")}</th><th style={thSt}>{uiText("Actions")}</th></tr></thead>
       <tbody>
         {filteredEntries.map(entry => {
           const employee = data.employees.find(e => e.id === entry.employeeId);
           const client = data.clients.find(c => c.id === entry.clientId);
           const hours = calcPayableClockHours(entry, data.schedules, filteredEntries);
+          const plannedH = entry.plannedHours != null ? entry.plannedHours : hours;
           return (
             <tr key={entry.id}>
+              <td style={tdSt}>{fmtDate(entry.clockIn)}</td>
               <td style={tdSt}>{employee?.name || "-"}</td>
               <td style={tdSt}>{client?.name || "-"}</td>
-              <td style={tdSt}>{fmtBoth(entry.clockIn)}</td>
-              <td style={tdSt}>{entry.clockOut ? fmtBoth(entry.clockOut) : <Badge color={CL.green}>{uiText("Active")}</Badge>}</td>
-              <td style={tdSt}>{entry.isLate ? <Badge color={CL.orange}>{uiText("Late")} {entry.lateMinutes || 0}m</Badge> : <Badge color={CL.green}>{uiText("On time")}</Badge>}</td>
+              <td style={tdSt}>{plannedH.toFixed(2)}h</td>
+              <td style={{ ...tdSt, fontWeight: 600 }}>{hours.toFixed(2)}h</td>
               <td style={tdSt}>{entry.notes || "-"}</td>
-              <td style={tdSt}>{entry.clockOut ? `${hours.toFixed(2)}h` : "-"}</td>
               <td style={tdSt}>
                 <div style={{ display: "flex", gap: 4 }}>
                   <button style={{ ...btnSec, ...btnSm }} onClick={() => setEditEntry({ ...entry })}>{ICN.edit}</button>
@@ -6466,7 +6498,7 @@ return (
             </tr>
           );
         })}
-        {filteredEntries.length === 0 && <tr><td colSpan={8} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>{uiText("No entries")}</td></tr>}
+        {filteredEntries.length === 0 && <tr><td colSpan={7} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>{uiText("No entries")}</td></tr>}
       </tbody>
     </table>
   </div>
@@ -6484,46 +6516,55 @@ return (
 function TimeEntryForm({ entry, data, onSave, onCancel }) {
 const clockInDate = entry.clockIn ? entry.clockIn.slice(0, 10) : getToday();
 const clockInTime = entry.clockIn ? entry.clockIn.slice(11, 16) : "08:00";
-const clockOutDate = entry.clockOut ? entry.clockOut.slice(0, 10) : clockInDate;
-const clockOutTime = entry.clockOut ? entry.clockOut.slice(11, 16) : "17:00";
+const actualH = calcHrs(entry.clockIn, entry.clockOut);
+const editHours = Math.floor(actualH);
+const editMins = Math.round((actualH - editHours) * 60);
 
-const [form, setForm] = useState({ ...entry, clockInDate, clockInTime, clockOutDate, clockOutTime });
+const [form, setForm] = useState({ ...entry, clockInDate, clockInTime, editHours, editMins });
 const set = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
 
 const handleSave = () => {
+const totalMinutes = Math.round((Number(form.editHours) || 0) * 60 + (Number(form.editMins) || 0));
+const clockIn = makeISO(form.clockInDate, form.clockInTime);
+const clockOutDate = new Date(new Date(clockIn).getTime() + totalMinutes * 60000);
 const updated = {
 ...form,
-clockIn: makeISO(form.clockInDate, form.clockInTime),
-clockOut: form.clockOutDate && form.clockOutTime ? makeISO(form.clockOutDate, form.clockOutTime) : null,
+clockIn,
+clockOut: clockOutDate.toISOString(),
 };
 delete updated.clockInDate;
 delete updated.clockInTime;
-delete updated.clockOutDate;
-delete updated.clockOutTime;
+delete updated.editHours;
+delete updated.editMins;
 onSave(updated);
 };
 
 return (
 <div>
 <div className="form-grid">
-<Field label="Employee">
+<Field label={uiText("Employee")}>
 <SelectInput value={form.employeeId} onChange={ev => set("employeeId", ev.target.value)}>
 {data.employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
 </SelectInput>
 </Field>
-<Field label="Client">
+<Field label={uiText("Client")}>
 <SelectInput value={form.clientId} onChange={ev => set("clientId", ev.target.value)}>
 {data.clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
 </SelectInput>
 </Field>
-<Field label="In Date"><DatePicker value={form.clockInDate} onChange={ev => set("clockInDate", ev.target.value)} /></Field>
-<Field label="In Time"><TimePicker value={form.clockInTime} onChange={ev => set("clockInTime", ev.target.value)} /></Field>
-<Field label="Out Date"><DatePicker value={form.clockOutDate} onChange={ev => set("clockOutDate", ev.target.value)} /></Field>
-<Field label="Out Time"><TimePicker value={form.clockOutTime} onChange={ev => set("clockOutTime", ev.target.value)} /></Field>
+<Field label={uiText("Date")}><DatePicker value={form.clockInDate} onChange={ev => set("clockInDate", ev.target.value)} /></Field>
+<Field label={uiText("Hours")}>
+<div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+  <TextInput type="number" min="0" max="23" value={form.editHours} onChange={ev => set("editHours", ev.target.value)} style={{ width: 70, textAlign: "center" }} />
+  <span style={{ color: CL.muted }}>{uiText("h")}</span>
+  <TextInput type="number" min="0" max="59" value={form.editMins} onChange={ev => set("editMins", ev.target.value)} style={{ width: 70, textAlign: "center" }} />
+  <span style={{ color: CL.muted }}>{uiText("min")}</span>
+</div>
+</Field>
 </div>
 <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 6 }}>
-<button style={btnSec} onClick={onCancel}>Cancel</button>
-<button style={btnPri} onClick={handleSave}>Save</button>
+<button style={btnSec} onClick={onCancel}>{uiText("Cancel")}</button>
+<button style={btnPri} onClick={handleSave}>{uiText("Save Hours")}</button>
 </div>
 </div>
 );
@@ -9210,7 +9251,7 @@ const channelModes = [
   { id: "whatsapp", label: uiText("WhatsApp") },
 ];
 const ownerManagerEventDefs = [
-  { id: "clockInOut", label: lang === "fr" ? "Pointage entrée/sortie" : "Clock in / out" },
+  { id: "clockInOut", label: lang === "fr" ? "Validation des heures" : "Validate hours" },
   { id: "lateArrival", label: lang === "fr" ? "Employé en retard" : "Employee late" },
   { id: "timeOffRequest", label: lang === "fr" ? "Demande de congé" : "Time off request" },
   { id: "timeOffApproval", label: lang === "fr" ? "Validation de congé" : "Time off approved / rejected" },

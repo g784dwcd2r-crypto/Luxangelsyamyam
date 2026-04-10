@@ -1016,13 +1016,34 @@ paymentReceived: true,
 // -- Utils --
 let _idCtr = Date.now();
 const makeId = () => `id_${_idCtr++}`;
-const getToday = () => new Date().toISOString().slice(0, 10);
+const toLocalDateKey = (value) => {
+if (!value) return "";
+if (typeof value === "string") {
+  const trimmed = value.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+  const parsed = new Date(trimmed);
+  if (!Number.isNaN(parsed.getTime())) {
+    const y = parsed.getFullYear();
+    const m = String(parsed.getMonth() + 1).padStart(2, "0");
+    const d = String(parsed.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+  return trimmed.slice(0, 10);
+}
+const parsed = value instanceof Date ? value : new Date(value);
+if (Number.isNaN(parsed.getTime())) return "";
+const y = parsed.getFullYear();
+const m = String(parsed.getMonth() + 1).padStart(2, "0");
+const d = String(parsed.getDate()).padStart(2, "0");
+return `${y}-${m}-${d}`;
+};
+const getToday = () => toLocalDateKey(new Date());
 const normalizeDateOnly = (value) => {
 if (!value) return "";
 if (typeof value === "string") return value.slice(0, 10);
-if (value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOString().slice(0, 10);
+if (value instanceof Date && !Number.isNaN(value.getTime())) return toLocalDateKey(value);
 const parsed = new Date(value);
-return Number.isNaN(parsed.getTime()) ? "" : parsed.toISOString().slice(0, 10);
+return Number.isNaN(parsed.getTime()) ? "" : toLocalDateKey(parsed);
 };
 const safeDate = (value) => {
 if (!value) return null;
@@ -1045,12 +1066,12 @@ return [date, time].filter(Boolean).join(" ");
 const calcHrs = (a, b) => (a && b) ? Math.max(0, Math.round((new Date(b) - new Date(a)) / 36e5 * 100) / 100) : 0;
 const getPlannedHoursForClockEntry = (entry, schedules = []) => {
 if (!entry?.clockIn || !entry?.employeeId || !entry?.clientId) return 0;
-const workDate = entry.clockIn.slice(0, 10);
+const workDate = toLocalDateKey(entry.clockIn);
 const sameSlotSchedules = (schedules || []).filter(s =>
   s?.status !== "cancelled"
-  && s?.employeeId === entry.employeeId
-  && s?.clientId === entry.clientId
-  && s?.date === workDate
+  && isSameId(s?.employeeId, entry.employeeId)
+  && isSameId(s?.clientId, entry.clientId)
+  && toLocalDateKey(s?.date) === workDate
 );
 return sameSlotSchedules.reduce((sum, sched) => (
   sum + calcHrs(makeISO(workDate, sched.startTime || "00:00"), makeISO(workDate, sched.endTime || "00:00"))
@@ -1067,7 +1088,7 @@ const EARLY_CLOCK_IN_PAYABLE_MINUTES = 15;
 const calcPayableClockHours = (entry, schedules = []) => {
 const actual = calcHrs(entry?.clockIn, entry?.clockOut);
 if (!entry?.clockIn || !entry?.clockOut || actual <= 0) return actual;
-const workDate = entry.clockIn.slice(0, 10);
+const workDate = toLocalDateKey(entry.clockIn);
 const scheduled = getScheduleForClockEvent(schedules, {
   employeeId: entry.employeeId,
   clientId: entry.clientId,
@@ -2102,7 +2123,7 @@ const pendingDays = requests.filter(r => r.status === "pending").reduce((sum, r)
 return { allowance, approvedDays, pendingDays, remaining: Math.max(0, allowance - approvedDays), requests };
 };
 const updateScheduleStatusForJob = (schedules, { employeeId, clientId, date, from, to }) => {
-const idx = schedules.findIndex(s => s.employeeId === employeeId && s.clientId === clientId && s.date === date && s.status === from);
+const idx = schedules.findIndex(s => isSameId(s.employeeId, employeeId) && isSameId(s.clientId, clientId) && toLocalDateKey(s.date) === toLocalDateKey(date) && s.status === from);
 if (idx === -1) return schedules;
 const next = [...schedules];
 next[idx] = { ...next[idx], status: to };
@@ -2110,7 +2131,7 @@ return next;
 };
 const syncSchedulesWithClockEntries = (schedules = [], clockEntries = []) => schedules.map(sched => {
 if (sched.status === "cancelled") return sched;
-const related = clockEntries.filter(c => c.employeeId === sched.employeeId && c.clientId === sched.clientId && c.clockIn?.slice(0, 10) === sched.date);
+const related = clockEntries.filter(c => isSameId(c.employeeId, sched.employeeId) && isSameId(c.clientId, sched.clientId) && toLocalDateKey(c.clockIn) === toLocalDateKey(sched.date));
 const hasActive = related.some(c => !c.clockOut);
 const hasCompleted = related.some(c => c.clockOut);
 const nextStatus = hasActive ? "in-progress" : hasCompleted ? "completed" : "scheduled";

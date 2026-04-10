@@ -2197,6 +2197,24 @@ const Field = ({ label, children }) => (
 );
 
 const TextInput = (props) => <input {...props} placeholder={uiText(props.placeholder)} style={{ ...inputSt, ...(props.style || {}) }} />;
+const NumberAdjustInput = ({ value, onChange, min = 0, max = 999, step = 1, style = {}, ...props }) => {
+  const toNum = (v) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : Number(min) || 0;
+  };
+  const clamp = (n) => Math.max(Number(min), Math.min(Number(max), n));
+  const sendValue = (next) => onChange?.({ target: { value: String(clamp(next)) } });
+  const increment = () => sendValue(toNum(value) + Number(step));
+  const decrement = () => sendValue(toNum(value) - Number(step));
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 4, ...(style || {}) }}>
+      <button type="button" onClick={decrement} style={{ ...btnSec, ...btnSm, minWidth: 28, height: 28, padding: 0, justifyContent: "center", fontSize: 15, lineHeight: 1 }}>−</button>
+      <TextInput type="number" min={min} max={max} step={step} value={value} onChange={onChange} {...props} style={{ width: 60, textAlign: "center" }} />
+      <button type="button" onClick={increment} style={{ ...btnSec, ...btnSm, minWidth: 28, height: 28, padding: 0, justifyContent: "center", fontSize: 15, lineHeight: 1 }}>+</button>
+    </div>
+  );
+};
 const SearchableSelectInput = ({ options = [], value = "", onChange, placeholder = "Select...", disabled = false, multiple = false, noResultsLabel = "No results", style = {}, searchThreshold = 0, menuStyle = {}, searchInputStyle = {} }) => {
 const [open, setOpen] = useState(false);
 const [search, setSearch] = useState("");
@@ -4361,11 +4379,11 @@ return (
                         <div style={{ fontSize: 12, color: CL.muted, marginBottom: 6 }}>{uiText("Adjust hours if needed:")}</div>
                         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                            <TextInput type="number" min="0" max="23" value={adj.hours} onChange={ev => setAdjustHours(prev => ({ ...prev, [job.id]: { ...prev[job.id], hours: ev.target.value } }))} style={{ width: 60, textAlign: "center" }} />
+                            <NumberAdjustInput min={0} max={23} value={adj.hours} onChange={ev => setAdjustHours(prev => ({ ...prev, [job.id]: { ...prev[job.id], hours: ev.target.value } }))} />
                             <span style={{ color: CL.muted, fontSize: 12 }}>{uiText("h")}</span>
                           </div>
                           <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                            <TextInput type="number" min="0" max="59" value={adj.minutes} onChange={ev => setAdjustHours(prev => ({ ...prev, [job.id]: { ...prev[job.id], minutes: ev.target.value } }))} style={{ width: 60, textAlign: "center" }} />
+                            <NumberAdjustInput min={0} max={59} value={adj.minutes} onChange={ev => setAdjustHours(prev => ({ ...prev, [job.id]: { ...prev[job.id], minutes: ev.target.value } }))} />
                             <span style={{ color: CL.muted, fontSize: 12 }}>{uiText("min")}</span>
                           </div>
                           <button onClick={() => doValidateHours(job)} style={{ ...btnPri, ...btnSm, background: CL.green, fontSize: 12 }}>{ICN.check} {uiText("Validate")}</button>

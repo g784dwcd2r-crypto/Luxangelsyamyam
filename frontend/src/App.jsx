@@ -1132,7 +1132,7 @@ const getScheduleForClockEvent = (schedules, { employeeId, clientId, date }) => 
 .filter(s => isSameId(s.employeeId, employeeId) && isSameId(s.clientId, clientId) && s.date === date && s.status !== "cancelled")
 .sort((a, b) => (a.startTime || "").localeCompare(b.startTime || ""))[0];
 const getLateMeta = (schedules, { employeeId, clientId, clockInAt = new Date() }) => {
-const date = clockInAt.toISOString().slice(0, 10);
+const date = toLocalDateKey(clockInAt);
 const scheduled = getScheduleForClockEvent(schedules, { employeeId, clientId, date });
 if (!scheduled?.startTime) return { isLate: false, lateMinutes: 0, scheduledStart: null, scheduleId: scheduled?.id || null, workDate: date };
 const scheduledAt = new Date(makeISO(date, scheduled.startTime));
@@ -2592,7 +2592,7 @@ addSheet("Settings", [
 
 const months = [...new Set(data.clockEntries.filter(c => c.clockOut && c.clockIn).map(c => c.clockIn.slice(0, 7)))].sort();
 addSheet("Summary", months.map(mo => {
-const ents = data.clockEntries.filter(c => c.clockOut && c.clockIn?.startsWith(mo));
+const ents = data.clockEntries.filter(c => c.clockOut && toLocalDateKey(c.clockIn).startsWith(mo));
 const totalH = ents.reduce((sum, ce) => sum + calcPayableClockHours(ce, data.schedules, ents), 0);
 const laborCost = ents.reduce((sum, ce) => { const em = data.employees.find(x => x.id === ce.employeeId); return sum + calcPayableClockHours(ce, data.schedules, ents) * (em?.hourlyRate || 0); }, 0);
 const revenue = data.invoices.filter(inv => inv.date?.startsWith(mo)).reduce((sum, inv) => sum + (inv.total || 0), 0);
@@ -4006,7 +4006,7 @@ const [calYear, setCalYear] = useState(nowCal.getFullYear());
 const [calMonth, setCalMonth] = useState(nowCal.getMonth());
 const [calSelectedDay, setCalSelectedDay] = useState(null);
 const myClocks = data.clockEntries.filter(c => c.employeeId === auth.employeeId).sort((a, b) => new Date(b.clockIn) - new Date(a.clockIn));
-const monthClocks = myClocks.filter(c => c.clockOut && c.clockIn?.startsWith(monthFilter));
+const monthClocks = myClocks.filter(c => c.clockOut && toLocalDateKey(c.clockIn).startsWith(monthFilter));
 const monthHours = monthClocks.reduce((sum, c) => sum + calcAccountedClockHours(c, data.schedules), 0);
 const myUploads = (data.photoUploads || []).filter(u => u.employeeId === auth.employeeId).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 const myTimeOffRequests = (data.timeOffRequests || []).filter(r => r.employeeId === auth.employeeId).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
@@ -4022,7 +4022,7 @@ const hasPendingTimeOffRequest = myTimeOffRequests.some(r => r.status === "pendi
 
 const doValidateHours = async (sched) => {
 const today = getToday();
-const alreadyValidated = data.clockEntries.some(c => isSameId(c.employeeId, auth.employeeId) && isSameId(c.clientId, sched.clientId) && c.clockIn?.slice(0, 10) === today);
+const alreadyValidated = data.clockEntries.some(c => isSameId(c.employeeId, auth.employeeId) && isSameId(c.clientId, sched.clientId) && toLocalDateKey(c.clockIn) === today);
 if (alreadyValidated) { showToast(uiText("Already validated for today"), "error"); return; }
 const plannedH = calcHrs(makeISO(today, sched.startTime), makeISO(today, sched.endTime));
 const adj = adjustHours[sched.id];
@@ -4068,7 +4068,7 @@ fr.readAsDataURL(file);
 
 const todayJobsForPhotos = data.schedules.filter(sc => sc.date === getToday() && isSameId(sc.employeeId, auth.employeeId) && sc.status !== "cancelled");
 const activeClockForPhotos = myClocks.find(c => !c.clockOut);
-const todayValidatedEntries = data.clockEntries.filter(c => isSameId(c.employeeId, auth.employeeId) && c.clockIn?.slice(0, 10) === getToday() && c.clockOut);
+const todayValidatedEntries = data.clockEntries.filter(c => isSameId(c.employeeId, auth.employeeId) && toLocalDateKey(c.clockIn) === getToday() && c.clockOut);
 const photoClientId = activeClockForPhotos?.clientId || todayValidatedEntries[todayValidatedEntries.length - 1]?.clientId || todayJobsForPhotos[0]?.clientId || null;
 const photoClockEntryId = activeClockForPhotos?.id || todayValidatedEntries[todayValidatedEntries.length - 1]?.id || null;
 const canUploadPhoto = !!(photoClientId);
@@ -4368,7 +4368,7 @@ return (
                 const plannedH = calcHrs(makeISO(today, job.startTime), makeISO(today, job.endTime));
                 const plannedHours = Math.floor(plannedH);
                 const plannedMins = Math.round((plannedH - plannedHours) * 60);
-                const isValidated = data.clockEntries.some(c => isSameId(c.employeeId, auth.employeeId) && isSameId(c.clientId, job.clientId) && c.clockIn?.slice(0, 10) === today);
+                const isValidated = data.clockEntries.some(c => isSameId(c.employeeId, auth.employeeId) && isSameId(c.clientId, job.clientId) && toLocalDateKey(c.clockIn) === today);
                 const adj = adjustHours[job.id];
                 const isAdjusting = adj != null;
                 return (
@@ -4673,8 +4673,8 @@ const next7Days = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
 const todayScheds = data.schedules.filter(s => s.date === todayStr && s.status !== "cancelled");
 const tomorrowStr = new Date(Date.now() + 864e5).toISOString().slice(0, 10);
 const tomorrowScheds = data.schedules.filter(s => s.date === tomorrowStr && s.status !== "cancelled");
-const todayValidatedCount = data.clockEntries.filter(c => c.clockIn?.slice(0, 10) === todayStr && c.clockOut).length;
-const todayPendingScheds = todayScheds.filter(s => !data.clockEntries.some(c => c.employeeId === s.employeeId && c.clientId === s.clientId && c.clockIn?.slice(0, 10) === todayStr));
+const todayValidatedCount = data.clockEntries.filter(c => toLocalDateKey(c.clockIn) === todayStr && c.clockOut).length;
+const todayPendingScheds = todayScheds.filter(s => !data.clockEntries.some(c => c.employeeId === s.employeeId && c.clientId === s.clientId && toLocalDateKey(c.clockIn) === todayStr));
 const activeEmployees = data.employees.filter(e => e.status === "active").length;
 const monthStr = todayStr.slice(0, 7);
 const monthRev = data.invoices.filter(inv => inv.date?.startsWith(monthStr)).reduce((sum, inv) => sum + (inv.total || 0), 0);
@@ -4724,7 +4724,7 @@ initialVisible={4}
 items={todayScheds.map(sched => {
 const client = data.clients.find(c => c.id === sched.clientId);
 const employee = data.employees.find(e => e.id === sched.employeeId);
-const isJobValidated = data.clockEntries.some(c => c.employeeId === sched.employeeId && c.clientId === sched.clientId && c.clockIn?.slice(0, 10) === sched.date && c.clockOut);
+const isJobValidated = data.clockEntries.some(c => c.employeeId === sched.employeeId && c.clientId === sched.clientId && toLocalDateKey(c.clockIn) === sched.date && c.clockOut);
 return (
 <div key={sched.id} style={{ padding: "7px 0", borderBottom: `1px solid ${CL.bd}`, display: "flex", justifyContent: "space-between", gap: 8 }}>
 <div>
@@ -6272,7 +6272,7 @@ const setManual = (key, value) => setManualEntry(prev => ({ ...prev, [key]: valu
 
 const doManagerValidate = async (sched, customHours) => {
 const workDate = sched.date || validateDate;
-const alreadyExists = data.clockEntries.some(c => c.employeeId === sched.employeeId && c.clientId === sched.clientId && c.clockIn?.slice(0, 10) === workDate);
+const alreadyExists = data.clockEntries.some(c => c.employeeId === sched.employeeId && c.clientId === sched.clientId && toLocalDateKey(c.clockIn) === workDate);
 if (alreadyExists) { showToast(uiText("Already validated for today"), "error"); return; }
 const plannedH = calcHrs(makeISO(workDate, sched.startTime), makeISO(workDate, sched.endTime));
 const validatedH = customHours != null ? customHours : plannedH;
@@ -6393,7 +6393,7 @@ showToast(err?.message || "Unable to delete entry", "error");
 
 const filteredEntries = data.clockEntries.filter(c => {
 if (filters.empIds?.length && !filters.empIds.includes(c.employeeId)) return false;
-if (filters.month && c.clockIn && !c.clockIn.startsWith(filters.month)) return false;
+if (filters.month && !toLocalDateKey(c.clockIn).startsWith(filters.month)) return false;
 return c.clockOut;
 }).sort((a, b) => new Date(b.clockIn) - new Date(a.clockIn));
 
@@ -6423,7 +6423,7 @@ return (
       const plannedH = calcHrs(makeISO(sched.date, sched.startTime), makeISO(sched.date, sched.endTime));
       const plannedHours = Math.floor(plannedH);
       const plannedMins = Math.round((plannedH - plannedHours) * 60);
-      const isValidated = data.clockEntries.some(c => c.employeeId === sched.employeeId && c.clientId === sched.clientId && c.clockIn?.slice(0, 10) === sched.date);
+      const isValidated = data.clockEntries.some(c => c.employeeId === sched.employeeId && c.clientId === sched.clientId && toLocalDateKey(c.clockIn) === sched.date);
       const adj = adjustMap[sched.id];
       const isAdjusting = adj != null;
       return (
@@ -6553,7 +6553,7 @@ return (
 }
 
 function TimeEntryForm({ entry, data, onSave, onCancel }) {
-const clockInDate = entry.clockIn ? entry.clockIn.slice(0, 10) : getToday();
+const clockInDate = entry.clockIn ? toLocalDateKey(entry.clockIn) : getToday();
 const clockInTime = entry.clockIn ? entry.clockIn.slice(11, 16) : "08:00";
 const actualH = calcHrs(entry.clockIn, entry.clockOut);
 const editHours = Math.floor(actualH);
@@ -7459,7 +7459,7 @@ if (!prev || score > prev.score) latestBySlot.set(slotKey, { sched: s, score });
 
 const scheduleRows = [...latestBySlot.values()].map(({ sched: s }) => {
 const employee = data.employees.find(e => e.id === s.employeeId);
-const sameDayClocks = data.clockEntries.filter(c => c.clientId === s.clientId && c.employeeId === s.employeeId && c.clockIn?.slice(0, 10) === s.date && c.clockOut);
+const sameDayClocks = data.clockEntries.filter(c => c.clientId === s.clientId && c.employeeId === s.employeeId && toLocalDateKey(c.clockIn) === s.date && c.clockOut);
 const clockHours = sameDayClocks.reduce((sum, c) => sum + calcPayableClockHours(c, data.schedules, sameDayClocks), 0);
 const schedHours = calcHrs(makeISO(s.date, s.startTime || "00:00"), makeISO(s.date, s.endTime || "00:00"));
 const hours = clockHours > 0 ? clockHours : schedHours;
@@ -7475,14 +7475,14 @@ employeeName: employee?.name || "Unassigned",
 
 const existingKeys = new Set(scheduleRows.map(r => `${r.prestationDate}-${r.employeeName}`));
 const manualClockRows = data.clockEntries
-.filter(c => c.clientId === clientId && c.clockOut && inRange(c.clockIn?.slice(0, 10)))
+.filter(c => c.clientId === clientId && c.clockOut && inRange(toLocalDateKey(c.clockIn)))
 .map(c => {
 const employee = data.employees.find(e => e.id === c.employeeId);
 return {
 id: `clock-${c.id}`,
 source: "clock",
-prestationDate: c.clockIn.slice(0, 10),
-description: `Prestation ${c.clockIn.slice(0, 10)} (clock ${fmtTime(c.clockIn)}-${fmtTime(c.clockOut)})`,
+prestationDate: toLocalDateKey(c.clockIn),
+description: `Prestation ${toLocalDateKey(c.clockIn)} (clock ${fmtTime(c.clockIn)}-${fmtTime(c.clockOut)})`,
 hours: Math.round(calcPayableClockHours(c, data.schedules, data.clockEntries) * 100) / 100,
 employeeName: employee?.name || "Unassigned",
 };
@@ -8239,7 +8239,7 @@ const collectEntries = (employeeId, startDate, endDate) => (
   data.clockEntries
     .filter(entry => {
       if (entry.employeeId !== employeeId || !entry.clockOut) return false;
-      const day = entry.clockIn?.slice(0, 10);
+      const day = toLocalDateKey(entry.clockIn);
       return day && day >= startDate && day <= endDate;
     })
     .sort((a, b) => new Date(a.clockIn) - new Date(b.clockIn))
@@ -8249,7 +8249,7 @@ const buildBreakdown = (entries) => entries.map(entry => {
   const client = data.clients.find(c => c.id === entry.clientId);
   const hours = calcPayableClockHours(entry, data.schedules, entries);
   return {
-    date: entry.clockIn?.slice(0, 10) || "",
+    date: toLocalDateKey(entry.clockIn) || "",
     from: fmtTime(entry.clockIn),
     to: fmtTime(entry.clockOut),
     clockIn: entry.clockIn,
@@ -9634,7 +9634,7 @@ return (
 // ==============================================
 function ReportsPage({ data }) {
 const [month, setMonth] = useState(getToday().slice(0, 7));
-const monthEntries = data.clockEntries.filter(c => c.clockOut && c.clockIn?.startsWith(month));
+const monthEntries = data.clockEntries.filter(c => c.clockOut && toLocalDateKey(c.clockIn).startsWith(month));
 
 const empSummary = data.employees.filter(emp => emp.status === "active").map(emp => {
 const entries = monthEntries.filter(c => c.employeeId === emp.id);

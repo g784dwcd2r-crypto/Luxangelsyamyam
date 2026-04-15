@@ -2135,6 +2135,9 @@ const related = clockEntries.filter(c => isSameId(c.employeeId, sched.employeeId
 const hasActive = related.some(c => !c.clockOut);
 const hasCompleted = related.some(c => c.clockOut);
 const nextStatus = hasActive ? "in-progress" : hasCompleted ? "completed" : "scheduled";
+// Never downgrade from "completed" — the schedule was already validated;
+// clock_out may be missing in DB for older entries created before the fix.
+if (sched.status === "completed" && nextStatus !== "completed") return sched;
 return sched.status === nextStatus ? sched : { ...sched, status: nextStatus };
 });
 
@@ -4007,7 +4010,7 @@ const [calMonth, setCalMonth] = useState(nowCal.getMonth());
 const [calSelectedDay, setCalSelectedDay] = useState(null);
 const myClocks = data.clockEntries.filter(c => c.employeeId === auth.employeeId).sort((a, b) => new Date(b.clockIn) - new Date(a.clockIn));
 const monthClocks = myClocks.filter(c => c.clockOut && toLocalDateKey(c.clockIn).startsWith(monthFilter));
-const monthHours = monthClocks.reduce((sum, c) => sum + calcAccountedClockHours(c, data.schedules), 0);
+const monthHours = monthClocks.reduce((sum, c) => sum + calcPayableClockHours(c, data.schedules), 0);
 const myUploads = (data.photoUploads || []).filter(u => u.employeeId === auth.employeeId).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 const myTimeOffRequests = (data.timeOffRequests || []).filter(r => r.employeeId === auth.employeeId).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 const leaveSummary = getLeaveSummary(data, auth.employeeId);
@@ -4441,7 +4444,7 @@ return (
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
             <thead><tr><th style={thSt}>{uiText("Date")}</th><th style={thSt}>{uiText("Client")}</th><th style={thSt}>{uiText("Planned")}</th><th style={thSt}>{uiText("Hours")}</th><th style={thSt}>{uiText("Status")}</th></tr></thead>
             <tbody>
-              {monthClocks.map(clk => { const client = data.clients.find(c => c.id === clk.clientId); const actualH = calcAccountedClockHours(clk, data.schedules); const plannedH = clk.plannedHours != null ? clk.plannedHours : actualH; return (
+              {monthClocks.map(clk => { const client = data.clients.find(c => c.id === clk.clientId); const actualH = calcPayableClockHours(clk, data.schedules); const plannedH = clk.plannedHours != null ? clk.plannedHours : actualH; return (
                 <tr key={clk.id}><td style={tdSt}>{fmtDate(clk.clockIn)}</td><td style={tdSt}>{client?.name || "-"}</td><td style={tdSt}>{plannedH.toFixed(2)}h</td><td style={{ ...tdSt, fontWeight: 600 }}>{actualH.toFixed(2)}h</td><td style={tdSt}><Badge color={CL.green}>{uiText("Validated")}</Badge></td></tr>
               ); })}
               {monthClocks.length === 0 && <tr><td colSpan={5} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>{uiText("No entries")}</td></tr>}

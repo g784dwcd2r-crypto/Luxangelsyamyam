@@ -1142,9 +1142,9 @@ app.post('/api/clock-entries', async (req, res) => {
     if (absent.length) return res.status(400).json({ error: `Missing required fields: ${absent.join(', ')}` });
 
     const result = await pool.query(
-      `INSERT INTO clock_entries (id, employee_id, client_id, clock_in, notes)
-       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
-      [b.id, b.employee_id, b.client_id||null, b.clock_in, b.notes||'']
+      `INSERT INTO clock_entries (id, employee_id, client_id, clock_in, clock_out, notes)
+       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+      [b.id, b.employee_id, b.client_id||null, b.clock_in, b.clock_out||null, b.notes||'']
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -1157,9 +1157,9 @@ app.put('/api/clock-entries/:id', async (req, res) => {
   try {
     const b = req.body;
     const result = await pool.query(
-      `UPDATE clock_entries SET clock_out=$1, notes=$2
-       WHERE id=$3 RETURNING *`,
-      [b.clock_out||null, b.notes||'', req.params.id]
+      `UPDATE clock_entries SET employee_id=COALESCE($1,employee_id), client_id=$2, clock_in=COALESCE($3,clock_in), clock_out=$4, notes=$5
+       WHERE id=$6 RETURNING *`,
+      [b.employee_id||null, b.client_id||null, b.clock_in||null, b.clock_out||null, b.notes||'', req.params.id]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Clock entry not found' });
     res.json(result.rows[0]);

@@ -2328,6 +2328,7 @@ async function initDb() {
     "ALTER TABLE payslips ADD COLUMN IF NOT EXISTS period_start DATE",
     "ALTER TABLE payslips ADD COLUMN IF NOT EXISTS period_end DATE",
     "ALTER TABLE payslips ADD COLUMN IF NOT EXISTS hour_breakdown JSONB NOT NULL DEFAULT '[]'",
+    "ALTER TABLE clock_entries ADD COLUMN IF NOT EXISTS planned_hours NUMERIC(8,2)",
 
     // Legacy prospect_visits tables were created before all columns existed.
     // Ensure inserts from VisitationPage keep working on older databases.

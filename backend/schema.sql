@@ -315,6 +315,13 @@ DO $$ BEGIN
   END IF;
 END $$;
 
+-- Migration: add planned_hours column to clock_entries for persisting planned hours
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='clock_entries' AND column_name='planned_hours') THEN
+    ALTER TABLE clock_entries ADD COLUMN planned_hours NUMERIC(8,2);
+  END IF;
+END $$;
+
 -- Migration: ensure password_hash on employees is nullable so PIN reset can clear it
 DO $$ BEGIN
   ALTER TABLE employees ALTER COLUMN password_hash DROP NOT NULL;

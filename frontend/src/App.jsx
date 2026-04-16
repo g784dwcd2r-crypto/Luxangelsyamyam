@@ -1828,6 +1828,7 @@ const toApiClock = (c) => ({
   clock_in: c.clockIn,
   clock_out: c.clockOut || null,
   notes: c.notes || "",
+  planned_hours: c.plannedHours != null ? c.plannedHours : null,
 });
 
 const createClockEntryInApi = async (entry) => {
@@ -3066,6 +3067,7 @@ useEffect(() => {
     notes: c.notes || "",
     isLate: false,
     lateMinutes: 0,
+    plannedHours: c.planned_hours != null ? Number(c.planned_hours) : null,
   });
   const mapInvoice = (inv) => ({
     id: inv.id,
@@ -4444,7 +4446,7 @@ return (
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
             <thead><tr><th style={thSt}>{uiText("Date")}</th><th style={thSt}>{uiText("Client")}</th><th style={thSt}>{uiText("Planned")}</th><th style={thSt}>{uiText("Hours")}</th><th style={thSt}>{uiText("Status")}</th></tr></thead>
             <tbody>
-              {monthClocks.map(clk => { const client = data.clients.find(c => c.id === clk.clientId); const actualH = calcPayableClockHours(clk, data.schedules); const plannedH = clk.plannedHours != null ? clk.plannedHours : actualH; return (
+              {monthClocks.map(clk => { const client = data.clients.find(c => c.id === clk.clientId); const actualH = calcPayableClockHours(clk, data.schedules); const plannedH = clk.plannedHours != null ? clk.plannedHours : getPlannedHoursForClockEntry(clk, data.schedules); return (
                 <tr key={clk.id}><td style={tdSt}>{fmtDate(clk.clockIn)}</td><td style={tdSt}>{client?.name || "-"}</td><td style={tdSt}>{plannedH.toFixed(2)}h</td><td style={{ ...tdSt, fontWeight: 600 }}>{actualH.toFixed(2)}h</td><td style={tdSt}><Badge color={CL.green}>{uiText("Validated")}</Badge></td></tr>
               ); })}
               {monthClocks.length === 0 && <tr><td colSpan={5} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>{uiText("No entries")}</td></tr>}
@@ -6327,17 +6329,22 @@ return;
 }
 
 const combinations = selectedEmployeeIds.flatMap(employeeId => selectedClientIds.map(clientId => ({ employeeId, clientId })));
-const newManualEntries = combinations.map(({ employeeId, clientId }) => ({
-  id: makeId(),
-  employeeId,
-  clientId,
-  clockIn: clockInISO,
-  clockOut: clockOutISO,
-  notes: manualEntry.notes.trim(),
-  isLate: false,
-  lateMinutes: 0,
-  validatedByManager: true,
-}));
+const newManualEntries = combinations.map(({ employeeId, clientId }) => {
+  const matchingSchedule = (data.schedules || []).find(s => s.employeeId === employeeId && s.clientId === clientId && s.date === manualEntry.clockInDate && s.status !== "cancelled");
+  const plannedHours = matchingSchedule ? calcHrs(makeISO(manualEntry.clockInDate, matchingSchedule.startTime), makeISO(manualEntry.clockInDate, matchingSchedule.endTime)) : (clockOutISO ? calcHrs(clockInISO, clockOutISO) : null);
+  return {
+    id: makeId(),
+    employeeId,
+    clientId,
+    clockIn: clockInISO,
+    clockOut: clockOutISO,
+    notes: manualEntry.notes.trim(),
+    isLate: false,
+    lateMinutes: 0,
+    validatedByManager: true,
+    plannedHours,
+  };
+});
 
 try {
 await Promise.all(newManualEntries.map(createClockEntryInApi));
@@ -6522,7 +6529,7 @@ return (
           const employee = data.employees.find(e => e.id === entry.employeeId);
           const client = data.clients.find(c => c.id === entry.clientId);
           const hours = calcPayableClockHours(entry, data.schedules, filteredEntries);
-          const plannedH = entry.plannedHours != null ? entry.plannedHours : hours;
+          const plannedH = entry.plannedHours != null ? entry.plannedHours : getPlannedHoursForClockEntry(entry, data.schedules);
           return (
             <tr key={entry.id}>
               <td style={tdSt}>{fmtDate(entry.clockIn)}</td>

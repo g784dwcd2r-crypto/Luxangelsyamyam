@@ -1503,26 +1503,16 @@ app.put('/api/settings', async (req, res) => {
     const entries = Object.entries(updates).filter(([, value]) => value !== undefined);
     if (!entries.length) return res.json({ success: true });
 
-    // Clean slate: delete all existing settings, then insert only the new values
-    const client = await pool.connect();
-    try {
-      await client.query('BEGIN');
-      await client.query('DELETE FROM settings');
-      await Promise.all(
-        entries.map(([key, value]) =>
-          client.query(
-            'INSERT INTO settings (key, value) VALUES ($1, $2)',
-            [key, serializeSettingValue(value)]
-          )
+    // Upsert only the provided keys so partial updates (e.g. resetting just the
+    // owner PIN) don't wipe unrelated settings like managerPin/ownerUsername/SMTP.
+    await Promise.all(
+      entries.map(([key, value]) =>
+        pool.query(
+          'INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value',
+          [key, serializeSettingValue(value)]
         )
-      );
-      await client.query('COMMIT');
-    } catch (txErr) {
-      await client.query('ROLLBACK');
-      throw txErr;
-    } finally {
-      client.release();
-    }
+      )
+    );
     res.json({ success: true });
   } catch (err) {
     console.error(err);

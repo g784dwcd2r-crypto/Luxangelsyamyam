@@ -3662,10 +3662,13 @@ const [forgotEmail, setForgotEmail] = useState("");
 
 const REQUEST_TIMEOUT_MS = 8000;
 const WARMUP_TIMEOUT_MS = 10000;
+// Render's free tier can take 30–50s to wake a sleeping backend. Use a longer
+// timeout for the login POST itself so a cold server gets a chance to respond.
+const LOGIN_REQUEST_TIMEOUT_MS = 45000;
 
-const tryFetch = async (baseUrl, path, opts) => {
+const tryFetch = async (baseUrl, path, opts, timeoutMs = REQUEST_TIMEOUT_MS) => {
   const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const id = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const res = await fetch(apiUrl(path, baseUrl), { ...opts, signal: controller.signal });
     clearTimeout(id);
@@ -3685,11 +3688,14 @@ const tryWarmup = async (baseUrl) => {
   } catch { clearTimeout(id); return false; }
 };
 
+// Return a reachable base if warmup succeeds, otherwise fall back to the first
+// candidate so callers can still attempt the real request (which may itself
+// wake a sleeping server using its own longer timeout).
 const getWarmBase = async () => {
   for (const base of API_BASE_CANDIDATES) {
     if (await tryWarmup(base)) return base;
   }
-  return null;
+  return API_BASE_CANDIDATES[0] || null;
 };
 
 // Fetch the list of agents for the picker
@@ -3722,7 +3728,7 @@ const loginWithServer = async ({ user, pass, roleHints }) => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...payload, pin: pass }),
-    });
+    }, LOGIN_REQUEST_TIMEOUT_MS);
     if (!res) continue;
     reachedServer = true;
     if (!res.ok) continue;

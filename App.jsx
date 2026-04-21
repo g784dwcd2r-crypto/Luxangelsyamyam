@@ -342,8 +342,8 @@ return (
   {/* Desktop Sidebar */}
   <div className="no-print desk-sidebar" style={{ width: sideOpen ? 215 : 54, background: CL.sf, borderRight: `1px solid ${CL.bd}`, flexDirection: "column", transition: "width .2s", overflow: "hidden", flexShrink: 0 }}>
     <div style={{ padding: sideOpen ? "16px 12px" : "16px 8px", borderBottom: `1px solid ${CL.bd}`, display: "flex", alignItems: "center", gap: 9, cursor: "pointer" }} onClick={() => setSideOpen(!sideOpen)}>
-      <div style={{ width: 30, height: 30, borderRadius: 8, background: `linear-gradient(135deg, ${CL.gold}, ${CL.goldDark})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: CL.bg, flexShrink: 0 }}>LA</div>
-      {sideOpen && <div><div style={{ fontSize: 13, fontWeight: 700, color: CL.gold, fontFamily: "var(--hd)", whiteSpace: "nowrap" }}>Lux Angels</div><div style={{ fontSize: 10, color: CL.muted }}>Owner Portal</div></div>}
+      <div style={{ width: 30, height: 30, borderRadius: 8, background: `linear-gradient(135deg, ${CL.gold}, ${CL.goldDark})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: CL.bg, flexShrink: 0 }}>LAC</div>
+      {sideOpen && <div><div style={{ fontSize: 13, fontWeight: 700, color: CL.gold, fontFamily: "var(--hd)", whiteSpace: "nowrap" }}>Lux Angels Cleaning</div><div style={{ fontSize: 10, color: CL.muted }}>Owner Portal</div></div>}
     </div>
     <nav style={{ flex: 1, padding: "6px 4px", overflowY: "auto" }}>
       {navItems.map(nav => (
@@ -408,7 +408,7 @@ return (
 <div style={{ minHeight: “100vh”, background: CL.bg, display: “flex”, alignItems: “center”, justifyContent: “center”, fontFamily: “‘Outfit’, sans-serif” }}>
 <style>{globalCSS}</style>
 <div style={{ animation: “fadeIn .5s ease”, textAlign: “center”, width: 380, padding: “0 16px” }}>
-<div style={{ width: 80, height: 80, borderRadius: 24, background: `linear-gradient(135deg, ${CL.gold}, ${CL.goldDark})`, display: “flex”, alignItems: “center”, justifyContent: “center”, margin: “0 auto 16px”, fontSize: 32, fontWeight: 700, color: CL.bg, fontFamily: “‘Cormorant Garamond’, serif” }}>LA</div>
+<div style={{ width: 80, height: 80, borderRadius: 24, background: `linear-gradient(135deg, ${CL.gold}, ${CL.goldDark})`, display: “flex”, alignItems: “center”, justifyContent: “center”, margin: “0 auto 16px”, fontSize: 32, fontWeight: 700, color: CL.bg, fontFamily: “‘Cormorant Garamond’, serif” }}>LAC</div>
 <h1 style={{ fontSize: 30, fontWeight: 700, color: CL.gold, fontFamily: “‘Cormorant Garamond’, serif”, marginBottom: 4 }}>Lux Angels Cleaning</h1>
 <p style={{ color: CL.muted, marginBottom: 30 }}>Management System</p>
 
@@ -722,7 +722,7 @@ const [search, setSearch] = useState(””);
 const emptyEmployee = {
 name: “”, email: “”, phone: “”, phoneMobile: “”, address: “”, city: “Luxembourg”, postalCode: “”, country: “Luxembourg”,
 role: “Cleaner”, hourlyRate: 15, startDate: getToday(), status: “active”, notes: “”, bankIban: “”, socialSecNumber: “”,
-pin: “0000”, dateOfBirth: “”, nationality: “”, contractType: “CDI”, workPermit: “”, emergencyName: “”, emergencyPhone: “”,
+pin: “0000”, dateOfBirth: “”, nationality: “”, contractType: “CDI”, contractEndDate: “”, workPermit: “”, emergencyName: “”, emergencyPhone: “”,
 languages: “”, transport: “”,
 };
 
@@ -870,6 +870,9 @@ return (
         </SelectInput>
       </Field>
       <Field label="Start Date"><TextInput type="date" value={form.startDate} onChange={ev => set("startDate", ev.target.value)} /></Field>
+      {form.contractType === "CDD" && (
+        <Field label="End Date"><TextInput type="date" value={form.contractEndDate || ""} onChange={ev => set("contractEndDate", ev.target.value)} /></Field>
+      )}
       <Field label="Work Permit #"><TextInput value={form.workPermit || ""} onChange={ev => set("workPermit", ev.target.value)} placeholder="If applicable" /></Field>
       <Field label="Bank IBAN"><TextInput value={form.bankIban || ""} onChange={ev => set("bankIban", ev.target.value)} placeholder="LU..." /></Field>
       <Field label="Status">
@@ -1579,13 +1582,29 @@ const clockOutDate = entry.clockOut ? entry.clockOut.slice(0, 10) : clockInDate;
 const clockOutTime = entry.clockOut ? entry.clockOut.slice(11, 16) : “17:00”;
 
 const [form, setForm] = useState({ …entry, clockInDate, clockInTime, clockOutDate, clockOutTime });
-const set = (key, value) => setForm(prev => ({ …prev, [key]: value }));
+const [error, setError] = useState(“”);
+const set = (key, value) => {
+setError(“”);
+setForm(prev => ({ …prev, [key]: value }));
+};
 
 const handleSave = () => {
+if (!form.clockInDate || !form.clockInTime || !form.clockOutDate || !form.clockOutTime) {
+setError(“In/Out date and time are required.”);
+return;
+}
+
+const clockIn = makeISO(form.clockInDate, form.clockInTime);
+const clockOut = makeISO(form.clockOutDate, form.clockOutTime);
+if (new Date(clockOut) < new Date(clockIn)) {
+setError(“Out time must be after in time.”);
+return;
+}
+
 const updated = {
 …form,
-clockIn: makeISO(form.clockInDate, form.clockInTime),
-clockOut: form.clockOutDate && form.clockOutTime ? makeISO(form.clockOutDate, form.clockOutTime) : null,
+clockIn,
+clockOut,
 };
 delete updated.clockInDate;
 delete updated.clockInTime;
@@ -1607,11 +1626,12 @@ return (
 {data.clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
 </SelectInput>
 </Field>
-<Field label="In Date"><TextInput type=“date” value={form.clockInDate} onChange={ev => set(“clockInDate”, ev.target.value)} /></Field>
-<Field label="In Time"><TextInput type=“time” value={form.clockInTime} onChange={ev => set(“clockInTime”, ev.target.value)} /></Field>
-<Field label="Out Date"><TextInput type=“date” value={form.clockOutDate} onChange={ev => set(“clockOutDate”, ev.target.value)} /></Field>
-<Field label="Out Time"><TextInput type=“time” value={form.clockOutTime} onChange={ev => set(“clockOutTime”, ev.target.value)} /></Field>
+<Field label="In Date"><TextInput type=“date” value={form.clockInDate} required onChange={ev => set(“clockInDate”, ev.target.value)} /></Field>
+<Field label="In Time"><TextInput type=“time” value={form.clockInTime} required onChange={ev => set(“clockInTime”, ev.target.value)} /></Field>
+<Field label="Out Date"><TextInput type=“date” value={form.clockOutDate} required onChange={ev => set(“clockOutDate”, ev.target.value)} /></Field>
+<Field label="Out Time"><TextInput type=“time” value={form.clockOutTime} required onChange={ev => set(“clockOutTime”, ev.target.value)} /></Field>
 </div>
+{error && <p style={{ color: CL.red, fontSize: 12, margin: "6px 0 0" }}>{error}</p>}
 <div style={{ display: “flex”, gap: 10, justifyContent: “flex-end”, marginTop: 6 }}>
 <button style={btnSec} onClick={onCancel}>Cancel</button>
 <button style={btnPri} onClick={handleSave}>Save</button>

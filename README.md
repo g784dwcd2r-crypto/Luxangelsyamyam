@@ -47,8 +47,9 @@ Luxangelsyamyam/
 
 | Role   | Default PIN |
 |--------|-------------|
-| Owner  | `1234`      |
-| Cleaner| `0000`      |
+| Owner  | `LuxAngels@2025` |
+| Manager| `Manager@2025` |
+| Cleaner| `0000` |
 
 These can be changed from the Settings page (owner) or by the owner via the employee PIN management screen.
 
@@ -64,6 +65,22 @@ These can be changed from the Settings page (owner) or by the owner via the empl
 2. Run the schema (creates all tables + seeds default settings):
    ```bash
    psql -d luxangels -f backend/schema.sql
+   ```
+
+3. (Optional) Verify DB/API connectivity:
+   ```bash
+   curl http://localhost:5000/api/health/db
+   ```
+
+4. To fully reset database schema + users (owner/manager credentials), run:
+   ```bash
+   cd backend
+   npm run reset:db
+   ```
+
+   You can override credentials at runtime:
+   ```bash
+   RESET_OWNER_PIN=9999 RESET_MANAGER_USERNAME=owner RESET_MANAGER_PIN=1111 npm run reset:db
    ```
 
 ---
@@ -100,6 +117,16 @@ npm run dev
 |----------------|--------------------------------------------------|----------------------------------------------------|
 | `DATABASE_URL` | PostgreSQL connection string (**required**)      | `postgresql://user:password@localhost:5432/luxangels` |
 | `PORT`         | Port the API server listens on                   | `5000`                                             |
+| `EMAIL_PROVIDER` | Email provider (`zeptomail` or `resend`)      | _(auto-detect from keys)_                          |
+| `ZEPTO_API_TOKEN`| Zoho ZeptoMail API token (if using ZeptoMail)  | _(empty)_                                          |
+| `ZEPTO_API_URL`  | ZeptoMail API URL                               | `https://api.zeptomail.eu/v1.1/email`              |
+| `ZEPTO_FROM_ADDRESS` | Default sender email for ZeptoMail         | _(empty)_                                          |
+| `RESEND_API_KEY` | Resend API key (if using Resend)               | _(empty)_                                          |
+| `RESEND_FROM`    | Default sender email for Resend                | _(empty)_                                          |
+| `TWILIO_ACCOUNT_SID` | Twilio account SID (for SMS/WhatsApp)      | _(empty)_                                          |
+| `TWILIO_AUTH_TOKEN`  | Twilio auth token (for SMS/WhatsApp)       | _(empty)_                                          |
+| `TWILIO_FROM_NUMBER` | Twilio SMS sender number                    | _(empty)_                                          |
+| `TWILIO_WHATSAPP_FROM` | Twilio WhatsApp sender (e.g. `whatsapp:+14155238886`) | _(empty)_                              |
 
 ### `frontend/.env`
 
@@ -113,7 +140,12 @@ npm run dev
 
 | Method | Path                        | Description                  |
 |--------|-----------------------------|------------------------------|
-| POST   | `/api/auth/pin-login`       | PIN login (owner or cleaner) |
+| GET    | `/api/health/db`            | DB connectivity health check  |
+| POST   | `/api/auth/pin-login`       | Login (owner/manager PIN, employee email+password) |
+| POST   | `/api/auth/register-employee` | Employee sign-up via email/password (sends verification email) |
+| POST   | `/api/auth/verify-email`     | Verify employee email token |
+| GET    | `/api/account-requests`      | Owner list of signup requests |
+| PATCH  | `/api/account-requests/:id/decision` | Owner approve/reject a request |
 | GET    | `/api/employees`            | List all employees           |
 | POST   | `/api/employees`            | Create employee              |
 | PUT    | `/api/employees/:id`        | Update employee              |
@@ -139,3 +171,5 @@ npm run dev
 | PUT    | `/api/payslips/:id`         | Update payslip               |
 | GET    | `/api/settings`             | Get all settings             |
 | PUT    | `/api/settings`             | Bulk update settings         |
+| POST   | `/api/notifications/email`  | Send email directly from platform via configured provider |
+| POST   | `/api/notifications/whatsapp` | Send WhatsApp notification via Twilio WhatsApp Business |

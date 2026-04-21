@@ -1106,6 +1106,12 @@ if (clockOutAt <= payableStartAt) return 0;
 return calcHrs(payableStartAt.toISOString(), clockOutAt.toISOString());
 };
 const makeISO = (d, t) => `${d}T${t}:00`;
+const toLocalNaiveISO = (value) => {
+const d = value instanceof Date ? value : new Date(value);
+if (Number.isNaN(d.getTime())) return "";
+const pad = (n) => String(n).padStart(2, "0");
+return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+};
 const mapsUrl = (address = "") => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
 const normalizeCity = (value = "") => String(value || "").trim().toLowerCase();
 
@@ -4041,7 +4047,7 @@ const validatedH = adj != null ? (Number(adj.hours || 0) + Number(adj.minutes ||
 const validatedMinutes = Math.round(validatedH * 60);
 const clockIn = makeISO(today, sched.startTime);
 const clockOutDate = new Date(new Date(clockIn).getTime() + validatedMinutes * 60000);
-const clockOut = clockOutDate.toISOString();
+const clockOut = toLocalNaiveISO(clockOutDate);
 const newEntry = {
 id: makeId(), employeeId: auth.employeeId, clientId: sched.clientId,
 clockIn, clockOut,
@@ -6290,7 +6296,7 @@ const validatedH = customHours != null ? customHours : plannedH;
 const validatedMinutes = Math.round(validatedH * 60);
 const clockIn = makeISO(workDate, sched.startTime);
 const clockOutDate = new Date(new Date(clockIn).getTime() + validatedMinutes * 60000);
-const clockOut = clockOutDate.toISOString();
+const clockOut = toLocalNaiveISO(clockOutDate);
 const newEntry = {
 id: makeId(), employeeId: sched.employeeId, clientId: sched.clientId,
 clockIn, clockOut,
@@ -6585,7 +6591,7 @@ const clockOutDate = new Date(new Date(clockIn).getTime() + totalMinutes * 60000
 const updated = {
 ...form,
 clockIn,
-clockOut: clockOutDate.toISOString(),
+clockOut: toLocalNaiveISO(clockOutDate),
 };
 delete updated.clockInDate;
 delete updated.clockInTime;

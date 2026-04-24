@@ -479,6 +479,7 @@ const UI_FR = {
 "Validate Hours": "Valider les heures",
 "Validate": "Valider",
 "Validated": "Validé",
+"Missing clock-out": "Sortie manquante",
 "Planned hours": "Heures planifiées",
 "Adjust hours if needed:": "Ajuster les heures si nécessaire :",
 "h": "h",
@@ -1064,6 +1065,14 @@ const time = fmtTime(d);
 return [date, time].filter(Boolean).join(" ");
 };
 const calcHrs = (a, b) => (a && b) ? Math.max(0, Math.round((new Date(b) - new Date(a)) / 36e5 * 100) / 100) : 0;
+const fmtHrs = (h) => {
+const hours = Number(h);
+if (!isFinite(hours) || hours <= 0) return "0h";
+const totalMinutes = Math.round(hours * 60);
+const hh = Math.floor(totalMinutes / 60);
+const mm = totalMinutes % 60;
+return mm === 0 ? `${hh}h` : `${hh}h${String(mm).padStart(2, "0")}`;
+};
 const getPlannedHoursForClockEntry = (entry, schedules = []) => {
 if (!entry?.clockIn || !entry?.employeeId || !entry?.clientId) return 0;
 const workDate = toLocalDateKey(entry.clockIn);
@@ -4023,7 +4032,7 @@ const [calYear, setCalYear] = useState(nowCal.getFullYear());
 const [calMonth, setCalMonth] = useState(nowCal.getMonth());
 const [calSelectedDay, setCalSelectedDay] = useState(null);
 const myClocks = data.clockEntries.filter(c => c.employeeId === auth.employeeId).sort((a, b) => new Date(b.clockIn) - new Date(a.clockIn));
-const monthClocks = myClocks.filter(c => c.clockOut && toLocalDateKey(c.clockIn).startsWith(monthFilter));
+const monthClocks = myClocks.filter(c => toLocalDateKey(c.clockIn).startsWith(monthFilter));
 const monthHours = monthClocks.reduce((sum, c) => sum + calcPayableClockHours(c, data.schedules), 0);
 const myUploads = (data.photoUploads || []).filter(u => u.employeeId === auth.employeeId).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 const myTimeOffRequests = (data.timeOffRequests || []).filter(r => r.employeeId === auth.employeeId).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
@@ -4451,15 +4460,15 @@ return (
           <TextInput type="month" value={monthFilter} onChange={ev => setMonthFilter(ev.target.value)} style={{ width: 160 }} />
         </div>
         <div className="stat-row" style={{ marginBottom: 18 }}>
-          <StatCard label={uiText("Hours")} value={`${monthHours.toFixed(1)}h`} icon={ICN.clock} color={CL.blue} />
+          <StatCard label={uiText("Hours")} value={fmtHrs(monthHours)} icon={ICN.clock} color={CL.blue} />
           <StatCard label={uiText("Days")} value={monthClocks.length} icon={ICN.cal} color={CL.green} />
         </div>
         <div style={cardSt} className="tbl-wrap">
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
             <thead><tr><th style={thSt}>{uiText("Date")}</th><th style={thSt}>{uiText("Client")}</th><th style={thSt}>{uiText("Planned")}</th><th style={thSt}>{uiText("Hours")}</th><th style={thSt}>{uiText("Status")}</th></tr></thead>
             <tbody>
-              {monthClocks.map(clk => { const client = data.clients.find(c => c.id === clk.clientId); const actualH = calcPayableClockHours(clk, data.schedules); const plannedH = clk.plannedHours != null ? clk.plannedHours : getPlannedHoursForClockEntry(clk, data.schedules); return (
-                <tr key={clk.id}><td style={tdSt}>{fmtDate(clk.clockIn)}</td><td style={tdSt}>{client?.name || "-"}</td><td style={tdSt}>{plannedH.toFixed(2)}h</td><td style={{ ...tdSt, fontWeight: 600 }}>{actualH.toFixed(2)}h</td><td style={tdSt}><Badge color={CL.green}>{uiText("Validated")}</Badge></td></tr>
+              {monthClocks.map(clk => { const client = data.clients.find(c => c.id === clk.clientId); const hasOut = !!clk.clockOut; const actualH = hasOut ? calcPayableClockHours(clk, data.schedules) : 0; const plannedH = clk.plannedHours != null ? clk.plannedHours : getPlannedHoursForClockEntry(clk, data.schedules); return (
+                <tr key={clk.id}><td style={tdSt}>{fmtDate(clk.clockIn)}</td><td style={tdSt}>{client?.name || "-"}</td><td style={tdSt}>{fmtHrs(plannedH)}</td><td style={{ ...tdSt, fontWeight: 600 }}>{hasOut ? fmtHrs(actualH) : "—"}</td><td style={tdSt}>{hasOut ? <Badge color={CL.green}>{uiText("Validated")}</Badge> : <Badge color={CL.orange}>{uiText("Missing clock-out")}</Badge>}</td></tr>
               ); })}
               {monthClocks.length === 0 && <tr><td colSpan={5} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>{uiText("No entries")}</td></tr>}
             </tbody>
@@ -4784,7 +4793,7 @@ return (
 <div key={sched.id} style={{ padding: "7px 0", borderBottom: `1px solid ${CL.bd}` }}>
 <div style={{ fontWeight: 600, fontSize: 13 }}>{employee?.name || "?"}</div>
 <div style={{ fontSize: 11, color: CL.muted }}>{client?.name || "?"} · {sched.startTime}-{sched.endTime}</div>
-<div style={{ fontSize: 11, color: CL.orange }}>{plannedH.toFixed(1)}h {uiText("planned")}</div>
+<div style={{ fontSize: 11, color: CL.orange }}>{fmtHrs(plannedH)} {uiText("planned")}</div>
 </div>
 );
 })}
@@ -6416,7 +6425,7 @@ showToast(err?.message || "Unable to delete entry", "error");
 const filteredEntries = data.clockEntries.filter(c => {
 if (filters.empIds?.length && !filters.empIds.includes(c.employeeId)) return false;
 if (filters.month && !toLocalDateKey(c.clockIn).startsWith(filters.month)) return false;
-return c.clockOut;
+return true;
 }).sort((a, b) => new Date(b.clockIn) - new Date(a.clockIn));
 
 const activeEmployeeOptions = data.employees.filter(emp => emp.status === "active").map(emp => ({ value: emp.id, label: emp.name }));
@@ -6540,15 +6549,16 @@ return (
         {filteredEntries.map(entry => {
           const employee = data.employees.find(e => e.id === entry.employeeId);
           const client = data.clients.find(c => c.id === entry.clientId);
-          const hours = calcPayableClockHours(entry, data.schedules, filteredEntries);
+          const hasOut = !!entry.clockOut;
+          const hours = hasOut ? calcPayableClockHours(entry, data.schedules, filteredEntries) : 0;
           const plannedH = entry.plannedHours != null ? entry.plannedHours : getPlannedHoursForClockEntry(entry, data.schedules);
           return (
             <tr key={entry.id}>
               <td style={tdSt}>{fmtDate(entry.clockIn)}</td>
               <td style={tdSt}>{employee?.name || "-"}</td>
               <td style={tdSt}>{client?.name || "-"}</td>
-              <td style={tdSt}>{plannedH.toFixed(2)}h</td>
-              <td style={{ ...tdSt, fontWeight: 600 }}>{hours.toFixed(2)}h</td>
+              <td style={tdSt}>{fmtHrs(plannedH)}</td>
+              <td style={{ ...tdSt, fontWeight: 600, color: hasOut ? CL.text : CL.orange }}>{hasOut ? fmtHrs(hours) : uiText("Missing clock-out")}</td>
               <td style={tdSt}>{entry.notes || "-"}</td>
               <td style={tdSt}>
                 <div style={{ display: "flex", gap: 4 }}>
@@ -8055,7 +8065,7 @@ return (
       {prestations.map(p => (
         <button key={p.id} style={{ ...btnSec, width: "100%", display: "flex", justifyContent: "space-between", padding: "10px 14px", textAlign: "left" }} onClick={() => addPrestation(p)}>
           <span>{fmtDate(p.prestationDate)} · {p.employeeName} · {p.description}</span>
-          <span style={{ color: CL.gold, fontWeight: 600, flexShrink: 0, marginLeft: 8 }}>{p.hours ? `${p.hours.toFixed(2)}h` : ""}</span>
+          <span style={{ color: CL.gold, fontWeight: 600, flexShrink: 0, marginLeft: 8 }}>{p.hours ? fmtHrs(p.hours) : ""}</span>
         </button>
       ))}
       {prestations.length === 0 && <div style={{ fontSize: 12, color: CL.dim, padding: "6px 2px" }}>{uiText("No services found for this period.")}</div>}
@@ -8299,13 +8309,13 @@ const downloadPayslipFile = (ps) => {
     `Employee: ${employee?.name || "Unknown"}`,
     `Period: ${periodLabel}`,
     "",
-    `Total Hours: ${ps.totalHours}h`,
+    `Total Hours: ${fmtHrs(ps.totalHours)}`,
     `Hourly Rate: €${(ps.hourlyRate || 0).toFixed(2)}`,
     `Gross Pay: €${(ps.grossPay || 0).toFixed(2)}`,
     "",
     "Detailed Hours Audit",
     "Date | From | To | Client | Hours",
-    ...auditLines.map(item => `${item.date} | ${item.from} | ${item.to} | ${item.clientName} | ${item.hours}h`)
+    ...auditLines.map(item => `${item.date} | ${item.from} | ${item.to} | ${item.clientName} | ${fmtHrs(item.hours)}`)
   ];
   const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
   const link = document.createElement("a");
@@ -8453,7 +8463,7 @@ return (
 <td style={tdSt}><strong>{ps.payslipNumber}</strong></td>
 <td style={tdSt}>{employee?.name || "-"}</td>
 <td style={tdSt}>{ps.periodStart && ps.periodEnd ? `${ps.periodStart} → ${ps.periodEnd}` : ps.month}</td>
-<td style={tdSt}>{ps.totalHours}h</td>
+<td style={tdSt}>{fmtHrs(ps.totalHours)}</td>
 <td style={{ ...tdSt, fontWeight: 600 }}>€{ps.grossPay?.toFixed(2)}</td>
 <td style={tdSt}><Badge color={ps.status === "paid" ? CL.green : CL.muted}>{ps.status}</Badge></td>
 <td style={tdSt}>
@@ -8501,7 +8511,7 @@ return (
             </div>
             <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 18 }}>
               <tbody>
-                <tr style={{ borderBottom: "1px solid #eee" }}><td style={{ padding: "7px 0", color: "#666", fontSize: 13 }}>Heures travaillées</td><td style={{ padding: "7px 0", textAlign: "right", fontWeight: 600 }}>{preview.totalHours}h</td></tr>
+                <tr style={{ borderBottom: "1px solid #eee" }}><td style={{ padding: "7px 0", color: "#666", fontSize: 13 }}>Heures travaillées</td><td style={{ padding: "7px 0", textAlign: "right", fontWeight: 600 }}>{fmtHrs(preview.totalHours)}</td></tr>
                 <tr style={{ borderBottom: "1px solid #eee" }}><td style={{ padding: "7px 0", color: "#666", fontSize: 13 }}>Taux horaire</td><td style={{ padding: "7px 0", textAlign: "right" }}>€{preview.hourlyRate?.toFixed(2)}/h</td></tr>
                 <tr style={{ borderBottom: "2px solid #C9A84C" }}><td style={{ padding: "7px 0", fontWeight: 600, fontSize: 13 }}>Salaire brut</td><td style={{ padding: "7px 0", textAlign: "right", fontWeight: 600 }}>€{preview.grossPay?.toFixed(2)}</td></tr>
                 <tr><td style={{ padding: "10px 0", fontSize: 18, fontWeight: 700, color: "#C9A84C", fontFamily: "'Cormorant Garamond', serif" }}>TOTAL BRUT</td><td style={{ padding: "10px 0", textAlign: "right", fontSize: 18, fontWeight: 700, color: "#C9A84C" }}>€{preview.grossPay?.toFixed(2)}</td></tr>
@@ -9688,7 +9698,7 @@ return (
 </div>
 </div>
 <div className="stat-row" style={{ marginBottom: 22 }}>
-<StatCard label={uiText("Hours")} value={`${totalHours.toFixed(1)}h`} icon={ICN.clock} color={CL.blue} />
+<StatCard label={uiText("Hours")} value={fmtHrs(totalHours)} icon={ICN.clock} color={CL.blue} />
 <StatCard label={uiText("Revenue")} value={`€${totalRevenue.toFixed(2)}`} icon={ICN.chart} color={CL.green} />
 <StatCard label={uiText("Labour")} value={`€${totalCost.toFixed(2)}`} icon={ICN.team} color={CL.red} />
 <StatCard label={uiText("Profit")} value={`€${profit.toFixed(2)}`} icon={ICN.check} color={profit >= 0 ? CL.green : CL.red} />
@@ -9703,9 +9713,9 @@ return (
 <tbody>
 {empSummary.length === 0
   ? <tr><td colSpan={4} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>No clock entries for this month</td></tr>
-  : empSummary.sort((a, b) => b.totalH - a.totalH).map(emp => <tr key={emp.id}><td style={tdSt}>{emp.name}</td><td style={tdSt}>{emp.totalH}h</td><td style={tdSt}>€{Number(emp.hourlyRate).toFixed(2)}/hr</td><td style={{ ...tdSt, fontWeight: 600 }}>€{emp.cost.toFixed(2)}</td></tr>)
+  : empSummary.sort((a, b) => b.totalH - a.totalH).map(emp => <tr key={emp.id}><td style={tdSt}>{emp.name}</td><td style={tdSt}>{fmtHrs(emp.totalH)}</td><td style={tdSt}>€{Number(emp.hourlyRate).toFixed(2)}/hr</td><td style={{ ...tdSt, fontWeight: 600 }}>€{emp.cost.toFixed(2)}</td></tr>)
 }
-{empSummary.length > 0 && <tr><td style={{ ...tdSt, fontWeight: 700, color: CL.gold }}>Total</td><td style={{ ...tdSt, fontWeight: 700 }}>{totalHours.toFixed(2)}h</td><td style={tdSt}></td><td style={{ ...tdSt, fontWeight: 700, color: CL.red }}>€{totalCost.toFixed(2)}</td></tr>}
+{empSummary.length > 0 && <tr><td style={{ ...tdSt, fontWeight: 700, color: CL.gold }}>Total</td><td style={{ ...tdSt, fontWeight: 700 }}>{fmtHrs(totalHours)}</td><td style={tdSt}></td><td style={{ ...tdSt, fontWeight: 700, color: CL.red }}>€{totalCost.toFixed(2)}</td></tr>}
 </tbody>
 </table>
 </div>
@@ -9718,7 +9728,7 @@ return (
 <tbody>
 {clientSummary.length === 0
   ? <tr><td colSpan={4} style={{ ...tdSt, textAlign: "center", color: CL.muted }}>No activity for this month</td></tr>
-  : clientSummary.sort((a, b) => b.revenue - a.revenue).map(cl => <tr key={cl.id}><td style={tdSt}>{cl.name}</td><td style={tdSt}>{cl.totalH}h</td><td style={tdSt}>€{cl.revenue.toFixed(2)}</td><td style={{ ...tdSt, color: cl.invoiced >= cl.revenue ? CL.green : CL.orange, fontWeight: 600 }}>€{cl.invoiced.toFixed(2)}</td></tr>)
+  : clientSummary.sort((a, b) => b.revenue - a.revenue).map(cl => <tr key={cl.id}><td style={tdSt}>{cl.name}</td><td style={tdSt}>{fmtHrs(cl.totalH)}</td><td style={tdSt}>€{cl.revenue.toFixed(2)}</td><td style={{ ...tdSt, color: cl.invoiced >= cl.revenue ? CL.green : CL.orange, fontWeight: 600 }}>€{cl.invoiced.toFixed(2)}</td></tr>)
 }
 {clientSummary.length > 0 && <tr><td style={{ ...tdSt, fontWeight: 700, color: CL.gold }}>Total</td><td style={tdSt}></td><td style={{ ...tdSt, fontWeight: 700, color: CL.green }}>€{totalRevenue.toFixed(2)}</td><td style={{ ...tdSt, fontWeight: 700 }}>€{clientSummary.reduce((s, c) => s + c.invoiced, 0).toFixed(2)}</td></tr>}
 </tbody>
